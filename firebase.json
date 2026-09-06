@@ -1,0 +1,42 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "burnfit-v01",
+          "appId": "1:776063753690:android:2cdd7fa4a0f46bc592b4e3",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "burnfit-v01",
+          "appId": "1:776063753690:ios:dd7e5302c4abd2f292b4e3",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "burnfit-v01",
+          "configurations": {
+            "android": "1:776063753690:android:2cdd7fa4a0f46bc592b4e3",
+            "ios": "1:776063753690:ios:dd7e5302c4abd2f292b4e3",
+            "web": "1:776063753690:web:b70c2ecce181739092b4e3"
+          }
+        }
+      }
+    }
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22"
+  }
+}

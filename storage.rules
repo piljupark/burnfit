@@ -1,0 +1,71 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return firestore.get(/databases/(default)/documents/users/$(uid));
+    }
+
+    function currentUser() {
+      return userDoc(request.auth.uid).data;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function sameCenter(centerId) {
+      return signedIn() && currentUser().centerId == centerId;
+    }
+
+    function isCenterAdmin(centerId) {
+      return signedIn() &&
+        currentUser().role == 'admin' &&
+        sameCenter(centerId);
+    }
+
+    function isAssignedTrainer(memberId) {
+      return signedIn() &&
+        currentUser().role == 'trainer' &&
+        userDoc(memberId).data.trainerId == request.auth.uid &&
+        userDoc(memberId).data.centerId == currentUser().centerId;
+    }
+
+    function sharesMeal(memberId) {
+      return isAssignedTrainer(memberId) &&
+        (
+          !('shareSettings' in userDoc(memberId).data) ||
+          !('meal' in userDoc(memberId).data.shareSettings) ||
+          userDoc(memberId).data.shareSettings.meal == true
+        );
+    }
+
+    function isImageUpload() {
+      return request.resource != null &&
+        request.resource.size <= 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    match /{centerId}/meals/{memberId}/{fileName} {
+      allow read: if isOwner(memberId) ||
+        isCenterAdmin(centerId) ||
+        sharesMeal(memberId);
+
+      allow create: if isOwner(memberId) &&
+        sameCenter(centerId) &&
+        isImageUpload();
+
+      allow update: if false;
+
+      allow delete: if isOwner(memberId) ||
+        isCenterAdmin(centerId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,835 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function currentUser() {
+      return userDoc(request.auth.uid).data;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() && currentUser().role == 'admin';
+    }
+
+    function isTrainer() {
+      return signedIn() && currentUser().role == 'trainer';
+    }
+
+    function isMember() {
+      return signedIn() && currentUser().role == 'member';
+    }
+
+    function sameCenter(centerId) {
+      return signedIn() && currentUser().centerId == centerId;
+    }
+
+    function isCenterAdmin(centerId) {
+      return isAdmin() && sameCenter(centerId);
+    }
+
+    function isAssignedTrainer(memberId) {
+      return isTrainer() &&
+        exists(/databases/$(database)/documents/users/$(memberId)) &&
+        userDoc(memberId).data.trainerId == request.auth.uid &&
+        userDoc(memberId).data.centerId == currentUser().centerId;
+    }
+
+    function shares(memberId, key) {
+      return isAssignedTrainer(memberId) &&
+        (
+          !('shareSettings' in userDoc(memberId).data) ||
+          !(key in userDoc(memberId).data.shareSettings) ||
+          userDoc(memberId).data.shareSettings[key] == true
+        );
+    }
+
+    function canReadMemberScoped(centerId, memberId, shareKey) {
+      return isOwner(memberId) ||
+        isCenterAdmin(centerId) ||
+        (shareKey == 'none' && isAssignedTrainer(memberId)) ||
+        (shareKey == 'workout' && shares(memberId, 'workout')) ||
+        (shareKey == 'meal' && shares(memberId, 'meal')) ||
+        (shareKey == 'body' && shares(memberId, 'body'));
+    }
+
+    function canWriteOwnMemberScoped(centerId, memberId) {
+      return isOwner(memberId) && isMember() && sameCenter(centerId);
+    }
+
+    function canLinkFeedback(centerId, memberId, shareKey) {
+      return sameCenter(centerId) &&
+        (
+          isCenterAdmin(centerId) ||
+          (shareKey == 'workout' && shares(memberId, 'workout')) ||
+          (shareKey == 'meal' && shares(memberId, 'meal'))
+        ) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'hasFeedback',
+          'feedbackId',
+          'updatedAt'
+        ]);
+    }
+
+    function hasOnlyJoinRequestFields() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'userId',
+        'userName',
+        'userEmail',
+        'centerId',
+        'centerName',
+        'role',
+        'status',
+        'createdAt'
+      ]);
+    }
+
+    function canUpdateJoinRequestStatus() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'status'
+      ]) &&
+      request.resource.data.status in ['approved', 'rejected'];
+    }
+
+    function hasOnlyWorkoutFields() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'centerId',
+        'memberId',
+        'memberName',
+        'trainerId',
+        'workoutType',
+        'createdById',
+        'createdByRole',
+        'ptSessionId',
+        'workoutDate',
+        'category',
+        'exercises',
+        'note',
+        'hasFeedback',
+        'feedbackId',
+        'createdAt',
+        'updatedAt',
+        'durationSeconds'
+      ]);
+    }
+
+    function hasOnlyMealFields() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'centerId',
+        'memberId',
+        'memberName',
+        'trainerId',
+        'mealType',
+        'mealDate',
+        'mealTime',
+        'imageUrls',
+        'description',
+        'calories',
+        'hasFeedback',
+        'feedbackId',
+        'createdAt',
+        'updatedAt'
+      ]);
+    }
+
+    function hasOnlyCardioFields() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'centerId',
+        'memberId',
+        'memberName',
+        'trainerId',
+        'cardioDate',
+        'type',
+        'durationMinutes',
+        'speed',
+        'intensity',
+        'name',
+        'note',
+        'hasFeedback',
+        'feedbackId',
+        'createdAt',
+        'updatedAt'
+      ]);
+    }
+
+    function hasValidUserProfile() {
+      return !('profile' in request.resource.data) ||
+        request.resource.data.profile == null ||
+        request.resource.data.profile.keys().hasOnly([
+          'height',
+          'weight',
+          'muscleMass',
+          'bodyFat',
+          'goal'
+        ]);
+    }
+
+    function hasValidShareSettings() {
+      return !('shareSettings' in request.resource.data) ||
+        request.resource.data.shareSettings.keys().hasOnly([
+          'workout',
+          'meal',
+          'body'
+        ]);
+    }
+
+    function hasOnlyInbodyFields() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'centerId',
+        'memberId',
+        'memberName',
+        'trainerId',
+        'measurementDate',
+        'weight',
+        'muscleMass',
+        'bodyFat',
+        'bodyFatPercent',
+        'bmi',
+        'bmr',
+        'visceralFat',
+        'leftArm',
+        'rightArm',
+        'trunk',
+        'leftLeg',
+        'rightLeg',
+        'createdAt',
+        'updatedAt'
+      ]);
+    }
+
+    function hasOnlyPtInfoFields() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'centerId',
+        'memberId',
+        'memberName',
+        'trainerId',
+        'startDate',
+        'endDate',
+        'totalSessions',
+        'remainingSessions',
+        'renewalDate',
+        'createdAt',
+        'updatedAt'
+      ]);
+    }
+
+    function hasOnlyPtSessionFields() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'centerId',
+        'trainerId',
+        'trainerName',
+        'memberId',
+        'memberName',
+        'scheduledAt',
+        'durationMinutes',
+        'note',
+        'status',
+        'createdAt',
+        'updatedAt'
+      ]);
+    }
+
+    function canAdminUpdateUser() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'status',
+        'trainerId',
+        'trainerName',
+        'updatedAt'
+      ]) &&
+      (
+        !('status' in request.resource.data) ||
+        request.resource.data.status in ['pending', 'approved', 'rejected']
+      );
+    }
+
+    function canAdminCreatePtInfo(ptInfoId) {
+      return isCenterAdmin(request.resource.data.centerId) &&
+        hasOnlyPtInfoFields() &&
+        request.resource.data.id == ptInfoId;
+    }
+
+    function canAdminUpdatePtInfo() {
+      return isCenterAdmin(resource.data.centerId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'trainerId',
+          'startDate',
+          'endDate',
+          'totalSessions',
+          'remainingSessions',
+          'renewalDate',
+          'updatedAt'
+        ]);
+    }
+
+    function canAdminCreatePtSession(sessionId) {
+      return isCenterAdmin(request.resource.data.centerId) &&
+        hasOnlyPtSessionFields() &&
+        request.resource.data.id == sessionId &&
+        request.resource.data.status in ['scheduled', 'completed', 'cancelled'];
+    }
+
+    function canUpdatePtSessionTrainer() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'trainerId',
+        'trainerName',
+        'updatedAt'
+      ]);
+    }
+
+    function canCreateInbody(inbodyId) {
+      return hasOnlyInbodyFields() &&
+        request.resource.data.id == inbodyId &&
+        (
+          isCenterAdmin(request.resource.data.centerId) ||
+          (
+            isTrainer() &&
+            sameCenter(request.resource.data.centerId) &&
+            request.resource.data.trainerId == request.auth.uid &&
+            isAssignedTrainer(request.resource.data.memberId)
+          )
+        );
+    }
+
+    function canUpdateInbodyContent() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'measurementDate',
+        'weight',
+        'muscleMass',
+        'bodyFat',
+        'bodyFatPercent',
+        'bmi',
+        'bmr',
+        'visceralFat',
+        'leftArm',
+        'rightArm',
+        'trunk',
+        'leftLeg',
+        'rightLeg',
+        'updatedAt'
+      ]);
+    }
+
+    function hasOnlyCustomExerciseFields() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'memberId',
+        'name',
+        'category',
+        'createdAt'
+      ]);
+    }
+
+    function canCreateOwnWorkout(workoutId) {
+      return canWriteOwnMemberScoped(
+        request.resource.data.centerId,
+        request.resource.data.memberId
+      ) &&
+      hasOnlyWorkoutFields() &&
+      request.resource.data.id == workoutId &&
+      request.resource.data.createdById == request.auth.uid &&
+      request.resource.data.createdByRole == 'member' &&
+      request.resource.data.workoutType == 'personal' &&
+      request.resource.data.hasFeedback == false &&
+      request.resource.data.feedbackId == null;
+    }
+
+    function canCreateTrainerPtWorkout(workoutId) {
+      return isTrainer() &&
+        sameCenter(request.resource.data.centerId) &&
+        hasOnlyWorkoutFields() &&
+        request.resource.data.id == workoutId &&
+        request.resource.data.trainerId == request.auth.uid &&
+        request.resource.data.createdById == request.auth.uid &&
+        request.resource.data.createdByRole == 'trainer' &&
+        request.resource.data.workoutType == 'pt' &&
+        request.resource.data.hasFeedback == false &&
+        request.resource.data.feedbackId == null &&
+        isAssignedTrainer(request.resource.data.memberId);
+    }
+
+    function canUpdateWorkoutContent() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'category',
+        'exercises',
+        'note',
+        'updatedAt',
+        'durationSeconds'
+      ]);
+    }
+
+    function canCreateOwnMeal(mealId) {
+      return canWriteOwnMemberScoped(
+        request.resource.data.centerId,
+        request.resource.data.memberId
+      ) &&
+      hasOnlyMealFields() &&
+      request.resource.data.id == mealId &&
+      request.resource.data.hasFeedback == false &&
+      request.resource.data.feedbackId == null;
+    }
+
+    function canUpdateMealContent() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'mealType',
+        'mealDate',
+        'mealTime',
+        'imageUrls',
+        'description',
+        'calories',
+        'updatedAt'
+      ]);
+    }
+
+    function canCreateOwnCardio(cardioId) {
+      return canWriteOwnMemberScoped(
+        request.resource.data.centerId,
+        request.resource.data.memberId
+      ) &&
+      hasOnlyCardioFields() &&
+      request.resource.data.id == cardioId &&
+      request.resource.data.hasFeedback == false &&
+      request.resource.data.feedbackId == null;
+    }
+
+    function canUpdateCardioContent() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'cardioDate',
+        'type',
+        'durationMinutes',
+        'speed',
+        'intensity',
+        'name',
+        'note',
+        'updatedAt'
+      ]);
+    }
+
+    function canUpdateFeedbackContent() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'content',
+        'updatedAt'
+      ]);
+    }
+
+    function canUpdatePtRemaining() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'remainingSessions',
+        'updatedAt'
+      ]);
+    }
+
+    function canUpdatePtSessionSchedule() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'scheduledAt',
+        'durationMinutes',
+        'note',
+        'updatedAt'
+      ]);
+    }
+
+    function canUpdatePtSessionStatus() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'status',
+        'updatedAt'
+      ]) &&
+      request.resource.data.status in ['scheduled', 'completed', 'cancelled'];
+    }
+
+    function canCreatePtInfoLog() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'ptInfoId',
+        'centerId',
+        'memberId',
+        'memberName',
+        'changedById',
+        'changedByName',
+        'type',
+        'previousTotalSessions',
+        'nextTotalSessions',
+        'previousRemainingSessions',
+        'nextRemainingSessions',
+        'ptSessionId',
+        'note',
+        'createdAt'
+      ]);
+    }
+
+    function canUpdateOwnUser() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'name',
+        'birthDate',
+        'gender',
+        'profile',
+        'shareSettings',
+        'fcmToken',
+        'fcmTokenUpdatedAt',
+        'updatedAt'
+      ]) &&
+      hasValidUserProfile() &&
+      hasValidShareSettings() &&
+      (
+        !('gender' in request.resource.data) ||
+        request.resource.data.gender == null ||
+        request.resource.data.gender in ['male', 'female', 'other']
+      );
+    }
+
+    match /users/{uid} {
+      allow create: if isOwner(uid) &&
+        request.resource.data.uid == uid &&
+        (
+          (
+            request.resource.data.role in ['member', 'trainer'] &&
+            request.resource.data.status == 'pending'
+          ) ||
+          (
+            request.resource.data.role == 'admin' &&
+            request.resource.data.status == 'approved'
+          )
+        );
+
+      allow get: if isOwner(uid) ||
+        isCenterAdmin(resource.data.centerId) ||
+        (
+          isTrainer() &&
+          resource.data.centerId == currentUser().centerId &&
+          (
+            resource.data.uid == request.auth.uid ||
+            resource.data.trainerId == request.auth.uid ||
+            resource.data.role == 'trainer'
+          )
+        );
+
+      allow list: if signedIn() &&
+        resource.data.centerId == currentUser().centerId &&
+        (
+          isAdmin() ||
+          (
+            isTrainer() &&
+            (
+              resource.data.role == 'trainer' ||
+              (
+                resource.data.role == 'member' &&
+                resource.data.trainerId == request.auth.uid
+              )
+            )
+          )
+        );
+
+      allow update: if (isOwner(uid) && canUpdateOwnUser()) ||
+        (
+          isCenterAdmin(resource.data.centerId) &&
+          canAdminUpdateUser()
+        );
+
+      allow delete: if isCenterAdmin(resource.data.centerId);
+    }
+
+    match /centers/{centerId} {
+      allow read: if resource.data.status == 'active' || signedIn();
+      allow create: if signedIn() &&
+        request.resource.data.adminId == request.auth.uid;
+      allow update, delete: if isCenterAdmin(centerId);
+    }
+
+    match /join_requests/{requestId} {
+      allow create: if signedIn() &&
+        hasOnlyJoinRequestFields() &&
+        request.resource.data.id == requestId &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.role in ['member', 'trainer'] &&
+        request.resource.data.status == 'pending';
+      allow read: if signedIn() &&
+        (
+          resource.data.userId == request.auth.uid ||
+          isCenterAdmin(resource.data.centerId)
+        );
+      allow update: if isCenterAdmin(resource.data.centerId) &&
+        canUpdateJoinRequestStatus();
+      allow delete: if isCenterAdmin(resource.data.centerId);
+    }
+
+    match /pt_infos/{ptInfoId} {
+      allow read: if canReadMemberScoped(
+        resource.data.centerId,
+        resource.data.memberId,
+        'none'
+      );
+      allow create: if canAdminCreatePtInfo(ptInfoId) ||
+        (
+          isTrainer() &&
+          sameCenter(request.resource.data.centerId) &&
+          request.resource.data.trainerId == request.auth.uid &&
+          isAssignedTrainer(request.resource.data.memberId)
+        );
+      allow update: if canAdminUpdatePtInfo() ||
+        (
+          isTrainer() &&
+          sameCenter(resource.data.centerId) &&
+          resource.data.trainerId == request.auth.uid &&
+          isAssignedTrainer(resource.data.memberId) &&
+          canUpdatePtRemaining()
+        );
+      allow delete: if isCenterAdmin(resource.data.centerId);
+    }
+
+    match /pt_info_logs/{logId} {
+      allow read: if canReadMemberScoped(
+        resource.data.centerId,
+        resource.data.memberId,
+        'none'
+      );
+      allow create: if (
+        isCenterAdmin(request.resource.data.centerId) ||
+        (
+          isTrainer() &&
+          sameCenter(request.resource.data.centerId) &&
+          isAssignedTrainer(request.resource.data.memberId)
+        )
+      ) && canCreatePtInfoLog();
+      allow update, delete: if false;
+    }
+
+    match /pt_sessions/{sessionId} {
+      allow read: if isOwner(resource.data.memberId) ||
+        isCenterAdmin(resource.data.centerId) ||
+        (
+          isTrainer() &&
+          sameCenter(resource.data.centerId) &&
+          resource.data.trainerId == request.auth.uid
+        );
+      allow create: if canAdminCreatePtSession(sessionId) ||
+        (
+          isTrainer() &&
+          sameCenter(request.resource.data.centerId) &&
+          request.resource.data.trainerId == request.auth.uid &&
+          isAssignedTrainer(request.resource.data.memberId)
+        );
+      allow update: if (
+          isCenterAdmin(resource.data.centerId) &&
+          (
+            canUpdatePtSessionSchedule() ||
+            canUpdatePtSessionStatus() ||
+            canUpdatePtSessionTrainer()
+          )
+        ) ||
+        (
+          isTrainer() &&
+          sameCenter(resource.data.centerId) &&
+          resource.data.trainerId == request.auth.uid &&
+          isAssignedTrainer(resource.data.memberId) &&
+          (
+            canUpdatePtSessionSchedule() ||
+            canUpdatePtSessionStatus()
+          )
+        );
+      allow delete: if isCenterAdmin(resource.data.centerId) ||
+        (
+          isTrainer() &&
+          sameCenter(resource.data.centerId) &&
+          resource.data.trainerId == request.auth.uid &&
+          isAssignedTrainer(resource.data.memberId)
+        );
+    }
+
+    match /workouts/{workoutId} {
+      allow read: if canReadMemberScoped(
+        resource.data.centerId,
+        resource.data.memberId,
+        'workout'
+      );
+      allow create: if canCreateOwnWorkout(workoutId) ||
+        (
+          isCenterAdmin(request.resource.data.centerId) &&
+          hasOnlyWorkoutFields() &&
+          request.resource.data.id == workoutId
+        ) ||
+        canCreateTrainerPtWorkout(workoutId);
+      allow update: if (
+          canWriteOwnMemberScoped(resource.data.centerId, resource.data.memberId) &&
+          resource.data.createdById == request.auth.uid &&
+          canUpdateWorkoutContent()
+        ) ||
+        (
+          isCenterAdmin(resource.data.centerId) &&
+          (
+            canUpdateWorkoutContent() ||
+            canLinkFeedback(resource.data.centerId, resource.data.memberId, 'workout')
+          )
+        ) ||
+        canLinkFeedback(resource.data.centerId, resource.data.memberId, 'workout') ||
+        (
+          isTrainer() &&
+          sameCenter(resource.data.centerId) &&
+          resource.data.trainerId == request.auth.uid &&
+          resource.data.workoutType == 'pt' &&
+          isAssignedTrainer(resource.data.memberId) &&
+          canUpdateWorkoutContent()
+        );
+      allow delete: if canWriteOwnMemberScoped(
+        resource.data.centerId,
+        resource.data.memberId
+      ) &&
+        resource.data.createdById == request.auth.uid ||
+        isCenterAdmin(resource.data.centerId) ||
+        (
+          isTrainer() &&
+          sameCenter(resource.data.centerId) &&
+          resource.data.trainerId == request.auth.uid &&
+          resource.data.workoutType == 'pt' &&
+          isAssignedTrainer(resource.data.memberId)
+        );
+    }
+
+    match /cardios/{cardioId} {
+      allow read: if canReadMemberScoped(
+        resource.data.centerId,
+        resource.data.memberId,
+        'workout'
+      );
+      allow create: if canCreateOwnCardio(cardioId);
+      allow update: if (
+          canWriteOwnMemberScoped(resource.data.centerId, resource.data.memberId) &&
+          canUpdateCardioContent()
+        ) ||
+        (
+          isCenterAdmin(resource.data.centerId) &&
+          (
+            canUpdateCardioContent() ||
+            canLinkFeedback(resource.data.centerId, resource.data.memberId, 'workout')
+          )
+        ) ||
+        canLinkFeedback(resource.data.centerId, resource.data.memberId, 'workout');
+      allow delete: if canWriteOwnMemberScoped(
+        resource.data.centerId,
+        resource.data.memberId
+      ) || isCenterAdmin(resource.data.centerId);
+    }
+
+    match /meals/{mealId} {
+      allow read: if canReadMemberScoped(
+        resource.data.centerId,
+        resource.data.memberId,
+        'meal'
+      );
+      allow create: if canCreateOwnMeal(mealId);
+      allow update: if (
+          canWriteOwnMemberScoped(resource.data.centerId, resource.data.memberId) &&
+          canUpdateMealContent()
+        ) ||
+        (
+          isCenterAdmin(resource.data.centerId) &&
+          (
+            canUpdateMealContent() ||
+            canLinkFeedback(resource.data.centerId, resource.data.memberId, 'meal')
+          )
+        ) ||
+        canLinkFeedback(resource.data.centerId, resource.data.memberId, 'meal');
+      allow delete: if canWriteOwnMemberScoped(
+        resource.data.centerId,
+        resource.data.memberId
+      ) || isCenterAdmin(resource.data.centerId);
+    }
+
+    match /inbodies/{inbodyId} {
+      allow read: if canReadMemberScoped(
+        resource.data.centerId,
+        resource.data.memberId,
+        'body'
+      );
+      allow create: if canCreateInbody(inbodyId);
+      allow update: if (
+          isCenterAdmin(resource.data.centerId) ||
+          (
+            isTrainer() &&
+            sameCenter(resource.data.centerId) &&
+            resource.data.trainerId == request.auth.uid &&
+            isAssignedTrainer(resource.data.memberId)
+          )
+        ) &&
+        canUpdateInbodyContent();
+      allow delete: if isCenterAdmin(resource.data.centerId) || (
+        isTrainer() &&
+        sameCenter(resource.data.centerId) &&
+        resource.data.trainerId == request.auth.uid &&
+        isAssignedTrainer(resource.data.memberId)
+      );
+    }
+
+    match /feedbacks/{feedbackId} {
+      allow read: if isOwner(resource.data.memberId) ||
+        isCenterAdmin(resource.data.centerId) ||
+        (
+          isTrainer() &&
+          sameCenter(resource.data.centerId) &&
+          resource.data.trainerId == request.auth.uid &&
+          isAssignedTrainer(resource.data.memberId)
+        );
+      allow create: if isTrainer() &&
+        sameCenter(request.resource.data.centerId) &&
+        request.resource.data.trainerId == request.auth.uid &&
+        isAssignedTrainer(request.resource.data.memberId);
+      allow update: if (
+          isCenterAdmin(resource.data.centerId) &&
+          canUpdateFeedbackContent()
+        ) ||
+        (
+          isOwner(resource.data.memberId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'readAt',
+            'updatedAt'
+          ])
+        ) ||
+        (
+          isTrainer() &&
+          sameCenter(resource.data.centerId) &&
+          resource.data.trainerId == request.auth.uid &&
+          isAssignedTrainer(resource.data.memberId) &&
+          canUpdateFeedbackContent()
+        );
+      allow delete: if isCenterAdmin(resource.data.centerId) ||
+        (
+          isTrainer() &&
+          sameCenter(resource.data.centerId) &&
+          resource.data.trainerId == request.auth.uid &&
+          isAssignedTrainer(resource.data.memberId)
+        );
+    }
+
+    match /custom_exercises/{exerciseId} {
+      allow create: if signedIn() &&
+        hasOnlyCustomExerciseFields() &&
+        request.resource.data.id == exerciseId &&
+        request.resource.data.memberId == request.auth.uid &&
+        request.resource.data.category in [
+          'shoulder',
+          'chest',
+          'back',
+          'lower',
+          'arms',
+          'abs',
+          'cardio'
+        ];
+      allow read, delete: if signedIn() &&
+        resource.data.memberId == request.auth.uid;
+      allow update: if false;
+    }
+  }
+}

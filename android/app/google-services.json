@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "776063753690",
+    "project_id": "burnfit-v01",
+    "storage_bucket": "burnfit-v01.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:776063753690:android:2cdd7fa4a0f46bc592b4e3",
+        "android_client_info": {
+          "package_name": "com.example.burnfit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADtviBozTsZZIJSUEHsDIcq-qNAPUUZUo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
