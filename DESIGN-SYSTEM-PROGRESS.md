@@ -117,6 +117,7 @@ Brand Identity
 | `app_text_field.dart` | `AppTextField` | 통합 텍스트 필드 |
 | `app_bottom_sheet.dart` | `AppBottomSheet` | 바텀 시트 |
 | `app_filter_tabs.dart` | `AppFilterTabs` | 필터 탭 바 |
+| `app_screen_header.dart` | `AppScreenHeader` | 뒤로가기+제목+부제목 헤더 |
 
 ---
 
@@ -134,31 +135,31 @@ Brand Identity
 
 | 역할 | 파일 | 상태 |
 |------|------|------|
-| **Admin** | `admin_home_screen.dart` | ✅ 완료 + 컴포넌트 적용 |
-| | `admin_dashboard_screen.dart` | ✅ 토큰 교체 |
-| | `admin_member_list_screen.dart` | ✅ 토큰 교체 |
-| | `admin_trainer_list_screen.dart` | ✅ 토큰 교체 |
+| **Admin** | `admin_home_screen.dart` | ✅ 토큰 + 컴포넌트 적용 |
+| | `admin_dashboard_screen.dart` | ✅ 토큰 + AppScreenHeader + AppRadius 정리 |
+| | `admin_member_list_screen.dart` | ✅ 토큰 + AppScreenHeader + AppEmptyState |
+| | `admin_trainer_list_screen.dart` | ✅ 토큰 + AppScreenHeader + AppEmptyState |
 | | `admin_member_detail_screen.dart` | ✅ 토큰 교체 |
-| | `admin_requests_screen.dart` | ✅ 토큰 교체 |
+| | `admin_requests_screen.dart` | ✅ 토큰 + AppScreenHeader + AppEmptyState |
 | | `admin_register_screen.dart` | ✅ 토큰 교체 |
-| **Trainer** | `trainer_home_screen.dart` | ✅ 완료 + 컴포넌트 적용 |
-| | `trainer_schedule_screen.dart` | ✅ 토큰 교체 |
-| | `trainer_member_detail_screen.dart` | ✅ 토큰 교체 |
+| **Trainer** | `trainer_home_screen.dart` | ✅ 토큰 + 컴포넌트 적용 |
+| | `trainer_schedule_screen.dart` | ✅ 토큰 + AppEmptyState |
+| | `trainer_member_detail_screen.dart` | ✅ 토큰 + AppEmptyState + 색상 토큰화 |
 | | `trainer_pt_workout_screen.dart` | ✅ 토큰 교체 |
 | | `trainer_register_screen.dart` | ✅ 토큰 교체 |
-| **Member** | `member_home_screen.dart` | ✅ 토큰 교체 |
-| | `member_calendar_screen.dart` | ✅ 토큰 교체 |
-| | `member_feedback_screen.dart` | ✅ 토큰 교체 |
+| **Member** | `member_home_screen.dart` | ✅ 토큰 + AppCard + AppIconBox |
+| | `member_calendar_screen.dart` | ✅ 토큰 + AppCard + AppIconBox |
+| | `member_feedback_screen.dart` | ✅ 토큰 + AppScreenHeader + AppEmptyState + AppCard |
 | | `member_meal_log_screen.dart` | ✅ 토큰 교체 |
-| | `member_profile_screen.dart` | ✅ 토큰 교체 |
-| | `member_pt_schedule_screen.dart` | ✅ 토큰 교체 |
-| | `member_pt_workout_screen.dart` | ✅ 토큰 교체 |
+| | `member_profile_screen.dart` | ✅ 토큰 + AppSectionHeader + AppActionRow + AppRowDivider |
+| | `member_pt_schedule_screen.dart` | ✅ 토큰 + AppScreenHeader + AppCard |
+| | `member_pt_workout_screen.dart` | ✅ 토큰 + AppScreenHeader + AppEmptyState + AppCard |
 | | `member_register_screen.dart` | ✅ 토큰 교체 |
-| | `member_share_settings_screen.dart` | ✅ 토큰 교체 |
+| | `member_share_settings_screen.dart` | ✅ 토큰 + AppScreenHeader + AppCard |
 | | `member_workout_screen.dart` | ✅ 토큰 교체 |
-| | `member_workout_stats_screen.dart` | ✅ 토큰 교체 |
+| | `member_workout_stats_screen.dart` | ✅ 토큰 + AppScreenHeader + AppEmptyState + AppRadius 정리 |
 | | `onboarding_screens.dart` | ✅ 토큰 교체 |
-| **공통** | `login_screen.dart` | ✅ 토큰 교체 |
+| **공통** | `login_screen.dart` | ✅ 토큰 + Colors.black 제거 |
 | | `splash_screen.dart` | ✅ (dark 레거시 유지) |
 | | `pending_approval_screen.dart` | ✅ (dark 레거시 유지) |
 
@@ -185,6 +186,15 @@ Brand Identity
 | `_ProfileAction` (admin_home, trainer_home) | `AppActionRow` | 신규 |
 | `_EmptyMembers` (trainer_home) | `AppEmptyState` | 신규 |
 | Profile card 패턴 (admin, trainer) | `AppProfileCard` | 신규 |
+| `_Header` (dashboard, workout_stats, pt_schedule, feedback 등 13+곳) | `AppScreenHeader` | 신규 |
+| `_IconBox` (member_home, member_calendar) | `AppIconBox` | 기존 |
+| `_memberCardDecoration` / `_cardDecoration` (home, calendar, pt_schedule) | `AppCard` | 기존 |
+| `_SectionHeader` (member_profile) | `AppSectionHeader` | 기존 |
+| `_NavRow`, `_ProfileActionRow` (member_profile) | `AppActionRow` | 기존 |
+| `_GroupDivider` (member_profile) | `AppRowDivider` | 기존 |
+| `_ListEmptyState` (trainer_member_detail) | `AppEmptyState` | 기존 |
+| `_EmptySessionState` (trainer_schedule) | `AppEmptyState` | 기존 |
+| 인라인 빈 상태 (member_list, trainer_list, requests 등 10+곳) | `AppEmptyState` | 기존 |
 
 ---
 
@@ -192,7 +202,9 @@ Brand Identity
 
 | 항목 | 우선순위 | 설명 |
 |------|---------|------|
-| 컴포넌트 적용 확대 | 중 | `AppCard`, `AppKpiCard` 등을 member/trainer 스크린 내부 카드에도 적용 |
+| `member_workout_screen.dart` 파일 분리 | 중 | 2800줄 → 3~4파일 (exercise_picker, rest_timer, exercise_menu) |
+| `_MealInputSheet` / `_EditProfileSheet` 파일 분리 | 낮 | 큰 시트를 별도 파일로 |
+| 차트 팔레트 토큰화 | 낮 | workout_stats, profile의 도메인 색상 → AppColors 토큰 |
 | Dark Mode 정식 지원 | 낮 | 현재 light only. dark는 splash/pending만 레거시로 유지 |
 | Legacy alias 제거 | 낮 | `surface*`, `label*` 등 다크 전용 레거시 alias — 다크 모드 정식 지원 시 정리 |
 | Motion/Animation 토큰 | 낮 | Duration, Curve 표준화 |
