@@ -10,7 +10,6 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
-import '../../core/exercise_data.dart';
 import '../../models/custom_exercise.dart';
 import '../../models/pt_session.dart';
 import '../../models/user.dart';
@@ -19,65 +18,8 @@ import '../../services/exercise_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
-
-// ─────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────
-
-const double _cellHeight = 64;
-const double _cellRadius = 10;
-const double _cellGap = 8;
-
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
-
-String _formatDuration(int seconds) {
-  final h = seconds ~/ 3600;
-  final m = (seconds % 3600) ~/ 60;
-  final s = seconds % 60;
-  if (h > 0) {
-    return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-  return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-}
-
-String _formatWeight(double value) {
-  if (value == value.roundToDouble()) return value.toStringAsFixed(0);
-  return value.toStringAsFixed(1);
-}
-
-String _formatMetricValue(double value) {
-  if (value == value.roundToDouble()) return value.toStringAsFixed(0);
-  return value.toStringAsFixed(1);
-}
-
-String _cardioPrimaryMetricLabel(String name) {
-  final n = name.replaceAll(' ', '');
-  if (n.contains('러닝머신') || n.contains('인터벌') || n.contains('조깅')) return '속도';
-  if (n.contains('인클라인')) return '경사';
-  if (n.contains('사이클') || n.contains('싸이클')) return '강도';
-  if (n.contains('스텝밀') || n.contains('천국의계단')) return '레벨';
-  if (n.contains('일립티컬')) return '강도';
-  if (n.contains('로잉')) return '거리';
-  if (n.contains('줄넘기') || n.contains('버피')) return '횟수';
-  return '강도';
-}
-
-String _cardioPrimaryMetricSuffix(String name) {
-  switch (_cardioPrimaryMetricLabel(name)) {
-    case '속도':
-      return 'km/h';
-    case '경사':
-      return '%';
-    case '거리':
-      return 'm';
-    case '횟수':
-      return '회';
-    default:
-      return '';
-  }
-}
+import 'trainer_workout_models.dart';
+import 'trainer_workout_sheets.dart';
 
 // ─────────────────────────────────────────────
 // Screen
@@ -99,7 +41,7 @@ class TrainerPtWorkoutScreen extends StatefulWidget {
 
 class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
   final _noteController = TextEditingController();
-  final List<_ExerciseDraft> _exercises = [];
+  final List<TrainerExerciseDraft> _exercises = [];
 
   List<Workout> _savedWorkouts = [];
   List<CustomExercise> _customExercises = [];
@@ -204,12 +146,12 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     return sum + e.sets.fold(0, (s, set) => s + (set.reps ?? 0));
   });
 
-  Map<String, _PreviousStats> get _previousStatsByName {
-    final result = <String, _PreviousStats>{};
+  Map<String, TrainerPreviousStats> get _previousStatsByName {
+    final result = <String, TrainerPreviousStats>{};
     for (final workout in _previousWorkouts) {
       for (final exercise in workout.exercises) {
         if (result.containsKey(exercise.name)) continue;
-        result[exercise.name] = _PreviousStats(
+        result[exercise.name] = TrainerPreviousStats(
           date: workout.workoutDate,
           maxWeight: exercise.sets.isEmpty
               ? 0
@@ -228,11 +170,11 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     final trainer = context.read<UserProvider>().user;
     if (trainer == null) return;
 
-    final picked = await showModalBottomSheet<_PickedExercise>(
+    final picked = await showModalBottomSheet<TrainerPickedExercise>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ExercisePickerSheet(
+      builder: (_) => TrainerExercisePickerSheet(
         trainerId: trainer.uid,
         defaultCategory: _defaultCategory,
         customExercises: _customExercises,
@@ -245,10 +187,10 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     setState(() {
       _defaultCategory = picked.category;
       _exercises.add(
-        _ExerciseDraft(
+        TrainerExerciseDraft(
           name: picked.name,
           category: picked.category,
-          sets: [_SetDraft()],
+          sets: [TrainerSetDraft()],
         ),
       );
     });
@@ -259,7 +201,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     final previous = exercise.sets.isNotEmpty ? exercise.sets.last : null;
     setState(() {
       exercise.sets.add(
-        _SetDraft(
+        TrainerSetDraft(
           weight: previous?.weightController.text.trim() ?? '',
           reps: previous?.repsController.text.trim() ?? '',
         ),
@@ -306,32 +248,32 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 
   Future<void> _showExerciseMenu(int index) async {
     final exercise = _exercises[index];
-    final action = await showModalBottomSheet<_MenuAction>(
+    final action = await showModalBottomSheet<TrainerMenuAction>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ExerciseMenuSheet(exercise: exercise),
+      builder: (_) => TrainerExerciseMenuSheet(exercise: exercise),
     );
     if (action == null) return;
 
     switch (action.type) {
-      case _MenuActionType.toggleUnit:
+      case TrainerMenuActionType.toggleUnit:
         setState(() {
-          final nextUnit = exercise.unit == _WeightUnit.kg
-              ? _WeightUnit.lbs
-              : _WeightUnit.kg;
+          final nextUnit = exercise.unit == TrainerWeightUnit.kg
+              ? TrainerWeightUnit.lbs
+              : TrainerWeightUnit.kg;
           for (final set in exercise.sets) {
             final value = set.weight;
             if (value == null) continue;
-            final converted = exercise.unit == _WeightUnit.kg
+            final converted = exercise.unit == TrainerWeightUnit.kg
                 ? value * 2.2046226218
                 : value / 2.2046226218;
-            set.weightController.text = _formatWeight(converted);
+            set.weightController.text = trainerFormatWeight(converted);
           }
           exercise.unit = nextUnit;
         });
         break;
-      case _MenuActionType.delete:
+      case TrainerMenuActionType.delete:
         _removeExercise(index);
         break;
     }
@@ -395,7 +337,6 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
               : _noteController.text.trim(),
         );
 
-        // 세션 첫 운동 저장 시 completed로 전환
         if (!_savedWorkouts.any((w) => w.ptSessionId == widget.session.id)) {
           await FirestoreService.updatePtSessionStatus(
             widget.session.id,
@@ -455,7 +396,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 
       for (final exercise in workout.exercises) {
         _exercises.add(
-          _ExerciseDraft.fromExercise(
+          TrainerExerciseDraft.fromExercise(
             exercise: exercise,
             category: workout.category,
           ),
@@ -525,42 +466,45 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     }
   }
 
-  _ExerciseComparison _comparisonFor(_ExerciseDraft exercise) {
+  TrainerExerciseComparison _comparisonFor(TrainerExerciseDraft exercise) {
     final previous = _previousStatsByName[exercise.name];
     if (previous == null) {
-      return const _ExerciseComparison(
+      return const TrainerExerciseComparison(
         label: '지난 기록 없음',
-        tone: _ComparisonTone.muted,
+        tone: TrainerComparisonTone.muted,
       );
     }
 
     final currentMax = exercise.maxWeight;
-    final previousMax = exercise.unit == _WeightUnit.kg
+    final previousMax = exercise.unit == TrainerWeightUnit.kg
         ? previous.maxWeight
         : previous.maxWeight * 2.2046226218;
     final suffix = exercise.primaryMetricSuffix;
 
     if (currentMax == null) {
-      return _ExerciseComparison(
-        label: '지난 최고 ${_formatMetricValue(previousMax)}$suffix',
-        tone: _ComparisonTone.muted,
+      return TrainerExerciseComparison(
+        label: '지난 최고 ${trainerFormatMetricValue(previousMax)}$suffix',
+        tone: TrainerComparisonTone.muted,
       );
     }
 
     final diff = currentMax - previousMax;
     if (diff > 0) {
-      return _ExerciseComparison(
-        label: '+${_formatMetricValue(diff)}$suffix',
-        tone: _ComparisonTone.up,
+      return TrainerExerciseComparison(
+        label: '+${trainerFormatMetricValue(diff)}$suffix',
+        tone: TrainerComparisonTone.up,
       );
     }
     if (diff < 0) {
-      return _ExerciseComparison(
-        label: '${_formatMetricValue(diff)}$suffix',
-        tone: _ComparisonTone.down,
+      return TrainerExerciseComparison(
+        label: '${trainerFormatMetricValue(diff)}$suffix',
+        tone: TrainerComparisonTone.down,
       );
     }
-    return const _ExerciseComparison(label: '동일', tone: _ComparisonTone.same);
+    return const TrainerExerciseComparison(
+      label: '동일',
+      tone: TrainerComparisonTone.same,
+    );
   }
 
   // ── Build ──
@@ -608,7 +552,8 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
                                 if (_exercises.isNotEmpty ||
                                     _editingWorkoutId != null) ...[
                                   _SummaryBand(
-                                    elapsed: _formatDuration(_elapsedSeconds),
+                                    elapsed:
+                                        trainerFormatDuration(_elapsedSeconds),
                                     volume: _sessionVolume,
                                     cardioMinutes: _cardioMinutes,
                                     cardioMode: _isCardioSession,
@@ -681,7 +626,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
             right: 0,
             bottom: 0,
             child: _BottomBar(
-              elapsed: _formatDuration(_elapsedSeconds),
+              elapsed: trainerFormatDuration(_elapsedSeconds),
               saving: _saving,
               editing: _editingWorkoutId != null,
               sessionStarted: _sessionStarted,
@@ -927,8 +872,8 @@ class _EmptyCard extends StatelessWidget {
 
 class _ExerciseInputCard extends StatelessWidget {
   final int order;
-  final _ExerciseDraft exercise;
-  final _ExerciseComparison comparison;
+  final TrainerExerciseDraft exercise;
+  final TrainerExerciseComparison comparison;
   final VoidCallback onChanged;
   final VoidCallback onAddSet;
   final VoidCallback onMenuTap;
@@ -996,13 +941,13 @@ class _ExerciseInputCard extends StatelessWidget {
           Row(
             children: [
               const Expanded(child: _HeaderCell(label: '회차')),
-              const SizedBox(width: _cellGap),
+              const SizedBox(width: trainerCellGap),
               Expanded(child: _HeaderCell(label: exercise.primaryMetricLabel)),
-              const SizedBox(width: _cellGap),
+              const SizedBox(width: trainerCellGap),
               Expanded(
                 child: _HeaderCell(label: exercise.secondaryMetricLabel),
               ),
-              const SizedBox(width: _cellGap),
+              const SizedBox(width: trainerCellGap),
               const Expanded(child: _HeaderCell(label: '완료')),
             ],
           ),
@@ -1102,7 +1047,7 @@ class _HeaderCell extends StatelessWidget {
 
 class _SetRow extends StatelessWidget {
   final int number;
-  final _SetDraft set;
+  final TrainerSetDraft set;
   final VoidCallback onChanged;
   final VoidCallback onRemove;
   final VoidCallback onToggleDone;
@@ -1118,7 +1063,7 @@ class _SetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: _cellHeight,
+      height: trainerCellHeight,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1138,7 +1083,7 @@ class _SetRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: _cellGap),
+          const SizedBox(width: trainerCellGap),
           Expanded(
             child: _NumberField(
               controller: set.weightController,
@@ -1146,7 +1091,7 @@ class _SetRow extends StatelessWidget {
               onChanged: onChanged,
             ),
           ),
-          const SizedBox(width: _cellGap),
+          const SizedBox(width: trainerCellGap),
           Expanded(
             child: _NumberField(
               controller: set.repsController,
@@ -1154,7 +1099,7 @@ class _SetRow extends StatelessWidget {
               onChanged: onChanged,
             ),
           ),
-          const SizedBox(width: _cellGap),
+          const SizedBox(width: trainerCellGap),
           Expanded(
             child: GestureDetector(
               onTap: onToggleDone,
@@ -1162,22 +1107,16 @@ class _SetRow extends StatelessWidget {
                 duration: const Duration(milliseconds: 140),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: set.done
-                      ? AppColors.brand
-                      : AppColors.bg,
-                  borderRadius: BorderRadius.circular(_cellRadius),
+                  color: set.done ? AppColors.brand : AppColors.bg,
+                  borderRadius: BorderRadius.circular(trainerCellRadius),
                   border: Border.all(
-                    color: set.done
-                        ? AppColors.brand
-                        : AppColors.border,
+                    color: set.done ? AppColors.brand : AppColors.border,
                   ),
                 ),
                 child: Icon(
                   Icons.check_rounded,
                   size: 34,
-                  color: set.done
-                      ? AppColors.bg
-                      : AppColors.textSecondary,
+                  color: set.done ? AppColors.bg : AppColors.textSecondary,
                 ),
               ),
             ),
@@ -1196,12 +1135,12 @@ class _InputBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: _cellHeight,
+      height: trainerCellHeight,
       alignment: Alignment.center,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.bg,
-        borderRadius: BorderRadius.circular(_cellRadius),
+        borderRadius: BorderRadius.circular(trainerCellRadius),
         border: Border.all(color: AppColors.border),
       ),
       child: child,
@@ -1281,17 +1220,17 @@ class _NumberField extends StatelessWidget {
 }
 
 class _ComparisonPill extends StatelessWidget {
-  final _ExerciseComparison comparison;
+  final TrainerExerciseComparison comparison;
 
   const _ComparisonPill({required this.comparison});
 
   @override
   Widget build(BuildContext context) {
     final color = switch (comparison.tone) {
-      _ComparisonTone.up => AppColors.workout,
-      _ComparisonTone.down => AppColors.destructive,
-      _ComparisonTone.same => AppColors.brand,
-      _ComparisonTone.muted => AppColors.textSecondary,
+      TrainerComparisonTone.up => AppColors.workout,
+      TrainerComparisonTone.down => AppColors.destructive,
+      TrainerComparisonTone.same => AppColors.brand,
+      TrainerComparisonTone.muted => AppColors.textSecondary,
     };
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -1424,7 +1363,7 @@ class _SavedWorkoutCard extends StatelessWidget {
               Expanded(
                 child: _FooterMetric(
                   label: '운동시간',
-                  value: _formatDuration(workout.durationSeconds),
+                  value: trainerFormatDuration(workout.durationSeconds),
                 ),
               ),
             ],
@@ -1472,13 +1411,13 @@ class _SavedExerciseRow extends StatelessWidget {
   }
 
   String _cardioSummary(Exercise exercise) {
-    final metricLabel = _cardioPrimaryMetricLabel(exercise.name);
-    final metricSuffix = _cardioPrimaryMetricSuffix(exercise.name);
+    final metricLabel = trainerCardioPrimaryMetricLabel(exercise.name);
+    final metricSuffix = trainerCardioPrimaryMetricSuffix(exercise.name);
     final primaryMax = exercise.sets.isEmpty
         ? 0.0
         : exercise.sets.map((s) => s.weight).reduce((a, b) => a > b ? a : b);
     final minutes = exercise.sets.fold<int>(0, (sum, s) => sum + s.reps);
-    return '${exercise.name} · $metricLabel ${_formatMetricValue(primaryMax)}$metricSuffix · $minutes분';
+    return '${exercise.name} · $metricLabel ${trainerFormatMetricValue(primaryMax)}$metricSuffix · $minutes분';
   }
 }
 
@@ -1634,15 +1573,9 @@ class _ActionBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = primary
-        ? AppColors.brand
-        : AppColors.card;
-    final foreground = primary
-        ? AppColors.textOnAccent
-        : AppColors.brand;
-    final subColor = primary
-        ? AppColors.textOnAccent
-        : AppColors.textSecondary;
+    final background = primary ? AppColors.brand : AppColors.card;
+    final foreground = primary ? AppColors.textOnAccent : AppColors.brand;
+    final subColor = primary ? AppColors.textOnAccent : AppColors.textSecondary;
 
     return GestureDetector(
       onTap: onTap,
@@ -1687,657 +1620,4 @@ class _ActionBox extends StatelessWidget {
       ),
     );
   }
-}
-
-// ─────────────────────────────────────────────
-// Exercise Picker Sheet
-// ─────────────────────────────────────────────
-
-class _ExercisePickerSheet extends StatefulWidget {
-  final String trainerId;
-  final WorkoutCategory defaultCategory;
-  final List<CustomExercise> customExercises;
-  final Map<String, _PreviousStats> previousStatsByName;
-  final void Function(CustomExercise) onCustomAdded;
-
-  const _ExercisePickerSheet({
-    required this.trainerId,
-    required this.defaultCategory,
-    required this.customExercises,
-    required this.previousStatsByName,
-    required this.onCustomAdded,
-  });
-
-  @override
-  State<_ExercisePickerSheet> createState() => _ExercisePickerSheetState();
-}
-
-class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
-  final _searchController = TextEditingController();
-  WorkoutCategory? _selectedCategory;
-  bool _addingCustom = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedCategory = widget.defaultCategory;
-    _searchController.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  List<_PickedExercise> get _items {
-    final query = _searchController.text.trim().toLowerCase();
-    final defaults = <_PickedExercise>[];
-
-    for (final entry in ExerciseData.exercises.entries) {
-      if (_selectedCategory != null && entry.key != _selectedCategory) continue;
-      for (final name in entry.value) {
-        defaults.add(_PickedExercise(name: name, category: entry.key));
-      }
-    }
-
-    final customs = widget.customExercises
-        .where(
-          (e) => _selectedCategory == null || e.category == _selectedCategory,
-        )
-        .map(
-          (e) =>
-              _PickedExercise(name: e.name, category: e.category, custom: true),
-        );
-
-    final all = [...defaults, ...customs];
-    if (query.isEmpty) return all;
-    return all
-        .where((item) => item.name.toLowerCase().contains(query))
-        .toList();
-  }
-
-  bool get _canAddCustom {
-    final query = _searchController.text.trim();
-    if (query.isEmpty) return false;
-    return !_items.any((item) => item.name == query);
-  }
-
-  Future<void> _addCustom() async {
-    if (_addingCustom) return;
-
-    final name = _searchController.text.trim();
-    if (name.isEmpty) return;
-    setState(() => _addingCustom = true);
-    try {
-      final exercise = await ExerciseService.addCustomExercise(
-        memberId: widget.trainerId,
-        name: name,
-        category: _selectedCategory ?? widget.defaultCategory,
-      );
-      widget.onCustomAdded(exercise);
-      if (!mounted) return;
-      Navigator.of(context).pop(
-        _PickedExercise(
-          name: exercise.name,
-          category: exercise.category,
-          custom: true,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      AppFeedback.showErrorSnackBar(context, e);
-    } finally {
-      if (mounted) {
-        setState(() => _addingCustom = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final items = _items;
-    return FractionallySizedBox(
-      heightFactor: 0.5,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xl),
-          ),
-          border: Border(top: BorderSide(color: AppColors.border)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            children: [
-              const Gap(AppSpacing.sm),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.lg,
-                  AppSpacing.screenH,
-                  AppSpacing.md,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('운동 추가', style: AppTextStyles.h3),
-                    const Gap(AppSpacing.md),
-                    TextField(
-                      controller: _searchController,
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                      cursorColor: AppColors.brand,
-                      decoration: InputDecoration(
-                        hintText: '운동명 검색 또는 직접 입력',
-                        prefixIcon: const Icon(
-                          Icons.search_rounded,
-                          color: AppColors.textSecondary,
-                        ),
-                        filled: true,
-                        fillColor: AppColors.bg,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.itemV,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          borderSide: const BorderSide(
-                            color: AppColors.border,
-                            width: 0.5,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          borderSide: const BorderSide(
-                            color: AppColors.border,
-                            width: 0.5,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          borderSide: const BorderSide(
-                            color: AppColors.brand,
-                            width: 1,
-                          ),
-                        ),
-                        hintStyle: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ),
-                    const Gap(AppSpacing.sm),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _PickerChip(
-                            label: '전체',
-                            selected: _selectedCategory == null,
-                            onTap: () =>
-                                setState(() => _selectedCategory = null),
-                          ),
-                          ...WorkoutCategory.values.map(
-                            (c) => _PickerChip(
-                              label: c.label,
-                              selected: _selectedCategory == c,
-                              onTap: () =>
-                                  setState(() => _selectedCategory = c),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_canAddCustom)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    0,
-                    AppSpacing.screenH,
-                    AppSpacing.sm,
-                  ),
-                  child: GestureDetector(
-                    onTap: _addingCustom ? null : _addCustom,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.itemV,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.brand,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                      child: Text(
-                        _addingCustom
-                            ? '추가 중...'
-                            : '"${_searchController.text.trim()}" 새 운동으로 추가',
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          color: AppColors.textOnAccent,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    0,
-                    AppSpacing.screenH,
-                    AppSpacing.xl,
-                  ),
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const Gap(AppSpacing.sm),
-                  itemBuilder: (_, index) {
-                    final item = items[index];
-                    final previous = widget.previousStatsByName[item.name];
-                    return GestureDetector(
-                      onTap: () => Navigator.of(context).pop(item),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.itemV,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.bg,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(
-                            color: AppColors.border,
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.name,
-                                    style: AppTextStyles.bodyLarge.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const Gap(4),
-                                  Text(
-                                    item.custom
-                                        ? '${item.category.label} · 직접 추가'
-                                        : item.category.label,
-                                    style: AppTextStyles.caption,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (previous != null)
-                              Text(
-                                '지난 ${_formatWeight(previous.maxWeight)}kg',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.brand,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PickerChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _PickerChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(right: AppSpacing.xs),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.brand
-              : AppColors.bg,
-          borderRadius: BorderRadius.circular(AppRadius.full),
-          border: Border.all(
-            color: selected
-                ? AppColors.brand
-                : AppColors.border,
-            width: 0.5,
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.label.copyWith(
-            color: selected
-                ? AppColors.textOnAccent
-                : AppColors.textSecondary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// Exercise Menu Sheet
-// ─────────────────────────────────────────────
-
-class _ExerciseMenuSheet extends StatelessWidget {
-  final _ExerciseDraft exercise;
-
-  const _ExerciseMenuSheet({required this.exercise});
-
-  @override
-  Widget build(BuildContext context) {
-    final nextUnit = exercise.unit == _WeightUnit.kg ? 'lbs' : 'kg';
-
-    return FractionallySizedBox(
-      heightFactor: 0.4,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xl),
-          ),
-          border: Border(top: BorderSide(color: AppColors.border)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenH,
-              AppSpacing.sm,
-              AppSpacing.screenH,
-              AppSpacing.xl,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                    ),
-                  ),
-                ),
-                const Gap(AppSpacing.lg),
-                Text(
-                  exercise.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.h3,
-                ),
-                const Gap(AppSpacing.xxs),
-                Text(
-                  '${exercise.category.label} · 현재 단위 ${exercise.unit.label}',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const Gap(AppSpacing.lg),
-                _MenuTile(
-                  icon: Icons.swap_horiz_rounded,
-                  title: '무게 단위 변경',
-                  subtitle: '${exercise.unit.label} → $nextUnit',
-                  onTap: () => Navigator.of(
-                    context,
-                  ).pop(const _MenuAction(type: _MenuActionType.toggleUnit)),
-                ),
-                const Gap(AppSpacing.sm),
-                _MenuTile(
-                  icon: Icons.delete_outline_rounded,
-                  title: '운동 삭제',
-                  subtitle: '이 운동을 기록에서 제거합니다',
-                  danger: true,
-                  onTap: () => Navigator.of(
-                    context,
-                  ).pop(const _MenuAction(type: _MenuActionType.delete)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MenuTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool danger;
-  final VoidCallback onTap;
-
-  const _MenuTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = danger
-        ? AppColors.destructive
-        : AppColors.textPrimary;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.itemV,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.bg,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.border, width: 0.5),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const Gap(AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const Gap(4),
-                  Text(subtitle, style: AppTextStyles.caption),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// Data models (screen-local)
-// ─────────────────────────────────────────────
-
-class _ExerciseDraft {
-  final String name;
-  final WorkoutCategory category;
-  final List<_SetDraft> sets;
-  _WeightUnit unit = _WeightUnit.kg;
-
-  _ExerciseDraft({
-    required this.name,
-    required this.category,
-    required this.sets,
-  });
-
-  factory _ExerciseDraft.fromExercise({
-    required Exercise exercise,
-    required WorkoutCategory category,
-  }) {
-    return _ExerciseDraft(
-      name: exercise.name,
-      category: category,
-      sets: exercise.sets
-          .map(
-            (s) => _SetDraft(
-              weight: _formatWeight(s.weight),
-              reps: s.reps.toString(),
-              done: true,
-            ),
-          )
-          .toList(),
-    );
-  }
-
-  double get totalVolume =>
-      sets.fold(0, (sum, s) => sum + ((s.weight ?? 0) * (s.reps ?? 0)));
-
-  double? get maxWeight {
-    final values = sets.map((s) => s.weight).whereType<double>().toList();
-    if (values.isEmpty) return null;
-    return values.reduce((a, b) => a > b ? a : b);
-  }
-
-  bool get isCardio => category == WorkoutCategory.cardio;
-
-  String get primaryMetricLabel {
-    if (isCardio) return _cardioPrimaryMetricLabel(name);
-    return unit.label;
-  }
-
-  String get secondaryMetricLabel => isCardio ? '시간' : '회';
-
-  String get primaryMetricSuffix {
-    if (isCardio) return _cardioPrimaryMetricSuffix(name);
-    return unit.label;
-  }
-
-  Exercise? toExercise() {
-    final validSets = <ExerciseSet>[];
-    for (final set in sets) {
-      final rawWeight = set.weight;
-      final reps = set.reps;
-      if (rawWeight == null || rawWeight <= 0 || reps == null || reps <= 0) {
-        continue;
-      }
-      final weightInKg = unit == _WeightUnit.kg
-          ? rawWeight
-          : rawWeight / 2.2046226218;
-      validSets.add(ExerciseSet(weight: weightInKg, reps: reps));
-    }
-    if (name.trim().isEmpty || validSets.isEmpty) return null;
-    return Exercise(name: name.trim(), sets: validSets);
-  }
-
-  void dispose() {
-    for (final s in sets) {
-      s.dispose();
-    }
-  }
-}
-
-class _SetDraft {
-  final TextEditingController weightController;
-  final TextEditingController repsController;
-  bool done;
-
-  _SetDraft({String weight = '', String reps = '', this.done = false})
-    : weightController = TextEditingController(text: weight),
-      repsController = TextEditingController(text: reps);
-
-  double? get weight => double.tryParse(weightController.text.trim());
-  int? get reps => int.tryParse(repsController.text.trim());
-
-  void dispose() {
-    weightController.dispose();
-    repsController.dispose();
-  }
-}
-
-class _PickedExercise {
-  final String name;
-  final WorkoutCategory category;
-  final bool custom;
-
-  const _PickedExercise({
-    required this.name,
-    required this.category,
-    this.custom = false,
-  });
-}
-
-class _PreviousStats {
-  final String date;
-  final double maxWeight;
-
-  const _PreviousStats({required this.date, required this.maxWeight});
-}
-
-enum _ComparisonTone { up, down, same, muted }
-
-enum _WeightUnit { kg, lbs }
-
-extension _WeightUnitLabel on _WeightUnit {
-  String get label => this == _WeightUnit.kg ? 'kg' : 'lbs';
-}
-
-enum _MenuActionType { toggleUnit, delete }
-
-class _MenuAction {
-  final _MenuActionType type;
-  const _MenuAction({required this.type});
-}
-
-class _ExerciseComparison {
-  final String label;
-  final _ComparisonTone tone;
-
-  const _ExerciseComparison({required this.label, required this.tone});
 }
