@@ -198,12 +198,22 @@ Brand Identity
 
 ---
 
-## 6. 후속 작업 (미완료)
+## 6. 파일 분할 현황
+
+| 원본 파일 | 분할 결과 | 원본 줄수 → 최종 |
+|-----------|----------|-----------------|
+| `member_workout_screen.dart` | `workout_draft_models` + `workout_exercise_input` + `workout_saved_card` + `workout_sheets` | 2856 → 1299줄 |
+| `member_meal_log_screen.dart` | `meal_input_sheet` | 1230 → 755줄 |
+| `member_profile_screen.dart` | `edit_profile_sheet` | 1234 → 913줄 |
+| `trainer_pt_workout_screen.dart` | `trainer_workout_models` + `trainer_exercise_input` + `trainer_saved_card` + `trainer_workout_sheets` | 2343 → 1055줄 |
+| `trainer_member_detail_screen.dart` | `trainer_inbody_sheet` + `trainer_member_tabs` | 1635 → 935줄 |
+
+---
+
+## 7. 후속 작업 (미완료)
 
 | 항목 | 우선순위 | 설명 |
 |------|---------|------|
-| `member_workout_screen.dart` 파일 분리 | 중 | 2800줄 → 3~4파일 (exercise_picker, rest_timer, exercise_menu) |
-| `_MealInputSheet` / `_EditProfileSheet` 파일 분리 | 낮 | 큰 시트를 별도 파일로 |
 | 차트 팔레트 토큰화 | 낮 | workout_stats, profile의 도메인 색상 → AppColors 토큰 |
 | Dark Mode 정식 지원 | 낮 | 현재 light only. dark는 splash/pending만 레거시로 유지 |
 | Legacy alias 제거 | 낮 | `surface*`, `label*` 등 다크 전용 레거시 alias — 다크 모드 정식 지원 시 정리 |
@@ -212,7 +222,7 @@ Brand Identity
 
 ---
 
-## 7. 세션 이어받기 가이드
+## 8. 세션 이어받기 가이드
 
 1. `flutter analyze` → 에러 0 확인
 2. 이 문서의 Section 4 "적용 현황" 확인
