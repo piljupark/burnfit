@@ -239,80 +239,94 @@ class _ProfileHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initial = user.name.isNotEmpty ? user.name[0] : '?';
-    return Row(
-      children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: AppColors.trainer.withValues(alpha: 0.16),
-            shape: BoxShape.circle,
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.base),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
-          alignment: Alignment.center,
-          child: Text(
-            initial,
-            style: AppTextStyles.h2.copyWith(
-              color: AppColors.trainer,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const Gap(AppSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                user.name,
-                style: AppTextStyles.headline.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const Gap(2),
-              Text(
-                user.email,
-                style: AppTextStyles.captionSmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-              const Gap(AppSpacing.xs),
-              Wrap(
-                spacing: AppSpacing.xxs,
-                children: [
-                  if (user.centerName.isNotEmpty) _Chip(label: user.centerName),
-                  if (user.trainerName?.trim().isNotEmpty ?? false)
-                    _Chip(label: user.trainerName!),
-                ],
-              ),
-            ],
-          ),
-        ),
-        GestureDetector(
-          onTap: onEdit,
-          child: Container(
-            width: 36,
-            height: 36,
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
-              color: AppColors.bg,
-              borderRadius: BorderRadius.circular(AppRadius.xs),
+              color: AppColors.brand.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.edit_outlined,
-              size: 16,
-              color: AppColors.textSecondary,
+            alignment: Alignment.center,
+            child: Text(
+              initial,
+              style: AppTextStyles.h1.copyWith(
+                color: AppColors.brand,
+                fontWeight: FontWeight.w800,
+                fontSize: 26,
+              ),
             ),
           ),
-        ),
-      ],
+          const Gap(AppSpacing.base),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.name,
+                  style: AppTextStyles.headline.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Gap(3),
+                Text(
+                  user.email,
+                  style: AppTextStyles.captionSmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const Gap(AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  children: [
+                    if (user.centerName.isNotEmpty) _InfoChip(label: user.centerName),
+                    if (user.trainerName?.trim().isNotEmpty ?? false)
+                      _InfoChip(label: user.trainerName!),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: onEdit,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.bg,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: const Icon(
+                Icons.edit_outlined,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _Chip extends StatelessWidget {
+class _InfoChip extends StatelessWidget {
   final String label;
 
-  const _Chip({required this.label});
+  const _InfoChip({required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -326,6 +340,7 @@ class _Chip extends StatelessWidget {
         label,
         style: AppTextStyles.captionSmall.copyWith(
           color: AppColors.textSecondary,
+          fontWeight: FontWeight.w500,
         ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,

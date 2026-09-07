@@ -12,6 +12,7 @@ class AppActionRow extends StatelessWidget {
   final String? badge;
   final Color? badgeColor;
   final bool isDestructive;
+  final Color? iconColor;
 
   const AppActionRow({
     super.key,
@@ -22,11 +23,13 @@ class AppActionRow extends StatelessWidget {
     this.badge,
     this.badgeColor,
     this.isDestructive = false,
+    this.iconColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = isDestructive ? AppColors.destructive : AppColors.textPrimary;
+    final iColor = iconColor ?? (isDestructive ? AppColors.destructive : AppColors.brand);
     final bColor = badgeColor ?? AppColors.brand;
 
     return Material(
@@ -35,29 +38,28 @@ class AppActionRow extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
         splashColor: AppColors.brand.withValues(alpha: 0.04),
+        highlightColor: Colors.transparent,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm + 2,
+            horizontal: AppSpacing.base,
+            vertical: AppSpacing.md + 2,
           ),
           child: Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: isDestructive
-                      ? AppColors.destructive.withValues(alpha: 0.08)
-                      : AppColors.bg,
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
+                  color: iColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Icon(
                   icon,
-                  size: 17,
-                  color: isDestructive ? AppColors.destructive : AppColors.textSecondary,
+                  size: 20,
+                  color: iColor,
                 ),
               ),
-              const Gap(AppSpacing.sm),
+              const Gap(AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,42 +67,44 @@ class AppActionRow extends StatelessWidget {
                     Text(
                       label,
                       style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
                         color: color,
+                        fontSize: 15,
                       ),
                     ),
-                    if (subtitle != null)
+                    if (subtitle != null) ...[
+                      const Gap(AppSpacing.xxs),
                       Text(
                         subtitle!,
-                        style: AppTextStyles.captionSmall.copyWith(
+                        style: AppTextStyles.caption.copyWith(
                           color: badge != null
                               ? bColor.withValues(alpha: 0.8)
                               : AppColors.textTertiary,
                         ),
                       ),
+                    ],
                   ],
                 ),
               ),
               if (badge != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: bColor.withValues(alpha: 0.12),
+                    color: bColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadius.full),
                   ),
                   child: Text(
                     badge!,
                     style: AppTextStyles.captionSmall.copyWith(
                       color: bColor,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 )
               else if (!isDestructive)
                 const Icon(
                   Icons.chevron_right_rounded,
-                  size: 16,
+                  size: 18,
                   color: AppColors.textDisabled,
                 ),
             ],
@@ -116,8 +120,8 @@ class AppRowDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+    return Padding(
+      padding: const EdgeInsets.only(left: AppSpacing.base + 40 + AppSpacing.md),
       child: Divider(
         height: 0.5,
         thickness: 0.5,

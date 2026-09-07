@@ -273,11 +273,37 @@ class _BrandMark extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          '핏로그',
-          style: AppTextStyles.h1.copyWith(fontSize: 26, letterSpacing: -0.4),
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: AppColors.brand,
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brand.withValues(alpha: 0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.local_fire_department_rounded,
+            color: Colors.white,
+            size: 36,
+          ),
         ),
-        const Gap(6),
+        const Gap(AppSpacing.lg),
+        Text(
+          'BurnFit',
+          style: AppTextStyles.h1.copyWith(
+            fontSize: 30,
+            letterSpacing: -1.0,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const Gap(AppSpacing.xs),
         Text(
           '운동과 식단을 한 곳에서 기록하세요',
           style: AppTextStyles.bodySmall.copyWith(

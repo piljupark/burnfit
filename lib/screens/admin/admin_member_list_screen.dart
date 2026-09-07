@@ -269,7 +269,7 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
                               ),
                               itemCount: _filtered.length,
                               separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 1),
+                                  const SizedBox(height: AppSpacing.sm),
                               itemBuilder: (_, i) {
                                 final m = _filtered[i];
                                 final ptInfo = _ptInfoByMember[m.uid];
@@ -279,7 +279,7 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
                                 return Material(
                                   color: AppColors.card,
                                   borderRadius: BorderRadius.circular(
-                                    AppRadius.md,
+                                    AppRadius.lg,
                                   ),
                                   child: InkWell(
                                     onTap: () async {
@@ -308,83 +308,85 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
                                       _filter();
                                     },
                                     splashColor: AppColors.brand
-                                        .withValues(alpha: 0.05),
+                                        .withValues(alpha: 0.04),
+                                    highlightColor: Colors.transparent,
                                     borderRadius: BorderRadius.circular(
-                                      AppRadius.md,
+                                      AppRadius.lg,
                                     ),
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.md,
-                                        vertical: AppSpacing.sm + 2,
+                                        horizontal: AppSpacing.base,
+                                        vertical: AppSpacing.md,
                                       ),
                                       child: Row(
                                         children: [
                                           Container(
-                                            width: 40,
-                                            height: 40,
+                                            width: 48,
+                                            height: 48,
                                             decoration: BoxDecoration(
-                                              color: AppColors.brand
-                                                  .withValues(alpha: 0.12),
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                    AppRadius.sm,
-                                                  ),
+                                              color: AppColors.brand.withValues(alpha: 0.12),
+                                              shape: BoxShape.circle,
                                             ),
                                             alignment: Alignment.center,
                                             child: Text(
                                               initial,
-                                              style: AppTextStyles.body
-                                                  .copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppColors
-                                                        .brand,
-                                                  ),
+                                              style: AppTextStyles.headline.copyWith(
+                                                fontWeight: FontWeight.w800,
+                                                color: AppColors.brand,
+                                              ),
                                             ),
                                           ),
                                           const Gap(AppSpacing.md),
                                           Expanded(
                                             child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                              crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   m.name,
-                                                  style: AppTextStyles.body
-                                                      .copyWith(
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
+                                                  style: AppTextStyles.label.copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 15,
+                                                  ),
                                                 ),
-                                                const Gap(AppSpacing.xxs),
+                                                const Gap(3),
                                                 Text(
                                                   m.trainerName != null
                                                       ? '담당: ${m.trainerName}'
                                                       : '트레이너 미배정',
-                                                  style: AppTextStyles.caption
-                                                      .copyWith(
-                                                        color: AppColors
-                                                            .textSecondary,
-                                                      ),
+                                                  style: AppTextStyles.captionSmall.copyWith(
+                                                    color: m.trainerName != null
+                                                        ? AppColors.textTertiary
+                                                        : AppColors.diet,
+                                                    fontWeight: m.trainerName != null
+                                                        ? FontWeight.w400
+                                                        : FontWeight.w600,
+                                                  ),
                                                 ),
                                                 if (ptInfo != null) ...[
                                                   const Gap(2),
                                                   Text(
                                                     'PT ${ptInfo.remainingSessions}/${ptInfo.totalSessions}회${_expiryLabel(ptInfo)}',
-                                                    style: AppTextStyles.caption
-                                                        .copyWith(
-                                                          color: _ptInfoTone(
-                                                            ptInfo,
-                                                          ),
-                                                        ),
+                                                    style: AppTextStyles.captionSmall.copyWith(
+                                                      color: _ptInfoTone(ptInfo),
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
                                                   ),
                                                 ],
                                               ],
                                             ),
                                           ),
-                                          const Icon(
-                                            Icons.chevron_right_rounded,
-                                            size: 16,
-                                            color: AppColors.textDisabled,
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.bg,
+                                              borderRadius: BorderRadius.circular(AppRadius.xs),
+                                            ),
+                                            child: const Icon(
+                                              Icons.chevron_right_rounded,
+                                              size: 18,
+                                              color: AppColors.textTertiary,
+                                            ),
                                           ),
                                         ],
                                       ),

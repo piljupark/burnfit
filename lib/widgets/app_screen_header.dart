@@ -20,45 +20,58 @@ class AppScreenHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        if (onBack != null) ...[
-          GestureDetector(
-            onTap: onBack,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(color: AppColors.border, width: 0.5),
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 18,
-                color: AppColors.textPrimary,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (onBack != null) ...[
+            GestureDetector(
+              onTap: onBack,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0C000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 17,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
-          ),
-          const Gap(AppSpacing.sm + 2),
-        ],
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: AppTextStyles.h2),
-              if (subtitle != null)
-                Text(
-                  subtitle!,
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.textSecondary,
+            const Gap(AppSpacing.md),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title, style: AppTextStyles.h2),
+                if (subtitle != null) ...[
+                  const Gap(AppSpacing.xs),
+                  Text(
+                    subtitle!,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-            ],
+                ],
+              ],
+            ),
           ),
-        ),
-        if (trailing != null) trailing!,
-      ],
+          if (trailing != null) trailing!,
+        ],
+      ),
     );
   }
 }

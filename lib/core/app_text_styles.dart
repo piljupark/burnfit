@@ -7,7 +7,7 @@ class AppTextStyles {
   static const String _font = 'Pretendard';
 
   static TextStyle _base({
-    double size = 15,
+    double size = 16,
     FontWeight weight = FontWeight.w400,
     Color color = AppColors.textPrimary,
     double height = 1.5,
@@ -23,7 +23,7 @@ class AppTextStyles {
 
   // ── Display ───────────────────────────────────────────────────────────────
   static TextStyle get display => _base(
-    size: 36,
+    size: 34,
     weight: FontWeight.w800,
     height: 1.15,
     letterSpacing: -1.2,
@@ -31,23 +31,23 @@ class AppTextStyles {
 
   // ── Heading ───────────────────────────────────────────────────────────────
   static TextStyle get h1 => _base(
-    size: 26,
-    weight: FontWeight.w700,
-    height: 1.25,
-    letterSpacing: -0.4,
+    size: 28,
+    weight: FontWeight.w800,
+    height: 1.2,
+    letterSpacing: -0.6,
   );
 
   static TextStyle get h2 => _base(
     size: 22,
     weight: FontWeight.w700,
     height: 1.3,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   );
 
   static TextStyle get h3 => _base(
-    size: 18,
-    weight: FontWeight.w700,
-    height: 1.35,
+    size: 17,
+    weight: FontWeight.w600,
+    height: 1.4,
     letterSpacing: -0.2,
   );
 
@@ -63,14 +63,14 @@ class AppTextStyles {
     size: 17,
     weight: FontWeight.w600,
     height: 1.45,
-    letterSpacing: -0.1,
+    letterSpacing: -0.2,
   );
 
   static TextStyle get body => _base(
-    size: 15,
+    size: 16,
     weight: FontWeight.w400,
     color: AppColors.textPrimary,
-    height: 1.55,
+    height: 1.6,
     letterSpacing: -0.1,
   );
 
@@ -78,7 +78,7 @@ class AppTextStyles {
     size: 17,
     weight: FontWeight.w400,
     color: AppColors.textSecondary,
-    height: 1.5,
+    height: 1.55,
     letterSpacing: -0.1,
   );
 
@@ -99,8 +99,8 @@ class AppTextStyles {
   );
 
   static TextStyle get caption => _base(
-    size: 12,
-    weight: FontWeight.w500,
+    size: 13,
+    weight: FontWeight.w400,
     color: AppColors.textSecondary,
     height: 1.4,
     letterSpacing: 0,
@@ -115,7 +115,7 @@ class AppTextStyles {
   );
 
   static TextStyle get label => _base(
-    size: 13,
+    size: 14,
     weight: FontWeight.w600,
     color: AppColors.textPrimary,
     height: 1.3,

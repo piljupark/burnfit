@@ -15,7 +15,7 @@ class PendingApprovalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface0,
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
@@ -25,20 +25,16 @@ class PendingApprovalScreen extends StatelessWidget {
               const Spacer(flex: 2),
               // 아이콘
               Container(
-                    width: 64,
-                    height: 64,
+                    width: 72,
+                    height: 72,
                     decoration: BoxDecoration(
-                      color: AppColors.surface2,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(
-                        color: AppColors.separator,
-                        width: 0.5,
-                      ),
+                      color: AppColors.textPrimary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadius.xl),
                     ),
                     child: const Icon(
                       Icons.hourglass_top_rounded,
-                      color: AppColors.labelSecondary,
-                      size: 28,
+                      color: AppColors.textPrimary,
+                      size: 32,
                     ),
                   )
                   .animate()
@@ -47,13 +43,13 @@ class PendingApprovalScreen extends StatelessWidget {
               const Gap(AppSpacing.xl),
               Text(
                 '승인 대기 중',
-                style: AppTextStyles.h2,
+                style: AppTextStyles.h1.copyWith(fontSize: 28, fontWeight: FontWeight.w800),
               ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
               const Gap(AppSpacing.sm),
               Text(
                 '관리자가 가입 신청을 검토하고 있습니다.\n승인이 완료되면 바로 서비스를 이용하실 수 있습니다.',
                 style: AppTextStyles.body.copyWith(
-                  color: AppColors.labelSecondary,
+                  color: AppColors.textSecondary,
                   height: 1.6,
                 ),
               ).animate().fadeIn(delay: 150.ms, duration: 400.ms),

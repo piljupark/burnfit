@@ -31,20 +31,28 @@ class AppNavBar extends StatelessWidget {
     final bottom = MediaQuery.of(context).padding.bottom;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(64, 0, 64, bottom + 20),
+      padding: EdgeInsets.fromLTRB(40, 0, 40, bottom + 20),
       child: Container(
-        height: 64,
+        height: 68,
         decoration: BoxDecoration(
-          color: AppColors.navBg.withValues(alpha: 0.94),
+          color: AppColors.navBg.withValues(alpha: 0.97),
           borderRadius: BorderRadius.circular(AppRadius.xxl),
-          border: Border.all(color: AppColors.navBorder, width: 0.5),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x1A000000),
-              blurRadius: 24,
-              offset: Offset(0, 12),
+              color: Color(0x10000000),
+              blurRadius: 16,
+              offset: Offset(0, 4),
+            ),
+            BoxShadow(
+              color: Color(0x06000000),
+              blurRadius: 4,
+              offset: Offset(0, 1),
             ),
           ],
+          border: Border.all(
+            color: const Color(0x0A000000),
+            width: 0.5,
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -55,34 +63,46 @@ class AppNavBar extends StatelessWidget {
               onTap: () => onTap(i),
               behavior: HitTestBehavior.opaque,
               child: SizedBox(
-                width: 56,
-                height: 64,
+                width: 60,
+                height: 68,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: Icon(
-                        active ? item.activeIcon : item.icon,
-                        key: ValueKey(active),
-                        size: 22,
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 40,
+                      height: 32,
+                      decoration: BoxDecoration(
                         color: active
-                            ? AppColors.brand
-                            : AppColors.textTertiary,
+                            ? AppColors.brand.withValues(alpha: 0.1)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Center(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            active ? item.activeIcon : item.icon,
+                            key: ValueKey(active),
+                            size: 22,
+                            color: active
+                                ? AppColors.brand
+                                : AppColors.textTertiary,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      item.label,
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 200),
                       style: TextStyle(
                         fontFamily: 'Pretendard',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: active
-                            ? AppColors.brand
-                            : AppColors.textTertiary,
+                        fontSize: 11,
+                        fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                        color: active ? AppColors.brand : AppColors.textTertiary,
                         height: 1.0,
                       ),
+                      child: Text(item.label),
                     ),
                   ],
                 ),

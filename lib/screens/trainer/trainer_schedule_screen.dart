@@ -445,15 +445,16 @@ class _TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
               children: [
                 Text(
                   DateFormat('M월 d일 EEEE', 'ko').format(_selectedDay),
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyles.label.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   '${_selectedSessions.length + _selectedWorkouts.length}건',
-                  style: AppTextStyles.caption.copyWith(
+                  style: AppTextStyles.label.copyWith(
                     color:
                         _selectedSessions.isEmpty && _selectedWorkouts.isEmpty
                         ? AppColors.textDisabled
@@ -603,8 +604,14 @@ class _WorkoutCalendarCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -623,9 +630,10 @@ class _WorkoutCalendarCard extends StatelessWidget {
               children: [
                 Text(
                   '${workout.memberName} · $label',
-                  style: AppTextStyles.body.copyWith(
+                  style: AppTextStyles.label.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
+                    fontSize: 15,
                   ),
                 ),
                 const Gap(3),
@@ -672,8 +680,14 @@ class _SessionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Stack(
         children: [
@@ -686,8 +700,8 @@ class _SessionCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: barColor,
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppRadius.md),
-                  bottomLeft: Radius.circular(AppRadius.md),
+                  topLeft: Radius.circular(AppRadius.lg),
+                  bottomLeft: Radius.circular(AppRadius.lg),
                 ),
               ),
             ),
@@ -703,10 +717,10 @@ class _SessionCard extends StatelessWidget {
                     children: [
                       Text(
                         timeStr,
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textTertiary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11,
+                        style: AppTextStyles.label.copyWith(
+                          color: barColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
                         ),
                       ),
                       const Gap(AppSpacing.xs),
@@ -742,9 +756,9 @@ class _SessionCard extends StatelessWidget {
                   const Gap(AppSpacing.xs),
                   Text(
                     session.memberName,
-                    style: AppTextStyles.body.copyWith(
+                    style: AppTextStyles.h3.copyWith(
                       fontWeight: FontWeight.w700,
-                      fontSize: 16,
+                      fontSize: 17,
                       color: AppColors.textPrimary,
                     ),
                   ),

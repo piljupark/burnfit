@@ -298,37 +298,53 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTextStyles.caption),
-          const Gap(6),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: value,
-                  style: AppTextStyles.h2.copyWith(
-                    color: AppColors.brand,
-                    fontSize: 22,
-                  ),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const Gap(AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value,
+                style: AppTextStyles.numberLarge.copyWith(
+                  color: AppColors.brand,
+                  fontSize: 28,
                 ),
-                if (suffix != null)
-                  TextSpan(
-                    text: ' $suffix',
-                    style: AppTextStyles.bodySmall.copyWith(
+              ),
+              if (suffix != null) ...[
+                const Gap(3),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Text(
+                    suffix!,
+                    style: AppTextStyles.label.copyWith(
                       color: AppColors.textSecondary,
-                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
+                ),
               ],
-            ),
+            ],
           ),
         ],
       ),
@@ -422,37 +438,49 @@ class _InsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 88,
-      padding: const EdgeInsets.all(14),
+      height: 96,
+      padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppColors.brand.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: AppColors.workout.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: Icon(icon, color: AppColors.brand, size: 18),
+            child: Icon(icon, color: AppColors.workout, size: 20),
           ),
-          const Gap(10),
+          const Gap(AppSpacing.md),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: AppTextStyles.caption),
+                Text(
+                  label,
+                  style: AppTextStyles.captionSmall.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const Gap(4),
                 Text(
                   suffix == null ? value : '$value$suffix',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.label.copyWith(
+                  style: AppTextStyles.h3.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w800,
                   ),

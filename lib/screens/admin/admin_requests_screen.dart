@@ -193,7 +193,12 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
                             )
                           : ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
-                              padding: EdgeInsets.zero,
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.screenH,
+                                0,
+                                AppSpacing.screenH,
+                                AppSpacing.xl2,
+                              ),
                               itemCount: _requests.length,
                               itemBuilder: (_, i) {
                                 final req = _requests[i];
@@ -231,123 +236,117 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final initial = req.userName.isNotEmpty ? req.userName[0] : '?';
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        0,
-        AppSpacing.screenH,
-        0,
+    final isTrainer = req.role == 'trainer';
+    final accentColor = isTrainer ? AppColors.trainer : AppColors.brand;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.border, width: 0.5),
-        ),
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 상단: 아바타 + 이름/이메일 + 역할 뱃지
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: req.role == 'trainer'
-                        ? AppColors.trainer.withValues(
-                            alpha: 0.16,
-                          )
-                        : AppColors.brand.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    initial,
-                    style: AppTextStyles.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: req.role == 'trainer'
-                          ? AppColors.trainer
-                          : AppColors.brand,
-                    ),
-                  ),
+      padding: const EdgeInsets.all(AppSpacing.base),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 상단: 아바타 + 이름/이메일 + 역할 뱃지
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
                 ),
-                const Gap(AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        req.userName,
-                        style: AppTextStyles.body.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const Gap(AppSpacing.xxs),
-                      Text(
-                        req.userEmail,
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
+                alignment: Alignment.center,
+                child: Text(
+                  initial,
+                  style: AppTextStyles.headline.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: accentColor,
                   ),
-                ),
-                // 역할 뱃지
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                    vertical: AppSpacing.xxs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.info.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                  ),
-                  child: Text(
-                    req.role == 'trainer' ? '트레이너' : '회원',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.info,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const Gap(AppSpacing.xs),
-            // 신청 일시
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                DateFormat('yyyy.MM.dd HH:mm').format(req.createdAt),
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textTertiary,
                 ),
               ),
-            ),
-            const Gap(AppSpacing.md),
-            // 버튼 Row
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: '거절',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: isProcessing ? null : onReject,
+              const Gap(AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      req.userName,
+                      style: AppTextStyles.label.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const Gap(AppSpacing.xxs),
+                    Text(
+                      req.userEmail,
+                      style: AppTextStyles.captionSmall.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 역할 뱃지
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
+                child: Text(
+                  isTrainer ? '트레이너' : '회원',
+                  style: AppTextStyles.captionSmall.copyWith(
+                    color: accentColor,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const Gap(AppSpacing.sm),
-                Expanded(
-                  child: AppButton(
-                    label: '승인',
-                    onPressed: isProcessing ? null : onApprove,
-                    isLoading: isProcessing,
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const Gap(AppSpacing.sm),
+          // 신청 일시
+          Text(
+            DateFormat('yyyy.MM.dd HH:mm').format(req.createdAt),
+            style: AppTextStyles.captionSmall.copyWith(
+              color: AppColors.textTertiary,
             ),
-          ],
-        ),
+          ),
+          const Gap(AppSpacing.md),
+          // 버튼 Row
+          Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  label: '거절',
+                  variant: AppButtonVariant.secondary,
+                  onPressed: isProcessing ? null : onReject,
+                ),
+              ),
+              const Gap(AppSpacing.sm),
+              Expanded(
+                child: AppButton(
+                  label: '승인',
+                  onPressed: isProcessing ? null : onApprove,
+                  isLoading: isProcessing,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

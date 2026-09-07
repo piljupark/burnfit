@@ -86,7 +86,7 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 홈 탭 (오늘 일정 + 담당 회원)
+// 대시보드 탭
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TrainerDashboardTab extends StatefulWidget {
@@ -131,35 +131,28 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
       final sessions = results[1] as List<PtSession>;
       setState(() {
         _members = members;
-        _todaySessions =
-            sessions
-                .where((s) => s.status != PtSessionStatus.cancelled)
-                .toList()
-              ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+        _todaySessions = sessions
+            .where((s) => s.status != PtSessionStatus.cancelled)
+            .toList()
+          ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
       });
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _openPtWorkout(PtSession session) async {
     final member = _members.where((m) => m.uid == session.memberId).firstOrNull;
     if (member == null) {
-      AppFeedback.showErrorSnackBar(
-        context,
-        ArgumentError('회원 정보를 찾을 수 없습니다.'),
-      );
+      AppFeedback.showErrorSnackBar(context, ArgumentError('회원 정보를 찾을 수 없습니다.'));
       return;
     }
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            TrainerPtWorkoutScreen(session: session, member: member),
+        builder: (_) => TrainerPtWorkoutScreen(session: session, member: member),
       ),
     );
     await _load();
@@ -170,6 +163,8 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
     final user = context.watch<UserProvider>().user;
     final now = DateTime.now();
     final dateLabel = DateFormat('M월 d일 EEEE', 'ko').format(now);
+    final completedCount =
+        _todaySessions.where((s) => s.status == PtSessionStatus.completed).length;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -182,43 +177,11 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
+              // ── 인사 헤더 ───────────────────────────────────────────────
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, 0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        dateLabel,
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                      const Gap(2),
-                      RichText(
-                        text: TextSpan(
-                          style: AppTextStyles.h3.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.8,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: user?.name ?? '',
-                              style: const TextStyle(color: AppColors.textPrimary),
-                            ),
-                            const TextSpan(
-                              text: ' 트레이너',
-                              style: TextStyle(color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Gap(AppSpacing.xl),
-                    ],
-                  ),
+                child: _TrainerGreetingHeader(
+                  user: user,
+                  dateLabel: dateLabel,
                 ),
               ),
 
@@ -229,28 +192,51 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
                   ),
                 )
               else ...[
+                // ── 오늘 PT 통계 배너 ───────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, 0,
+                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.base,
                     ),
-                    child: _TodayScheduleSection(
-                      sessions: _todaySessions,
-                      members: _members,
-                      onRecordTap: _openPtWorkout,
+                    child: _TodayStatsBanner(
+                      total: _todaySessions.length,
+                      completed: completedCount,
                     ),
                   ),
                 ),
-                const SliverToBoxAdapter(child: Gap(AppSpacing.xl)),
 
+                // ── 오늘 PT 일정 ────────────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.sm,
+                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.xl,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppSectionHeader(
+                          title: '오늘 PT 일정',
+                          accentColor: AppColors.brand,
+                        ),
+                        _TodayScheduleList(
+                          sessions: _todaySessions,
+                          onRecordTap: _openPtWorkout,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── 담당 회원 ───────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md,
                     ),
                     child: AppSectionHeader(
                       title: '담당 회원',
                       trailing: '${_members.length}명',
+                      accentColor: AppColors.workout,
                     ),
                   ),
                 ),
@@ -273,19 +259,22 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
                       AppSpacing.screenH, 0, AppSpacing.screenH, 120,
                     ),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate((_, i) {
-                        if (i.isOdd) return const Gap(AppSpacing.xs);
-                        final m = _members[i ~/ 2];
-                        return _MemberCard(
-                          member: m,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  TrainerMemberDetailScreen(member: m),
+                      delegate: SliverChildBuilderDelegate(
+                        (_, i) {
+                          if (i.isOdd) return const Gap(AppSpacing.sm);
+                          final m = _members[i ~/ 2];
+                          return _MemberCard(
+                            member: m,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    TrainerMemberDetailScreen(member: m),
+                              ),
                             ),
-                          ),
-                        );
-                      }, childCount: _members.length * 2 - 1),
+                          );
+                        },
+                        childCount: _members.length * 2 - 1,
+                      ),
                     ),
                   ),
               ],
@@ -298,130 +287,301 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 오늘의 PT 일정 섹션
+// 인사 헤더
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _TodayScheduleSection extends StatelessWidget {
-  final List<PtSession> sessions;
-  final List<AppUser> members;
-  final void Function(PtSession) onRecordTap;
+class _TrainerGreetingHeader extends StatelessWidget {
+  final dynamic user;
+  final String dateLabel;
 
-  const _TodayScheduleSection({
-    required this.sessions,
-    required this.members,
-    required this.onRecordTap,
-  });
+  const _TrainerGreetingHeader({required this.user, required this.dateLabel});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 0.5),
+    final name = user?.name ?? '';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, AppSpacing.xl,
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md, AppSpacing.md, AppSpacing.md, 0,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '오늘의 PT',
+                  dateLabel,
                   style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
+                    color: AppColors.textTertiary,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                Text(
-                  '${sessions.length}건',
-                  style: AppTextStyles.caption.copyWith(
-                    color: sessions.isEmpty
-                        ? AppColors.textTertiary
-                        : AppColors.brand,
-                    fontWeight: FontWeight.w700,
+                const Gap(AppSpacing.xs),
+                RichText(
+                  text: TextSpan(
+                    style: AppTextStyles.h1,
+                    children: [
+                      TextSpan(
+                        text: '$name 트레이너',
+                        style: AppTextStyles.h1,
+                      ),
+                      TextSpan(
+                        text: '\n오늘도 파이팅!',
+                        style: AppTextStyles.h1.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w400,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          if (sessions.isEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppSpacing.lg,
-                horizontal: AppSpacing.md,
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_outline_rounded,
-                    size: 16,
-                    color: AppColors.textDisabled,
-                  ),
-                  const Gap(AppSpacing.xs),
-                  Text(
-                    '오늘 예정된 PT가 없습니다.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ],
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.trainer.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              name.isNotEmpty ? name[0] : 'T',
+              style: AppTextStyles.headline.copyWith(
+                color: AppColors.trainer,
+                fontWeight: FontWeight.w800,
               ),
             ),
-          ] else ...[
-            const Gap(AppSpacing.xs),
-            ...sessions.asMap().entries.map((e) {
-              final idx = e.key;
-              final s = e.value;
-              return Column(
-                children: [
-                  if (idx > 0)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                      ),
-                      child: Divider(
-                        height: 0.5,
-                        thickness: 0.5,
-                        color: AppColors.border,
-                      ),
-                    ),
-                  _TodaySessionRow(
-                    session: s,
-                    onRecordTap: s.status == PtSessionStatus.scheduled
-                        ? () => onRecordTap(s)
-                        : null,
-                  ),
-                ],
-              );
-            }),
-          ],
-          const Gap(AppSpacing.xs),
+          ),
         ],
       ),
     );
   }
 }
 
-class _TodaySessionRow extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// 오늘 PT 통계 배너
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TodayStatsBanner extends StatelessWidget {
+  final int total;
+  final int completed;
+
+  const _TodayStatsBanner({required this.total, required this.completed});
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = total - completed;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.base),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '오늘 PT',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const Gap(AppSpacing.xs),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '$total',
+                      style: AppTextStyles.numberLarge.copyWith(
+                        color: AppColors.textPrimary,
+                        fontSize: 40,
+                        letterSpacing: -2,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 5),
+                      child: Text(
+                        '건',
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(
+            height: 48,
+            child: VerticalDivider(width: 1, color: AppColors.border),
+          ),
+          const Gap(AppSpacing.base),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _StatRow(
+                label: '완료',
+                value: '$completed',
+                color: AppColors.workout,
+              ),
+              const Gap(AppSpacing.sm),
+              _StatRow(
+                label: '대기',
+                value: '$remaining',
+                color: AppColors.textTertiary,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatRow({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          value,
+          style: AppTextStyles.h2.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const Gap(4),
+        Text(
+          label,
+          style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 오늘 PT 일정 리스트
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TodayScheduleList extends StatelessWidget {
+  final List<PtSession> sessions;
+  final void Function(PtSession) onRecordTap;
+
+  const _TodayScheduleList({
+    required this.sessions,
+    required this.onRecordTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (sessions.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          boxShadow: const [
+            BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle_outline_rounded,
+              size: 18,
+              color: AppColors.textDisabled,
+            ),
+            const Gap(AppSpacing.sm),
+            Text(
+              '오늘 예정된 PT가 없습니다.',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 4)),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: sessions.asMap().entries.map((e) {
+          final idx = e.key;
+          final s = e.value;
+          return Column(
+            children: [
+              if (idx > 0)
+                Divider(
+                  height: 0.5,
+                  thickness: 0.5,
+                  color: AppColors.border,
+                  indent: AppSpacing.base + 36 + AppSpacing.md,
+                ),
+              _ScheduleRow(
+                session: s,
+                onRecordTap: s.status == PtSessionStatus.scheduled
+                    ? () => onRecordTap(s)
+                    : null,
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _ScheduleRow extends StatelessWidget {
   final PtSession session;
   final VoidCallback? onRecordTap;
 
-  const _TodaySessionRow({required this.session, this.onRecordTap});
+  const _ScheduleRow({required this.session, this.onRecordTap});
 
   @override
   Widget build(BuildContext context) {
     final timeStr = DateFormat('HH:mm').format(session.scheduledAt);
     final isCompleted = session.status == PtSessionStatus.completed;
+    final accentColor = isCompleted ? AppColors.workout : AppColors.brand;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
+        horizontal: AppSpacing.base,
+        vertical: AppSpacing.md,
       ),
       child: Row(
         children: [
@@ -429,36 +589,36 @@ class _TodaySessionRow extends StatelessWidget {
             width: 36,
             child: Text(
               timeStr,
-              style: AppTextStyles.caption.copyWith(
+              style: AppTextStyles.captionSmall.copyWith(
                 color: AppColors.textTertiary,
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
               ),
             ),
           ),
-          const Gap(AppSpacing.xs),
+          const Gap(AppSpacing.md),
           Container(
-            width: 3,
-            height: 36,
+            width: 4,
+            height: 40,
             decoration: BoxDecoration(
-              color: isCompleted ? AppColors.workout : AppColors.brand,
+              color: accentColor,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const Gap(AppSpacing.sm),
+          const Gap(AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   session.memberName,
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
+                  style: AppTextStyles.label.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
                   ),
                 ),
-                if (session.note != null && session.note!.isNotEmpty)
+                if (session.note != null && session.note!.isNotEmpty) ...[
+                  const Gap(2),
                   Text(
                     session.note!,
                     style: AppTextStyles.captionSmall.copyWith(
@@ -467,25 +627,27 @@ class _TodaySessionRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                ],
               ],
             ),
           ),
+          const Gap(AppSpacing.sm),
           if (onRecordTap != null)
             GestureDetector(
               onTap: onRecordTap,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: 6,
+                  horizontal: AppSpacing.md,
+                  vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.brand.withValues(alpha: 0.1),
+                  color: AppColors.brand,
                   borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Text(
                   '기록',
                   style: AppTextStyles.captionSmall.copyWith(
-                    color: AppColors.brand,
+                    color: Colors.white,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -493,7 +655,7 @@ class _TodaySessionRow extends StatelessWidget {
             )
           else
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
                 color: AppColors.workout.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.xs),
@@ -530,69 +692,80 @@ class _MemberCard extends StatelessWidget {
 
     return Material(
       color: AppColors.card,
-      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        splashColor: AppColors.brand.withValues(alpha: 0.05),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        splashColor: AppColors.brand.withValues(alpha: 0.04),
+        highlightColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.base),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: AppColors.brand.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   initial,
                   style: AppTextStyles.headline.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.brand,
                   ),
                 ),
               ),
-              const Gap(AppSpacing.sm),
+              const Gap(AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       member.name,
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                      style: AppTextStyles.label.copyWith(
+                        fontWeight: FontWeight.w700,
                         fontSize: 15,
                       ),
                     ),
-                    if (weight != null) ...[
-                      const Gap(2),
-                      Text(
-                        '${weight.toStringAsFixed(1)} kg'
-                        '${bmi != null ? '  ·  BMI ${bmi.toStringAsFixed(1)}' : ''}',
-                        style: AppTextStyles.captionSmall.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
+                    const Gap(3),
+                    Text(
+                      weight != null
+                          ? '${weight.toStringAsFixed(1)} kg${bmi != null ? '  ·  BMI ${bmi.toStringAsFixed(1)}' : ''}'
+                          : '신체 정보 없음',
+                      style: AppTextStyles.captionSmall.copyWith(
+                        color: weight != null
+                            ? AppColors.textTertiary
+                            : AppColors.textDisabled,
                       ),
-                    ] else ...[
-                      const Gap(2),
-                      Text(
-                        '신체 정보 없음',
-                        style: AppTextStyles.captionSmall.copyWith(
-                          color: AppColors.textDisabled,
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 16,
-                color: AppColors.textDisabled,
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.bg,
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
+                ),
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: AppColors.textTertiary,
+                ),
               ),
             ],
           ),
@@ -622,29 +795,35 @@ class _TrainerProfileTab extends StatelessWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, 0,
+                  AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, 0,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       '마이',
-                      style: AppTextStyles.h2.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.8,
-                      ),
+                      style: AppTextStyles.h1,
                     ),
-                    const Gap(AppSpacing.lg),
+                    const Gap(AppSpacing.xl),
                     AppProfileCard(
                       name: user?.name ?? '',
                       subtitle: user?.centerName ?? '',
                       roleLabel: '트레이너',
+                      gradientStart: AppColors.trainer,
+                      gradientEnd: const Color(0xFF6A5DB8),
                     ),
-                    const Gap(AppSpacing.md),
+                    const Gap(AppSpacing.xl),
                     Container(
                       decoration: BoxDecoration(
                         color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x08000000),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: AppActionRow(
                         icon: Icons.logout_rounded,
@@ -653,9 +832,8 @@ class _TrainerProfileTab extends StatelessWidget {
                         onTap: () async {
                           await context.read<UserProvider>().signOut();
                           if (!context.mounted) return;
-                          Navigator.of(
-                            context,
-                          ).pushReplacementNamed(AppRoutes.memberLogin);
+                          Navigator.of(context)
+                              .pushReplacementNamed(AppRoutes.memberLogin);
                         },
                       ),
                     ),
@@ -663,6 +841,7 @@ class _TrainerProfileTab extends StatelessWidget {
                 ),
               ),
             ),
+            const SliverToBoxAdapter(child: Gap(120)),
           ],
         ),
       ),

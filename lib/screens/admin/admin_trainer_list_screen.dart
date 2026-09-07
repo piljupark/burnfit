@@ -221,7 +221,7 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                               ),
                               itemCount: _filtered.length,
                               separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 1),
+                                  const SizedBox(height: AppSpacing.sm),
                               itemBuilder: (_, i) {
                                 final t = _filtered[i];
                                 final initial = t.name.isNotEmpty
@@ -230,72 +230,83 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                                 return Material(
                                   color: AppColors.card,
                                   borderRadius: BorderRadius.circular(
-                                    AppRadius.md,
+                                    AppRadius.lg,
                                   ),
                                   child: InkWell(
                                     onTap: () => _showTrainerDetail(t),
                                     splashColor: AppColors.brand
                                         .withValues(alpha: 0.05),
                                     borderRadius: BorderRadius.circular(
-                                      AppRadius.md,
+                                      AppRadius.lg,
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.md,
-                                        vertical: AppSpacing.sm + 2,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            width: 40,
-                                            height: 40,
-                                            decoration: BoxDecoration(
-                                              color: AppColors
-                                                  .trainer
-                                                  .withValues(alpha: 0.16),
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                    AppRadius.sm,
-                                                  ),
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: Text(
-                                              initial,
-                                              style: AppTextStyles.body
-                                                  .copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppColors
-                                                        .trainer,
-                                                  ),
-                                            ),
-                                          ),
-                                          const Gap(AppSpacing.md),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  t.name,
-                                                  style: AppTextStyles.body
-                                                      .copyWith(
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                ),
-                                                const Gap(AppSpacing.xxs),
-                                                Text(
-                                                  t.email,
-                                                  style: AppTextStyles.caption
-                                                      .copyWith(
-                                                        color: AppColors
-                                                            .textSecondary,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.card,
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadius.lg,
+                                        ),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Color(0x0A000000),
+                                            blurRadius: 8,
+                                            offset: Offset(0, 4),
                                           ),
                                         ],
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: AppSpacing.md,
+                                          vertical: AppSpacing.sm + 2,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 48,
+                                              height: 48,
+                                              decoration: BoxDecoration(
+                                                color: AppColors.trainer.withValues(alpha: 0.12),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: Text(
+                                                initial,
+                                                style: AppTextStyles.label
+                                                    .copyWith(
+                                                      fontWeight: FontWeight.w700,
+                                                      fontSize: 15,
+                                                      color: AppColors.trainer,
+                                                    ),
+                                              ),
+                                            ),
+                                            const Gap(AppSpacing.md),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    t.name,
+                                                    style: AppTextStyles.label
+                                                        .copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          fontSize: 15,
+                                                        ),
+                                                  ),
+                                                  const Gap(AppSpacing.xxs),
+                                                  Text(
+                                                    t.email,
+                                                    style: AppTextStyles.captionSmall
+                                                        .copyWith(
+                                                          color: AppColors
+                                                              .textTertiary,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),

@@ -210,17 +210,26 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
         color: data.highlight
-            ? AppColors.brand.withValues(alpha: 0.08)
+            ? AppColors.brand.withValues(alpha: 0.06)
             : AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
           color: data.highlight
-              ? AppColors.brand.withValues(alpha: 0.3)
+              ? AppColors.brand.withValues(alpha: 0.25)
               : AppColors.border,
         ),
+        boxShadow: data.highlight
+            ? null
+            : const [
+                BoxShadow(
+                  color: Color(0x08000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,33 +237,37 @@ class _KpiCard extends StatelessWidget {
         children: [
           Text(
             data.label,
-            style: AppTextStyles.caption.copyWith(
+            style: AppTextStyles.captionSmall.copyWith(
               color: data.highlight
                   ? AppColors.brand
                   : AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: data.value,
-                  style: AppTextStyles.h2.copyWith(
-                    color: data.highlight
-                        ? AppColors.brand
-                        : AppColors.textPrimary,
-                    fontSize: 28,
-                  ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                data.value,
+                style: AppTextStyles.numberLarge.copyWith(
+                  color: data.highlight
+                      ? AppColors.brand
+                      : AppColors.textPrimary,
+                  fontSize: 30,
                 ),
-                TextSpan(
-                  text: ' ${data.suffix}',
-                  style: AppTextStyles.bodySmall.copyWith(
+              ),
+              const Gap(3),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text(
+                  data.suffix,
+                  style: AppTextStyles.label.copyWith(
                     color: AppColors.textSecondary,
-                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -286,9 +299,7 @@ class _OperationInsightCard extends StatelessWidget {
         children: [
           Text(
             '운영 인사이트',
-            style: AppTextStyles.label.copyWith(
-              color: AppColors.textPrimary,
-            ),
+            style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700),
           ),
           const Gap(14),
           Row(
@@ -416,9 +427,7 @@ class _TrainerBarChart extends StatelessWidget {
         children: [
           Text(
             '$monthLabel 트레이너별 완료 세션',
-            style: AppTextStyles.label.copyWith(
-              color: AppColors.textPrimary,
-            ),
+            style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700),
           ),
           const Gap(4),
           if (trainerStats.isEmpty) ...[

@@ -7,7 +7,7 @@ enum AppButtonVariant { primary, secondary, ghost, danger }
 
 enum AppButtonSize { sm, md, lg }
 
-class AppButton extends StatelessWidget {
+class AppButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
   final AppButtonVariant variant;
@@ -28,39 +28,74 @@ class AppButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final disabled = onPressed == null || isLoading;
+  State<AppButton> createState() => _AppButtonState();
+}
 
-    final height = switch (size) {
+class _AppButtonState extends State<AppButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 80),
+      reverseDuration: const Duration(milliseconds: 200),
+      lowerBound: 0.0,
+      upperBound: 1.0,
+      value: 0,
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.96).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(_) => _ctrl.forward();
+  void _onTapUp(_) => _ctrl.reverse();
+  void _onTapCancel() => _ctrl.reverse();
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = widget.onPressed == null || widget.isLoading;
+
+    final height = switch (widget.size) {
       AppButtonSize.sm => 40.0,
       AppButtonSize.md => 52.0,
       AppButtonSize.lg => 56.0,
     };
 
-    final hPad = switch (size) {
+    final hPad = switch (widget.size) {
       AppButtonSize.sm => 16.0,
       AppButtonSize.md => 24.0,
       AppButtonSize.lg => 28.0,
     };
 
-    final fontSize = switch (size) {
-      AppButtonSize.sm => 13.0,
-      AppButtonSize.md => 15.0,
-      AppButtonSize.lg => 16.0,
+    final fontSize = switch (widget.size) {
+      AppButtonSize.sm => 14.0,
+      AppButtonSize.md => 16.0,
+      AppButtonSize.lg => 17.0,
     };
 
-    final radius = switch (size) {
+    final radius = switch (widget.size) {
       AppButtonSize.sm => AppRadius.sm,
-      AppButtonSize.md => AppRadius.sm,
-      AppButtonSize.lg => AppRadius.sm,
+      AppButtonSize.md => AppRadius.md,
+      AppButtonSize.lg => AppRadius.md,
     };
 
-    final bg = switch (variant) {
+    final bg = switch (widget.variant) {
       AppButtonVariant.primary =>
         disabled
             ? AppColors.brand.withValues(alpha: 0.35)
             : AppColors.brand,
-      AppButtonVariant.secondary => AppColors.textNeutral,
+      AppButtonVariant.secondary => AppColors.bg,
       AppButtonVariant.ghost => Colors.transparent,
       AppButtonVariant.danger =>
         disabled
@@ -68,41 +103,37 @@ class AppButton extends StatelessWidget {
             : AppColors.destructive,
     };
 
-    final fg = switch (variant) {
+    final fg = switch (widget.variant) {
       AppButtonVariant.primary =>
         disabled ? AppColors.textDisabled : AppColors.textOnAccent,
       AppButtonVariant.secondary =>
-        disabled ? AppColors.textDisabled : AppColors.textOnAccent,
+        disabled ? AppColors.textDisabled : AppColors.textPrimary,
       AppButtonVariant.ghost =>
         disabled ? AppColors.textDisabled : AppColors.brand,
       AppButtonVariant.danger => AppColors.textOnAccent,
     };
 
-    final border = switch (variant) {
-      AppButtonVariant.secondary => null,
-      AppButtonVariant.ghost => null,
-      _ => null,
-    };
+    final List<BoxShadow> shadows = [];
 
-    final content = isLoading
+    final content = widget.isLoading
         ? SizedBox(
-            width: 18,
-            height: 18,
+            width: 20,
+            height: 20,
             child: CircularProgressIndicator(strokeWidth: 2, color: fg),
           )
         : Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (icon != null) ...[
+              if (widget.icon != null) ...[
                 IconTheme(
-                  data: IconThemeData(color: fg, size: 18),
-                  child: icon!,
+                  data: IconThemeData(color: fg, size: 20),
+                  child: widget.icon!,
                 ),
-                const SizedBox(width: AppSpacing.xs),
+                const SizedBox(width: 8),
               ],
               Text(
-                label,
+                widget.label,
                 style: AppTextStyles.button.copyWith(
                   color: fg,
                   fontSize: fontSize,
@@ -113,22 +144,32 @@ class AppButton extends StatelessWidget {
           );
 
     Widget button = GestureDetector(
-      onTap: disabled ? null : onPressed,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        height: height,
-        padding: EdgeInsets.symmetric(horizontal: hPad),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(radius),
-          border: border,
+      onTap: disabled ? null : widget.onPressed,
+      onTapDown: disabled ? null : _onTapDown,
+      onTapUp: disabled ? null : _onTapUp,
+      onTapCancel: disabled ? null : _onTapCancel,
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (_, child) => Transform.scale(
+          scale: _scale.value,
+          child: child,
         ),
-        alignment: Alignment.center,
-        child: content,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          height: height,
+          padding: EdgeInsets.symmetric(horizontal: hPad),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(radius),
+            boxShadow: shadows,
+          ),
+          alignment: Alignment.center,
+          child: content,
+        ),
       ),
     );
 
-    if (fullWidth) return SizedBox(width: double.infinity, child: button);
+    if (widget.fullWidth) return SizedBox(width: double.infinity, child: button);
     return button;
   }
 }

@@ -148,16 +148,16 @@ class _ShareRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppTextStyles.body.copyWith(
+                  style: AppTextStyles.label.copyWith(
                     color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const Gap(4),
                 Text(
                   subtitle,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
+                  style: AppTextStyles.captionSmall.copyWith(
+                    color: AppColors.textTertiary,
                   ),
                 ),
               ],

@@ -14,8 +14,6 @@ import '../../models/workout.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
-import '../../widgets/app_card.dart';
-import '../../widgets/app_icon_box.dart';
 import '../../widgets/app_nav_bar.dart';
 import 'member_calendar_screen.dart';
 import 'member_feedback_screen.dart';
@@ -68,6 +66,7 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
         onGoToWorkout: _openWorkoutLog,
         onGoToFeedback: _openFeedback,
         onGoToProfile: () => setState(() => _currentIndex = 3),
+        onGoToPt: () => setState(() => _currentIndex = 2),
       ),
       const MemberCalendarScreen(),
       const MemberPtScheduleScreen(showBackButton: false),
@@ -76,24 +75,23 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
   }
 
   void _openMealLog() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const MemberMealLogScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MemberMealLogScreen()),
+    );
   }
 
   void _openWorkoutLog() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            MemberWorkoutScreen(onExit: () => Navigator.pop(context)),
+        builder: (_) => MemberWorkoutScreen(onExit: () => Navigator.pop(context)),
       ),
     );
   }
 
   void _openFeedback() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const MemberFeedbackScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MemberFeedbackScreen()),
+    );
   }
 
   @override
@@ -130,12 +128,14 @@ class _HomeDashboardTab extends StatefulWidget {
   final VoidCallback onGoToWorkout;
   final VoidCallback onGoToFeedback;
   final VoidCallback onGoToProfile;
+  final VoidCallback onGoToPt;
 
   const _HomeDashboardTab({
     required this.onGoToMeal,
     required this.onGoToWorkout,
     required this.onGoToFeedback,
     required this.onGoToProfile,
+    required this.onGoToPt,
   });
 
   @override
@@ -166,7 +166,6 @@ class _HomeDashboardTabState extends State<_HomeDashboardTab> {
       final weekEnd = weekStart.add(const Duration(days: 6));
       final todayKey = _key(now);
 
-      // inbody는 복합 인덱스 필요 — 인덱스 없어도 나머지 로드 계속하도록 분리
       final inbodiesFuture = FirestoreService.getInbodiesByMember(
         user.uid,
         centerId: user.centerId,
@@ -199,17 +198,14 @@ class _HomeDashboardTabState extends State<_HomeDashboardTab> {
       final weekWorkouts = results[2] as List<Workout>;
       final feedbacks = results[3] as List<fb.Feedback>;
 
-      final upcoming =
-          upcomingSessions
-              .where(
-                (s) =>
-                    s.status == PtSessionStatus.scheduled &&
-                    s.scheduledAt.isAfter(
-                      now.subtract(const Duration(minutes: 1)),
-                    ),
-              )
-              .toList()
-            ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      final upcoming = upcomingSessions
+          .where(
+            (s) =>
+                s.status == PtSessionStatus.scheduled &&
+                s.scheduledAt.isAfter(now.subtract(const Duration(minutes: 1))),
+          )
+          .toList()
+        ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
 
       final todaysWorkouts =
           weekWorkouts.where((w) => w.workoutDate == todayKey).toList()
@@ -244,40 +240,66 @@ class _HomeDashboardTabState extends State<_HomeDashboardTab> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
+              // ── 상단 인사 헤더 ──────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: _GreetingHeader(user: user, now: now),
+              ),
+
+              // ── 오늘의 운동 히어로 카드 ─────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _HomeTitle(user: user, now: now),
-                      const Gap(20),
-                      _TodayWorkoutHero(workout: _todayWorkout),
-                      const Gap(12),
-                      _QuickActionRow(
-                        onGoToWorkout: widget.onGoToWorkout,
-                        onGoToMeal: widget.onGoToMeal,
-                      ),
-                      const Gap(12),
-                      if (_nextPtSession != null) ...[
-                        _NextPtCard(session: _nextPtSession!),
-                        const Gap(12),
-                      ],
-                      _FeedbackPreviewCard(
-                        feedback: _latestFeedback,
-                        onTap: widget.onGoToFeedback,
-                      ),
-                      const Gap(12),
-                      _CurrentWeightCard(
-                        latest: _latestInbody,
-                        prev: _prevInbody,
-                        onTap: widget.onGoToProfile,
-                      ),
-                      const Gap(120),
-                    ],
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.base,
+                  ),
+                  child: _TodayWorkoutHero(workout: _todayWorkout),
+                ),
+              ),
+
+              // ── 퀵 액션 2×2 그리드 ─────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.base,
+                  ),
+                  child: _QuickActionGrid(
+                    onGoToWorkout: widget.onGoToWorkout,
+                    onGoToMeal: widget.onGoToMeal,
+                    onGoToPt: widget.onGoToPt,
+                    onGoToFeedback: widget.onGoToFeedback,
                   ),
                 ),
               ),
+
+              // ── 다음 PT + 체중 KPI 행 ──────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.base,
+                  ),
+                  child: _StatsRow(
+                    latestInbody: _latestInbody,
+                    prevInbody: _prevInbody,
+                    nextSession: _nextPtSession,
+                    onWeightTap: widget.onGoToProfile,
+                    onPtTap: widget.onGoToPt,
+                  ),
+                ),
+              ),
+
+              // ── 트레이너 피드백 ────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH, 0, AppSpacing.screenH, 0,
+                  ),
+                  child: _FeedbackCard(
+                    feedback: _latestFeedback,
+                    onTap: widget.onGoToFeedback,
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: Gap(120)),
             ],
           ),
         ),
@@ -287,44 +309,86 @@ class _HomeDashboardTabState extends State<_HomeDashboardTab> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 홈 타이틀
+// 인사 헤더
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _HomeTitle extends StatelessWidget {
+class _GreetingHeader extends StatelessWidget {
   final dynamic user;
   final DateTime now;
 
-  const _HomeTitle({required this.user, required this.now});
+  const _GreetingHeader({required this.user, required this.now});
 
   @override
   Widget build(BuildContext context) {
     final name = user?.name ?? '';
-    final dateLabel = DateFormat('yyyy년 M월 d일 (E)', 'ko').format(now);
+    final hour = now.hour;
+    final greeting = hour < 12 ? '좋은 아침이에요' : hour < 18 ? '안녕하세요' : '수고하셨어요';
+    final dateLabel = DateFormat('M월 d일 EEEE', 'ko').format(now);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '안녕하세요, $name님',
-          style: AppTextStyles.h1.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, AppSpacing.xl,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dateLabel,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textTertiary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Gap(AppSpacing.xs),
+                RichText(
+                  text: TextSpan(
+                    style: AppTextStyles.h1,
+                    children: [
+                      TextSpan(
+                        text: greeting,
+                        style: AppTextStyles.h1.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w400,
+                          fontSize: 22,
+                        ),
+                      ),
+                      const TextSpan(text: '\n'),
+                      TextSpan(text: '$name 님'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const Gap(4),
-        Text(
-          dateLabel,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textSecondary,
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppColors.brandLight,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              name.isNotEmpty ? name[0] : '?',
+              style: AppTextStyles.headline.copyWith(
+                color: AppColors.brand,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
-
-
-
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 오늘의 운동 히어로 카드
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _TodayWorkoutHero extends StatelessWidget {
   final Workout? workout;
@@ -334,33 +398,66 @@ class _TodayWorkoutHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasWorkout = workout != null;
-    final title = hasWorkout ? _workoutSummary(workout!) : '아직 기록 전이에요';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: AppColors.brand,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Text(
+                '오늘의 운동',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.brand,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              if (hasWorkout)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.workout.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                  ),
+                  child: Text(
+                    '완료',
+                    style: AppTextStyles.captionSmall.copyWith(
+                      color: AppColors.workout,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const Gap(AppSpacing.sm),
           Text(
-            '오늘의 운동',
-            style: AppTextStyles.label.copyWith(
-              color: AppColors.textOnAccent.withValues(alpha: 0.75),
-              fontSize: 13,
+            hasWorkout ? _workoutTitle(workout!) : '아직 기록 전이에요',
+            style: AppTextStyles.h2.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
             ),
           ),
-          const Gap(8),
+          const Gap(AppSpacing.xs),
           Text(
-            title,
-            style: AppTextStyles.headline.copyWith(
-              color: AppColors.textOnAccent,
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.2,
+            hasWorkout
+                ? '${workout!.exercises.length}종목 · 볼륨 ${workout!.totalVolume.toStringAsFixed(0)}kg · ${workout!.durationSeconds ~/ 60}분'
+                : '오늘도 목표를 향해 달려보세요',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
             ),
           ),
         ],
@@ -368,56 +465,96 @@ class _TodayWorkoutHero extends StatelessWidget {
     );
   }
 
-  static String _workoutSummary(Workout workout) {
-    final category = workout.category.label;
-    final minutes = workout.durationSeconds ~/ 60;
-    return minutes > 0 ? '$category · $minutes분 완료' : '$category 완료';
+  static String _workoutTitle(Workout w) {
+    final category = w.category.label;
+    final minutes = w.durationSeconds ~/ 60;
+    return minutes > 0 ? '$category · $minutes분' : category;
   }
 }
 
-class _QuickActionRow extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// 퀵 액션 2×2 그리드
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _QuickActionGrid extends StatelessWidget {
   final VoidCallback onGoToWorkout;
   final VoidCallback onGoToMeal;
+  final VoidCallback onGoToPt;
+  final VoidCallback onGoToFeedback;
 
-  const _QuickActionRow({
+  const _QuickActionGrid({
     required this.onGoToWorkout,
     required this.onGoToMeal,
+    required this.onGoToPt,
+    required this.onGoToFeedback,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _QuickActionCard(
-            label: '운동 기록',
-            icon: Icons.fitness_center_rounded,
-            color: AppColors.workout,
-            onTap: onGoToWorkout,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickTile(
+                label: '운동 기록',
+                description: '오늘 운동 추가',
+                icon: Icons.fitness_center_rounded,
+                color: AppColors.workout,
+                onTap: onGoToWorkout,
+              ),
+            ),
+            const Gap(AppSpacing.sm),
+            Expanded(
+              child: _QuickTile(
+                label: '식단 기록',
+                description: '식사 & 칼로리',
+                icon: Icons.restaurant_rounded,
+                color: AppColors.diet,
+                onTap: onGoToMeal,
+              ),
+            ),
+          ],
         ),
-        const Gap(12),
-        Expanded(
-          child: _QuickActionCard(
-            label: '식단 기록',
-            icon: Icons.restaurant_rounded,
-            color: AppColors.diet,
-            onTap: onGoToMeal,
-          ),
+        const Gap(AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickTile(
+                label: 'PT 일정',
+                description: '예약 확인',
+                icon: Icons.event_available_rounded,
+                color: AppColors.trainer,
+                onTap: onGoToPt,
+              ),
+            ),
+            const Gap(AppSpacing.sm),
+            Expanded(
+              child: _QuickTile(
+                label: '피드백',
+                description: '트레이너 메시지',
+                icon: Icons.chat_bubble_outline_rounded,
+                color: AppColors.brand,
+                onTap: onGoToFeedback,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-class _QuickActionCard extends StatelessWidget {
+class _QuickTile extends StatelessWidget {
   final String label;
+  final String description;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
-  const _QuickActionCard({
+  const _QuickTile({
     required this.label,
+    required this.description,
     required this.icon,
     required this.color,
     required this.onTap,
@@ -425,221 +562,339 @@ class _QuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      onTap: onTap,
-      hasShadow: true,
-      hasBorder: false,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppIconBox(icon: icon, color: color),
-          const Gap(10),
-          Text(
-            label,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
+    return Material(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        splashColor: color.withValues(alpha: 0.08),
+        highlightColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.base),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Icon(icon, size: 22, color: color),
+              ),
+              const Gap(AppSpacing.md),
+              Text(
+                label,
+                style: AppTextStyles.label.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+              const Gap(3),
+              Text(
+                description,
+                style: AppTextStyles.captionSmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _FeedbackPreviewCard extends StatelessWidget {
-  final fb.Feedback? feedback;
-  final VoidCallback onTap;
+// ─────────────────────────────────────────────────────────────────────────────
+// 체중 + PT 통계 행
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const _FeedbackPreviewCard({required this.feedback, required this.onTap});
+class _StatsRow extends StatelessWidget {
+  final Inbody? latestInbody;
+  final Inbody? prevInbody;
+  final PtSession? nextSession;
+  final VoidCallback onWeightTap;
+  final VoidCallback onPtTap;
+
+  const _StatsRow({
+    required this.latestInbody,
+    required this.prevInbody,
+    required this.nextSession,
+    required this.onWeightTap,
+    required this.onPtTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final message = feedback?.content ?? '아직 등록된 트레이너 피드백이 없습니다.';
+    final weight = latestInbody?.weight;
+    final diff = (weight != null && prevInbody?.weight != null)
+        ? weight - prevInbody!.weight
+        : null;
 
-    return AppCard(
-      onTap: onTap,
-      hasShadow: true,
-      hasBorder: false,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+    final ptLabel = nextSession != null
+        ? _ptTimeLabel(nextSession!)
+        : '--';
+
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: onWeightTap,
+            child: _StatCard(
+              label: '현재 체중',
+              value: weight != null ? weight.toStringAsFixed(1) : '--',
+              unit: 'kg',
+              accentColor: AppColors.brand,
+              trend: diff != null
+                  ? '${diff < 0 ? '' : '+'}${diff.toStringAsFixed(1)}kg'
+                  : null,
+              trendUp: diff != null ? diff > 0 : null,
+            ),
+          ),
+        ),
+        const Gap(AppSpacing.sm),
+        Expanded(
+          child: GestureDetector(
+            onTap: onPtTap,
+            child: _StatCard(
+              label: '다음 PT',
+              value: ptLabel,
+              unit: '',
+              accentColor: AppColors.trainer,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _ptTimeLabel(PtSession s) {
+    final now = DateTime.now();
+    final diff = s.scheduledAt.difference(now);
+    if (diff.inDays == 0) return '오늘';
+    if (diff.inDays == 1) return '내일';
+    return '${diff.inDays}일 후';
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final String unit;
+  final Color accentColor;
+  final String? trend;
+  final bool? trendUp;
+
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.accentColor,
+    this.trend,
+    this.trendUp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.base, AppSpacing.base, AppSpacing.base, AppSpacing.base,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  '트레이너 피드백',
-                  style: AppTextStyles.label.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  shape: BoxShape.circle,
                 ),
               ),
+              const Gap(AppSpacing.xs),
               Text(
-                '전체보기',
-                style: AppTextStyles.label.copyWith(
-                  color: AppColors.brand,
-                  fontSize: 13,
+                label,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          const Gap(10),
-          Text(
-            message,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textNeutral,
-              height: 1.5,
-            ),
+          const Gap(AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  value,
+                  style: AppTextStyles.numberLarge.copyWith(
+                    fontSize: 28,
+                    color: AppColors.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (unit.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Text(
+                    unit,
+                    style: AppTextStyles.label.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+            ],
           ),
+          if (trend != null) ...[
+            const Gap(AppSpacing.xs),
+            Row(
+              children: [
+                Icon(
+                  trendUp == true
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded,
+                  size: 12,
+                  color: trendUp == true ? AppColors.destructive : AppColors.workout,
+                ),
+                const Gap(2),
+                Text(
+                  trend!,
+                  style: AppTextStyles.captionSmall.copyWith(
+                    color: trendUp == true ? AppColors.destructive : AppColors.workout,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _CurrentWeightCard extends StatelessWidget {
-  final Inbody? latest;
-  final Inbody? prev;
+// ─────────────────────────────────────────────────────────────────────────────
+// 트레이너 피드백 카드
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FeedbackCard extends StatelessWidget {
+  final fb.Feedback? feedback;
   final VoidCallback onTap;
 
-  const _CurrentWeightCard({
-    required this.latest,
-    required this.prev,
-    required this.onTap,
-  });
+  const _FeedbackCard({required this.feedback, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final weight = latest?.weight;
-    final diff = (weight != null && prev?.weight != null)
-        ? weight - prev!.weight
-        : null;
+    final hasContent = feedback != null;
 
-    return AppCard(
+    return GestureDetector(
       onTap: onTap,
-      hasShadow: true,
-      hasBorder: false,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A000000),
+              blurRadius: 8,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Text(
-                  '현재 체중',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.trainer.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
+                  ),
+                  child: const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 16,
+                    color: AppColors.trainer,
                   ),
                 ),
-                const Gap(4),
-                Text(
-                  weight != null ? '${weight.toStringAsFixed(1)}kg' : '--kg',
-                  style: AppTextStyles.h4.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
+                const Gap(AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    '트레이너 피드백',
+                    style: AppTextStyles.label.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
+                ),
+                Text(
+                  '전체보기',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.brand,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Gap(2),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 14,
+                  color: AppColors.brand,
                 ),
               ],
             ),
-          ),
-          if (diff != null)
-            Text(
-              '${diff < 0 ? '▼' : '▲'} ${diff.abs().toStringAsFixed(1)}kg',
-              style: AppTextStyles.label.copyWith(
-                color: diff < 0
-                    ? AppColors.workout
-                    : AppColors.destructive,
+            const Gap(AppSpacing.md),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.bg,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Text(
+                hasContent
+                    ? feedback!.content
+                    : '아직 등록된 트레이너 피드백이 없습니다.',
+                style: AppTextStyles.body.copyWith(
+                  color: hasContent ? AppColors.textPrimary : AppColors.textTertiary,
+                  height: 1.6,
+                  fontSize: 15,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 다음 PT 세션 카드
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _NextPtCard extends StatelessWidget {
-  final PtSession session;
-
-  const _NextPtCard({required this.session});
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final isTomorrow = isSameDay(
-      session.scheduledAt,
-      now.add(const Duration(days: 1)),
-    );
-    final timeStr = DateFormat('HH:mm').format(session.scheduledAt);
-    final String dayLabel;
-    if (isSameDay(session.scheduledAt, now)) {
-      dayLabel = '오늘';
-    } else if (isTomorrow) {
-      dayLabel = '내일';
-    } else {
-      dayLabel = DateFormat('M월 d일 (E)', 'ko').format(session.scheduledAt);
-    }
-
-    return AppCard(
-      onTap: () => Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const MemberPtScheduleScreen())),
-      hasShadow: true,
-      hasBorder: false,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      child: Row(
-        children: [
-          const AppIconBox(
-            icon: Icons.check_circle_outline_rounded,
-            color: AppColors.trainer,
-          ),
-          const Gap(14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '다음 PT 일정',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-                const Gap(4),
-                RichText(
-                  text: TextSpan(
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    children: [
-                      TextSpan(text: '$dayLabel $timeStr · '),
-                      TextSpan(
-                        text: '${session.trainerName} 트레이너',
-                        style: const TextStyle(
-                          color: AppColors.trainer,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            size: 18,
-            color: AppColors.textDisabled,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

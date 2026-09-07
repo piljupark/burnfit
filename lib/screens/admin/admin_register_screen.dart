@@ -159,7 +159,7 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('관리자 정보', style: AppTextStyles.overline),
+                          Text('관리자 정보', style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
                           const Gap(AppSpacing.xs),
                           AppTextField(
                             label: '이름',
@@ -194,7 +194,7 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                             textInputAction: TextInputAction.next,
                           ),
                           const Gap(AppSpacing.xl),
-                          Text('센터 정보', style: AppTextStyles.overline),
+                          Text('센터 정보', style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
                           const Gap(AppSpacing.xs),
                           AppTextField(
                             label: '센터 이름',

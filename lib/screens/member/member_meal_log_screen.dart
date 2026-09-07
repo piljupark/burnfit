@@ -450,36 +450,35 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           color: active
-              ? AppColors.diet.withValues(alpha: 0.14)
+              ? AppColors.diet.withValues(alpha: 0.12)
               : AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: active
-                ? AppColors.diet.withValues(alpha: 0.3)
-                : AppColors.border,
-            width: 0.5,
-          ),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          boxShadow: [
+            BoxShadow(
+              color: active
+                  ? AppColors.diet.withValues(alpha: 0.12)
+                  : const Color(0x0A000000),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           children: [
             Icon(
               icon,
-              size: 16,
-              color: active
-                  ? AppColors.diet
-                  : AppColors.textTertiary,
+              size: 18,
+              color: active ? AppColors.diet : AppColors.textTertiary,
             ),
-            const Gap(4),
+            const Gap(6),
             Text(
               value,
-              style: AppTextStyles.label.copyWith(
-                color: active
-                    ? AppColors.diet
-                    : AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
+              style: AppTextStyles.h3.copyWith(
+                color: active ? AppColors.diet : AppColors.textPrimary,
+                fontWeight: FontWeight.w800,
               ),
             ),
             Text(
@@ -566,188 +565,216 @@ class _MealCard extends StatelessWidget {
     MealType.snack => Icons.local_cafe_outlined,
   };
 
+  Color get _typeColor => switch (meal.mealType) {
+    MealType.breakfast => const Color(0xFFFF9500),
+    MealType.lunch => AppColors.brand,
+    MealType.dinner => AppColors.workout,
+    MealType.snack => AppColors.diet,
+  };
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 카드 헤더
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm + 2,
-              AppSpacing.sm,
-              AppSpacing.sm + 2,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppColors.bg,
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                  ),
-                  child: Icon(
-                    _typeIcon,
-                    size: 15,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const Gap(AppSpacing.xs),
-                Text(
-                  meal.mealType.label,
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                if (meal.mealTime != null) ...[
-                  const Gap(AppSpacing.xs),
-                  Text(meal.mealTime!, style: AppTextStyles.caption),
-                ],
-                const Spacer(),
-                if (meal.hasFeedback)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                    ),
-                    child: Text(
-                      '피드백 완료',
-                      style: AppTextStyles.captionSmall.copyWith(
-                        color: AppColors.success,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.bg,
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                    ),
-                    child: Text(
-                      '검토 대기',
-                      style: AppTextStyles.captionSmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                const Gap(AppSpacing.xs),
-                GestureDetector(
-                  onTap: onDelete,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.bg,
-                      borderRadius: BorderRadius.circular(AppRadius.xs),
-                    ),
-                    child: const Icon(
-                      Icons.delete_outline_rounded,
-                      size: 15,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // 이미지
-          if (meal.imageUrls.isNotEmpty) ...[
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Divider(
-                height: 0.5,
-                thickness: 0.5,
-                color: AppColors.border,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.sm,
-                AppSpacing.md,
-                0,
-              ),
-              child: SizedBox(
-                height: 100,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: meal.imageUrls.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(width: AppSpacing.xs),
-                  itemBuilder: (_, i) => ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: Image.network(
-                      meal.imageUrls[i],
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ),
+    final accent = _typeColor;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0C000000),
+              blurRadius: 8,
+              offset: Offset(0, 4),
             ),
           ],
-          // 설명 + 칼로리
-          if ((meal.description ?? '').trim().isNotEmpty ||
-              meal.calories != null) ...[
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Divider(
-                height: AppSpacing.sm,
-                thickness: 0.5,
-                color: AppColors.border,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                0,
-                AppSpacing.md,
-                AppSpacing.sm,
-              ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 왼쪽 색상 바
+            Container(width: 4, color: accent),
+            // 카드 본문
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if ((meal.description ?? '').trim().isNotEmpty)
-                    Text(
-                      meal.description!.trim(),
-                      style: AppTextStyles.bodySmall.copyWith(height: 1.5),
+                  // 카드 헤더
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.sm,
                     ),
-                  if (meal.calories != null) ...[
-                    if ((meal.description ?? '').trim().isNotEmpty)
-                      const Gap(AppSpacing.xxs),
-                    Text(
-                      '${meal.calories} kcal',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.diet,
-                        fontWeight: FontWeight.w600,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Icon(_typeIcon, size: 18, color: accent),
+                        ),
+                        const Gap(AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                meal.mealType.label,
+                                style: AppTextStyles.label.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              if (meal.mealTime != null)
+                                Text(
+                                  meal.mealTime!,
+                                  style: AppTextStyles.captionSmall.copyWith(
+                                    color: AppColors.textTertiary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (meal.hasFeedback)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(AppRadius.full),
+                            ),
+                            child: Text(
+                              '피드백 완료',
+                              style: AppTextStyles.captionSmall.copyWith(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.bg,
+                              borderRadius: BorderRadius.circular(AppRadius.full),
+                            ),
+                            child: Text(
+                              '검토 대기',
+                              style: AppTextStyles.captionSmall.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        const Gap(AppSpacing.xs),
+                        GestureDetector(
+                          onTap: onDelete,
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: AppColors.bg,
+                              borderRadius: BorderRadius.circular(AppRadius.xs),
+                            ),
+                            child: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 15,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 이미지
+                  if (meal.imageUrls.isNotEmpty) ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      child: Divider(height: 0.5, thickness: 0.5, color: AppColors.border),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                        AppSpacing.md,
+                        0,
+                      ),
+                      child: SizedBox(
+                        height: 100,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: meal.imageUrls.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: AppSpacing.xs),
+                          itemBuilder: (_, i) => ClipRRect(
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                            child: Image.network(
+                              meal.imageUrls[i],
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
+                  // 설명 + 칼로리
+                  if ((meal.description ?? '').trim().isNotEmpty ||
+                      meal.calories != null) ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      child: Divider(
+                        height: AppSpacing.sm,
+                        thickness: 0.5,
+                        color: AppColors.border,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        0,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if ((meal.description ?? '').trim().isNotEmpty)
+                            Text(
+                              meal.description!.trim(),
+                              style: AppTextStyles.bodySmall.copyWith(height: 1.5),
+                            ),
+                          if (meal.calories != null) ...[
+                            if ((meal.description ?? '').trim().isNotEmpty)
+                              const Gap(AppSpacing.xxs),
+                            Text(
+                              '${meal.calories} kcal',
+                              style: AppTextStyles.label.copyWith(
+                                color: AppColors.diet,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ] else
+                    const Gap(AppSpacing.sm),
                 ],
               ),
             ),
-          ] else
-            const Gap(AppSpacing.xs),
-        ],
+          ],
+        ),
       ),
     );
   }

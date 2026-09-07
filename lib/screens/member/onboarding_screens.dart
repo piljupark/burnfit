@@ -132,7 +132,10 @@ class _OnboardingBasicScreenState extends State<OnboardingBasicScreen> {
               const Gap(AppSpacing.xl),
               Text(
                 '성별',
-                style: AppTextStyles.overline,
+                style: AppTextStyles.label.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
               ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
               const Gap(AppSpacing.sm),
               Row(
@@ -436,37 +439,42 @@ class _GenderOption extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         curve: Curves.easeOut,
-        height: 64,
+        height: 72,
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.brand.withValues(alpha: 0.1)
-              : AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: selected
-                ? AppColors.brand
-                : AppColors.border,
-            width: selected ? 1.5 : 0.5,
-          ),
+          color: selected ? AppColors.brand : AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: selected
+              ? null
+              : Border.all(color: AppColors.border, width: 0.5),
+          boxShadow: [
+            if (selected)
+              BoxShadow(
+                color: AppColors.brand.withValues(alpha: 0.30),
+                blurRadius: 8,
+                offset: const Offset(0, 6),
+              )
+            else
+              const BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+          ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: 20,
-              color: selected
-                  ? AppColors.brand
-                  : AppColors.textSecondary,
+              size: 22,
+              color: selected ? Colors.white : AppColors.textSecondary,
             ),
             const Gap(AppSpacing.xs),
             Text(
               label,
-              style: AppTextStyles.body.copyWith(
-                color: selected
-                    ? AppColors.brand
-                    : AppColors.textPrimary,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              style: AppTextStyles.label.copyWith(
+                color: selected ? Colors.white : AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],

@@ -193,7 +193,7 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                     children: [
                       Text(
                         '기본 정보',
-                        style: AppTextStyles.overline,
+                        style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700),
                       ).animate().fadeIn(duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
@@ -221,7 +221,7 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                       const Gap(AppSpacing.xl),
                       Text(
                         '센터 선택',
-                        style: AppTextStyles.overline,
+                        style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700),
                       ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(

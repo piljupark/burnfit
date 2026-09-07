@@ -224,87 +224,102 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
       backgroundColor: AppColors.bg,
       body: Column(
         children: [
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.lg,
-                AppSpacing.screenH,
-                0,
-              ),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        border: Border.all(
-                          color: AppColors.border,
-                          width: 0.5,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.chevron_left_rounded,
-                        color: AppColors.textPrimary,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                  const Gap(AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          // ── 네비게이션 바 + 회원 프로필 ────────────────���─────────────────
+          Builder(
+            builder: (context) {
+              final topPadding = MediaQuery.of(context).padding.top;
+              return Padding(
+                padding: EdgeInsets.fromLTRB(16, topPadding + AppSpacing.sm, 16, AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 네비게이션 행
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(m.name, style: AppTextStyles.h3),
-                        const Gap(AppSpacing.xxs),
-                        Text(
-                          m.email,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          behavior: HitTestBehavior.opaque,
+                          child: const Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: Icon(
+                              Icons.chevron_left_rounded,
+                              size: 28,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => _writeFeedback(
+                            type: fb.FeedbackTargetType.general,
+                          ),
+                          behavior: HitTestBehavior.opaque,
+                          child: const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.edit_rounded,
+                              size: 20,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  GestureDetector(
-                    onTap: () =>
-                        _writeFeedback(type: fb.FeedbackTargetType.general),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        border: Border.all(
-                          color: AppColors.border,
-                          width: 0.5,
+                    const Gap(AppSpacing.md),
+                    // 아바타 + 이름 + 이메일
+                    Row(
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppColors.trainer.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            m.name.isNotEmpty
+                                ? m.name.substring(0, 1).toUpperCase()
+                                : '?',
+                            style: AppTextStyles.h2.copyWith(
+                              color: AppColors.trainer,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
-                      ),
-                      child: const Icon(
-                        Icons.edit_rounded,
-                        size: 18,
-                        color: AppColors.textPrimary,
-                      ),
+                        const Gap(AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                m.name,
+                                style: AppTextStyles.headline.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const Gap(AppSpacing.xxs),
+                              Text(
+                                m.email,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+              );
+            },
           ),
+          // ── 탭 바 ──────────────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenH,
-              AppSpacing.md,
-              AppSpacing.screenH,
-              0,
-            ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: AnimatedBuilder(
               animation: _tabController,
               builder: (context, _) {
@@ -313,10 +328,6 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                   decoration: BoxDecoration(
                     color: AppColors.card,
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(
-                      color: AppColors.border,
-                      width: 0.5,
-                    ),
                   ),
                   child: Row(
                     children: List.generate(tabs.length, (index) {
@@ -338,13 +349,12 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                             ),
                             child: Text(
                               tabs[index],
-                              style: AppTextStyles.bodySmall.copyWith(
+                              style: AppTextStyles.label.copyWith(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
                                 color: selected
                                     ? AppColors.textOnAccent
                                     : AppColors.textTertiary,
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
                               ),
                             ),
                           ),
@@ -514,7 +524,7 @@ class _ProfileTabState extends State<_ProfileTab> {
             TrainerShareBlockedMessage(message: '회원이 신체 정보 공유를 꺼두었습니다.'),
             const Gap(AppSpacing.lg),
           ] else if (p != null) ...[
-            Text('신체 정보', style: AppTextStyles.overline),
+            Text('신체 정보', style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700)),
             const Gap(AppSpacing.sm),
             _MetricGrid(
               metrics: [
@@ -550,7 +560,7 @@ class _ProfileTabState extends State<_ProfileTab> {
             const Gap(AppSpacing.lg),
           ],
           if (ptInfo != null) ...[
-            Text('PT 정보', style: AppTextStyles.overline),
+            Text('PT 정보', style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700)),
             const Gap(AppSpacing.sm),
             _InfoPanel(
               rows: [
@@ -610,7 +620,7 @@ class _InbodySection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: Text('InBody 기록', style: AppTextStyles.overline)),
+            Expanded(child: Text('InBody 기록', style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700))),
             GestureDetector(
               onTap: onAdd,
               child: Container(
@@ -651,8 +661,14 @@ class _InbodySection extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.border, width: 0.5),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0C000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
@@ -687,17 +703,28 @@ class _InbodySection extends StatelessWidget {
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(
-                      color: AppColors.border,
-                      width: 0.5,
-                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0C000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
+                          Text(
+                            item.measurementDate,
+                            style: AppTextStyles.label.copyWith(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const Gap(AppSpacing.sm),
                           StatusBadge.fromString(
                             item.measurementDate,
                             AppColors.info,
@@ -770,8 +797,8 @@ class _InbodyMetric extends StatelessWidget {
       width: 96,
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -787,9 +814,9 @@ class _InbodyMetric extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodySmall.copyWith(
+            style: AppTextStyles.body.copyWith(
               color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -845,22 +872,29 @@ class _MetricTile extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             data.label,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
+            style: AppTextStyles.captionSmall.copyWith(
+              color: AppColors.textTertiary,
             ),
           ),
           const Gap(AppSpacing.xs),
           RichText(
             text: TextSpan(
-              style: AppTextStyles.h3.copyWith(
+              style: AppTextStyles.h2.copyWith(
+                fontSize: 22,
                 color: AppColors.textPrimary,
               ),
               children: [
@@ -868,8 +902,8 @@ class _MetricTile extends StatelessWidget {
                 if (data.suffix != null && data.value != '-')
                   TextSpan(
                     text: ' ${data.suffix}',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
+                    style: AppTextStyles.captionSmall.copyWith(
+                      color: AppColors.textTertiary,
                     ),
                   ),
               ],
@@ -899,8 +933,14 @@ class _InfoPanel extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         children: rows
@@ -911,16 +951,16 @@ class _InfoPanel extends StatelessWidget {
                   children: [
                     Text(
                       row.label,
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
+                      style: AppTextStyles.captionSmall.copyWith(
+                        color: AppColors.textTertiary,
                       ),
                     ),
                     const Spacer(),
                     Text(
                       row.value,
-                      style: AppTextStyles.body.copyWith(
+                      style: AppTextStyles.label.copyWith(
                         color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],

@@ -185,7 +185,7 @@ class _TrainerRegisterScreenState extends State<TrainerRegisterScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('계정 정보', style: AppTextStyles.overline),
+                          Text('계정 정보', style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
                           const Gap(AppSpacing.xs),
                           AppTextField(
                             label: '이름',
@@ -209,7 +209,7 @@ class _TrainerRegisterScreenState extends State<TrainerRegisterScreen> {
                             validator: Validators.password,
                           ),
                           const Gap(AppSpacing.xl),
-                          Text('소속 센터', style: AppTextStyles.overline),
+                          Text('소속 센터', style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
                           const Gap(AppSpacing.xs),
                           AppTextField(
                             label: '센터 검색',

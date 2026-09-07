@@ -11,7 +11,6 @@ import '../../core/app_text_styles.dart';
 import '../../models/feedback.dart' as fb;
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
-import '../../widgets/app_card.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 
@@ -179,71 +178,101 @@ class _FeedbackCard extends StatelessWidget {
         ? feedback.trainerName.trim()[0]
         : 'T';
 
-    return AppCard(
-      hasBorder: false,
-      hasShadow: true,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (!feedback.isRead) ...[
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.brand,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const Gap(8),
-              ],
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.trainer.withValues(
-                    alpha: 0.16,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initial,
-                  style: AppTextStyles.label.copyWith(
-                    color: AppColors.trainer,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const Gap(10),
-              Expanded(
-                child: Text(
-                  feedback.trainerName,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.trainer,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Text(
-                DateFormat('M월 d일', 'ko').format(feedback.createdAt),
-                style: AppTextStyles.captionSmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-            ],
-          ),
-          const Gap(10),
-          Text(
-            feedback.content,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textNeutral,
-              height: 1.5,
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 8,
+            offset: Offset(0, 4),
           ),
         ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 3,
+              color: AppColors.trainer,
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 16, 18, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (!feedback.isRead) ...[
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: AppColors.brand,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const Gap(8),
+                        ],
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AppColors.trainer.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            initial,
+                            style: AppTextStyles.label.copyWith(
+                              color: AppColors.trainer,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const Gap(10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                feedback.trainerName,
+                                style: AppTextStyles.label.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const Gap(2),
+                              Text(
+                                DateFormat('M월 d일', 'ko').format(feedback.createdAt),
+                                style: AppTextStyles.captionSmall.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Gap(12),
+                    Text(
+                      feedback.content,
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textNeutral,
+                        height: 1.5,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -10,6 +10,10 @@ class AppKpiCard extends StatelessWidget {
   final String unit;
   final IconData? icon;
   final bool isHighlight;
+  /// accentColor kept for API compat — used only for the icon color, not bar
+  final Color? accentColor;
+  final String? trend;
+  final bool? trendUp;
 
   const AppKpiCard({
     super.key,
@@ -18,73 +22,94 @@ class AppKpiCard extends StatelessWidget {
     required this.unit,
     this.icon,
     this.isHighlight = false,
+    this.accentColor,
+    this.trend,
+    this.trendUp,
   });
 
   @override
   Widget build(BuildContext context) {
+    final color = accentColor ?? (isHighlight ? AppColors.brand : AppColors.textSecondary);
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: isHighlight
-            ? AppColors.brand.withValues(alpha: 0.08)
-            : AppColors.card,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: isHighlight
-              ? AppColors.brand.withValues(alpha: 0.3)
-              : AppColors.border,
-          width: 0.5,
-        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 라벨 + 아이콘
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
                   label,
-                  style: AppTextStyles.captionSmall.copyWith(
-                    color: isHighlight ? AppColors.brand : AppColors.textTertiary,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ),
               if (icon != null)
-                Icon(
-                  icon,
-                  size: 14,
-                  color: isHighlight ? AppColors.brand : AppColors.textDisabled,
-                ),
+                Icon(icon, size: 16, color: color),
             ],
           ),
-          const Gap(AppSpacing.xs),
+          const Gap(AppSpacing.sm),
+          // 숫자 + 단위
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 value,
-                style: AppTextStyles.h3.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1,
+                style: AppTextStyles.numberLarge.copyWith(
                   color: isHighlight ? AppColors.brand : AppColors.textPrimary,
+                  letterSpacing: -1.5,
                 ),
               ),
               const Gap(4),
               Padding(
-                padding: const EdgeInsets.only(bottom: 3),
+                padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
                   unit,
-                  style: AppTextStyles.captionSmall.copyWith(
-                    color: isHighlight
-                        ? AppColors.brand.withValues(alpha: 0.7)
-                        : AppColors.textTertiary,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ),
             ],
           ),
+          // 추세
+          if (trend != null) ...[
+            const Gap(AppSpacing.xs),
+            Row(
+              children: [
+                Icon(
+                  trendUp == true
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded,
+                  size: 11,
+                  color: trendUp == true ? AppColors.destructive : AppColors.workout,
+                ),
+                const Gap(2),
+                Text(
+                  trend!,
+                  style: AppTextStyles.captionSmall.copyWith(
+                    color: trendUp == true ? AppColors.destructive : AppColors.workout,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

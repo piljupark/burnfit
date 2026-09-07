@@ -75,11 +75,7 @@ class _AppTextFieldState extends State<AppTextField> {
         widget.maxLines > 1 && widget.keyboardType == TextInputType.text
         ? TextInputType.multiline
         : widget.keyboardType;
-    final borderColor = _focused
-        ? AppColors.brand
-        : AppColors.border;
-    final borderWidth = _focused ? 1.0 : 0.5;
-    final radius = BorderRadius.circular(AppRadius.sm);
+    final radius = BorderRadius.circular(AppRadius.md);
 
     return TextFormField(
       controller: widget.controller,
@@ -97,7 +93,6 @@ class _AppTextFieldState extends State<AppTextField> {
       autofocus: widget.autofocus,
       style: AppTextStyles.body.copyWith(
         color: AppColors.textPrimary,
-        fontSize: 15,
         fontWeight: FontWeight.w400,
       ),
       cursorColor: AppColors.brand,
@@ -105,10 +100,10 @@ class _AppTextFieldState extends State<AppTextField> {
         labelText: widget.label,
         hintText: widget.hint,
         filled: true,
-        fillColor: AppColors.card,
+        fillColor: _focused ? AppColors.card : AppColors.bg,
         prefixIcon: widget.prefix != null
             ? Padding(
-                padding: const EdgeInsets.only(left: 14, right: 10),
+                padding: const EdgeInsets.only(left: 16, right: 12),
                 child: widget.prefix,
               )
             : null,
@@ -119,7 +114,7 @@ class _AppTextFieldState extends State<AppTextField> {
                   _obscure
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  size: 18,
+                  size: 20,
                   color: AppColors.textSecondary,
                 ),
                 onPressed: () => setState(() => _obscure = !_obscure),
@@ -127,24 +122,21 @@ class _AppTextFieldState extends State<AppTextField> {
             : widget.suffix,
         counterText: '',
         contentPadding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: widget.maxLines > 1 ? AppSpacing.md : AppSpacing.itemV,
+          horizontal: AppSpacing.base,
+          vertical: widget.maxLines > 1 ? AppSpacing.base : AppSpacing.itemV,
         ),
         border: OutlineInputBorder(
-          borderSide: BorderSide(color: borderColor, width: borderWidth),
+          borderSide: BorderSide.none,
           borderRadius: radius,
         ),
         enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(
-            color: AppColors.border,
-            width: 0.5,
-          ),
+          borderSide: BorderSide.none,
           borderRadius: radius,
         ),
         focusedBorder: OutlineInputBorder(
           borderSide: const BorderSide(
             color: AppColors.brand,
-            width: 1,
+            width: 1.5,
           ),
           borderRadius: radius,
         ),

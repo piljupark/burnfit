@@ -20,11 +20,10 @@ class AppFilterTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: AppColors.bg,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -37,14 +36,20 @@ class AppFilterTabs extends StatelessWidget {
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.xs,
+                horizontal: AppSpacing.base,
+                vertical: 10,
               ),
               decoration: BoxDecoration(
                 color: selected ? AppColors.card : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: selected
-                    ? Border.all(color: AppColors.border)
+                borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+                boxShadow: selected
+                    ? const [
+                        BoxShadow(
+                          color: Color(0x10000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ]
                     : null,
               ),
               child: Row(
@@ -53,12 +58,12 @@ class AppFilterTabs extends StatelessWidget {
                   if (icons != null) ...[
                     Icon(
                       icons![i],
-                      size: 13,
+                      size: 15,
                       color: selected
                           ? AppColors.brand
                           : AppColors.textTertiary,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
                   ],
                   Text(
                     tabs[i],
@@ -67,6 +72,7 @@ class AppFilterTabs extends StatelessWidget {
                           ? AppColors.textPrimary
                           : AppColors.textTertiary,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 14,
                     ),
                   ),
                 ],
@@ -79,7 +85,6 @@ class AppFilterTabs extends StatelessWidget {
   }
 }
 
-/// Horizontally scrollable category chips.
 class AppScrollableChips extends StatelessWidget {
   final List<String> labels;
   final int? selectedIndex;
@@ -104,24 +109,30 @@ class AppScrollableChips extends StatelessWidget {
             onTap: () => onSelected(i),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              margin: const EdgeInsets.only(right: AppSpacing.xs),
+              margin: const EdgeInsets.only(right: AppSpacing.sm),
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.xs,
+                horizontal: AppSpacing.base,
+                vertical: AppSpacing.sm,
               ),
               decoration: BoxDecoration(
                 color: selected ? AppColors.brand : AppColors.card,
                 borderRadius: BorderRadius.circular(AppRadius.full),
-                border: Border.all(
-                  color: selected ? AppColors.brand : AppColors.border,
-                ),
+                boxShadow: !selected
+                    ? const [
+                        BoxShadow(
+                          color: Color(0x0A000000),
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
+                        ),
+                      ]
+                    : null,
               ),
               child: Text(
                 labels[i],
                 style: AppTextStyles.label.copyWith(
                   color: selected
                       ? AppColors.textOnAccent
-                      : AppColors.textTertiary,
+                      : AppColors.textSecondary,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),

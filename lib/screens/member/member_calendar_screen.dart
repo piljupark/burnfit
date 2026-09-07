@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/feedback.dart' as fb;
 import '../../models/meal.dart';
@@ -628,30 +629,45 @@ class _RecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      hasShadow: true,
-      hasBorder: false,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.base, AppSpacing.md, AppSpacing.base, AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 4)),
+        ],
+      ),
       child: Row(
         children: [
-          AppIconBox(icon: icon, color: color),
-          const Gap(14),
+          Container(
+            width: 4,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const Gap(AppSpacing.md),
+          AppIconBox(icon: icon, color: color, size: 40),
+          const Gap(AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: AppTextStyles.body.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w600,
+                  style: AppTextStyles.label.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
                   ),
                 ),
-                const Gap(4),
+                const Gap(3),
                 Text(
                   detail,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
+                  style: AppTextStyles.captionSmall.copyWith(
+                    color: AppColors.textTertiary,
                   ),
                 ),
               ],

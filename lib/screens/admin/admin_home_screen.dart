@@ -15,6 +15,7 @@ import '../../widgets/app_action_row.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
+import '../../widgets/app_section.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_member_list_screen.dart';
 import 'admin_requests_screen.dart';
@@ -92,7 +93,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 홈 탭 (KPI + 빠른 액션)
+// 관리자 대시보드 탭
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AdminDashboardTab extends StatefulWidget {
@@ -136,9 +137,7 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
       if (!mounted) return;
       setState(() => _loadError = '데이터를 불러올 수 없습니다.');
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -158,43 +157,55 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
+              // ── 인사 헤더 ────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.md,
-                    AppSpacing.screenH,
-                    0,
+                    AppSpacing.screenH, AppSpacing.lg,
+                    AppSpacing.screenH, AppSpacing.xl,
                   ),
-                  child: Column(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user?.centerName ?? '',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textTertiary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const Gap(AppSpacing.xs),
+                            Text(
+                              '관리자 대시보드',
+                              style: AppTextStyles.h1,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Gap(AppSpacing.md),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user?.centerName ?? '',
-                                  style: AppTextStyles.caption.copyWith(
-                                    color: AppColors.textSecondary,
-                                    letterSpacing: 0,
-                                  ),
-                                ),
-                                const Gap(2),
-                                Text(
-                                  '관리자',
-                                  style: AppTextStyles.h3.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.8,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.textPrimary.withValues(alpha: 0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.shield_rounded,
+                              color: AppColors.textPrimary,
+                              size: 22,
                             ),
                           ),
-                          if (_pendingCount > 0)
+                          if (_pendingCount > 0) ...[
+                            const Gap(AppSpacing.sm),
                             GestureDetector(
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute(
@@ -203,17 +214,14 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                               ),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
+                                  horizontal: 10, vertical: 5,
                                 ),
                                 decoration: BoxDecoration(
                                   color: AppColors.diet.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadius.full,
-                                  ),
+                                  borderRadius: BorderRadius.circular(AppRadius.full),
                                   border: Border.all(
-                                    color: AppColors.diet.withValues(alpha: 0.3),
-                                    width: 0.5,
+                                    color: AppColors.diet.withValues(alpha: 0.4),
+                                    width: 0.75,
                                   ),
                                 ),
                                 child: Row(
@@ -227,22 +235,21 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                                         shape: BoxShape.circle,
                                       ),
                                     ),
-                                    const Gap(6),
+                                    const Gap(5),
                                     Text(
-                                      '가입 신청 $_pendingCount건',
-                                      style: AppTextStyles.captionSmall
-                                          .copyWith(
-                                            color: AppColors.diet,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                      '신청 $_pendingCount건',
+                                      style: AppTextStyles.captionSmall.copyWith(
+                                        color: AppColors.diet,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
+                          ],
                         ],
                       ),
-                      const Gap(AppSpacing.xl),
                     ],
                   ),
                 ),
@@ -266,10 +273,11 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                   ),
                 )
               else ...[
+                // ── KPI 카드 그리드 ─────────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, 0,
+                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.xl,
                     ),
                     child: Column(
                       children: [
@@ -281,20 +289,22 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                                 value: '${_stats?.memberCount ?? '-'}',
                                 unit: '명',
                                 icon: Icons.people_outline_rounded,
+                                accentColor: AppColors.brand,
                               ),
                             ),
-                            const Gap(AppSpacing.xs),
+                            const Gap(AppSpacing.sm),
                             Expanded(
                               child: AppKpiCard(
                                 label: '트레이너',
                                 value: '${_stats?.trainerCount ?? '-'}',
                                 unit: '명',
                                 icon: Icons.fitness_center_outlined,
+                                accentColor: AppColors.workout,
                               ),
                             ),
                           ],
                         ),
-                        const Gap(AppSpacing.xs),
+                        const Gap(AppSpacing.sm),
                         Row(
                           children: [
                             Expanded(
@@ -304,15 +314,17 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                                 unit: '회',
                                 icon: Icons.check_circle_outline_rounded,
                                 isHighlight: true,
+                                accentColor: AppColors.brand,
                               ),
                             ),
-                            const Gap(AppSpacing.xs),
+                            const Gap(AppSpacing.sm),
                             Expanded(
                               child: AppKpiCard(
                                 label: '예정 세션',
                                 value: '${_stats?.upcomingSessionCount ?? '-'}',
                                 unit: '건',
                                 icon: Icons.calendar_today_outlined,
+                                accentColor: AppColors.trainer,
                               ),
                             ),
                           ],
@@ -321,20 +333,16 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                     ),
                   ),
                 ),
-                const SliverToBoxAdapter(child: Gap(AppSpacing.xl)),
 
+                // ── 관리 메뉴 ───────────────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.sm,
+                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md,
                     ),
-                    child: Text(
-                      '관리',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textTertiary,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
+                    child: AppSectionHeader(
+                      title: '관리',
+                      accentColor: AppColors.brand,
                     ),
                   ),
                 ),
@@ -348,7 +356,13 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         borderRadius: BorderRadius.circular(AppRadius.lg),
-                        border: Border.all(color: AppColors.border, width: 0.5),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x0A000000),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Column(
                         children: [
@@ -356,6 +370,7 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                             icon: Icons.bar_chart_rounded,
                             label: '대시보드',
                             subtitle: '센터 통계 및 분석',
+                            iconColor: AppColors.brand,
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const AdminDashboardScreen(),
@@ -371,6 +386,7 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                                 : '대기 없음',
                             badge: _pendingCount > 0 ? '$_pendingCount' : null,
                             badgeColor: AppColors.diet,
+                            iconColor: AppColors.diet,
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const AdminRequestsScreen(),
@@ -382,6 +398,7 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                             icon: Icons.people_outline_rounded,
                             label: '회원 관리',
                             subtitle: '회원 목록 및 상세 정보',
+                            iconColor: AppColors.workout,
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const AdminMemberListScreen(),
@@ -393,6 +410,7 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                             icon: Icons.fitness_center_outlined,
                             label: '트레이너 관리',
                             subtitle: '트레이너 목록 및 배정',
+                            iconColor: AppColors.trainer,
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const AdminTrainerListScreen(),
@@ -430,29 +448,32 @@ class _AdminProfileTab extends StatelessWidget {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, 120,
+            AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, 120,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '마이',
-                style: AppTextStyles.h2.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const Gap(AppSpacing.lg),
+              Text('마이', style: AppTextStyles.h1),
+              const Gap(AppSpacing.xl),
               AppProfileCard(
                 name: user?.name ?? '',
                 subtitle: user?.centerName ?? '',
                 roleLabel: '관리자',
+                gradientStart: const Color(0xFF2C2C2E),
+                gradientEnd: const Color(0xFF48484A),
               ),
-              const Gap(AppSpacing.md),
+              const Gap(AppSpacing.xl),
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.card,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x08000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: AppActionRow(
                   icon: Icons.logout_rounded,
@@ -461,9 +482,8 @@ class _AdminProfileTab extends StatelessWidget {
                   onTap: () async {
                     await context.read<UserProvider>().signOut();
                     if (!context.mounted) return;
-                    Navigator.of(
-                      context,
-                    ).pushReplacementNamed(AppRoutes.memberLogin);
+                    Navigator.of(context)
+                        .pushReplacementNamed(AppRoutes.memberLogin);
                   },
                 ),
               ),

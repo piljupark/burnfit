@@ -10,7 +10,7 @@ class AppIconBox extends StatelessWidget {
     super.key,
     required this.icon,
     required this.color,
-    this.size = 36,
+    this.size = 44,
   });
 
   @override
@@ -19,10 +19,10 @@ class AppIconBox extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: Icon(icon, size: size * 0.5, color: color),
+      child: Icon(icon, size: size * 0.48, color: color),
     );
   }
 }

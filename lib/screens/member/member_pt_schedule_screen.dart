@@ -13,6 +13,7 @@ import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_section.dart';
 
 class MemberPtScheduleScreen extends StatefulWidget {
   final bool showBackButton;
@@ -171,7 +172,7 @@ class _PtSummaryCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
         color: AppColors.trainer,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -233,14 +234,7 @@ class _SessionSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: AppTextStyles.body.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const Gap(12),
+        AppSectionHeader(title: title),
         if (sessions.isEmpty)
           AppCard(
             hasBorder: false,
@@ -273,13 +267,35 @@ class _SessionCard extends StatelessWidget {
 
   const _SessionCard({required this.session, required this.isPast});
 
+  Color _statusColor() {
+    switch (session.status) {
+      case PtSessionStatus.scheduled:
+        return AppColors.brand;
+      case PtSessionStatus.completed:
+        return AppColors.workout;
+      case PtSessionStatus.cancelled:
+        return AppColors.destructive;
+    }
+  }
+
+  String _statusLabel() {
+    switch (session.status) {
+      case PtSessionStatus.scheduled:
+        return '예정';
+      case PtSessionStatus.completed:
+        return '완료';
+      case PtSessionStatus.cancelled:
+        return '취소';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateLabel = DateFormat('M월 d일(E)', 'ko').format(session.scheduledAt);
     final timeLabel = DateFormat('a h:mm', 'ko').format(session.scheduledAt);
-    final statusColor = isPast
-        ? AppColors.textSecondary
-        : AppColors.brand;
+    final trainerInitial = session.trainerName.trim().isNotEmpty
+        ? session.trainerName.trim()[0]
+        : 'T';
 
     return Opacity(
       opacity: isPast ? 0.72 : 1,
@@ -289,28 +305,46 @@ class _SessionCard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
         child: Row(
           children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.trainer.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                trainerInitial,
+                style: AppTextStyles.label.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: AppColors.trainer,
+                ),
+              ),
+            ),
+            const Gap(AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$dateLabel $timeLabel',
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
+                    dateLabel,
+                    style: AppTextStyles.label.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
                     ),
                   ),
-                  const Gap(4),
+                  const Gap(2),
                   Text(
-                    '${session.trainerName} 트레이너',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
+                    '$timeLabel · ${session.trainerName} 트레이너',
+                    style: AppTextStyles.captionSmall.copyWith(
+                      color: AppColors.textTertiary,
                     ),
                   ),
                 ],
               ),
             ),
-            _StatusBadge(label: isPast ? '완료' : '예정', color: statusColor),
+            _StatusBadge(label: _statusLabel(), color: _statusColor()),
           ],
         ),
       ),
