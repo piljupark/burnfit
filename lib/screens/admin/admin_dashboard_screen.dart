@@ -125,7 +125,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _KpiRow(stats: _stats!),
+                      // KPI 2×2 그리드
+                      _KpiGrid(stats: _stats!, monthLabel: monthLabel),
                       const Gap(16),
                       _OperationInsightCard(stats: _stats!),
                       const Gap(16),
@@ -137,7 +138,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       _LowPtList(members: _stats!.lowPtMembers),
                       const Gap(16),
                       _ExpiringPtList(members: _stats!.expiringPtMembers),
-                      const Gap(16),
                     ],
                   ),
                 ),
@@ -149,17 +149,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 }
 
-// ── KPI 카드 2×2 그리드 ────────────────────────────────────────────────────────
+// ── KPI 2×2 그리드 ────────────────────────────────────────────────────────────
 
-class _KpiRow extends StatelessWidget {
+class _KpiGrid extends StatelessWidget {
   final AdminStats stats;
+  final String monthLabel;
 
-  const _KpiRow({required this.stats});
+  const _KpiGrid({required this.stats, required this.monthLabel});
 
   @override
   Widget build(BuildContext context) {
-    final monthLabel = DateFormat('M월').format(DateTime.now());
-
     final items = [
       _KpiData(label: '승인 회원', value: '${stats.memberCount}', suffix: '명'),
       _KpiData(label: '트레이너', value: '${stats.trainerCount}', suffix: '명'),
@@ -210,7 +209,7 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: data.highlight
             ? AppColors.brand.withValues(alpha: 0.06)
@@ -220,30 +219,24 @@ class _KpiCard extends StatelessWidget {
           color: data.highlight
               ? AppColors.brand.withValues(alpha: 0.25)
               : AppColors.border,
+          width: 0.5,
         ),
-        boxShadow: data.highlight
-            ? null
-            : const [
-                BoxShadow(
-                  color: Color(0x08000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 3),
-                ),
-              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // 라벨 (caption)
           Text(
             data.label,
-            style: AppTextStyles.captionSmall.copyWith(
+            style: AppTextStyles.caption.copyWith(
               color: data.highlight
                   ? AppColors.brand
                   : AppColors.textSecondary,
               fontWeight: FontWeight.w500,
             ),
           ),
+          // 큰 숫자 (numberLarge) + 단위 (caption)
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -253,7 +246,6 @@ class _KpiCard extends StatelessWidget {
                   color: data.highlight
                       ? AppColors.brand
                       : AppColors.textPrimary,
-                  fontSize: 30,
                 ),
               ),
               const Gap(3),
@@ -261,8 +253,10 @@ class _KpiCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Text(
                   data.suffix,
-                  style: AppTextStyles.label.copyWith(
-                    color: AppColors.textSecondary,
+                  style: AppTextStyles.caption.copyWith(
+                    color: data.highlight
+                        ? AppColors.brand.withValues(alpha: 0.7)
+                        : AppColors.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -288,7 +282,12 @@ class _OperationInsightCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.base,
+        AppSpacing.base,
+        AppSpacing.base,
+        AppSpacing.base,
+      ),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -299,9 +298,9 @@ class _OperationInsightCard extends StatelessWidget {
         children: [
           Text(
             '운영 인사이트',
-            style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700),
+            style: AppTextStyles.h3,
           ),
-          const Gap(14),
+          const Gap(AppSpacing.md),
           Row(
             children: [
               Expanded(
@@ -311,7 +310,7 @@ class _OperationInsightCard extends StatelessWidget {
                   icon: Icons.event_available_rounded,
                 ),
               ),
-              const Gap(10),
+              const Gap(AppSpacing.sm),
               Expanded(
                 child: _MiniInsight(
                   label: '오늘 완료',
@@ -321,7 +320,7 @@ class _OperationInsightCard extends StatelessWidget {
               ),
             ],
           ),
-          const Gap(14),
+          const Gap(AppSpacing.md),
           Row(
             children: [
               Expanded(
@@ -335,7 +334,7 @@ class _OperationInsightCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const Gap(12),
+              const Gap(AppSpacing.md),
               Text(
                 '${rate.toStringAsFixed(0)}%',
                 style: AppTextStyles.label.copyWith(
@@ -345,7 +344,7 @@ class _OperationInsightCard extends StatelessWidget {
               ),
             ],
           ),
-          const Gap(6),
+          const Gap(AppSpacing.xs),
           Text(
             '이번 달 PT 완료율',
             style: AppTextStyles.caption.copyWith(
@@ -372,20 +371,23 @@ class _MiniInsight extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.bg,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
         children: [
           Icon(icon, color: AppColors.brand, size: 18),
-          const Gap(8),
+          const Gap(AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: AppTextStyles.caption),
+                Text(
+                  label,
+                  style: AppTextStyles.caption,
+                ),
                 Text(
                   value,
                   style: AppTextStyles.label.copyWith(
@@ -416,25 +418,30 @@ class _TrainerBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.base,
+        AppSpacing.base + 4,
+        AppSpacing.base,
+        AppSpacing.md,
+      ),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '$monthLabel 트레이너별 완료 세션',
-            style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700),
+            style: AppTextStyles.h3,
           ),
           const Gap(4),
           if (trainerStats.isEmpty) ...[
-            const Gap(12),
+            const Gap(AppSpacing.md),
             Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
                 child: Text(
                   '이번 달 완료된 세션이 없습니다.',
                   style: AppTextStyles.body.copyWith(
@@ -450,7 +457,7 @@ class _TrainerBarChart extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
-            const Gap(20),
+            const Gap(AppSpacing.lg),
             SizedBox(
               height: 200,
               child: BarChart(
@@ -556,18 +563,23 @@ class _LowPtList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.base,
+        AppSpacing.base + 4,
+        AppSpacing.base,
+        AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.warning_amber_rounded,
                 size: 16,
                 color: AppColors.diet,
@@ -575,9 +587,7 @@ class _LowPtList extends StatelessWidget {
               const Gap(6),
               Text(
                 'PT 잔여 3회 이하',
-                style: AppTextStyles.label.copyWith(
-                  color: AppColors.textPrimary,
-                ),
+                style: AppTextStyles.h3,
               ),
               const Spacer(),
               Text(
@@ -588,10 +598,10 @@ class _LowPtList extends StatelessWidget {
               ),
             ],
           ),
-          const Gap(12),
+          const Gap(AppSpacing.md),
           if (members.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
               child: Center(
                 child: Text(
                   '잔여 횟수 경고 대상이 없습니다.',
@@ -608,28 +618,28 @@ class _LowPtList extends StatelessWidget {
               return Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
                     child: Row(
                       children: [
                         Container(
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: AppColors.diet.withValues(
-                              alpha: 0.12,
-                            ),
+                            color: AppColors.diet.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             '${info.remainingSessions}',
-                            style: AppTextStyles.label.copyWith(
+                            style: AppTextStyles.caption.copyWith(
                               color: AppColors.diet,
-                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        const Gap(12),
+                        const Gap(AppSpacing.md),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -683,11 +693,16 @@ class _ExpiringPtList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.base,
+        AppSpacing.base + 4,
+        AppSpacing.base,
+        AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -702,9 +717,7 @@ class _ExpiringPtList extends StatelessWidget {
               const Gap(6),
               Text(
                 'PT 만료 14일 이내',
-                style: AppTextStyles.label.copyWith(
-                  color: AppColors.textPrimary,
-                ),
+                style: AppTextStyles.h3,
               ),
               const Spacer(),
               Text(
@@ -715,10 +728,10 @@ class _ExpiringPtList extends StatelessWidget {
               ),
             ],
           ),
-          const Gap(12),
+          const Gap(AppSpacing.md),
           if (members.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
               child: Center(
                 child: Text(
                   '만료 임박 회원이 없습니다.',
@@ -746,16 +759,16 @@ class _ExpiringPtList extends StatelessWidget {
               return Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
                     child: Row(
                       children: [
                         Container(
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: AppColors.destructive.withValues(
-                              alpha: 0.1,
-                            ),
+                            color: AppColors.destructive.withValues(alpha: 0.10),
                             shape: BoxShape.circle,
                           ),
                           alignment: Alignment.center,
@@ -767,7 +780,7 @@ class _ExpiringPtList extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const Gap(12),
+                        const Gap(AppSpacing.md),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

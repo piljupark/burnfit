@@ -244,7 +244,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                             padding: EdgeInsets.only(right: 8),
                             child: Icon(
                               Icons.chevron_left_rounded,
-                              size: 28,
+                              size: 30,
                               color: AppColors.textPrimary,
                             ),
                           ),

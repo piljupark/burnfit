@@ -142,7 +142,7 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 네비게이션 바
+            // 네비게이션 바: 뒤로가기(chevron_left 30px) + "회원 상세" h2
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
@@ -159,22 +159,22 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                       padding: EdgeInsets.all(4),
                       child: Icon(
                         Icons.chevron_left_rounded,
-                        size: 28,
+                        size: 30,
                         color: AppColors.textPrimary,
                       ),
                     ),
                   ),
                   const Gap(AppSpacing.xs),
-                  Text(
-                    '회원 상세',
-                    style: AppTextStyles.headline.copyWith(
-                      fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Text(
+                      '회원 상세',
+                      style: AppTextStyles.h2,
                     ),
                   ),
                 ],
               ),
             ),
-            // 회원 프로필 행
+            // 프로필 행: 48px 원형 아바타 + 이름 headline + 이메일 caption (카드 없음)
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
@@ -194,9 +194,9 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                     alignment: Alignment.center,
                     child: Text(
                       m.name.isNotEmpty ? m.name[0].toUpperCase() : '?',
-                      style: AppTextStyles.h3.copyWith(
+                      style: AppTextStyles.headline.copyWith(
+                        fontWeight: FontWeight.w800,
                         color: AppColors.brand,
-                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -207,9 +207,7 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                       children: [
                         Text(
                           m.name,
-                          style: AppTextStyles.headline.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: AppTextStyles.headline,
                         ),
                         const Gap(2),
                         Text(
@@ -237,7 +235,7 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                   : SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.screenH,
-                        AppSpacing.lg,
+                        AppSpacing.sm,
                         AppSpacing.screenH,
                         AppSpacing.xl2,
                       ),
@@ -247,9 +245,7 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                           // 기본 정보 섹션
                           Text(
                             '기본 정보',
-                            style: AppTextStyles.h3.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: AppTextStyles.h3,
                           ),
                           const Gap(AppSpacing.xs),
                           _InfoSection(
@@ -279,9 +275,7 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                               Expanded(
                                 child: Text(
                                   'PT 관리',
-                                  style: AppTextStyles.h3.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                  style: AppTextStyles.h3,
                                 ),
                               ),
                               AppButton(
@@ -335,13 +329,10 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                                 borderRadius: BorderRadius.circular(
                                   AppRadius.lg,
                                 ),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x0C000000),
-                                    blurRadius: 8,
-                                    offset: Offset(0, 4),
-                                  ),
-                                ],
+                                border: Border.all(
+                                  color: AppColors.border,
+                                  width: 0.5,
+                                ),
                               ),
                               child: Text(
                                 'PT 정보가 없습니다.',
@@ -380,13 +371,7 @@ class _InfoSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0C000000),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
         children: [
@@ -413,7 +398,7 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
+        horizontal: AppSpacing.base,
         vertical: AppSpacing.sm + 2,
       ),
       child: Row(
@@ -502,6 +487,8 @@ class _TrainerPickerDialog extends StatelessWidget {
   }
 }
 
+// ── _PtInfoLogSection ─────────────────────────────────────────────────────────
+
 class _PtInfoLogSection extends StatelessWidget {
   final List<PtInfoLog> logs;
   final VoidCallback onViewAll;
@@ -518,7 +505,7 @@ class _PtInfoLogSection extends StatelessWidget {
             Expanded(
               child: Text(
                 'PT 변경 이력',
-                style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700),
+                style: AppTextStyles.h3,
               ),
             ),
             TextButton(
@@ -539,13 +526,7 @@ class _PtInfoLogSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.card,
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0C000000),
-                blurRadius: 8,
-                offset: Offset(0, 4),
-              ),
-            ],
+            border: Border.all(color: AppColors.border, width: 0.5),
           ),
           child: logs.isEmpty
               ? Padding(
@@ -573,6 +554,8 @@ class _PtInfoLogSection extends StatelessWidget {
   }
 }
 
+// ── _PtInfoLogRow ─────────────────────────────────────────────────────────────
+
 class _PtInfoLogRow extends StatelessWidget {
   final PtInfoLog log;
 
@@ -593,7 +576,7 @@ class _PtInfoLogRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
+        horizontal: AppSpacing.base,
         vertical: AppSpacing.sm + 2,
       ),
       child: Row(
@@ -648,6 +631,8 @@ class _PtInfoLogRow extends StatelessWidget {
   }
 }
 
+// ── _PtInfoLogScreen ──────────────────────────────────────────────────────────
+
 class _PtInfoLogScreen extends StatefulWidget {
   final AppUser member;
 
@@ -701,7 +686,7 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
-                AppSpacing.lg,
+                AppSpacing.sm,
                 AppSpacing.screenH,
                 AppSpacing.sm,
               ),
@@ -709,18 +694,22 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(
-                      Icons.chevron_left_rounded,
-                      color: AppColors.textPrimary,
-                      size: 28,
+                    behavior: HitTestBehavior.opaque,
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.chevron_left_rounded,
+                        color: AppColors.textPrimary,
+                        size: 30,
+                      ),
                     ),
                   ),
-                  const Gap(AppSpacing.sm),
+                  const Gap(AppSpacing.xs),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('PT 변경 이력', style: AppTextStyles.h3),
+                        Text('PT 변경 이력', style: AppTextStyles.h2),
                         const Gap(2),
                         Text(
                           widget.member.name,
@@ -752,31 +741,34 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
                         ),
                       ),
                     )
-                  : ListView.separated(
+                  : ListView(
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.screenH,
                         AppSpacing.sm,
                         AppSpacing.screenH,
                         AppSpacing.xl,
                       ),
-                      itemBuilder: (_, i) => Container(
-                        decoration: const BoxDecoration(
-                          color: AppColors.card,
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(AppRadius.lg),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0x0C000000),
-                              blurRadius: 8,
-                              offset: Offset(0, 4),
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            border: Border.all(
+                              color: AppColors.border,
+                              width: 0.5,
                             ),
-                          ],
+                          ),
+                          child: Column(
+                            children: [
+                              for (int i = 0; i < _logs.length; i++) ...[
+                                _PtInfoLogRow(log: _logs[i]),
+                                if (i < _logs.length - 1)
+                                  const Divider(height: 1, color: AppColors.border),
+                              ],
+                            ],
+                          ),
                         ),
-                        child: _PtInfoLogRow(log: _logs[i]),
-                      ),
-                      separatorBuilder: (_, __) => const Gap(AppSpacing.xs),
-                      itemCount: _logs.length,
+                      ],
                     ),
             ),
           ],

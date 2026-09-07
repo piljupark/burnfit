@@ -184,9 +184,9 @@ class _FeedbackCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A000000),
+            color: Color(0x08000000),
             blurRadius: 8,
-            offset: Offset(0, 4),
+            offset: Offset(0, 2),
           ),
         ],
       ),

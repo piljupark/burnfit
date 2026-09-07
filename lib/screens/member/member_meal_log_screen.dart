@@ -168,7 +168,7 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('식단 기록', style: AppTextStyles.h2),
+                                Text('식단 기록', style: AppTextStyles.h1),
                                 const Gap(AppSpacing.xxs),
                                 Text(
                                   DateFormat(
@@ -458,11 +458,9 @@ class _Chip extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.lg),
           boxShadow: [
             BoxShadow(
-              color: active
-                  ? AppColors.diet.withValues(alpha: 0.12)
-                  : const Color(0x0A000000),
+              color: const Color(0x08000000),
               blurRadius: 8,
-              offset: const Offset(0, 3),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -583,9 +581,9 @@ class _MealCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.lg),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x0C000000),
+              color: Color(0x08000000),
               blurRadius: 8,
-              offset: Offset(0, 4),
+              offset: Offset(0, 2),
             ),
           ],
         ),

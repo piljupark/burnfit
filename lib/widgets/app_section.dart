@@ -8,7 +8,7 @@ class AppSectionHeader extends StatelessWidget {
   final String title;
   final String? trailing;
   final VoidCallback? onTrailingTap;
-  // accentColor는 API 호환성을 위해 유지하지만 시각적으로 사용하지 않음
+  // API 호환성 유지 — 시각적으로 사용하지 않음
   final Color? accentColor;
 
   const AppSectionHeader({
@@ -21,38 +21,33 @@ class AppSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: AppTextStyles.label.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: AppColors.textPrimary,
-              ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: AppTextStyles.h3.copyWith(
+              color: AppColors.textPrimary,
             ),
           ),
-          if (trailing != null)
-            GestureDetector(
-              onTap: onTrailingTap,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.only(left: AppSpacing.md),
-                child: Text(
-                  trailing!,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.brand,
-                    fontWeight: FontWeight.w500,
-                  ),
+        ),
+        if (trailing != null)
+          GestureDetector(
+            onTap: onTrailingTap,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.base),
+              child: Text(
+                trailing!,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.brand,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
@@ -83,13 +78,13 @@ class AppEmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               color: AppColors.bg,
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
-            child: Icon(icon, size: 30, color: AppColors.textDisabled),
+            child: Icon(icon, size: 26, color: AppColors.textDisabled),
           ),
           const Gap(AppSpacing.base),
           Text(

@@ -161,95 +161,74 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH, AppSpacing.lg,
+                    AppSpacing.screenH, AppSpacing.xl,
                     AppSpacing.screenH, AppSpacing.xl,
                   ),
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user?.centerName ?? '',
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textTertiary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const Gap(AppSpacing.xs),
-                            Text(
-                              '관리자 대시보드',
-                              style: AppTextStyles.h1,
-                            ),
-                          ],
+                      Text(
+                        user?.centerName ?? '',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textTertiary,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const Gap(AppSpacing.md),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: AppColors.textPrimary.withValues(alpha: 0.08),
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.shield_rounded,
-                              color: AppColors.textPrimary,
-                              size: 22,
+                      const Gap(AppSpacing.sm),
+                      Text(
+                        '관리자 대시보드',
+                        style: AppTextStyles.h1,
+                      ),
+                      if (_pendingCount > 0) ...[
+                        const Gap(AppSpacing.md),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AdminRequestsScreen(),
                             ),
                           ),
-                          if (_pendingCount > 0) ...[
-                            const Gap(AppSpacing.sm),
-                            GestureDetector(
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const AdminRequestsScreen(),
-                                ),
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.diet.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(AppRadius.full),
-                                  border: Border.all(
-                                    color: AppColors.diet.withValues(alpha: 0.4),
-                                    width: 0.75,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.diet,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const Gap(5),
-                                    Text(
-                                      '신청 $_pendingCount건',
-                                      style: AppTextStyles.captionSmall.copyWith(
-                                        color: AppColors.diet,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.diet.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(AppRadius.full),
+                              border: Border.all(
+                                color: AppColors.diet.withValues(alpha: 0.4),
+                                width: 0.75,
                               ),
                             ),
-                          ],
-                        ],
-                      ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.diet,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const Gap(6),
+                                Text(
+                                  '가입 신청 $_pendingCount건 대기 중',
+                                  style: AppTextStyles.captionSmall.copyWith(
+                                    color: AppColors.diet,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const Gap(4),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 14,
+                                  color: AppColors.diet,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -277,7 +256,7 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.xl,
+                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.xl2,
                     ),
                     child: Column(
                       children: [
@@ -338,7 +317,7 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md,
+                      AppSpacing.screenH, 0, AppSpacing.screenH, 0,
                     ),
                     child: AppSectionHeader(
                       title: '관리',
@@ -349,7 +328,8 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
 
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH, 0, AppSpacing.screenH, 120,
+                    AppSpacing.screenH, AppSpacing.md,
+                    AppSpacing.screenH, 120,
                   ),
                   sliver: SliverToBoxAdapter(
                     child: Container(
@@ -358,9 +338,9 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                         boxShadow: const [
                           BoxShadow(
-                            color: Color(0x0A000000),
+                            color: Color(0x08000000),
                             blurRadius: 8,
-                            offset: Offset(0, 4),
+                            offset: Offset(0, 2),
                           ),
                         ],
                       ),
@@ -448,7 +428,7 @@ class _AdminProfileTab extends StatelessWidget {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, 120,
+            AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, 120,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -471,7 +451,7 @@ class _AdminProfileTab extends StatelessWidget {
                     BoxShadow(
                       color: Color(0x08000000),
                       blurRadius: 8,
-                      offset: Offset(0, 4),
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),

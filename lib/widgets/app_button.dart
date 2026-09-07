@@ -47,7 +47,7 @@ class _AppButtonState extends State<AppButton>
       upperBound: 1.0,
       value: 0,
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.96).animate(
+    _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
     );
   }
@@ -78,16 +78,11 @@ class _AppButtonState extends State<AppButton>
       AppButtonSize.lg => 28.0,
     };
 
-    final fontSize = switch (widget.size) {
-      AppButtonSize.sm => 14.0,
-      AppButtonSize.md => 16.0,
-      AppButtonSize.lg => 17.0,
-    };
-
+    // Toss 스타일: sm은 sm 반경, md/lg는 lg 반경
     final radius = switch (widget.size) {
       AppButtonSize.sm => AppRadius.sm,
-      AppButtonSize.md => AppRadius.md,
-      AppButtonSize.lg => AppRadius.md,
+      AppButtonSize.md => AppRadius.lg,
+      AppButtonSize.lg => AppRadius.lg,
     };
 
     final bg = switch (widget.variant) {
@@ -95,7 +90,10 @@ class _AppButtonState extends State<AppButton>
         disabled
             ? AppColors.brand.withValues(alpha: 0.35)
             : AppColors.brand,
-      AppButtonVariant.secondary => AppColors.bg,
+      AppButtonVariant.secondary =>
+        disabled
+            ? AppColors.bg
+            : AppColors.bg,
       AppButtonVariant.ghost => Colors.transparent,
       AppButtonVariant.danger =>
         disabled
@@ -113,7 +111,13 @@ class _AppButtonState extends State<AppButton>
       AppButtonVariant.danger => AppColors.textOnAccent,
     };
 
-    final List<BoxShadow> shadows = [];
+    final border = switch (widget.variant) {
+      AppButtonVariant.secondary => Border.all(
+        color: AppColors.border,
+        width: 1.0,
+      ),
+      _ => null,
+    };
 
     final content = widget.isLoading
         ? SizedBox(
@@ -127,17 +131,20 @@ class _AppButtonState extends State<AppButton>
             children: [
               if (widget.icon != null) ...[
                 IconTheme(
-                  data: IconThemeData(color: fg, size: 20),
+                  data: IconThemeData(color: fg, size: 18),
                   child: widget.icon!,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
               ],
               Text(
                 widget.label,
                 style: AppTextStyles.button.copyWith(
                   color: fg,
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w600,
+                  fontSize: switch (widget.size) {
+                    AppButtonSize.sm => 14.0,
+                    AppButtonSize.md => 16.0,
+                    AppButtonSize.lg => 16.0,
+                  },
                 ),
               ),
             ],
@@ -161,7 +168,7 @@ class _AppButtonState extends State<AppButton>
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(radius),
-            boxShadow: shadows,
+            border: border,
           ),
           alignment: Alignment.center,
           child: content,

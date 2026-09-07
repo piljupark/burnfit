@@ -246,17 +246,19 @@ class _ProfileHero extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A000000),
+            color: Color(0x08000000),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 아바타 원형 (brand 12%)
           Container(
-            width: 64,
-            height: 64,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               color: AppColors.brand.withValues(alpha: 0.12),
               shape: BoxShape.circle,
@@ -264,58 +266,50 @@ class _ProfileHero extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               initial,
-              style: AppTextStyles.h1.copyWith(
+              style: AppTextStyles.h2.copyWith(
                 color: AppColors.brand,
                 fontWeight: FontWeight.w800,
-                fontSize: 26,
               ),
             ),
           ),
-          const Gap(AppSpacing.base),
+          const Gap(AppSpacing.md),
+          // 이름 + 이메일 + 뱃지
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  user.name,
-                  style: AppTextStyles.headline.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const Gap(3),
+                Text(user.name, style: AppTextStyles.headline),
+                const Gap(2),
                 Text(
                   user.email,
-                  style: AppTextStyles.captionSmall.copyWith(
-                    color: AppColors.textSecondary,
+                  style: AppTextStyles.caption,
+                ),
+                if (user.centerName.isNotEmpty ||
+                    (user.trainerName?.trim().isNotEmpty ?? false)) ...[
+                  const Gap(AppSpacing.xs),
+                  Wrap(
+                    spacing: AppSpacing.xs,
+                    children: [
+                      if (user.centerName.isNotEmpty)
+                        _InfoChip(label: user.centerName),
+                      if (user.trainerName?.trim().isNotEmpty ?? false)
+                        _InfoChip(label: user.trainerName!),
+                    ],
                   ),
-                ),
-                const Gap(AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  children: [
-                    if (user.centerName.isNotEmpty) _InfoChip(label: user.centerName),
-                    if (user.trainerName?.trim().isNotEmpty ?? false)
-                      _InfoChip(label: user.trainerName!),
-                  ],
-                ),
+                ],
               ],
             ),
           ),
-          GestureDetector(
-            onTap: onEdit,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.bg,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: const Icon(
-                Icons.edit_outlined,
-                size: 16,
-                color: AppColors.textSecondary,
-              ),
+          // 편집 아이콘 (우상단)
+          IconButton(
+            onPressed: onEdit,
+            icon: const Icon(
+              Icons.edit_outlined,
+              size: 18,
+              color: AppColors.textSecondary,
             ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
         ],
       ),
@@ -331,14 +325,14 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: AppColors.bg,
         borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Text(
         label,
-        style: AppTextStyles.captionSmall.copyWith(
+        style: AppTextStyles.caption.copyWith(
           color: AppColors.textSecondary,
           fontWeight: FontWeight.w500,
         ),

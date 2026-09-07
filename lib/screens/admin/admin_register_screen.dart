@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -13,6 +14,7 @@ import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_text_field.dart';
 
 class AdminRegisterScreen extends StatefulWidget {
@@ -89,10 +91,24 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
     } on Exception {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('가입 중 오류가 발생했습니다. 다시 시도해주세요.'),
+        SnackBar(
+          content: Text(
+            '가입 중 오류가 발생했습니다. 다시 시도해주세요.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textOnAccent,
+            ),
+          ),
           backgroundColor: AppColors.destructive,
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          margin: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            0,
+            AppSpacing.screenH,
+            AppSpacing.md,
+          ),
         ),
       );
     } finally {
@@ -107,122 +123,110 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.lg,
-                    AppSpacing.screenH,
-                    0,
-                  ),
-                  child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.base,
+                AppSpacing.screenH,
+                0,
+              ),
+              child: AppScreenHeader(
+                title: '관리자 등록',
+                onBack: () => Navigator.of(context).pop(),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xl,
+                  AppSpacing.screenH,
+                  AppSpacing.xl2,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                            border: Border.all(
-                              color: AppColors.border,
-                              width: 0.5,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 18,
-                            color: AppColors.textPrimary,
-                          ),
+                      Text(
+                        '관리자 정보',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ),
-                      const Gap(AppSpacing.md),
-                      Text('관리자 등록', style: AppTextStyles.h3),
+                      ).animate().fadeIn(duration: 300.ms),
+                      const Gap(AppSpacing.sm),
+                      AppTextField(
+                        label: '이름',
+                        controller: _nameController,
+                        validator: Validators.name,
+                        textInputAction: TextInputAction.next,
+                      ).animate().fadeIn(delay: 50.ms, duration: 300.ms),
+                      const Gap(AppSpacing.sm),
+                      AppTextField(
+                        label: '이메일',
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: Validators.email,
+                        textInputAction: TextInputAction.next,
+                      ).animate().fadeIn(delay: 80.ms, duration: 300.ms),
+                      const Gap(AppSpacing.sm),
+                      AppTextField(
+                        label: '비밀번호',
+                        controller: _passwordController,
+                        obscureText: true,
+                        validator: Validators.password,
+                        textInputAction: TextInputAction.next,
+                      ).animate().fadeIn(delay: 110.ms, duration: 300.ms),
+                      const Gap(AppSpacing.sm),
+                      AppTextField(
+                        label: '설정 코드',
+                        controller: _codeController,
+                        validator: (v) => Validators.adminCode(
+                          v,
+                          AppConstants.adminSetupCode,
+                        ),
+                        textInputAction: TextInputAction.next,
+                      ).animate().fadeIn(delay: 140.ms, duration: 300.ms),
+                      const Gap(AppSpacing.xl),
+
+                      Text(
+                        '센터 정보',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ).animate().fadeIn(delay: 170.ms, duration: 300.ms),
+                      const Gap(AppSpacing.sm),
+                      AppTextField(
+                        label: '센터 이름',
+                        controller: _centerNameController,
+                        validator: (v) => Validators.required(v, '센터 이름'),
+                        textInputAction: TextInputAction.next,
+                      ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
+                      const Gap(AppSpacing.sm),
+                      AppTextField(
+                        label: '주소 (선택)',
+                        controller: _centerAddressController,
+                        textInputAction: TextInputAction.done,
+                      ).animate().fadeIn(delay: 230.ms, duration: 300.ms),
+                      const Gap(AppSpacing.xl2),
+                      AppButton(
+                        label: '등록',
+                        onPressed: _register,
+                        isLoading: _isLoading,
+                        fullWidth: true,
+                        size: AppButtonSize.lg,
+                      ).animate().fadeIn(delay: 260.ms, duration: 300.ms),
                     ],
                   ),
                 ),
-                const Gap(AppSpacing.xl),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screenH,
-                      vertical: AppSpacing.md,
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('관리자 정보', style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
-                          const Gap(AppSpacing.xs),
-                          AppTextField(
-                            label: '이름',
-                            controller: _nameController,
-                            validator: Validators.name,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          const Gap(AppSpacing.md),
-                          AppTextField(
-                            label: '이메일',
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: Validators.email,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          const Gap(AppSpacing.md),
-                          AppTextField(
-                            label: '비밀번호',
-                            controller: _passwordController,
-                            obscureText: true,
-                            validator: Validators.password,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          const Gap(AppSpacing.md),
-                          AppTextField(
-                            label: '설정 코드',
-                            controller: _codeController,
-                            validator: (v) => Validators.adminCode(
-                              v,
-                              AppConstants.adminSetupCode,
-                            ),
-                            textInputAction: TextInputAction.next,
-                          ),
-                          const Gap(AppSpacing.xl),
-                          Text('센터 정보', style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
-                          const Gap(AppSpacing.xs),
-                          AppTextField(
-                            label: '센터 이름',
-                            controller: _centerNameController,
-                            validator: (v) => Validators.required(v, '센터 이름'),
-                            textInputAction: TextInputAction.next,
-                          ),
-                          const Gap(AppSpacing.md),
-                          AppTextField(
-                            label: '주소 (선택)',
-                            controller: _centerAddressController,
-                            textInputAction: TextInputAction.done,
-                          ),
-                          const Gap(AppSpacing.xl),
-                          AppButton(
-                            label: '등록',
-                            onPressed: _register,
-                            isLoading: _isLoading,
-                            fullWidth: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

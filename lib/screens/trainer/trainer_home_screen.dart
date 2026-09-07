@@ -196,7 +196,7 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.base,
+                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.xl2,
                     ),
                     child: _TodayStatsBanner(
                       total: _todaySessions.length,
@@ -209,20 +209,23 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.xl,
+                      AppSpacing.screenH, 0, AppSpacing.screenH, 0,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppSectionHeader(
-                          title: '오늘 PT 일정',
-                          accentColor: AppColors.brand,
-                        ),
-                        _TodayScheduleList(
-                          sessions: _todaySessions,
-                          onRecordTap: _openPtWorkout,
-                        ),
-                      ],
+                    child: AppSectionHeader(
+                      title: '오늘 PT 일정',
+                      accentColor: AppColors.brand,
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH, AppSpacing.md,
+                      AppSpacing.screenH, AppSpacing.xl2,
+                    ),
+                    child: _TodayScheduleList(
+                      sessions: _todaySessions,
+                      onRecordTap: _openPtWorkout,
                     ),
                   ),
                 ),
@@ -231,7 +234,7 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md,
+                      AppSpacing.screenH, 0, AppSpacing.screenH, 0,
                     ),
                     child: AppSectionHeader(
                       title: '담당 회원',
@@ -245,7 +248,8 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.screenH, 0, AppSpacing.screenH, 0,
+                        AppSpacing.screenH, AppSpacing.md,
+                        AppSpacing.screenH, 0,
                       ),
                       child: const AppEmptyState(
                         icon: Icons.people_outline_rounded,
@@ -256,7 +260,8 @@ class _TrainerDashboardTabState extends State<_TrainerDashboardTab> {
                 else
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, 120,
+                      AppSpacing.screenH, AppSpacing.md,
+                      AppSpacing.screenH, 120,
                     ),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
@@ -301,60 +306,29 @@ class _TrainerGreetingHeader extends StatelessWidget {
     final name = user?.name ?? '';
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, AppSpacing.xl,
+        AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.xl,
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dateLabel,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textTertiary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const Gap(AppSpacing.xs),
-                RichText(
-                  text: TextSpan(
-                    style: AppTextStyles.h1,
-                    children: [
-                      TextSpan(
-                        text: '$name 트레이너',
-                        style: AppTextStyles.h1,
-                      ),
-                      TextSpan(
-                        text: '\n오늘도 파이팅!',
-                        style: AppTextStyles.h1.copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w400,
-                          fontSize: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          Text(
+            dateLabel,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textTertiary,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.trainer.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+          const Gap(AppSpacing.sm),
+          Text(
+            '안녕하세요,',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.textSecondary,
             ),
-            alignment: Alignment.center,
-            child: Text(
-              name.isNotEmpty ? name[0] : 'T',
-              style: AppTextStyles.headline.copyWith(
-                color: AppColors.trainer,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+          ),
+          const Gap(2),
+          Text(
+            '$name 트레이너님',
+            style: AppTextStyles.h1,
           ),
         ],
       ),
@@ -507,13 +481,13 @@ class _TodayScheduleList extends StatelessWidget {
           color: AppColors.card,
           borderRadius: BorderRadius.circular(AppRadius.lg),
           boxShadow: const [
-            BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 4)),
+            BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
           ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.check_circle_outline_rounded,
               size: 18,
               color: AppColors.textDisabled,
@@ -535,7 +509,7 @@ class _TodayScheduleList extends StatelessWidget {
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 4)),
+          BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
       clipBehavior: Clip.antiAlias,
@@ -693,6 +667,8 @@ class _MemberCard extends StatelessWidget {
     return Material(
       color: AppColors.card,
       borderRadius: BorderRadius.circular(AppRadius.lg),
+      shadowColor: const Color(0x0A000000),
+      elevation: 0,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -704,9 +680,9 @@ class _MemberCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.lg),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x0A000000),
+                color: Color(0x08000000),
                 blurRadius: 8,
-                offset: Offset(0, 4),
+                offset: Offset(0, 2),
               ),
             ],
           ),
@@ -795,7 +771,7 @@ class _TrainerProfileTab extends StatelessWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, 0,
+                  AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, 0,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -821,7 +797,7 @@ class _TrainerProfileTab extends StatelessWidget {
                           BoxShadow(
                             color: Color(0x08000000),
                             blurRadius: 8,
-                            offset: Offset(0, 4),
+                            offset: Offset(0, 2),
                           ),
                         ],
                       ),

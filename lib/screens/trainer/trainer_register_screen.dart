@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -14,6 +15,7 @@ import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_text_field.dart';
 
 class TrainerRegisterScreen extends StatefulWidget {
@@ -121,9 +123,23 @@ class _TrainerRegisterScreenState extends State<TrainerRegisterScreen> {
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Text(
+          msg,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textOnAccent,
+          ),
+        ),
         backgroundColor: AppColors.destructive,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
+        margin: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          0,
+          AppSpacing.screenH,
+          AppSpacing.md,
+        ),
       ),
     );
   }
@@ -133,222 +149,243 @@ class _TrainerRegisterScreenState extends State<TrainerRegisterScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.lg,
-                    AppSpacing.screenH,
-                    0,
-                  ),
-                  child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.base,
+                AppSpacing.screenH,
+                0,
+              ),
+              child: AppScreenHeader(
+                title: '트레이너 등록',
+                onBack: () => Navigator.of(context).pop(),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xl,
+                  AppSpacing.screenH,
+                  AppSpacing.xl2,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                            border: Border.all(
-                              color: AppColors.border,
-                              width: 0.5,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 18,
-                            color: AppColors.textPrimary,
-                          ),
+                      Text(
+                        '계정 정보',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ),
-                      const Gap(AppSpacing.md),
-                      Text('트레이너 가입', style: AppTextStyles.h3),
+                      ).animate().fadeIn(duration: 300.ms),
+                      const Gap(AppSpacing.sm),
+                      AppTextField(
+                        label: '이름',
+                        controller: _nameController,
+                        validator: Validators.name,
+                        textInputAction: TextInputAction.next,
+                      ).animate().fadeIn(delay: 50.ms, duration: 300.ms),
+                      const Gap(AppSpacing.sm),
+                      AppTextField(
+                        label: '이메일',
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: Validators.email,
+                        textInputAction: TextInputAction.next,
+                      ).animate().fadeIn(delay: 80.ms, duration: 300.ms),
+                      const Gap(AppSpacing.sm),
+                      AppTextField(
+                        label: '비밀번호',
+                        controller: _passwordController,
+                        obscureText: true,
+                        validator: Validators.password,
+                      ).animate().fadeIn(delay: 110.ms, duration: 300.ms),
+                      const Gap(AppSpacing.xl),
+
+                      Text(
+                        '소속 센터',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ).animate().fadeIn(delay: 140.ms, duration: 300.ms),
+                      const Gap(AppSpacing.sm),
+                      AppTextField(
+                        label: '센터 검색',
+                        hint: '센터 이름을 입력하세요 (2자 이상)',
+                        controller: _searchController,
+                        onChanged: _searchCenters,
+                        suffix: _isSearching
+                            ? const Padding(
+                                padding: EdgeInsets.only(right: 14),
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ).animate().fadeIn(delay: 170.ms, duration: 300.ms),
+                      if (_selectedCenter != null) ...[
+                        const Gap(AppSpacing.xs),
+                        _SelectedCenterChip(
+                          name: _selectedCenter!.name,
+                          onClear: () => setState(() => _selectedCenter = null),
+                        ),
+                      ],
+                      if (_searchResults.isNotEmpty && _selectedCenter == null) ...[
+                        const Gap(AppSpacing.xs),
+                        _CenterSearchResults(
+                          results: _searchResults,
+                          onSelect: (c) => setState(() {
+                            _selectedCenter = c;
+                            _searchResults = [];
+                            _searchController.clear();
+                          }),
+                        ),
+                      ],
+                      const Gap(AppSpacing.xl2),
+                      AppButton(
+                        label: '가입 신청',
+                        onPressed: _register,
+                        isLoading: _isLoading,
+                        fullWidth: true,
+                        size: AppButtonSize.lg,
+                      ).animate().fadeIn(delay: 220.ms, duration: 300.ms),
                     ],
                   ),
                 ),
-                const Gap(AppSpacing.xl),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screenH,
-                      vertical: AppSpacing.md,
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('계정 정보', style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
-                          const Gap(AppSpacing.xs),
-                          AppTextField(
-                            label: '이름',
-                            controller: _nameController,
-                            validator: Validators.name,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          const Gap(AppSpacing.md),
-                          AppTextField(
-                            label: '이메일',
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: Validators.email,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          const Gap(AppSpacing.md),
-                          AppTextField(
-                            label: '비밀번호',
-                            controller: _passwordController,
-                            obscureText: true,
-                            validator: Validators.password,
-                          ),
-                          const Gap(AppSpacing.xl),
-                          Text('소속 센터', style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700)),
-                          const Gap(AppSpacing.xs),
-                          AppTextField(
-                            label: '센터 검색',
-                            hint: '센터 이름을 입력하세요 (2자 이상)',
-                            controller: _searchController,
-                            onChanged: _searchCenters,
-                            suffix: _isSearching
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          if (_selectedCenter != null) ...[
-                            const Gap(AppSpacing.sm),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.md,
-                                vertical: AppSpacing.sm + 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.brand.withValues(
-                                  alpha: 0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.md,
-                                ),
-                                border: Border.all(
-                                  color: AppColors.brand,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.check_circle_outline_rounded,
-                                    size: 16,
-                                    color: AppColors.brand,
-                                  ),
-                                  const Gap(AppSpacing.xxs),
-                                  Expanded(
-                                    child: Text(
-                                      _selectedCenter!.name,
-                                      style: AppTextStyles.body.copyWith(
-                                        color: AppColors.brand,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () =>
-                                        setState(() => _selectedCenter = null),
-                                    child: const Icon(
-                                      Icons.close_rounded,
-                                      size: 16,
-                                      color: AppColors.brand,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                          if (_searchResults.isNotEmpty &&
-                              _selectedCenter == null) ...[
-                            const Gap(AppSpacing.xs),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.card,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.md,
-                                ),
-                                border: Border.all(
-                                  color: AppColors.border,
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: ListView.separated(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _searchResults.length,
-                                separatorBuilder: (_, __) => const Divider(
-                                  height: 1,
-                                  color: AppColors.border,
-                                ),
-                                itemBuilder: (_, i) {
-                                  final c = _searchResults[i];
-                                  return InkWell(
-                                    onTap: () => setState(() {
-                                      _selectedCenter = c;
-                                      _searchResults = [];
-                                      _searchController.clear();
-                                    }),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.md,
-                                        vertical: AppSpacing.sm + 2,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            c.name,
-                                            style: AppTextStyles.body.copyWith(
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          if (c.address != null)
-                                            Text(
-                                              c.address!,
-                                              style: AppTextStyles.caption,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                          const Gap(AppSpacing.xl),
-                          AppButton(
-                            label: '가입 신청',
-                            onPressed: _register,
-                            isLoading: _isLoading,
-                            fullWidth: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectedCenterChip extends StatelessWidget {
+  final String name;
+  final VoidCallback onClear;
+
+  const _SelectedCenterChip({required this.name, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.brand.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: AppColors.brand.withValues(alpha: 0.28),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.check_circle_rounded,
+            size: 16,
+            color: AppColors.brand,
+          ),
+          const Gap(AppSpacing.xs),
+          Expanded(
+            child: Text(
+              name,
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.brand,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
             ),
           ),
+          GestureDetector(
+            onTap: onClear,
+            child: const Icon(
+              Icons.close_rounded,
+              size: 16,
+              color: AppColors.brand,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CenterSearchResults extends StatelessWidget {
+  final List<center_model.Center> results;
+  final ValueChanged<center_model.Center> onSelect;
+
+  const _CenterSearchResults({required this.results, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border, width: 0.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: results.length,
+        separatorBuilder: (_, __) => const Divider(
+          height: 1,
+          color: AppColors.border,
         ),
+        itemBuilder: (_, i) {
+          final c = results[i];
+          final isFirst = i == 0;
+          final isLast = i == results.length - 1;
+          return InkWell(
+            onTap: () => onSelect(c),
+            borderRadius: BorderRadius.vertical(
+              top: isFirst ? const Radius.circular(AppRadius.md) : Radius.zero,
+              bottom: isLast ? const Radius.circular(AppRadius.md) : Radius.zero,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm + 2,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    c.name,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (c.address != null)
+                    Text(c.address!, style: AppTextStyles.caption),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

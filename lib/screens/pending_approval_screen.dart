@@ -20,40 +20,50 @@ class PendingApprovalScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Spacer(flex: 2),
+
               // 아이콘
               Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: AppColors.textPrimary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(AppRadius.xl),
-                    ),
-                    child: const Icon(
-                      Icons.hourglass_top_rounded,
-                      color: AppColors.textPrimary,
-                      size: 32,
-                    ),
-                  )
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppColors.textPrimary.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.access_time_rounded,
+                  color: AppColors.textPrimary,
+                  size: 32,
+                ),
+              )
                   .animate()
                   .fadeIn(duration: 500.ms)
                   .scale(begin: const Offset(0.85, 0.85)),
+
               const Gap(AppSpacing.xl),
+
               Text(
-                '승인 대기 중',
-                style: AppTextStyles.h1.copyWith(fontSize: 28, fontWeight: FontWeight.w800),
+                '가입 승인 대기 중',
+                style: AppTextStyles.h2,
+                textAlign: TextAlign.center,
               ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
+
               const Gap(AppSpacing.sm),
+
               Text(
                 '관리자가 가입 신청을 검토하고 있습니다.\n승인이 완료되면 바로 서비스를 이용하실 수 있습니다.',
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
                   height: 1.6,
                 ),
-              ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
+                textAlign: TextAlign.center,
+              ).animate().fadeIn(delay: 160.ms, duration: 400.ms),
+
               const Spacer(flex: 3),
+
+              // 새로고침 버튼
               AppButton(
                 label: '새로고침',
                 variant: AppButtonVariant.secondary,
@@ -71,8 +81,11 @@ class PendingApprovalScreen extends StatelessWidget {
                     }
                   });
                 },
-              ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
+              ).animate().fadeIn(delay: 220.ms, duration: 400.ms),
+
               const Gap(AppSpacing.sm),
+
+              // 로그아웃 버튼
               AppButton(
                 label: '로그아웃',
                 variant: AppButtonVariant.ghost,
@@ -84,7 +97,8 @@ class PendingApprovalScreen extends StatelessWidget {
                     context,
                   ).pushReplacementNamed(AppRoutes.memberLogin);
                 },
-              ).animate().fadeIn(delay: 250.ms, duration: 400.ms),
+              ).animate().fadeIn(delay: 270.ms, duration: 400.ms),
+
               const Gap(AppSpacing.xl),
             ],
           ),

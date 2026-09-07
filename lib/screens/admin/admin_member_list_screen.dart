@@ -188,6 +188,7 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
                 ),
               ),
             ),
+            // 필터 탭
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
@@ -259,7 +260,7 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
                                 ),
                               ),
                             )
-                          : ListView.separated(
+                          : ListView(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.fromLTRB(
                                 AppSpacing.screenH,
@@ -267,133 +268,59 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
                                 AppSpacing.screenH,
                                 AppSpacing.xl2,
                               ),
-                              itemCount: _filtered.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: AppSpacing.sm),
-                              itemBuilder: (_, i) {
-                                final m = _filtered[i];
-                                final ptInfo = _ptInfoByMember[m.uid];
-                                final initial = m.name.isNotEmpty
-                                    ? m.name[0]
-                                    : '?';
-                                return Material(
-                                  color: AppColors.card,
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadius.lg,
-                                  ),
-                                  child: InkWell(
-                                    onTap: () async {
-                                      final updated =
-                                          await Navigator.of(
-                                            context,
-                                          ).push<AppUser>(
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  AdminMemberDetailScreen(
-                                                    member: m,
-                                                  ),
-                                            ),
-                                          );
-                                      if (updated == null || !context.mounted) {
-                                        return;
-                                      }
-                                      setState(() {
-                                        final idx = _members.indexWhere(
-                                          (item) => item.uid == updated.uid,
-                                        );
-                                        if (idx != -1) {
-                                          _members[idx] = updated;
-                                        }
-                                      });
-                                      _filter();
-                                    },
-                                    splashColor: AppColors.brand
-                                        .withValues(alpha: 0.04),
-                                    highlightColor: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadius.lg,
+                              children: [
+                                // 전체 리스트를 하나의 흰 카드로 감싸기
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.card,
+                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    border: Border.all(
+                                      color: AppColors.border,
+                                      width: 0.5,
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.base,
-                                        vertical: AppSpacing.md,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            width: 48,
-                                            height: 48,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.brand.withValues(alpha: 0.12),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: Text(
-                                              initial,
-                                              style: AppTextStyles.headline.copyWith(
-                                                fontWeight: FontWeight.w800,
-                                                color: AppColors.brand,
-                                              ),
-                                            ),
-                                          ),
-                                          const Gap(AppSpacing.md),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  m.name,
-                                                  style: AppTextStyles.label.copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 15,
-                                                  ),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    child: Column(
+                                      children: [
+                                        for (int i = 0; i < _filtered.length; i++) ...[
+                                          _MemberListItem(
+                                            member: _filtered[i],
+                                            ptInfo: _ptInfoByMember[_filtered[i].uid],
+                                            onTap: () async {
+                                              final m = _filtered[i];
+                                              final updated =
+                                                  await Navigator.of(context).push<AppUser>(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      AdminMemberDetailScreen(member: m),
                                                 ),
-                                                const Gap(3),
-                                                Text(
-                                                  m.trainerName != null
-                                                      ? '담당: ${m.trainerName}'
-                                                      : '트레이너 미배정',
-                                                  style: AppTextStyles.captionSmall.copyWith(
-                                                    color: m.trainerName != null
-                                                        ? AppColors.textTertiary
-                                                        : AppColors.diet,
-                                                    fontWeight: m.trainerName != null
-                                                        ? FontWeight.w400
-                                                        : FontWeight.w600,
-                                                  ),
-                                                ),
-                                                if (ptInfo != null) ...[
-                                                  const Gap(2),
-                                                  Text(
-                                                    'PT ${ptInfo.remainingSessions}/${ptInfo.totalSessions}회${_expiryLabel(ptInfo)}',
-                                                    style: AppTextStyles.captionSmall.copyWith(
-                                                      color: _ptInfoTone(ptInfo),
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
+                                              );
+                                              if (updated == null || !context.mounted) {
+                                                return;
+                                              }
+                                              setState(() {
+                                                final idx = _members.indexWhere(
+                                                  (item) => item.uid == updated.uid,
+                                                );
+                                                if (idx != -1) {
+                                                  _members[idx] = updated;
+                                                }
+                                              });
+                                              _filter();
+                                            },
                                           ),
-                                          Container(
-                                            width: 32,
-                                            height: 32,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.bg,
-                                              borderRadius: BorderRadius.circular(AppRadius.xs),
+                                          if (i < _filtered.length - 1)
+                                            const Divider(
+                                              height: 1,
+                                              color: AppColors.border,
                                             ),
-                                            child: const Icon(
-                                              Icons.chevron_right_rounded,
-                                              size: 18,
-                                              color: AppColors.textTertiary,
-                                            ),
-                                          ),
                                         ],
-                                      ),
+                                      ],
                                     ),
                                   ),
-                                );
-                              },
+                                ),
+                              ],
                             ),
                     ),
             ),
@@ -402,6 +329,21 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
       ),
     );
   }
+
+}
+
+// ── _MemberListItem ───────────────────────────────────────────────────────────
+
+class _MemberListItem extends StatelessWidget {
+  final AppUser member;
+  final PtInfo? ptInfo;
+  final VoidCallback onTap;
+
+  const _MemberListItem({
+    required this.member,
+    required this.ptInfo,
+    required this.onTap,
+  });
 
   String _expiryLabel(PtInfo info) {
     final endDate = info.endDate;
@@ -422,5 +364,87 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
     }
     if (label.isNotEmpty) return AppColors.diet;
     return AppColors.textSecondary;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = member.name.isNotEmpty ? member.name[0] : '?';
+
+    return InkWell(
+      onTap: onTap,
+      splashColor: AppColors.brand.withValues(alpha: 0.04),
+      highlightColor: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.base,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            // 48x48 원형 아바타
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.brand.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                initial,
+                style: AppTextStyles.headline.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.brand,
+                ),
+              ),
+            ),
+            const Gap(AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 이름 (headline)
+                  Text(
+                    member.name,
+                    style: AppTextStyles.headline,
+                  ),
+                  const Gap(3),
+                  // 부가정보 (caption, textSecondary)
+                  Text(
+                    member.trainerName != null
+                        ? '담당: ${member.trainerName}'
+                        : '트레이너 미배정',
+                    style: AppTextStyles.caption.copyWith(
+                      color: member.trainerName != null
+                          ? AppColors.textSecondary
+                          : AppColors.diet,
+                      fontWeight: member.trainerName != null
+                          ? FontWeight.w400
+                          : FontWeight.w600,
+                    ),
+                  ),
+                  if (ptInfo != null) ...[
+                    const Gap(2),
+                    Text(
+                      'PT ${ptInfo!.remainingSessions}/${ptInfo!.totalSessions}회${_expiryLabel(ptInfo!)}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: _ptInfoTone(ptInfo!),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // 우측 화살표
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: AppColors.textTertiary,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

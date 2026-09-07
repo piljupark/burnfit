@@ -304,9 +304,9 @@ class _MetricCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A000000),
+            color: Color(0x08000000),
             blurRadius: 8,
-            offset: Offset(0, 4),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -327,7 +327,7 @@ class _MetricCard extends StatelessWidget {
               Text(
                 value,
                 style: AppTextStyles.numberLarge.copyWith(
-                  color: AppColors.brand,
+                  color: AppColors.textPrimary,
                   fontSize: 28,
                 ),
               ),
@@ -445,9 +445,9 @@ class _InsightCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A000000),
+            color: Color(0x08000000),
             blurRadius: 8,
-            offset: Offset(0, 4),
+            offset: Offset(0, 2),
           ),
         ],
       ),

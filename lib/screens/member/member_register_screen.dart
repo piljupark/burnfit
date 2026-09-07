@@ -15,6 +15,7 @@ import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_text_field.dart';
 
 class MemberRegisterScreen extends StatefulWidget {
@@ -140,42 +141,20 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgLogin,
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
-                AppSpacing.md,
+                AppSpacing.base,
                 AppSpacing.screenH,
                 0,
               ),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        border: Border.all(
-                          color: AppColors.border,
-                          width: 0.5,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        size: 16,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  const Gap(AppSpacing.md),
-                  Text('회원 가입', style: AppTextStyles.headline),
-                ],
+              child: AppScreenHeader(
+                title: '회원가입',
+                onBack: () => Navigator.of(context).pop(),
               ),
             ),
             Expanded(
@@ -191,9 +170,13 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 섹션 제목 - 기본 정보
                       Text(
                         '기본 정보',
-                        style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700),
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ).animate().fadeIn(duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
@@ -209,7 +192,7 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                         keyboardType: TextInputType.emailAddress,
                         validator: Validators.email,
                         textInputAction: TextInputAction.next,
-                      ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
+                      ).animate().fadeIn(delay: 80.ms, duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '비밀번호',
@@ -217,12 +200,17 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                         obscureText: true,
                         validator: Validators.password,
                         textInputAction: TextInputAction.done,
-                      ).animate().fadeIn(delay: 150.ms, duration: 300.ms),
+                      ).animate().fadeIn(delay: 110.ms, duration: 300.ms),
                       const Gap(AppSpacing.xl),
+
+                      // 섹션 제목 - 센터 선택
                       Text(
                         '센터 선택',
-                        style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700),
-                      ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ).animate().fadeIn(delay: 140.ms, duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '센터 검색',
@@ -242,7 +230,7 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                                 ),
                               )
                             : null,
-                      ).animate().fadeIn(delay: 250.ms, duration: 300.ms),
+                      ).animate().fadeIn(delay: 170.ms, duration: 300.ms),
                       if (_selectedCenter != null) ...[
                         const Gap(AppSpacing.xs),
                         _SelectedCenterChip(
@@ -250,8 +238,7 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                           onClear: () => setState(() => _selectedCenter = null),
                         ),
                       ],
-                      if (_searchResults.isNotEmpty &&
-                          _selectedCenter == null) ...[
+                      if (_searchResults.isNotEmpty && _selectedCenter == null) ...[
                         const Gap(AppSpacing.xs),
                         _CenterSearchResults(
                           results: _searchResults,
@@ -269,7 +256,7 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                         isLoading: _isLoading,
                         fullWidth: true,
                         size: AppButtonSize.lg,
-                      ).animate().fadeIn(delay: 300.ms, duration: 300.ms),
+                      ).animate().fadeIn(delay: 220.ms, duration: 300.ms),
                     ],
                   ),
                 ),
@@ -296,11 +283,11 @@ class _SelectedCenterChip extends StatelessWidget {
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: AppColors.brand.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        color: AppColors.brand.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
           color: AppColors.brand.withValues(alpha: 0.28),
-          width: 0.5,
+          width: 1,
         ),
       ),
       child: Row(
@@ -346,8 +333,15 @@ class _CenterSearchResults extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: AppColors.border, width: 0.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: ListView.separated(
         shrinkWrap: true,
@@ -365,10 +359,8 @@ class _CenterSearchResults extends StatelessWidget {
           return InkWell(
             onTap: () => onSelect(c),
             borderRadius: BorderRadius.vertical(
-              top: isFirst ? const Radius.circular(AppRadius.sm) : Radius.zero,
-              bottom: isLast
-                  ? const Radius.circular(AppRadius.sm)
-                  : Radius.zero,
+              top: isFirst ? const Radius.circular(AppRadius.md) : Radius.zero,
+              bottom: isLast ? const Radius.circular(AppRadius.md) : Radius.zero,
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(

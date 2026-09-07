@@ -118,6 +118,7 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                     : null,
               ),
             ),
+            // 검색바
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
@@ -189,7 +190,9 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                               padding: const EdgeInsets.only(top: AppSpacing.xl),
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.screenH,
+                                  ),
                                   child: AppEmptyState(
                                     icon: Icons.fitness_center_outlined,
                                     message: '등록된 트레이너가 없습니다.',
@@ -203,7 +206,9 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                               padding: const EdgeInsets.only(top: AppSpacing.xl),
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.screenH,
+                                  ),
                                   child: AppEmptyState(
                                     icon: Icons.search_off_rounded,
                                     message: '검색 결과가 없습니다.',
@@ -211,7 +216,7 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                                 ),
                               ],
                             )
-                          : ListView.separated(
+                          : ListView(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.fromLTRB(
                                 AppSpacing.screenH,
@@ -219,99 +224,37 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                                 AppSpacing.screenH,
                                 AppSpacing.xl2,
                               ),
-                              itemCount: _filtered.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: AppSpacing.sm),
-                              itemBuilder: (_, i) {
-                                final t = _filtered[i];
-                                final initial = t.name.isNotEmpty
-                                    ? t.name[0]
-                                    : '?';
-                                return Material(
-                                  color: AppColors.card,
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadius.lg,
-                                  ),
-                                  child: InkWell(
-                                    onTap: () => _showTrainerDetail(t),
-                                    splashColor: AppColors.brand
-                                        .withValues(alpha: 0.05),
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadius.lg,
+                              children: [
+                                // 전체 리스트를 하나의 흰 카드로 감싸기
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.card,
+                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    border: Border.all(
+                                      color: AppColors.border,
+                                      width: 0.5,
                                     ),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: AppColors.card,
-                                        borderRadius: BorderRadius.circular(
-                                          AppRadius.lg,
-                                        ),
-                                        boxShadow: const [
-                                          BoxShadow(
-                                            color: Color(0x0A000000),
-                                            blurRadius: 8,
-                                            offset: Offset(0, 4),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    child: Column(
+                                      children: [
+                                        for (int i = 0; i < _filtered.length; i++) ...[
+                                          _TrainerListItem(
+                                            trainer: _filtered[i],
+                                            onTap: () => _showTrainerDetail(_filtered[i]),
                                           ),
+                                          if (i < _filtered.length - 1)
+                                            const Divider(
+                                              height: 1,
+                                              color: AppColors.border,
+                                            ),
                                         ],
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: AppSpacing.md,
-                                          vertical: AppSpacing.sm + 2,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 48,
-                                              height: 48,
-                                              decoration: BoxDecoration(
-                                                color: AppColors.trainer.withValues(alpha: 0.12),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              alignment: Alignment.center,
-                                              child: Text(
-                                                initial,
-                                                style: AppTextStyles.label
-                                                    .copyWith(
-                                                      fontWeight: FontWeight.w700,
-                                                      fontSize: 15,
-                                                      color: AppColors.trainer,
-                                                    ),
-                                              ),
-                                            ),
-                                            const Gap(AppSpacing.md),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    t.name,
-                                                    style: AppTextStyles.label
-                                                        .copyWith(
-                                                          fontWeight:
-                                                              FontWeight.w700,
-                                                          fontSize: 15,
-                                                        ),
-                                                  ),
-                                                  const Gap(AppSpacing.xxs),
-                                                  Text(
-                                                    t.email,
-                                                    style: AppTextStyles.captionSmall
-                                                        .copyWith(
-                                                          color: AppColors
-                                                              .textTertiary,
-                                                        ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                      ],
                                     ),
                                   ),
-                                );
-                              },
+                                ),
+                              ],
                             ),
                     ),
             ),
@@ -321,6 +264,87 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
     );
   }
 }
+
+// ── _TrainerListItem ──────────────────────────────────────────────────────────
+
+class _TrainerListItem extends StatelessWidget {
+  final AppUser trainer;
+  final VoidCallback onTap;
+
+  const _TrainerListItem({
+    required this.trainer,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = trainer.name.isNotEmpty ? trainer.name[0] : '?';
+
+    return InkWell(
+      onTap: onTap,
+      splashColor: AppColors.trainer.withValues(alpha: 0.05),
+      highlightColor: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.base,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            // 48x48 원형 아바타
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.trainer.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                initial,
+                style: AppTextStyles.headline.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.trainer,
+                ),
+              ),
+            ),
+            const Gap(AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 이름 (headline)
+                  Text(
+                    trainer.name,
+                    style: AppTextStyles.headline,
+                  ),
+                  const Gap(3),
+                  // 이메일 (caption, textSecondary)
+                  Text(
+                    trainer.email,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            // 우측 화살표
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: AppColors.textTertiary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── _TrainerDetailSheet ───────────────────────────────────────────────────────
 
 class _TrainerDetailSheet extends StatelessWidget {
   final AppUser trainer;
@@ -348,6 +372,19 @@ class _TrainerDetailSheet extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 핸들
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                  ),
+                ),
+              ),
+              // 트레이너 프로필 헤더
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screenH,
@@ -358,18 +395,17 @@ class _TrainerDetailSheet extends StatelessWidget {
                 child: Row(
                   children: [
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
-                        color: AppColors.trainer.withValues(
-                          alpha: 0.16,
-                        ),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        color: AppColors.trainer.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         initial,
-                        style: AppTextStyles.h3.copyWith(
+                        style: AppTextStyles.headline.copyWith(
+                          fontWeight: FontWeight.w800,
                           color: AppColors.trainer,
                         ),
                       ),
@@ -379,8 +415,11 @@ class _TrainerDetailSheet extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(trainer.name, style: AppTextStyles.h3),
-                          const Gap(AppSpacing.xxs),
+                          Text(
+                            trainer.name,
+                            style: AppTextStyles.headline,
+                          ),
+                          const Gap(2),
                           Text(
                             trainer.email,
                             style: AppTextStyles.caption.copyWith(
@@ -409,6 +448,7 @@ class _TrainerDetailSheet extends StatelessWidget {
                     AppSpacing.xl2,
                   ),
                   children: [
+                    // KPI 타일 행
                     Row(
                       children: [
                         Expanded(
@@ -428,15 +468,12 @@ class _TrainerDetailSheet extends StatelessWidget {
                       ],
                     ),
                     const Gap(AppSpacing.sm),
+                    // 기본 정보 카드
                     Container(
-                      padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
                         color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
-                          color: AppColors.border,
-                          width: 0.5,
-                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: AppColors.border, width: 0.5),
                       ),
                       child: Column(
                         children: [
@@ -444,7 +481,7 @@ class _TrainerDetailSheet extends StatelessWidget {
                             label: '센터',
                             value: trainer.centerName,
                           ),
-                          const Gap(AppSpacing.sm),
+                          const Divider(height: 1, color: AppColors.border),
                           _TrainerInfoRow(
                             label: '등록일',
                             value:
@@ -456,9 +493,7 @@ class _TrainerDetailSheet extends StatelessWidget {
                     const Gap(AppSpacing.lg),
                     Text(
                       '배정 회원',
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppTextStyles.h3,
                     ),
                     const Gap(AppSpacing.sm),
                     if (members.isEmpty)
@@ -467,72 +502,31 @@ class _TrainerDetailSheet extends StatelessWidget {
                         message: '배정된 회원이 없습니다.',
                       )
                     else
-                      ...members.map((member) {
-                        final memberInitial = member.name.isNotEmpty
-                            ? member.name[0]
-                            : '?';
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          child: Container(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                              border: Border.all(
-                                color: AppColors.border,
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.brand
-                                        .withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadius.sm,
-                                    ),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    memberInitial,
-                                    style: AppTextStyles.body.copyWith(
-                                      color: AppColors.brand,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                const Gap(AppSpacing.md),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        member.name,
-                                        style: AppTextStyles.body.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const Gap(AppSpacing.xxs),
-                                      Text(
-                                        member.email,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppTextStyles.caption.copyWith(
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(
+                            color: AppColors.border,
+                            width: 0.5,
                           ),
-                        );
-                      }),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          child: Column(
+                            children: [
+                              for (int i = 0; i < members.length; i++) ...[
+                                _MemberRowItem(member: members[i]),
+                                if (i < members.length - 1)
+                                  const Divider(
+                                    height: 1,
+                                    color: AppColors.border,
+                                  ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -543,6 +537,71 @@ class _TrainerDetailSheet extends StatelessWidget {
     );
   }
 }
+
+// ── _MemberRowItem ────────────────────────────────────────────────────────────
+
+class _MemberRowItem extends StatelessWidget {
+  final AppUser member;
+
+  const _MemberRowItem({required this.member});
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = member.name.isNotEmpty ? member.name[0] : '?';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.base,
+        vertical: AppSpacing.sm + 2,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.brand.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              initial,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.brand,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const Gap(AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  member.name,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Gap(2),
+                Text(
+                  member.email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── _TrainerMetricTile ────────────────────────────────────────────────────────
 
 class _TrainerMetricTile extends StatelessWidget {
   final String label;
@@ -597,6 +656,8 @@ class _TrainerMetricTile extends StatelessWidget {
   }
 }
 
+// ── _TrainerInfoRow ───────────────────────────────────────────────────────────
+
 class _TrainerInfoRow extends StatelessWidget {
   final String label;
   final String value;
@@ -605,25 +666,31 @@ class _TrainerInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 56,
-          child: Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.base,
+        vertical: AppSpacing.sm + 2,
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            child: Text(
+              label,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -166,16 +166,24 @@ class _PtSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final renewalDate = info?.renewalDate;
+    final remaining = info?.remainingSessions ?? 0;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
-        color: AppColors.trainer,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
@@ -183,32 +191,40 @@ class _PtSummaryCard extends StatelessWidget {
               children: [
                 Text(
                   'PT 잔여 횟수',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textOnAccent.withValues(alpha: 0.8),
-                    fontSize: 13,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textTertiary,
                   ),
                 ),
-                const Gap(6),
+                const Gap(4),
                 Text(
-                  '${info?.remainingSessions ?? 0}회',
-                  style: AppTextStyles.h2.copyWith(
-                    color: AppColors.textOnAccent,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
+                  '$remaining회',
+                  style: AppTextStyles.numberLarge.copyWith(
+                    color: AppColors.trainer,
                   ),
                 ),
               ],
             ),
           ),
-          Text(
-            renewalDate == null
-                ? '갱신일\n-'
-                : '갱신일\n${DateFormat('M월 d일', 'ko').format(renewalDate)}',
-            textAlign: TextAlign.right,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textOnAccent.withValues(alpha: 0.85),
-              height: 1.5,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '갱신일',
+                style: AppTextStyles.captionSmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
+              const Gap(2),
+              Text(
+                renewalDate == null
+                    ? '-'
+                    : DateFormat('M월 d일', 'ko').format(renewalDate),
+                style: AppTextStyles.label.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ],
       ),

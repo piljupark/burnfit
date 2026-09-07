@@ -276,7 +276,7 @@ class _TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
                     ),
                     const Gap(AppSpacing.sm),
                   ],
-                  Expanded(child: Text('PT 일정', style: AppTextStyles.h3)),
+                  Expanded(child: Text('PT 일정', style: AppTextStyles.h1)),
                   GestureDetector(
                     onTap: _createSession,
                     child: Container(
