@@ -114,28 +114,33 @@ class SetValueField extends StatelessWidget {
           ],
           onChanged: (_) => onChanged(),
           textAlign: TextAlign.center,
-          textAlignVertical: TextAlignVertical.center,
-          style: AppTextStyles.bodyMd.copyWith(
-            color: textColor ?? AppColors.ink,
-            height: 1.0,
-          ),
+          // AppTextField와 같은 방식: 한 줄(22) + 위아래 같은 여백으로 칸(36)을 채운다.
+          // (줄 높이 1.0 + 세로 가운데 정렬 방식은 웹에서 글자가 아래로 내려가 보였다)
+          style: _valueStyle(textColor ?? AppColors.ink),
           cursorColor: AppColors.ink,
           cursorHeight: 18,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             filled: false,
-            isCollapsed: true,
             isDense: true,
             hintText: '-',
+            hintStyle: _valueStyle(AppColors.mute),
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
             disabledBorder: InputBorder.none,
             errorBorder: InputBorder.none,
             focusedErrorBorder: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: (kSetValueHeight - 2 - 22) / 2, // 테두리 1px 위아래 제외
+            ),
           ),
         ),
       ),
     );
   }
+
+  static TextStyle _valueStyle(Color color) => AppTextStyles.bodyMd.copyWith(
+    color: color,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
 }

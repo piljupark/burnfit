@@ -103,3 +103,17 @@ flutter drive -d <iOS 시뮬레이터> --driver=test_driver/integration_test.dar
 ```
 
 `--dart-define=USE_FIREBASE_EMULATOR=true`는 개발 빌드에서만 쓴다 (`lib/main.dart`).
+
+### 글자 세로 정렬 견본
+
+고정 높이 칸(입력창·세트 입력·버튼·태그) 안의 글자가 가운데 오는지는 견본 화면으로 확인한다. 웹과 iOS가 다르게 그릴 수 있으므로 둘 다 본다.
+
+```bash
+# iOS 시뮬레이터 → build/screen_tour/specimen.png
+flutter drive -d <iOS 시뮬레이터> --driver=test_driver/integration_test.dart --target=integration_test/specimen/specimen_test.dart
+# 웹 → build/specimen_web (아무 정적 서버로 열어 확인)
+flutter build web -t tool/specimen_main.dart -o build/specimen_web
+```
+
+입력칸은 줄 높이를 1.0으로 누르지 말고, `AppTextField`처럼 한 줄 높이 + 위아래 같은 여백으로 칸을 채운다 (웹에서 글자가 아래로 내려간다).
+

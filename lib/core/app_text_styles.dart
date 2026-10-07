@@ -22,6 +22,8 @@ class AppTextStyles {
       fontFamily: sans,
       fontSize: size,
       height: lineHeight / size,
+      // 줄 여백을 글자 위아래로 똑같이 나눠, 고정 높이 칸(입력창·버튼·태그) 안에서 글자가 가운데 오게 한다.
+      leadingDistribution: TextLeadingDistribution.even,
       fontWeight: weight,
       letterSpacing: size * -0.019,
       color: color ?? AppColors.ink,
@@ -38,6 +40,8 @@ class AppTextStyles {
       fontFamily: mono,
       fontSize: size,
       height: lineHeight / size,
+      // 줄 여백을 글자 위아래로 똑같이 나눠, 고정 높이 칸(입력창·버튼·태그) 안에서 글자가 가운데 오게 한다.
+      leadingDistribution: TextLeadingDistribution.even,
       fontWeight: FontWeight.w400,
       letterSpacing: size * trackingEm,
       color: color ?? AppColors.mute,
