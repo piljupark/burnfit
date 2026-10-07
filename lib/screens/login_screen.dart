@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
@@ -154,21 +152,24 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: AppColors.canvas,
       body: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: media.padding.bottom + AppSpacing.xl2),
+          padding: EdgeInsets.only(
+            top: media.padding.top + AppSpacing.xl2,
+            bottom: media.padding.bottom + AppSpacing.xl2,
+          ),
           child: ConstrainedBox(
+            // 폼이 화면보다 작으면 세로 가운데, 키보드가 올라오면 스크롤
             constraints: BoxConstraints(
-              minHeight: constraints.maxHeight - media.padding.bottom - AppSpacing.xl2,
+              minHeight: constraints.maxHeight - media.padding.vertical - AppSpacing.xl2 * 2,
             ),
             child: Form(
               key: _formKey,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 상단: 점 구체 + 워드마크
-                  _OrbBrand(topInset: media.padding.top),
-
-                  // 하단: 역할 → 센터·이메일·비밀번호 → 로그인 → 가입
+                  // 보이는 제목은 없지만 스크린리더에는 화면 이름을 알린다
+                  Semantics(header: true, label: 'BurnFit 로그인', child: const SizedBox.shrink()),
+                  // 화면 가운데: 역할 → 센터·이메일·비밀번호 → 로그인 → 가입
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                     child: Column(
@@ -242,160 +243,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 상단 점 구체 + 워드마크
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _OrbBrand extends StatelessWidget {
-  final double topInset;
-
-  const _OrbBrand({required this.topInset});
-
-  static const double _orbSize = 380;
-
-  @override
-  Widget build(BuildContext context) {
-    final height = topInset + 340;
-    final orbCenterY = topInset + 150;
-    return SizedBox(
-      height: height,
-      child: LayoutBuilder(
-        builder: (context, constraints) => Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // 장식용 구체: 화면 위로 일부 잘려도 된다
-            Positioned(
-              left: (constraints.maxWidth - _orbSize) / 2,
-              top: orbCenterY - _orbSize / 2,
-              child: const ExcludeSemantics(child: _DotGlobe(size: _orbSize)),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: orbCenterY - 28,
-              child: Column(
-                children: [
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      'BurnFit',
-                      style: AppTextStyles.displayMd.copyWith(
-                        // 점 위에서도 읽히도록 캔버스 색 번짐 (그림자가 아니라 글자 뒤 바탕 지우기)
-                        shadows: const [Shadow(color: AppColors.canvas, blurRadius: 16)],
-                      ),
-                    ),
-                  ),
-                  const Gap(6),
-                  Text(
-                    '피트니스 센터',
-                    style: AppTextStyles.captionSmall.copyWith(
-                      color: AppColors.body,
-                      shadows: const [Shadow(color: AppColors.canvas, blurRadius: 10)],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 로그인 배경용 큰 점 구체. OrbLoader와 같은 피보나치 구면·회전·깊이 표현이지만
-/// 점을 촘촘하고 작게 그린다 (OrbLoader는 점 크기가 지름에 비례해 큰 크기에서 거칠어진다).
-/// 움직임 줄이기 설정이면 멈춘다.
-class _DotGlobe extends StatefulWidget {
-  final double size;
-
-  const _DotGlobe({required this.size});
-
-  @override
-  State<_DotGlobe> createState() => _DotGlobeState();
-}
-
-class _DotGlobeState extends State<_DotGlobe> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-      AnimationController(vsync: this, duration: const Duration(seconds: 40));
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    if (reduceMotion) {
-      _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: SizedBox.square(
-        dimension: widget.size,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) => CustomPaint(
-            painter: _DotGlobePainter(angle: _controller.value * 2 * math.pi),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DotGlobePainter extends CustomPainter {
-  final double angle;
-
-  _DotGlobePainter({required this.angle});
-
-  static final List<List<double>> _points = () {
-    const n = 900;
-    final golden = math.pi * (3 - math.sqrt(5));
-    return List.generate(n, (i) {
-      final y = 1 - (i / (n - 1)) * 2;
-      final r = math.sqrt(1 - y * y);
-      final theta = golden * i;
-      return [math.cos(theta) * r, y, math.sin(theta) * r];
-    });
-  }();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final radius = size.shortestSide / 2;
-    final center = size.center(Offset.zero);
-    final cosA = math.cos(angle), sinA = math.sin(angle);
-    const tilt = 0.35;
-    final cosT = math.cos(tilt), sinT = math.sin(tilt);
-    final paint = Paint()..isAntiAlias = true;
-
-    for (final p in _points) {
-      final x1 = p[0] * cosA + p[2] * sinA;
-      final z1 = -p[0] * sinA + p[2] * cosA;
-      final y2 = p[1] * cosT - z1 * sinT;
-      final z2 = p[1] * sinT + z1 * cosT;
-      final depth = (z2 + 1) / 2; // 0(뒤) ~ 1(앞)
-      paint.color = AppColors.ink.withValues(alpha: 0.08 + 0.62 * depth);
-      canvas.drawCircle(
-        center + Offset(x1 * radius * 0.94, y2 * radius * 0.94),
-        0.5 + 1.1 * depth,
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DotGlobePainter old) => old.angle != angle;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -494,7 +341,7 @@ class _CenterSelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ExcludeSemantics(child: Text('센터', style: AppTextStyles.bodySm)),
+        ExcludeSemantics(child: Text('센터', style: AppTextStyles.bodySm.copyWith(color: AppColors.body))),
         const Gap(AppSpacing.sm),
         Semantics(
           button: true,
