@@ -109,17 +109,17 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
         ),
         Row(
           children: [
-            Expanded(child: _numberField('키', 'CM', _heightCtrl)),
+            Expanded(child: _numberField('키', 'cm', _heightCtrl)),
             const SizedBox(width: AppSpacing.md),
-            Expanded(child: _numberField('체중', 'KG', _weightCtrl)),
+            Expanded(child: _numberField('체중', 'kg', _weightCtrl)),
           ],
         ),
         const SizedBox(height: AppSpacing.base),
         Row(
           children: [
-            Expanded(child: _numberField('골격근량', 'KG', _muscleCtrl)),
+            Expanded(child: _numberField('골격근량', 'kg', _muscleCtrl)),
             const SizedBox(width: AppSpacing.md),
-            Expanded(child: _numberField('체지방량', 'KG', _bodyFatCtrl)),
+            Expanded(child: _numberField('체지방량', 'kg', _bodyFatCtrl)),
           ],
         ),
         const SizedBox(height: AppSpacing.base),

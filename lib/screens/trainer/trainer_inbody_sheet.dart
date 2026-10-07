@@ -137,7 +137,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
         mainAxisSize: MainAxisSize.min,
         children: [
           AppBottomSheetHeader(title: 'InBody 입력', subtitle: '${widget.member.name} 회원의 측정 기록'),
-          const _SheetSection(label: 'DATE', first: true),
+          const _SheetSection(label: '날짜', first: true),
           AppTextField(
             label: '측정일',
             controller: _dateCtrl,
@@ -151,7 +151,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
             ),
             validator: (v) => DateTime.tryParse(v?.trim() ?? '') == null ? '측정일을 선택해주세요.' : null,
           ),
-          const _SheetSection(label: 'BODY COMPOSITION'),
+          const _SheetSection(label: '체성분'),
           Row(
             children: [
               Expanded(
@@ -204,7 +204,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
               ),
             ],
           ),
-          const _SheetSection(label: 'INDEX'),
+          const _SheetSection(label: '지표'),
           Row(
             children: [
               Expanded(

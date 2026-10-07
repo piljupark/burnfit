@@ -62,7 +62,7 @@ class TrainerMealsTab extends StatelessWidget {
 
     return _RecordList(
       onRefresh: onRefresh,
-      header: 'MEALS',
+      header: '식단',
       emptyIcon: AppIcons.meal,
       emptyMessage: '최근 30일 식단 기록이 없습니다.',
       itemCount: meals.length,
@@ -111,7 +111,7 @@ class TrainerWorkoutsTab extends StatelessWidget {
 
     return _RecordList(
       onRefresh: onRefresh,
-      header: 'WORKOUTS',
+      header: '운동 기록',
       emptyIcon: AppIcons.workout,
       emptyMessage: '최근 30일 운동 기록이 없습니다.',
       itemCount: workouts.length,
@@ -154,7 +154,7 @@ class TrainerCardiosTab extends StatelessWidget {
 
     return _RecordList(
       onRefresh: onRefresh,
-      header: 'CARDIO',
+      header: '유산소',
       emptyIcon: AppIcons.cardio,
       emptyMessage: '최근 30일 유산소 기록이 없습니다.',
       itemCount: cardios.length,
@@ -206,7 +206,7 @@ class _RecordList extends StatelessWidget {
           if (itemCount == 0)
             AppEmptyState(icon: emptyIcon, message: emptyMessage)
           else ...[
-            AppMonthHeader(label: header, count: '$itemCount · 30 DAYS'),
+            AppMonthHeader(label: header, count: '$itemCount건 · 최근 30일'),
             for (var i = 0; i < itemCount; i++) itemBuilder(i),
           ],
         ],

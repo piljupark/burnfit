@@ -99,7 +99,7 @@ class TrainerExerciseInputCard extends StatelessWidget {
             children: [
               _HeaderRow(
                 primary: exercise.primaryMetricLabel,
-                secondary: exercise.isCardio ? exercise.secondaryMetricLabel : 'reps',
+                secondary: exercise.isCardio ? exercise.secondaryMetricLabel : '회',
               ),
               for (var i = 0; i < exercise.sets.length; i++)
                 _SetRow(
@@ -169,7 +169,7 @@ class _HeaderRow extends StatelessWidget {
         height: 28,
         child: Row(
           children: [
-            SizedBox(width: _setNumberWidth, child: _label('set', align: TextAlign.start)),
+            SizedBox(width: _setNumberWidth, child: _label('세트', align: TextAlign.start)),
             const SizedBox(width: AppSpacing.sm),
             Expanded(child: _label(primary)),
             const SizedBox(width: AppSpacing.sm),

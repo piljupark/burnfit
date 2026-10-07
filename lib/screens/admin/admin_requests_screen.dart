@@ -146,7 +146,7 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
                 ),
                 children: [
                   AppMonthHeader(
-                    label: 'PENDING',
+                    label: '승인 대기',
                     count: '${_requests.length}',
                     padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
                   ),
@@ -214,7 +214,7 @@ class _RequestRow extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
-                        AppTag(isTrainer ? 'TRAINER' : 'MEMBER'),
+                        AppTag(isTrainer ? '트레이너' : '회원'),
                       ],
                     ),
                     Text(

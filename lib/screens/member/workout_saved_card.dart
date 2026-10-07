@@ -65,8 +65,8 @@ class SavedWorkoutCard extends StatelessWidget {
                   ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  _isCardio ? '${workout.totalSets} SETS' : '$volume KG · ${workout.totalSets} SETS',
-                  style: AppTextStyles.counter,
+                  _isCardio ? '${workout.totalSets}세트' : '${volume}kg · ${workout.totalSets}세트',
+                  style: AppTextStyles.captionSmall,
                 ),
               ],
             ),

@@ -716,18 +716,18 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     return const ExerciseComparison(label: '동일', tone: ComparisonTone.same);
   }
 
-  /// 머리말: `10.07 WED · IN PROGRESS` (영문·숫자만 → 모노).
-  String get _eyebrow {
-    final date = DateTime.parse(_selectedDate);
-    final day = DateFormat('MM.dd EEE', 'en_US').format(date);
-    final prefix = widget.workoutType == WorkoutType.pt ? 'PT · ' : '';
-    final status = _editingWorkoutId != null
-        ? 'EDITING'
-        : _sessionExercises.isNotEmpty
-        ? 'IN PROGRESS'
-        : null;
-    return status == null ? '$prefix$day' : '$prefix$day · $status';
+  /// 본문 첫 머리말: 기록 날짜 `10월 7일 (수)` (PT면 `PT · 10월 7일 (수)`).
+  String get _dateLabel {
+    final day = DateFormat('M월 d일 (E)', 'ko').format(DateTime.parse(_selectedDate));
+    return widget.workoutType == WorkoutType.pt ? 'PT · $day' : day;
   }
+
+  /// 머리말 옆 상태: 수정 중 / 진행 중 / 없음.
+  String? get _statusLabel => _editingWorkoutId != null
+      ? '수정 중'
+      : _sessionExercises.isNotEmpty
+      ? '진행 중'
+      : null;
 
   String _collapsedSubtitle(WorkoutExerciseDraft exercise) {
     final total = exercise.sets.length;
@@ -741,7 +741,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final date = DateTime.parse(_selectedDate);
     final hasSession = _sessionExercises.isNotEmpty || _editingWorkoutId != null;
     final activeIndex = _sessionExercises.isEmpty
         ? 0
@@ -755,7 +754,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
     final header = widget.showAsTab
         ? AppHero(
-            eyebrow: _eyebrow,
             title: '운동',
             actions: [calendarButton],
           )
@@ -766,9 +764,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
                 child: AppScreenHeader(
                   title: widget.workoutType == WorkoutType.pt ? 'PT 운동' : '운동 기록',
-                  subtitle: _editingWorkoutId != null
-                      ? '${DateFormat('M월 d일').format(date)} · 수정 중'
-                      : DateFormat('M월 d일').format(date),
                   onBack: _handleExit,
                   trailing: Transform.translate(
                     offset: const Offset(12, 0),
@@ -794,6 +789,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                       padding: EdgeInsets.zero,
                       children: [
                         header,
+                        AppMonthHeader(label: _dateLabel, count: _statusLabel),
                         if (hasSession)
                           AppStatStrip(
                             cells: [

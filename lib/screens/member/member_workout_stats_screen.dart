@@ -122,7 +122,7 @@ class _MemberWorkoutStatsScreenState extends State<MemberWorkoutStatsScreen> {
         children: [
           _SummaryStrip(stats: stats),
           _InsightGrid(stats: stats),
-          AppMonthHeader(label: '일별 볼륨', count: 'KG'),
+          AppMonthHeader(label: '일별 볼륨', count: '단위 kg'),
           _VolumeBarChart(stats: stats, period: _period),
           AppMonthHeader(label: '부위별 세트', count: '${stats.totalSets}'),
           _CategoryBreakdown(stats: stats),
@@ -181,7 +181,7 @@ String _compactNumber(double value) {
   return value.toStringAsFixed(0);
 }
 
-const _weekdayCodes = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const _weekdayCodes = ['월', '화', '수', '목', '금', '토', '일'];
 
 // ── 요약 숫자 줄 ─────────────────────────────────────────────────────────────
 
@@ -351,7 +351,7 @@ class _VolumeBarChart extends StatelessWidget {
                       getTooltipItem: (group, _, rod, __) {
                         final date = DateTime.parse(days[group.x].date);
                         return BarTooltipItem(
-                          '${DateFormat('MM.dd').format(date)}  ${_compactNumber(rod.toY)} KG',
+                          '${DateFormat('MM.dd').format(date)}  ${NumberFormat('#,###').format(rod.toY.round())}kg',
                           AppTextStyles.counter.copyWith(color: AppColors.ink),
                         );
                       },
@@ -441,7 +441,7 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
                     children: touched == null
                         ? [
                             Text('$total', style: AppTextStyles.displayMd),
-                            Text('SETS', style: AppTextStyles.counter),
+                            Text('세트', style: AppTextStyles.captionSmall),
                           ]
                         : [
                             Text('${(touched.value / total * 100).toStringAsFixed(0)}%', style: AppTextStyles.displayMd),

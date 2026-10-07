@@ -124,7 +124,7 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
               ),
               const AppRowDivider(),
             ] else
-              AppHero(eyebrow: '${_trainers.length} TRAINERS', title: '트레이너'),
+              const AppHero(title: '트레이너'),
             // 검색
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -173,7 +173,7 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
 
 // ── _TrainerListItem ──────────────────────────────────────────────────────────
 
-/// 트레이너 한 줄: 아바타 + 이름 + 이메일 + (승인 대기면 PENDING 태그) + 화살표.
+/// 트레이너 한 줄: 아바타 + 이름 + 이메일 + (승인 대기면 "승인 대기" 태그) + 화살표.
 class _TrainerListItem extends StatelessWidget {
   final AppUser trainer;
   final VoidCallback onTap;
@@ -206,7 +206,7 @@ class _TrainerListItem extends StatelessWidget {
                   ),
                 ),
                 if (!trainer.isApproved) ...[
-                  const AppTag('PENDING'),
+                  const AppTag('승인 대기'),
                   const SizedBox(width: AppSpacing.sm),
                 ],
                 const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
@@ -252,7 +252,7 @@ class _TrainerDetailSheet extends StatelessWidget {
                         child: Text(trainer.name, style: AppTextStyles.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      const AppTag('TRAINER'),
+                      const AppTag('트레이너'),
                     ],
                   ),
                   Text(

@@ -103,7 +103,6 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     final trainerName = context.watch<UserProvider>().user?.trainerName;
-    final remaining = _ptInfo?.remainingSessions;
     final upcoming = _upcoming;
     final past = _past;
 
@@ -128,9 +127,6 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                         ),
                       )
                     : AppHero(
-                        eyebrow: remaining == null
-                            ? 'BURNFIT · PT'
-                            : 'BURNFIT · PT $remaining / ${_ptInfo!.totalSessions}',
                         title: 'PT 일정',
                       ),
               ),
@@ -168,7 +164,7 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                 )
               else ...[
                 SliverToBoxAdapter(
-                  child: AppMonthHeader(label: 'UPCOMING', count: '${upcoming.length}'),
+                  child: AppMonthHeader(label: '예정', count: '${upcoming.length}'),
                 ),
                 if (upcoming.isEmpty)
                   const SliverToBoxAdapter(child: _EmptyLine('예정된 PT 일정이 없습니다.'))
@@ -179,7 +175,7 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                     itemBuilder: (_, i) => _SessionRow(session: upcoming[i], isPast: false),
                   ),
                 SliverToBoxAdapter(
-                  child: AppMonthHeader(label: 'PAST', count: '${past.length}'),
+                  child: AppMonthHeader(label: '지난 일정', count: '${past.length}'),
                 ),
                 if (past.isEmpty)
                   const SliverToBoxAdapter(child: _EmptyLine('지난 PT 일정이 없습니다.'))
@@ -217,7 +213,7 @@ class _RemainingCard extends StatelessWidget {
     if (renewalDate != null) {
       final today = DateUtils.dateOnly(DateTime.now());
       final days = DateUtils.dateOnly(renewalDate).difference(today).inDays;
-      dDay = days == 0 ? 'D-DAY' : (days > 0 ? 'D-$days' : 'D+${-days}');
+      dDay = days == 0 ? '오늘' : (days > 0 ? 'D-$days' : 'D+${-days}');
     }
 
     final metaParts = [
@@ -240,7 +236,7 @@ class _RemainingCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text('REMAINING', style: AppTextStyles.eyebrow.copyWith(color: AppColors.body))),
+                Expanded(child: Text('남은 횟수', style: AppTextStyles.bodySm.copyWith(color: AppColors.body))),
                 if (dDay != null) AppTag(dDay),
               ],
             ),
@@ -270,14 +266,14 @@ class _RemainingCard extends StatelessWidget {
   }
 }
 
-/// 일정 한 줄: 모노 날짜 칸(10.09 / THU) + 제목 + 시간 메타 + 상태 태그.
+/// 일정 한 줄: 모노 날짜 칸(10.09 / 목) + 제목 + 시간 메타 + 상태 태그.
 class _SessionRow extends StatelessWidget {
   final PtSession session;
   final bool isPast;
 
   const _SessionRow({required this.session, required this.isPast});
 
-  static const _weekdayEn = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  static const _weekdayKo = ['월', '화', '수', '목', '금', '토', '일'];
 
   @override
   Widget build(BuildContext context) {
@@ -298,11 +294,11 @@ class _SessionRow extends StatelessWidget {
     final Widget tag;
     if (!isPast) {
       final days = DateUtils.dateOnly(start).difference(DateUtils.dateOnly(DateTime.now())).inDays;
-      tag = AppTag(days <= 0 ? 'D-DAY' : 'D-$days');
+      tag = AppTag(days <= 0 ? '오늘' : 'D-$days');
     } else if (completed) {
-      tag = const AppTag('DONE', strong: true);
+      tag = const AppTag('완료', strong: true);
     } else if (cancelled) {
-      tag = const AppTag('CANCELED', muted: true);
+      tag = const AppTag('취소', muted: true);
     } else {
       tag = const AppTag('기록 전', muted: true);
     }
@@ -329,7 +325,7 @@ class _SessionRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(_weekdayEn[start.weekday - 1], style: AppTextStyles.counter),
+                    Text(_weekdayKo[start.weekday - 1], style: AppTextStyles.counter),
                   ],
                 ),
               ),

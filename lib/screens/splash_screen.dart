@@ -107,8 +107,8 @@ class _SplashScreenState extends State<SplashScreen> {
             Text('BurnFit', style: AppTextStyles.displayMd),
             const SizedBox(height: 6),
             Text(
-              'FITNESS CENTER',
-              style: AppTextStyles.counter.copyWith(color: AppColors.body, letterSpacing: 1.1),
+              '피트니스 센터',
+              style: AppTextStyles.captionSmall.copyWith(color: AppColors.body),
             ),
           ],
         ),

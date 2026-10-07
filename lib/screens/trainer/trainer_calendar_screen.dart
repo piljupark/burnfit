@@ -174,12 +174,11 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
             children: [
               if (widget.showGreeting)
                 AppHero(
-                  eyebrow: 'BURNFIT · TRAINER',
                   title: '${user?.name ?? ''} 트레이너님',
                   actions: const [NotificationBellButton()],
                 )
               else
-                const AppHero(eyebrow: 'BURNFIT · TRAINER', title: '캘린더'),
+                const AppHero(title: '캘린더'),
               _MonthNav(
                 month: _focusedMonth,
                 onPrev: () => _moveMonth(-1),
@@ -199,8 +198,8 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
                 child: CalendarLegend(alignment: MainAxisAlignment.start),
               ),
               AppMonthHeader(
-                label: DateFormat('MM.dd EEE', 'en_US').format(_selectedDay),
-                count: 'PT ${ptSessions.length} · SELF ${workouts.length}',
+                label: DateFormat('M월 d일 (E)', 'ko').format(_selectedDay),
+                count: 'PT ${ptSessions.length} · 개인 ${workouts.length}',
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, AppSpacing.xs,
                 ),
@@ -425,7 +424,7 @@ class _PtSessionRow extends StatelessWidget {
       meta: '$timeStr · PT · ${session.durationMinutes}분',
       onTap: onRecord,
       trailing: isCompleted
-          ? const AppTag('DONE', strong: true)
+          ? const AppTag('완료', strong: true)
           : onRecord != null
               ? AppButton(
                   label: '기록',

@@ -199,12 +199,11 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
             children: [
               if (widget.showGreeting)
                 AppHero(
-                  eyebrow: 'BURNFIT · ${DateFormat('yyyy.MM.dd').format(DateTime.now())}',
                   title: '$userName님',
                   actions: const [NotificationBellButton()],
                 )
               else
-                const AppHero(eyebrow: 'BURNFIT', title: '캘린더'),
+                const AppHero(title: '캘린더'),
               _RecordShortcuts(
                 unreadFeedbackCount: _unreadFeedbackCount,
                 onMealTap: () => _openMealLog(),
@@ -229,7 +228,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
                 label: _dayLabel(_selectedDay),
                 count: _isLoading || _errorMessage != null
                     ? null
-                    : '$records ${records == 1 ? 'RECORD' : 'RECORDS'}',
+                    : '$records건',
               ),
               if (_isLoading)
                 const Padding(
@@ -258,10 +257,8 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
   }
 }
 
-const _weekdayEn = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-
-/// 섹션 머리말용 날짜: `10.07 WED` (모노).
-String _dayLabel(DateTime day) => '${DateFormat('MM.dd').format(day)} ${_weekdayEn[day.weekday - 1]}';
+/// 섹션 머리말용 날짜: `10월 7일 (수)`.
+String _dayLabel(DateTime day) => DateFormat('M월 d일 (E)', 'ko').format(day);
 
 class _MonthHeader extends StatelessWidget {
   final DateTime month;
@@ -495,7 +492,7 @@ class _DayRecords extends StatelessWidget {
       icon: AppIcons.workout,
       title: isPt ? 'PT 운동' : '개인운동',
       detail: detail,
-      tag: isPt ? const AppTag('PT', strong: true) : const AppTag('SELF'),
+      tag: isPt ? const AppTag('PT', strong: true) : const AppTag('개인'),
     );
   }
 

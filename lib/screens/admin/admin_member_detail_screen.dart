@@ -180,7 +180,7 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                           child: AppProfileCard(
                             name: m.name,
                             subtitle: m.email,
-                            roleLabel: 'MEMBER',
+                            roleLabel: '회원',
                             seed: m.uid,
                           ),
                         ),
@@ -511,7 +511,7 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
                   : ListView(
                       padding: const EdgeInsets.only(bottom: AppSpacing.xl),
                       children: [
-                        AppMonthHeader(label: 'LOG', count: '${_logs.length}'),
+                        AppMonthHeader(label: '변경 이력', count: '${_logs.length}'),
                         for (int i = 0; i < _logs.length; i++) ...[
                           if (i > 0) const AppRowDivider(indent: AppSpacing.screenH),
                           _PtInfoLogRow(log: _logs[i]),

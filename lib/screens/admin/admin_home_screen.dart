@@ -143,7 +143,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
             slivers: [
               SliverToBoxAdapter(
                 child: AppHero(
-                  eyebrow: 'BURNFIT · ADMIN',
                   title: centerName.isEmpty ? '관리자' : centerName,
                 ),
               ),
@@ -180,14 +179,14 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                         unit: '회',
                         trend: stats == null
                             ? null
-                            : '${(stats.monthlyCompletionRate * 100).clamp(0, 100).toStringAsFixed(0)}% DONE',
+                            : '${(stats.monthlyCompletionRate * 100).clamp(0, 100).toStringAsFixed(0)}% 완료',
                       ),
                       AppKpiCard(
                         framed: false,
                         label: '예정 세션',
                         value: '${stats?.upcomingSessionCount ?? '-'}',
                         unit: '건',
-                        trend: stats == null ? null : 'TODAY ${stats.todayScheduledSessions}',
+                        trend: stats == null ? null : '오늘 ${stats.todayScheduledSessions}',
                       ),
                     ],
                   ),
@@ -210,7 +209,7 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                 ),
 
                 // ── 관리 메뉴 ───────────────────────────────────────────
-                const SliverToBoxAdapter(child: AppMonthHeader(label: 'MANAGE')),
+                const SliverToBoxAdapter(child: AppMonthHeader(label: '관리')),
                 SliverPadding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
                   sliver: SliverToBoxAdapter(
@@ -313,13 +312,13 @@ class _AdminProfileTab extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
           children: [
-            const AppHero(eyebrow: 'BURNFIT · ADMIN', title: '마이'),
+            const AppHero(title: '마이'),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.screenH),
               child: AppProfileCard(
                 name: user?.name ?? '',
                 subtitle: user?.centerName ?? '',
-                roleLabel: 'ADMIN',
+                roleLabel: '관리자',
                 seed: user?.uid,
               ),
             ),

@@ -136,7 +136,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 ),
                               ],
                             ),
-                            const AppMonthHeader(label: 'TRAINERS', count: 'SESSIONS'),
+                            const AppMonthHeader(label: '트레이너', count: '완료 횟수'),
                             _TrainerBars(trainerStats: stats.trainerStats),
                             AppMonthHeader(label: 'PT 잔여 3회 이하', count: '${stats.lowPtMembers.length}'),
                             _LowPtList(members: stats.lowPtMembers),
@@ -178,7 +178,7 @@ class _CompletionHero extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('$month · PT COMPLETION', style: AppTextStyles.eyebrow),
+            Text('$month · PT 완료율', style: AppTextStyles.bodySm),
             const SizedBox(height: AppSpacing.sm),
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -286,7 +286,7 @@ class _LowPtList extends StatelessWidget {
             meta: members[i].endDate == null
                 ? '만료일 없음'
                 : '${DateFormat('M월 d일').format(members[i].endDate!)} 만료',
-            tag: AppTag('${members[i].remainingSessions} LEFT', strong: members[i].remainingSessions <= 1),
+            tag: AppTag('${members[i].remainingSessions}회 남음', strong: members[i].remainingSessions <= 1),
           ),
         ],
       ],

@@ -15,18 +15,8 @@ import 'workout_draft_models.dart';
 const double _setRowHeight = 48;
 const double _setNumberWidth = 32;
 
-/// 부위 → 모노 태그용 영문 코드 (한글은 모노로 쓰지 않는다).
-String workoutCategoryCode(WorkoutCategory category) {
-  return switch (category) {
-    WorkoutCategory.shoulder => 'SHOULDER',
-    WorkoutCategory.chest => 'CHEST',
-    WorkoutCategory.back => 'BACK',
-    WorkoutCategory.lower => 'LEGS',
-    WorkoutCategory.arms => 'ARMS',
-    WorkoutCategory.abs => 'CORE',
-    WorkoutCategory.cardio => 'CARDIO',
-  };
-}
+/// 부위 → 태그용 한글 표기 (어깨 · 가슴 …).
+String workoutCategoryCode(WorkoutCategory category) => category.label;
 
 /// 진행 중인 운동 한 덩어리: 이름 + 부위 태그 + 메뉴, 지난 기록 캡션,
 /// 모노 머리 세트 표(48 높이 줄), "세트 추가" ghost 버튼.
@@ -61,11 +51,12 @@ class ExerciseInputCard extends StatelessWidget {
     };
   }
 
-  /// 표 머리: 영문 단위는 모노 대문자, 한글 지표(속도·경사 등)는 sans.
+  /// 표 머리: 단위만 있는 칸은 한글 지표명을 붙인다 (모노 대문자 변환 방지).
   String _headerLabel(String label) {
     return switch (label) {
-      '회' => 'REPS',
-      '시간' => 'MIN',
+      'kg' || 'lbs' => '무게 $label',
+      '회' => '횟수',
+      '시간' => '시간(분)',
       _ => label,
     };
   }
@@ -122,7 +113,7 @@ class ExerciseInputCard extends StatelessWidget {
                   height: 28,
                   child: Row(
                     children: [
-                      const SizedBox(width: _setNumberWidth, child: _HeaderText('SET', align: TextAlign.start)),
+                      const SizedBox(width: _setNumberWidth, child: _HeaderText('세트', align: TextAlign.start)),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(child: _HeaderText(_headerLabel(exercise.primaryMetricLabel))),
                       const SizedBox(width: AppSpacing.sm),

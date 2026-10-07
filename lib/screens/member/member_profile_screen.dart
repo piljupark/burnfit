@@ -79,7 +79,7 @@ class MemberProfileScreen extends StatelessWidget {
               child: AppProfileCard(
                 name: user.name,
                 subtitle: subtitle,
-                roleLabel: 'MEMBER',
+                roleLabel: '회원',
                 seed: user.uid,
               ),
             ),
@@ -383,7 +383,7 @@ class _InbodySectionState extends State<_InbodySection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppMonthHeader(
-          label: 'INBODY',
+          label: '인바디',
           count: latestDate == null ? null : DateFormat('MM.dd').format(latestDate),
         ),
         AppStatStrip(

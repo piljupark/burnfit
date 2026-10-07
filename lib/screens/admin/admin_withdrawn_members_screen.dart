@@ -126,7 +126,7 @@ class _AdminWithdrawnMembersScreenState extends State<AdminWithdrawnMembersScree
                   const SizedBox(height: AppSpacing.base),
                   const _RetentionNotice(),
                   AppMonthHeader(
-                    label: 'WITHDRAWN',
+                    label: '탈퇴 회원',
                     count: '${_members.length}',
                     padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
                   ),

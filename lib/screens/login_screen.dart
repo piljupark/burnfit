@@ -186,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const Gap(AppSpacing.base),
                         AppTextField(
-                          label: 'Email',
+                          label: '이메일',
                           hint: 'name@example.com',
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -195,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const Gap(AppSpacing.base),
                         AppTextField(
-                          label: 'Password',
+                          label: '비밀번호',
                           hint: '비밀번호',
                           controller: _passwordController,
                           obscureText: true,
@@ -289,10 +289,9 @@ class _OrbBrand extends StatelessWidget {
                   ),
                   const Gap(6),
                   Text(
-                    'FITNESS CENTER',
-                    style: AppTextStyles.counter.copyWith(
+                    '피트니스 센터',
+                    style: AppTextStyles.captionSmall.copyWith(
                       color: AppColors.body,
-                      letterSpacing: 1.1,
                       shadows: const [Shadow(color: AppColors.canvas, blurRadius: 10)],
                     ),
                   ),
@@ -495,7 +494,7 @@ class _CenterSelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ExcludeSemantics(child: Text('CENTER', style: AppTextStyles.eyebrow)),
+        ExcludeSemantics(child: Text('센터', style: AppTextStyles.bodySm)),
         const Gap(AppSpacing.sm),
         Semantics(
           button: true,

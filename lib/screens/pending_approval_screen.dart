@@ -28,7 +28,7 @@ class PendingApprovalScreen extends StatelessWidget {
                 child: ExcludeSemantics(child: OrbLoader(size: 96)),
               ),
               const Gap(AppSpacing.xl2),
-              Text('BURNFIT · PENDING', style: AppTextStyles.eyebrow),
+              Text('승인 대기', style: AppTextStyles.bodySm),
               const Gap(AppSpacing.sm),
               Semantics(
                 header: true,

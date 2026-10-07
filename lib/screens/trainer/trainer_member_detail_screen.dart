@@ -582,7 +582,7 @@ class _ProfileTabState extends State<_ProfileTab> {
         if (!member.shareSettings.body)
           const TrainerShareBlockedMessage(message: '회원이 신체 정보 공유를 꺼두었습니다.')
         else if (p != null) ...[
-          const AppMonthHeader(label: 'BODY'),
+          const AppMonthHeader(label: '체성분'),
           AppStatGrid(
             cells: [
               _metric('키', p.height, 'cm'),
@@ -630,13 +630,13 @@ class _ProfileTabState extends State<_ProfileTab> {
     );
   }
 
-  /// 종료일까지 남은 날 (D-12, D-DAY, 지났으면 END).
+  /// 종료일까지 남은 날 (D-12, 당일이면 오늘, 지났으면 종료).
   String? _dDayLabel(DateTime? end) {
     if (end == null) return null;
     final now = DateTime.now();
     final days = DateTime(end.year, end.month, end.day).difference(DateTime(now.year, now.month, now.day)).inDays;
-    if (days < 0) return 'END';
-    if (days == 0) return 'D-DAY';
+    if (days < 0) return '종료';
+    if (days == 0) return '오늘';
     return 'D-$days';
   }
 }
@@ -664,8 +664,8 @@ class _PtInfoCard extends StatelessWidget {
             height: 40,
             child: Row(
               children: [
-                Expanded(child: Text('PT INFO', style: AppTextStyles.eyebrow.copyWith(color: AppColors.body))),
-                if (dDay != null) AppTag(dDay!, muted: dDay == 'END'),
+                Expanded(child: Text('PT 정보', style: AppTextStyles.bodySm.copyWith(color: AppColors.body))),
+                if (dDay != null) AppTag(dDay!, muted: dDay == '종료'),
               ],
             ),
           ),
@@ -724,8 +724,8 @@ class _InbodySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppMonthHeader(
-          label: 'INBODY',
-          count: '${items.length} ${items.length == 1 ? 'RECORD' : 'RECORDS'}',
+          label: '인바디',
+          count: '${items.length}건',
           padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
         ),
         if (isLoading)

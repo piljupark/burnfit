@@ -128,7 +128,7 @@ class _TrainerProfileTab extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.only(bottom: 120),
           children: [
-            const AppHero(eyebrow: 'BURNFIT · TRAINER', title: '마이'),
+            const AppHero(title: '마이'),
             Padding(
               padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.xl),
               child: AppProfileCard(
@@ -138,7 +138,7 @@ class _TrainerProfileTab extends StatelessWidget {
                 seed: user?.uid,
               ),
             ),
-            const AppMonthHeader(label: 'ACCOUNT'),
+            const AppMonthHeader(label: '계정'),
             AppActionRow(
               icon: AppIcons.signOut,
               label: '로그아웃',

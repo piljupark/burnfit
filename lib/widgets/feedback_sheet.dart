@@ -215,12 +215,10 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
     }
   }
 
-  /// 대상 종류의 영문 모노 표기 (MEAL · 10.07).
-  String get _monoMeta {
-    final type = widget.targetType.name.toUpperCase();
+  /// 대상 날짜 (10월 7일). 날짜가 없으면 null.
+  String? get _dateMeta {
     final date = DateTime.tryParse(widget.targetDate ?? '');
-    if (date == null) return type;
-    return '$type · ${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
+    return date == null ? null : '${date.month}월 ${date.day}일';
   }
 
   @override
@@ -234,15 +232,17 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppBottomSheetHeader(title: isEditing ? '피드백 수정' : '피드백 작성'),
-          // 대상: 회원 · 종류 + 모노 메타, 아래 hairline
+          // 대상: 회원 · 종류 + 날짜, 아래 hairline
           Text('${widget.memberName} · ${widget.targetType.label}', style: AppTextStyles.bodyLg),
-          const SizedBox(height: AppSpacing.xs),
-          Text(_monoMeta, style: AppTextStyles.counter.copyWith(color: AppColors.body)),
+          if (_dateMeta != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(_dateMeta!, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+          ],
           const SizedBox(height: AppSpacing.md),
           const AppRowDivider(),
           const SizedBox(height: AppSpacing.base),
           // 빠른 템플릿
-          Text('TEMPLATE', style: AppTextStyles.eyebrow),
+          Text('자주 쓰는 문구', style: AppTextStyles.bodySm),
           const SizedBox(height: AppSpacing.xs),
           Wrap(
             spacing: AppSpacing.sm,
@@ -258,7 +258,7 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
           ),
           const SizedBox(height: AppSpacing.base),
           AppTextField(
-            label: 'FEEDBACK',
+            label: '피드백',
             hint: '내용을 입력하세요.',
             controller: _controller,
             keyboardType: TextInputType.multiline,

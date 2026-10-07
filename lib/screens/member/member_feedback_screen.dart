@@ -111,7 +111,7 @@ class _MemberFeedbackScreenState extends State<MemberFeedbackScreen> {
                     ? Semantics(
                         label: '새 피드백 $newCount개',
                         excludeSemantics: true,
-                        child: AppTag('NEW $newCount', strong: true),
+                        child: AppTag('새 글 $newCount', strong: true),
                       )
                     : null,
               ),
@@ -140,7 +140,7 @@ class _MemberFeedbackScreenState extends State<MemberFeedbackScreen> {
                       )
                     else ...[
                       SliverToBoxAdapter(
-                        child: AppMonthHeader(label: 'FEEDBACK', count: '${_feedbacks.length}'),
+                        child: AppMonthHeader(label: '피드백', count: '${_feedbacks.length}'),
                       ),
                       SliverList.separated(
                         itemCount: _feedbacks.length,
@@ -227,7 +227,7 @@ class _FeedbackRow extends StatelessWidget {
                       ),
                       if (isNew) ...[
                         const SizedBox(width: AppSpacing.sm),
-                        const ExcludeSemantics(child: AppTag('NEW', strong: true)),
+                        const ExcludeSemantics(child: AppTag('새 글', strong: true)),
                       ],
                       const Spacer(),
                       const SizedBox(width: AppSpacing.sm),

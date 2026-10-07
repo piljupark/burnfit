@@ -1,6 +1,6 @@
 # BurnFit 디자인 시스템 (Galloway 기반)
 
-다크 캔버스 하나, 흰 외곽선 pill, 400 굵기, 모노 머리말, 그림자 없음.
+다크 캔버스 하나, 흰 외곽선 pill, 400 굵기, 한글 표기, 그림자 없음.
 원본: Galloway 디자인 시스템 + "BurnFit × Galloway 화면" 캔버스(16개 화면 시안).
 
 ## 원칙
@@ -8,7 +8,7 @@
 1. **캔버스는 하나.** 모든 화면 바탕은 `AppColors.canvas`(#0A0A0A). 라이트 모드는 없다. UI는 흰색과 회색만 쓴다.
 2. **누르는 것은 전부 pill.** 버튼·칩·태그·토스트는 pill, 카드·입력창·시트·다이얼로그는 반경 8, 사진은 0. 이 세 가지 외의 모서리는 없다.
 3. **굵기 대신 크기.** Wanted Sans 400이 기본. `FontWeight.w600` 이상을 쓰지 않는다 (예외: `AppTextStyles.badge` 500).
-4. **모노는 영문·숫자에만.** Geist Mono(`eyebrow`, `counter`)는 `2026.10`, `D-12`, `PT 12 / 30`, `DONE` 같은 대문자 영문·숫자에만. 한글을 모노로 쓰지 않는다.
+4. **화면 글자는 한글.** 영어 라벨(`DONE`, `10.07 WED`, `KCAL` 등)을 쓰지 않는다 (2026-10-07 통일). 남기는 것: 단위(`kg`, `kcal`, `g` — 소문자), `PT`, `BMI`, `InBody`, 앱 이름. 날짜는 `10월 7일 (수)`. Geist Mono(`eyebrow`, `counter`)는 `2026.10`, `D-12`, `12 / 30` 같은 숫자에만 쓰고, 한글을 모노로 쓰지 않는다.
 5. **그림자 대신 hairline.** 층은 1px `hairline` 테두리와 면 색(`canvas` → `canvasCard` → `canvasSoft`)으로만 나눈다. `BoxShadow`, gradient, elevation 금지.
 6. **상태는 색이 아니라 모양.** 완료/선택 = 흰 채움(`AppTag(strong: true)`, 채운 원), 진행/대기 = 외곽선, 취소 = 흐린 글자(`muted`). 운동·식단·트레이너 같은 도메인 색 구분은 없다.
 7. **빨강(`danger`)은 되돌릴 수 없는 행동의 글자에만.** 빨간 채움 배경은 쓰지 않는다.
@@ -42,9 +42,9 @@
 
 | 컴포넌트 | 쓰임 |
 |---|---|
-| `AppHero` | 탭 화면 상단: 오른쪽 아이콘 버튼 줄 + 모노 머리말 + 28 제목 + 아래 hairline |
+| `AppHero` | 탭 화면 상단: 오른쪽 아이콘 버튼 줄 + 28 제목 + 아래 hairline |
 | `AppScreenHeader` | 하위 화면 앱바: 뒤로 + 20 제목 + 오른쪽 행동 (`divider: true`로 아래 hairline) |
-| `AppMonthHeader` | 화면 폭 섹션 머리말: `10.07 WED` + 카운터 + 남은 폭 hairline |
+| `AppMonthHeader` | 화면 폭 섹션 머리말: `10월 7일 (수)` + 카운터 + 남은 폭 hairline |
 | `AppSectionHeader` | 여백 있는 열 안의 섹션 머리말 (+ 오른쪽 글자 행동) |
 | `AppActionRow` + `AppRowDivider` | 목록·메뉴 한 줄: 아이콘 상자 + 17 라벨 + 보조 줄 + 오른쪽(태그/화살표). 목록은 카드로 감싸지 말고 hairline으로 나눈다 |
 | `AppAvatar` | 이니셜 원 (accent 색은 seed로 고정) |
@@ -53,7 +53,7 @@
 | `AppCountBadge` | 사진 위 카운터 (`+2`) |
 | `AppButton` | primary / secondary / ghost / danger / dangerText, sm 32 · md 40 · lg 52 |
 | `AppIconButton` | 44px 원형 아이콘 버튼 (`label` 필수, `outlined`, `showDot`) |
-| `AppTextField` | 라벨 위 + 48 입력창. 영문 라벨은 모노 대문자로 자동 |
+| `AppTextField` | 라벨 위 + 48 입력창. 라벨은 한글로 쓴다 (한글 없는 라벨은 모노 대문자로 바뀐다) |
 | `AppCard` | canvasCard + hairline (그림자 없음). 목록 대신 한 덩어리 정보에만 |
 | `AppKpiCard` / `AppStatStrip` / `AppStatGrid` | 숫자 칸. 화면 폭 숫자 줄은 `AppStatStrip`(`framed: false` 칸) |
 | `AppProfileCard` | 56 아바타 + 28 이름 + 역할 태그 |
@@ -65,8 +65,8 @@
 
 ## 화면 패턴
 
-- **탭 화면**: `SafeArea` → `AppHero` → 화면 폭 목록(`AppActionRow`/행 + `AppRowDivider`) → `AppNavBar`. 머리말은 앱 이름·숫자 요약만 (`BURNFIT · PT 12 / 30`).
-- **하위 화면**: `AppScreenHeader(onBack:, divider: true)` → 내용. 주 행동은 아래 고정 pill 하나.
+- **탭 화면**: `SafeArea` → `AppHero` → 화면 폭 목록(`AppActionRow`/행 + `AppRowDivider`) → `AppNavBar`. 제목 위 머리말(`AppHero.eyebrow`)은 쓰지 않는다 — 앱 이름·날짜·개수를 제목 위에 반복하지 않는다 (2026-10-07 통일).
+- **하위 화면**: `AppScreenHeader(onBack:, divider: true)` → 내용. 날짜는 제목 아래 보조 줄에 두지 않는다 (날짜 줄·섹션 머리말이 보여준다). 주 행동은 아래 고정 pill 하나.
 - **캘린더**: 요일 머리 `bodySm mute`, 월요일 시작, 날짜 셀 44px. 선택일 = 흰 원 + `onPrimary` 숫자, 오늘 = 외곽선 원, 미래 = `body` 색. 날짜 아래 표시는 `widgets/calendar_marks.dart`만 쓴다: PT 완료 ● / PT 예약 ○ / 개인운동 ▬ (`buildCalendarMarks`가 회원·트레이너 공통 규칙으로 계산). 범례(`CalendarLegend`)를 함께 둔다.
 - **세트 입력**: 줄 높이 48, 세트 번호 모노, 값 상자 `canvasSoft` 36 높이, 완료 = 흰 채운 원 + 굵은 체크(`AppIcons.checkBold`), 미완료 = 외곽선 원, 진행 중 줄 = 흰 테두리.
 - **사진**: 3열 격자, 간격 2, 반경 0. 사진 위 배지는 `scrim` pill.

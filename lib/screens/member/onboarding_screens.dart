@@ -309,7 +309,7 @@ class _OnboardingScaffold extends StatelessWidget {
                   children: [
                     _OnboardingProgress(step: step, total: total),
                     const Gap(AppSpacing.xl2),
-                    Text('STEP $step / $total', style: AppTextStyles.eyebrow),
+                    Text('$step / $total단계', style: AppTextStyles.bodySm),
                     const Gap(AppSpacing.sm),
                     Semantics(
                       header: true,

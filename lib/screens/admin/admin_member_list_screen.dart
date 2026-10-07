@@ -182,7 +182,6 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
               const AppRowDivider(),
             ] else
               AppHero(
-                eyebrow: '${_members.length} MEMBERS',
                 title: '회원',
                 actions: [requestsButton],
               ),
@@ -252,7 +251,7 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
 // ── _MemberListItem ───────────────────────────────────────────────────────────
 
 /// 회원 한 줄: 아바타 + 이름 + (트레이너 · PT 잔여/전체) + 오른쪽 상태 태그.
-/// 태그: 만료 = EXPIRED(흐림, 이름도 흐림) · 미배정 = NONE · 14일 이내 = D-n(흰 채움) · 그 외 D-n(외곽선).
+/// 태그: 만료 = 만료(흐림, 이름도 흐림) · 미배정 = PT 없음 · 14일 이내 = D-n(흰 채움) · 그 외 D-n(외곽선).
 class _MemberListItem extends StatelessWidget {
   final AppUser member;
   final PtInfo? ptInfo;
@@ -289,9 +288,9 @@ class _MemberListItem extends StatelessWidget {
     ].join(' · ');
 
     final Widget? tag = expired
-        ? const AppTag('EXPIRED', muted: true)
+        ? const AppTag('만료', muted: true)
         : _unassigned
-            ? const AppTag('NONE')
+            ? const AppTag('PT 없음')
             : days != null
                 ? AppTag('D-$days', strong: days <= 14)
                 : null;

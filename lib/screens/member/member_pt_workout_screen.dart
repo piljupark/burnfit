@@ -177,7 +177,7 @@ class _PtWorkoutRow extends StatelessWidget {
                     style: AppTextStyles.eyebrow.copyWith(color: AppColors.ink),
                   ),
                   if (date != null)
-                    Text(DateFormat('EEE', 'en_US').format(date).toUpperCase(), style: AppTextStyles.counter),
+                    Text(DateFormat('E', 'ko').format(date), style: AppTextStyles.counter),
                 ],
               ),
             ),
@@ -194,7 +194,7 @@ class _PtWorkoutRow extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    '${workout.exercises.length}종목 · ${workout.totalSets}세트 · 총 볼륨 $volume kg',
+                    '${workout.exercises.length}종목 · ${workout.totalSets}세트 · 총 볼륨 ${volume}kg',
                     style: AppTextStyles.bodySm,
                   ),
                   if (workout.note != null && workout.note!.trim().isNotEmpty) ...[

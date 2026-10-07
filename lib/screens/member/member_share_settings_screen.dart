@@ -97,7 +97,7 @@ class _MemberShareSettingsScreenState extends State<MemberShareSettingsScreen> {
                       style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
                     ),
                   ),
-                  AppMonthHeader(label: 'SHARED', count: '$sharedCount / 3'),
+                  AppMonthHeader(label: '공유 중', count: '$sharedCount / 3'),
                   _ShareRow(
                     icon: AppIcons.workout,
                     title: '운동 기록 공유',
