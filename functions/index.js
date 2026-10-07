@@ -1,5 +1,6 @@
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
@@ -8,6 +9,7 @@ const { getMessaging } = require('firebase-admin/messaging');
 const { getStorage } = require('firebase-admin/storage');
 const adminSetup = require('./admin_setup');
 const accountDeletion = require('./account_deletion');
+const retentionStore = require('./retention_store');
 
 initializeApp();
 
@@ -341,7 +343,13 @@ async function drainQuery(query, applyToRef) {
   throw new Error(`drainQuery: ${DELETION_MAX_PAGES} 페이지를 넘었습니다`);
 }
 
-async function executeDeletionPlan(plan, uid) {
+async function executeDeletionPlan(plan, uid, userRef) {
+  if (plan.retains.length > 0) {
+    const prep = await retentionStore.prepareRetention(db, userRef, uid);
+    for (const source of plan.retains) {
+      await retentionStore.moveToRetention(db, source, uid, prep);
+    }
+  }
   for (const { collection, where, data } of plan.updates) {
     let query = db.collection(collection);
     for (const [field, op, value] of where) query = query.where(field, op, value);
@@ -378,7 +386,7 @@ exports.deleteMyAccount = onCall(async (request) => {
   }
 
   try {
-    await executeDeletionPlan(plan, uid);
+    await executeDeletionPlan(plan, uid, userRef);
     await userRef.delete();
     await getAuth().deleteUser(uid);
   } catch (e) {
@@ -389,3 +397,16 @@ exports.deleteMyAccount = onCall(async (request) => {
   console.log('[deleteMyAccount] 완료:', uid, user?.role ?? 'unknown');
   return { deleted: true };
 });
+
+// ─────────────────────────────────────────────
+// 7. 탈퇴 회원 PT 이력 파기 (매일 04:00 KST)
+//    retained_pt_records는 만료일(PT 종료일·탈퇴일 중 늦은 날 + 3년)이 지나면 지운다.
+// ─────────────────────────────────────────────
+
+exports.purgeExpiredRetainedRecords = onSchedule(
+  { schedule: 'every day 04:00', timeZone: 'Asia/Seoul' },
+  async () => {
+    const purged = await retentionStore.purgeExpired(db);
+    console.log('[purgeExpiredRetainedRecords] 파기:', purged);
+  },
+);

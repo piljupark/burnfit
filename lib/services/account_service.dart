@@ -11,6 +11,10 @@ import 'workout_draft_service.dart';
 class AccountService {
   AccountService._();
 
+  /// 탈퇴 회원의 PT 이용 내역 보관 기간(년). 서버 값과 같아야 한다
+  /// (functions/account_deletion.js `RETENTION_YEARS`).
+  static const int ptRecordRetentionYears = 3;
+
   static final HttpsCallable _deleteMyAccount =
       FirebaseFunctions.instance.httpsCallable('deleteMyAccount');
 

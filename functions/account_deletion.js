@@ -4,16 +4,45 @@
 // 탈퇴 직전 다시 로그인한 지 이 시간 안이어야 한다 (탈취된 세션으로 탈퇴하는 것 방지).
 const RECENT_LOGIN_MAX_AGE_SEC = 5 * 60;
 
-// 회원 본인의 기록 (memberId로 연결). 탈퇴 시 모두 지운다.
-const MEMBER_OWNED_COLLECTIONS = [
+// 회원 본인의 기록 중 탈퇴 즉시 지우는 것 (memberId로 연결). 건강·생활 기록이다.
+const MEMBER_DELETED_COLLECTIONS = [
   'workouts',
   'meals',
   'cardios',
   'feedbacks',
   'inbodies',
-  'pt_infos',
-  'pt_sessions',
-  'pt_info_logs',
+];
+
+// PT 계약·이용 내역: 환불 등 분쟁 대응을 위해 회원을 알 수 없게 바꿔 보관한다.
+// keep: 남길 필드 (회원 ID·이름, 자유 메모는 남기지 않는다)
+const RETAINED_COLLECTION = 'retained_pt_records';
+const RETENTION_YEARS = 3;
+const MEMBER_RETAINED_SOURCES = [
+  {
+    collection: 'pt_infos',
+    kind: 'pt_info',
+    keep: [
+      'centerId', 'trainerId', 'startDate', 'endDate', 'totalSessions',
+      'remainingSessions', 'renewalDate', 'createdAt', 'updatedAt',
+    ],
+  },
+  {
+    collection: 'pt_sessions',
+    kind: 'pt_session',
+    keep: [
+      'centerId', 'trainerId', 'trainerName', 'scheduledAt', 'durationMinutes',
+      'status', 'createdAt', 'updatedAt',
+    ],
+  },
+  {
+    collection: 'pt_info_logs',
+    kind: 'pt_info_log',
+    keep: [
+      'centerId', 'ptInfoId', 'ptSessionId', 'changedById', 'changedByName', 'type',
+      'previousTotalSessions', 'nextTotalSessions',
+      'previousRemainingSessions', 'nextRemainingSessions', 'createdAt',
+    ],
+  },
 ];
 
 class DeletionRefused extends Error {
@@ -31,6 +60,7 @@ function isRecentLogin(authTimeSec, nowMs) {
 
 /**
  * 역할별 탈퇴 계획.
+ * - retains: 회원을 알 수 없게 바꿔 보관한 뒤 원본을 지울 문서 (MEMBER_RETAINED_SOURCES)
  * - deletes: 지울 문서 (collection, field == uid)
  * - updates: 남기되 연결을 끊을 문서 (collection, where[], data)
  * - storagePrefixes: 지울 Storage 경로
@@ -55,8 +85,9 @@ function buildDeletionPlan(user, uid) {
 
   if (role === 'member') {
     return {
+      retains: MEMBER_RETAINED_SOURCES,
       deletes: [
-        ...MEMBER_OWNED_COLLECTIONS.map((collection) => ({ collection, field: 'memberId' })),
+        ...MEMBER_DELETED_COLLECTIONS.map((collection) => ({ collection, field: 'memberId' })),
         ...common,
       ],
       updates: [],
@@ -66,6 +97,7 @@ function buildDeletionPlan(user, uid) {
 
   if (role === 'trainer') {
     return {
+      retains: [],
       deletes: common,
       updates: [
         // 담당 회원은 '트레이너 미배정'으로 돌린다.
@@ -91,13 +123,58 @@ function buildDeletionPlan(user, uid) {
   }
 
   // 사용자 문서가 없거나 역할이 비정상인 계정: 가입 신청만 정리한다.
-  return { deletes: common, updates: [], storagePrefixes: [] };
+  return { retains: [], deletes: common, updates: [], storagePrefixes: [] };
+}
+
+function toMillis(value) {
+  if (value == null) return null;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  return null;
+}
+
+/**
+ * 보관 만료 시각: PT 종료일과 탈퇴일 중 늦은 날로부터 RETENTION_YEARS년.
+ * 아직 진행 중인 PT를 두고 탈퇴해도 종료 후 3년은 근거가 남는다.
+ */
+function retentionExpiry(ptInfos, nowMs) {
+  const endMs = ptInfos
+    .map((info) => toMillis(info?.endDate))
+    .filter((ms) => ms != null);
+  const base = new Date(Math.max(nowMs, ...endMs));
+  base.setFullYear(base.getFullYear() + RETENTION_YEARS);
+  return base;
+}
+
+/** 보관용 문서. 원본 문서 ID를 키로 써서 재시도해도 중복되지 않는다. */
+function buildRetainedRecord({ source, sourceId, data, memberAlias, retainedAt, expireAt }) {
+  const kept = {};
+  for (const field of source.keep) {
+    if (data[field] !== undefined) kept[field] = data[field];
+  }
+  return {
+    id: `${source.kind}_${sourceId}`,
+    doc: {
+      kind: source.kind,
+      sourceId,
+      centerId: data.centerId ?? null,
+      memberAlias,
+      data: kept,
+      retainedAt,
+      expireAt,
+    },
+  };
 }
 
 module.exports = {
   RECENT_LOGIN_MAX_AGE_SEC,
-  MEMBER_OWNED_COLLECTIONS,
+  MEMBER_DELETED_COLLECTIONS,
+  MEMBER_RETAINED_SOURCES,
+  RETAINED_COLLECTION,
+  RETENTION_YEARS,
   DeletionRefused,
   isRecentLogin,
   buildDeletionPlan,
+  retentionExpiry,
+  buildRetainedRecord,
 };

@@ -8,6 +8,7 @@ import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import '../core/constants.dart';
 import '../models/user.dart';
+import '../services/account_service.dart';
 import '../services/user_provider.dart';
 import 'app_bottom_sheet.dart';
 import 'app_button.dart';
@@ -42,8 +43,8 @@ List<String> _consequencesFor(UserRole role) {
   switch (role) {
     case UserRole.member:
       return const [
-        '운동·식단·유산소 기록과 식단 사진',
-        'InBody 기록, PT 정보와 PT 일정',
+        '프로필과 계정 정보',
+        '운동·식단·유산소 기록과 식단 사진, InBody 기록',
         '트레이너에게 받은 피드백',
       ];
     case UserRole.trainer:
@@ -118,6 +119,14 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
                 ],
               ),
             ),
+          if (widget.user.role == UserRole.member) ...[
+            const Gap(AppSpacing.xs),
+            Text(
+              'PT 이용 내역(횟수·기간·수업 일시)은 환불 등 분쟁 대응을 위해 이름 등 회원을 알 수 있는 정보를 지운 뒤 '
+              'PT 종료일(또는 탈퇴일) 중 늦은 날로부터 ${AccountService.ptRecordRetentionYears}년간 보관하고 파기합니다.',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary, height: 1.5),
+            ),
+          ],
           const Gap(AppSpacing.xs),
           Text(
             '삭제된 정보는 복구할 수 없습니다.',

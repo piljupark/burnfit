@@ -578,6 +578,13 @@ service cloud.firestore {
       allow update, delete: if isCenterAdmin(centerId);
     }
 
+    // 탈퇴 회원의 PT 계약·이용 내역 (회원을 알 수 없게 바꾼 사본, 3년 보관 후 서버가 파기).
+    // 분쟁 대응용으로 해당 센터 관리자만 읽고, 쓰기는 서버 함수만 한다.
+    match /retained_pt_records/{recordId} {
+      allow read: if isCenterAdmin(resource.data.centerId);
+      allow write: if false;
+    }
+
     match /join_requests/{requestId} {
       allow create: if signedIn() &&
         hasOnlyJoinRequestFields() &&

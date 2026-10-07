@@ -5,8 +5,9 @@ const { after, before, beforeEach, describe, it } = require('node:test');
 const assert = require('assert');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
+const { purgeExpired } = require('../retention_store');
 
 const PROJECT_ID = process.env.GCLOUD_PROJECT || 'demo-burnfit';
 const REGION = 'us-central1';
@@ -116,16 +117,30 @@ describe('deleteMyAccount', () => {
     assert.ok(await exists(`users/${uid}`));
   });
 
-  it('회원: 본인 기록·사진·계정을 지우고 다른 회원 기록은 남긴다', async () => {
+  it('회원: 건강 기록·사진·계정은 지우고 PT 이력은 익명으로 보관한다', async () => {
     const { uid, idToken } = await signUp('member@example.com');
     const other = 'other-member';
     await set(`users/${uid}`, { uid, role: 'member', status: 'approved', centerId: 'c1', trainerId: 't1' });
     await set(`users/${other}`, { uid: other, role: 'member', status: 'approved', centerId: 'c1' });
-    const owned = ['workouts', 'meals', 'cardios', 'feedbacks', 'inbodies', 'pt_infos', 'pt_sessions', 'pt_info_logs'];
-    for (const c of owned) {
+    const deleted = ['workouts', 'meals', 'cardios', 'feedbacks', 'inbodies'];
+    for (const c of deleted) {
       await set(`${c}/${c}-mine`, { memberId: uid, centerId: 'c1' });
       await set(`${c}/${c}-other`, { memberId: other, centerId: 'c1' });
     }
+    const ptEnd = new Date(Date.UTC(2027, 0, 31));
+    await set('pt_infos/info-mine', {
+      id: 'info-mine', memberId: uid, memberName: '홍길동', centerId: 'c1', trainerId: 't1',
+      totalSessions: 30, remainingSessions: 12, endDate: Timestamp.fromDate(ptEnd),
+    });
+    await set('pt_sessions/session-mine', {
+      memberId: uid, memberName: '홍길동', centerId: 'c1', trainerId: 't1', status: 'completed',
+      note: '010-1234-5678', durationMinutes: 50,
+    });
+    await set('pt_info_logs/log-mine', {
+      memberId: uid, memberName: '홍길동', centerId: 'c1', ptInfoId: 'info-mine', type: 'session_completed',
+      previousRemainingSessions: 13, nextRemainingSessions: 12, note: '메모',
+    });
+    await set('pt_sessions/session-other', { memberId: other, centerId: 'c1', status: 'scheduled' });
     await set('custom_exercises/mine', { memberId: uid });
     await set('join_requests/mine', { userId: uid, centerId: 'c1' });
 
@@ -135,10 +150,30 @@ describe('deleteMyAccount', () => {
 
     assert.deepStrictEqual(await call('deleteMyAccount', {}, idToken), { deleted: true });
 
-    for (const c of owned) {
+    for (const c of deleted) {
       assert.strictEqual(await exists(`${c}/${c}-mine`), false, `${c} 본인 기록`);
       assert.strictEqual(await exists(`${c}/${c}-other`), true, `${c} 다른 회원 기록`);
     }
+    for (const path of ['pt_infos/info-mine', 'pt_sessions/session-mine', 'pt_info_logs/log-mine']) {
+      assert.strictEqual(await exists(path), false, `${path} 원본은 지운다`);
+    }
+    assert.ok(await exists('pt_sessions/session-other'));
+
+    const retained = (await db.collection('retained_pt_records').get()).docs.map((d) => d.data());
+    assert.deepStrictEqual(retained.map((r) => r.kind).sort(), ['pt_info', 'pt_info_log', 'pt_session']);
+    const aliases = new Set(retained.map((r) => r.memberAlias));
+    assert.strictEqual(aliases.size, 1, '한 회원의 기록은 한 별칭으로 묶인다');
+    assert.match([...aliases][0], /^withdrawn_/);
+    const serialized = JSON.stringify(retained);
+    for (const leaked of [uid, '홍길동', '010-1234-5678', '메모']) {
+      assert.ok(!serialized.includes(leaked), `보관 기록에 "${leaked}"가 남았다`);
+    }
+    const info = retained.find((r) => r.kind === 'pt_info');
+    assert.strictEqual(info.data.remainingSessions, 12);
+    assert.strictEqual(info.centerId, 'c1');
+    // PT 종료일(2027-01-31)이 탈퇴일보다 늦으므로 종료일 + 3년
+    assert.strictEqual(info.expireAt.toDate().toISOString(), '2030-01-31T00:00:00.000Z');
+
     assert.strictEqual(await exists('custom_exercises/mine'), false);
     assert.strictEqual(await exists('join_requests/mine'), false);
     assert.strictEqual(await exists(`users/${uid}`), false);
@@ -146,6 +181,26 @@ describe('deleteMyAccount', () => {
     assert.strictEqual((await bucket.file(`c1/meals/${uid}/a.jpg`).exists())[0], false);
     assert.strictEqual((await bucket.file(`c1/meals/${other}/b.jpg`).exists())[0], true);
     await assert.rejects(auth.getUser(uid));
+  });
+
+  it('재시도: 이전 시도에서 정한 별칭과 만료일을 그대로 쓴다', async () => {
+    const { uid, idToken } = await signUp('retry@example.com');
+    const prep = {
+      memberAlias: 'withdrawn_previous-attempt',
+      expireAt: Timestamp.fromDate(new Date(Date.UTC(2031, 2, 1))),
+    };
+    await set(`users/${uid}`, { uid, role: 'member', status: 'approved', centerId: 'c1', deletionPrep: prep });
+    // 이전 시도에서 이미 옮겨진 기록 + 아직 남은 원본
+    await set('retained_pt_records/pt_session_moved', {
+      kind: 'pt_session', sourceId: 'moved', centerId: 'c1', memberAlias: prep.memberAlias, data: {}, expireAt: prep.expireAt,
+    });
+    await set('pt_sessions/left', { memberId: uid, centerId: 'c1', status: 'completed' });
+
+    await call('deleteMyAccount', {}, idToken);
+
+    const left = (await db.doc('retained_pt_records/pt_session_left').get()).data();
+    assert.strictEqual(left.memberAlias, prep.memberAlias);
+    assert.strictEqual(left.expireAt.toMillis(), prep.expireAt.toMillis());
   });
 
   it('트레이너: 담당 해제·예정 PT 취소, 회원 기록은 보존한다', async () => {
@@ -170,6 +225,22 @@ describe('deleteMyAccount', () => {
     assert.ok(await exists('feedbacks/f1'));
     assert.strictEqual(await exists(`users/${uid}`), false);
     await assert.rejects(auth.getUser(uid));
+  });
+});
+
+describe('purgeExpired (매일 파기 작업)', () => {
+  beforeEach(clearAll);
+
+  it('만료일이 지난 보관 기록만 지운다', async () => {
+    const now = new Date(Date.UTC(2030, 0, 1));
+    await set('retained_pt_records/expired', { centerId: 'c1', expireAt: Timestamp.fromDate(new Date(Date.UTC(2029, 11, 31))) });
+    await set('retained_pt_records/today', { centerId: 'c1', expireAt: Timestamp.fromDate(now) });
+    await set('retained_pt_records/future', { centerId: 'c1', expireAt: Timestamp.fromDate(new Date(Date.UTC(2030, 0, 2))) });
+
+    assert.strictEqual(await purgeExpired(db, now), 2);
+    assert.strictEqual(await exists('retained_pt_records/expired'), false);
+    assert.strictEqual(await exists('retained_pt_records/today'), false);
+    assert.strictEqual(await exists('retained_pt_records/future'), true);
   });
 });
 

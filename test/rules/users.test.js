@@ -247,6 +247,67 @@ describe('users / centers / pt_infos security rules', () => {
     });
   });
 
+  describe('탈퇴 회원 PT 이력 보관 (retained_pt_records)', () => {
+    const recordPath = 'retained_pt_records/pt_session_s1';
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, recordPath), {
+          kind: 'pt_session', sourceId: 's1', centerId, memberAlias: 'withdrawn_x', data: {},
+        });
+        await setDoc(doc(db, 'users', 'admin-b'), {
+          uid: 'admin-b', role: 'admin', status: 'approved', centerId: 'center-b', name: '다른 관리자',
+        });
+      });
+    });
+
+    it('같은 센터 관리자는 읽을 수 있다', async () => {
+      await assertSucceeds(getDoc(doc(authedDb(adminId), recordPath)));
+    });
+
+    it('다른 센터 관리자·트레이너·회원은 읽을 수 없다', async () => {
+      await assertFails(getDoc(doc(authedDb('admin-b'), recordPath)));
+      await assertFails(getDoc(doc(authedDb(trainerId), recordPath)));
+      await assertFails(getDoc(doc(authedDb(memberId), recordPath)));
+    });
+
+    it('관리자 화면의 목록 조회(센터 + 종류, 센터 + 별칭)가 허용된다', async () => {
+      const db = authedDb(adminId);
+      await assertSucceeds(getDocs(query(
+        collection(db, 'retained_pt_records'),
+        where('centerId', '==', centerId),
+        where('kind', '==', 'pt_info'),
+      )));
+      await assertSucceeds(getDocs(query(
+        collection(db, 'retained_pt_records'),
+        where('centerId', '==', centerId),
+        where('memberAlias', '==', 'withdrawn_x'),
+      )));
+    });
+
+    it('센터 조건 없는 조회나 다른 센터 조회는 거부된다', async () => {
+      await assertFails(getDocs(query(
+        collection(authedDb(adminId), 'retained_pt_records'),
+        where('kind', '==', 'pt_info'),
+      )));
+      await assertFails(getDocs(query(
+        collection(authedDb('admin-b'), 'retained_pt_records'),
+        where('centerId', '==', centerId),
+      )));
+      await assertFails(getDocs(query(
+        collection(authedDb(trainerId), 'retained_pt_records'),
+        where('centerId', '==', centerId),
+      )));
+    });
+
+    it('관리자도 만들거나 고칠 수 없다 (서버 전용)', async () => {
+      const db = authedDb(adminId);
+      await assertFails(setDoc(doc(db, 'retained_pt_records', 'forged'), { centerId }));
+      await assertFails(updateDoc(doc(db, recordPath), { memberAlias: 'changed' }));
+    });
+  });
+
   describe('PT 잔여 횟수 변경 (트레이너)', () => {
     it('1회 차감은 허용한다', async () => {
       const db = authedDb(trainerId);
