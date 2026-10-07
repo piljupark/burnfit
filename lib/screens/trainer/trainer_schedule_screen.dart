@@ -338,7 +338,7 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
             onManage: _showSessionActions,
           ),
         if (workouts.isNotEmpty) ...[
-          AppMonthHeader(label: 'WORKOUTS', count: '${workouts.length}'),
+          AppMonthHeader(label: '운동 기록', count: '${workouts.length}'),
           for (final workout in workouts) _WorkoutRow(workout: workout),
         ],
       ];
@@ -357,8 +357,6 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
             padding: const EdgeInsets.only(bottom: 120),
             children: [
               AppHero(
-                eyebrow:
-                    '${DateFormat('yyyy.MM').format(_selectedDay)} · WEEK ${_isoWeek(_selectedDay)}',
                 title: 'PT 일정',
                 actions: [
                   if (canPop) ...[
@@ -385,8 +383,8 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
                 onNextWeek: () => _moveWeek(1),
               ),
               AppMonthHeader(
-                label: DateFormat('MM.dd EEE', 'en_US').format(_selectedDay),
-                count: '${sessions.length} ${sessions.length == 1 ? 'SESSION' : 'SESSIONS'}',
+                label: DateFormat('M월 d일 (E)', 'ko').format(_selectedDay),
+                count: '${sessions.length}건',
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, AppSpacing.sm,
                 ),
@@ -398,14 +396,6 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
       ),
     );
   }
-}
-
-/// ISO 8601 주차 (월요일 시작).
-int _isoWeek(DateTime date) {
-  final day = DateTime.utc(date.year, date.month, date.day);
-  final thursday = day.add(Duration(days: 4 - day.weekday));
-  final firstDay = DateTime.utc(thursday.year, 1, 1);
-  return thursday.difference(firstDay).inDays ~/ 7 + 1;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -670,7 +660,7 @@ class _SessionBlock extends StatelessWidget {
           if (isCompleted)
             const Padding(
               padding: EdgeInsets.only(right: AppSpacing.sm),
-              child: AppTag('DONE', strong: true),
+              child: AppTag('완료', strong: true),
             ),
           if (onRecord != null)
             AppButton(
@@ -764,7 +754,9 @@ class _SessionSheet extends StatefulWidget {
 }
 
 class _SessionSheetState extends State<_SessionSheet> {
-  static const List<int> _durationOptions = [30, 40, 50, 60, 70, 80, 90, 120];
+  /// 진행 시간 선택지: 10분 단위 10~180분 (기존 예약 값이 단위에 안 맞으면 그 값도 포함).
+  static const int _durationStep = 10;
+  static const int _durationMax = 180;
 
   AppUser? _selectedMember;
   late DateTime _scheduledAt;
@@ -775,13 +767,15 @@ class _SessionSheetState extends State<_SessionSheet> {
   bool _showMemberPicker = false;
   bool _showDatePicker = false;
   bool _showTimePicker = false;
+  bool _showDurationPicker = false;
   bool get _isEditing => widget.existing != null;
 
   List<int> get _durationValues {
-    final values = [..._durationOptions];
+    final values = [for (var m = _durationStep; m <= _durationMax; m += _durationStep) m];
     if (!values.contains(_durationMinutes)) {
-      values.add(_durationMinutes);
-      values.sort();
+      values
+        ..add(_durationMinutes)
+        ..sort();
     }
     return values;
   }
@@ -820,9 +814,12 @@ class _SessionSheetState extends State<_SessionSheet> {
   Future<void> _save() async {
     if (_isSaving) return;
     if (!_isEditing && _selectedMember == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('회원을 선택해주세요.')));
+      AppFeedback.showWarning(context, '회원을 선택해주세요.');
+      return;
+    }
+    final conflict = _conflict;
+    if (conflict != null) {
+      AppFeedback.showWarning(context, _conflictMessage(conflict));
       return;
     }
     setState(() => _isSaving = true);
@@ -886,27 +883,32 @@ class _SessionSheetState extends State<_SessionSheet> {
     }
   }
 
-  static const List<int> _hourOptions = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
-
-  void _togglePicker({bool member = false, bool date = false, bool time = false}) {
+  void _togglePicker({bool member = false, bool date = false, bool time = false, bool duration = false}) {
     setState(() {
       _showMemberPicker = member && !_showMemberPicker;
       _showDatePicker = date && !_showDatePicker;
       _showTimePicker = time && !_showTimePicker;
+      _showDurationPicker = duration && !_showDurationPicker;
     });
   }
 
-  /// 같은 날짜에 이미 잡힌 시각 (수정 중인 세션은 제외).
-  Set<int> get _bookedMinutes {
+  /// 선택한 시간대(시작~시작+진행 시간)와 겹치는 다른 예약. 수정 중인 세션·취소된 예약은 제외.
+  PtSession? get _conflict {
     final existingId = widget.existing?.id;
-    return {
-      for (final s in widget.bookedSessions)
-        if (s.id != existingId &&
-            s.scheduledAt.year == _scheduledAt.year &&
-            s.scheduledAt.month == _scheduledAt.month &&
-            s.scheduledAt.day == _scheduledAt.day)
-          s.scheduledAt.hour * 60 + s.scheduledAt.minute,
-    };
+    final start = _scheduledAt;
+    final end = start.add(Duration(minutes: _durationMinutes));
+    for (final s in widget.bookedSessions) {
+      if (s.id == existingId || s.status == PtSessionStatus.cancelled) continue;
+      final otherEnd = s.scheduledAt.add(Duration(minutes: s.durationMinutes));
+      if (start.isBefore(otherEnd) && s.scheduledAt.isBefore(end)) return s;
+    }
+    return null;
+  }
+
+  String _conflictMessage(PtSession other) {
+    final f = DateFormat('HH:mm');
+    final end = other.scheduledAt.add(Duration(minutes: other.durationMinutes));
+    return '이 시간에 ${other.memberName}님 PT가 있어요 (${f.format(other.scheduledAt)}–${f.format(end)})';
   }
 
   void _setTime(int hour, int minute) {
@@ -917,9 +919,8 @@ class _SessionSheetState extends State<_SessionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final booked = _bookedMinutes;
-    final currentMinutes = _scheduledAt.hour * 60 + _scheduledAt.minute;
-    final timeOptions = {for (final h in _hourOptions) h * 60, currentMinutes}.toList()..sort();
+    final conflict = _conflict;
+    final endAt = _scheduledAt.add(Duration(minutes: _durationMinutes));
     final memberName = _isEditing ? widget.existing!.memberName : _selectedMember?.name;
     final memberSeed = _isEditing ? widget.existing!.memberId : _selectedMember?.uid;
 
@@ -930,7 +931,7 @@ class _SessionSheetState extends State<_SessionSheet> {
         AppBottomSheetHeader(title: _isEditing ? 'PT 예약 수정' : 'PT 예약 등록'),
 
         // 회원
-        const _FieldLabel(label: 'MEMBER'),
+        const _FieldLabel(label: '회원'),
         _SelectField(
           semanticLabel: '회원 선택',
           leading: memberName == null ? null : AppAvatar(name: memberName, seed: memberSeed, size: 28),
@@ -956,7 +957,7 @@ class _SessionSheetState extends State<_SessionSheet> {
         const SizedBox(height: AppSpacing.base),
 
         // 날짜
-        const _FieldLabel(label: 'DATE'),
+        const _FieldLabel(label: '날짜'),
         _SelectField(
           semanticLabel: '날짜 선택',
           value: DateFormat('M월 d일 (E)', 'ko').format(_scheduledAt),
@@ -989,59 +990,70 @@ class _SessionSheetState extends State<_SessionSheet> {
           ),
         const SizedBox(height: AppSpacing.base),
 
-        // 시간: 정시 칩 + 직접 입력(5분 단위)
-        const _FieldLabel(label: 'TIME'),
-        Wrap(
-          spacing: AppSpacing.sm,
-          children: [
-            for (final minutes in timeOptions)
-              AppChip(
-                label: '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}',
-                selected: minutes == currentMinutes,
-                enabled: minutes == currentMinutes || !booked.contains(minutes),
-                onTap: () {
-                  _setTime(minutes ~/ 60, minutes % 60);
-                  if (_showTimePicker) _togglePicker();
-                },
-              ),
-            AppChip(
-              label: '직접 입력',
-              icon: AppIcons.clock,
-              selected: false,
-              onTap: () => _togglePicker(time: true),
-            ),
-          ],
+        // 시간: 선택 칸 → 휠 (5분 단위)
+        const _FieldLabel(label: '시간'),
+        _SelectField(
+          semanticLabel: '시작 시간 선택',
+          value: DateFormat('a h:mm', 'ko').format(_scheduledAt),
+          isActive: _showTimePicker,
+          trailingIcon: AppIcons.clock,
+          onTap: () => _togglePicker(time: true),
         ),
         if (_showTimePicker)
           _PickerContainer(
             child: CupertinoDatePicker(
               mode: CupertinoDatePickerMode.time,
-              initialDateTime: _scheduledAt,
-              use24hFormat: true,
+              initialDateTime: _scheduledAt.copyWith(minute: _scheduledAt.minute - _scheduledAt.minute % 5),
+              use24hFormat: false,
               minuteInterval: 5,
               onDateTimeChanged: (dt) => _setTime(dt.hour, dt.minute),
             ),
           ),
         const SizedBox(height: AppSpacing.base),
 
-        // 수업 시간
-        const _FieldLabel(label: 'DURATION'),
-        Wrap(
-          spacing: AppSpacing.sm,
-          children: [
-            for (final minutes in _durationValues)
-              AppChip(
-                label: '$minutes분',
-                selected: minutes == _durationMinutes,
-                onTap: () => setState(() => _durationMinutes = minutes),
-              ),
-          ],
+        // 진행 시간: 선택 칸 → 휠 (10분 단위)
+        const _FieldLabel(label: '진행 시간'),
+        _SelectField(
+          semanticLabel: '진행 시간 선택',
+          value: '$_durationMinutes분 · ${DateFormat('a h:mm', 'ko').format(endAt)} 종료',
+          isActive: _showDurationPicker,
+          trailingIcon: _showDurationPicker ? AppIcons.chevronUp : AppIcons.chevronDown,
+          onTap: () => _togglePicker(duration: true),
         ),
+        if (_showDurationPicker)
+          _PickerContainer(
+            child: CupertinoPicker(
+              itemExtent: 36,
+              scrollController: FixedExtentScrollController(
+                initialItem: _durationValues.indexOf(_durationMinutes),
+              ),
+              onSelectedItemChanged: (i) => setState(() => _durationMinutes = _durationValues[i]),
+              children: [
+                for (final minutes in _durationValues)
+                  Center(child: Text('$minutes분', style: AppTextStyles.title)),
+              ],
+            ),
+          ),
+        if (conflict != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Semantics(
+            liveRegion: true,
+            child: Row(
+              children: [
+                const Icon(AppIcons.warning, size: AppSize.icon, color: AppColors.body),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(_conflictMessage(conflict), style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.base),
 
         // 메모
         AppTextField(
-          label: 'MEMO',
+          label: '메모',
           hint: '선택 사항',
           controller: _noteController,
           textInputAction: TextInputAction.done,
@@ -1053,7 +1065,8 @@ class _SessionSheetState extends State<_SessionSheet> {
           size: AppButtonSize.lg,
           fullWidth: true,
           isLoading: _isSaving,
-          onPressed: _isSaving ? null : _save,
+          // 다른 예약과 겹치면 저장할 수 없다 (위에 안내 문구).
+          onPressed: _isSaving || conflict != null ? null : _save,
         ),
       ],
     );
@@ -1064,7 +1077,7 @@ class _SessionSheetState extends State<_SessionSheet> {
 // 시트 내 공용 위젯
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// 영문 대문자 모노 필드 라벨 (MEMBER, DATE …).
+/// 모노 필드 라벨 (회원, 날짜 …).
 class _FieldLabel extends StatelessWidget {
   final String label;
 
@@ -1074,7 +1087,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Text(label, style: AppTextStyles.eyebrow),
+      child: Text(label, style: AppTextStyles.bodySm),
     );
   }
 }

@@ -8,7 +8,7 @@
 //     --dart-define=USE_FIREBASE_EMULATOR=true
 // 결과: build/screen_tour/*.png
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:pt_solution_v2/main.dart';
@@ -149,6 +149,12 @@ void main() {
       await tester.tap(iconButton((l) => l.contains('예약') || l.contains('추가')).first);
       await wait(tester);
       await shot('23_reserve_sheet');
+      // 진행 시간을 90분으로 늘려 11:00 예약과 겹치게 → 경고·저장 비활성 확인
+      await tester.tap(find.textContaining('종료').first);
+      await wait(tester, 800);
+      await tester.drag(find.byType(CupertinoPicker).first, const Offset(0, -108));
+      await wait(tester, 1200);
+      await shot('23b_reserve_conflict');
       await back(tester);
     });
     await step('trainer my', () async {
