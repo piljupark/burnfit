@@ -50,7 +50,8 @@ service firebase.storage {
     function isImageUpload() {
       return request.resource != null &&
         request.resource.size <= 5 * 1024 * 1024 &&
-        request.resource.contentType.matches('image/.*');
+        // SVG 등 스크립트를 담을 수 있는 형식은 막는다 (앱은 JPEG로 올린다).
+        request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)');
     }
 
     match /{centerId}/meals/{memberId}/{fileName} {

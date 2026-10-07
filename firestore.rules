@@ -265,7 +265,8 @@ service cloud.firestore {
     }
 
     function canAdminUpdateUser() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      return resource.data.role in ['member', 'trainer'] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'status',
         'trainerId',
         'trainerName',
@@ -277,10 +278,27 @@ service cloud.firestore {
       );
     }
 
+    // PT 횟수: 정수, 0 이상, 잔여 ≤ 전체.
+    function hasValidPtCounts() {
+      let total = request.resource.data.totalSessions;
+      let remaining = request.resource.data.remainingSessions;
+      return total is int && remaining is int &&
+        total >= 0 && remaining >= 0 && remaining <= total;
+    }
+
+    // 회원이 같은 센터 소속인지 (다른 센터 회원에게 PT·알림을 만들지 못하게).
+    function isMemberOfCenter(memberId, centerId) {
+      return exists(/databases/$(database)/documents/users/$(memberId)) &&
+        userDoc(memberId).data.centerId == centerId &&
+        userDoc(memberId).data.role == 'member';
+    }
+
     function canAdminCreatePtInfo(ptInfoId) {
       return isCenterAdmin(request.resource.data.centerId) &&
         hasOnlyPtInfoFields() &&
-        request.resource.data.id == ptInfoId;
+        request.resource.data.id == ptInfoId &&
+        hasValidPtCounts() &&
+        isMemberOfCenter(request.resource.data.memberId, request.resource.data.centerId);
     }
 
     function canAdminUpdatePtInfo() {
@@ -293,14 +311,21 @@ service cloud.firestore {
           'remainingSessions',
           'renewalDate',
           'updatedAt'
-        ]);
+        ]) &&
+        hasValidPtCounts();
+    }
+
+    // PT 일정은 '예약' 상태로만 만든다. 완료·완료 취소는 서버 함수(setPtSessionStatus)가 잔여 횟수와 함께 바꾼다.
+    function canCreateScheduledPtSession(sessionId) {
+      return hasOnlyPtSessionFields() &&
+        request.resource.data.id == sessionId &&
+        request.resource.data.status == 'scheduled' &&
+        isMemberOfCenter(request.resource.data.memberId, request.resource.data.centerId);
     }
 
     function canAdminCreatePtSession(sessionId) {
       return isCenterAdmin(request.resource.data.centerId) &&
-        hasOnlyPtSessionFields() &&
-        request.resource.data.id == sessionId &&
-        request.resource.data.status in ['scheduled', 'completed', 'cancelled'];
+        canCreateScheduledPtSession(sessionId);
     }
 
     function canUpdatePtSessionTrainer() {
@@ -446,20 +471,6 @@ service cloud.firestore {
       ]);
     }
 
-    // 트레이너는 세션 완료/완료 취소에 따라 잔여 횟수를 1회씩만 바꿀 수 있다.
-    function canUpdatePtRemaining() {
-      let next = request.resource.data.remainingSessions;
-      let prev = resource.data.remainingSessions;
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        'remainingSessions',
-        'updatedAt'
-      ]) &&
-      next is int &&
-      (next == prev - 1 || next == prev + 1) &&
-      next >= 0 &&
-      next <= resource.data.totalSessions;
-    }
-
     function canUpdatePtSessionSchedule() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'scheduledAt',
@@ -467,14 +478,6 @@ service cloud.firestore {
         'note',
         'updatedAt'
       ]);
-    }
-
-    function canUpdatePtSessionStatus() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        'status',
-        'updatedAt'
-      ]) &&
-      request.resource.data.status in ['scheduled', 'completed', 'cancelled'];
     }
 
     function canCreatePtInfoLog() {
@@ -497,6 +500,15 @@ service cloud.firestore {
       ]);
     }
 
+    // 생년월일은 'yyyyMMdd' 8자리 숫자 문자열 (온보딩·프로필 편집). 바꿀 때만 검사해
+    // 예전 형식으로 남은 값이 다른 필드 수정(알림 토큰 등)을 막지 않게 한다.
+    function hasValidBirthDateChange() {
+      return !('birthDate' in request.resource.data.diff(resource.data).affectedKeys()) ||
+        request.resource.data.birthDate == null ||
+        (request.resource.data.birthDate is string &&
+          request.resource.data.birthDate.matches('^[0-9]{8}$'));
+    }
+
     function canUpdateOwnUser() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'name',
@@ -510,6 +522,7 @@ service cloud.firestore {
       ]) &&
       hasValidUserProfile() &&
       hasValidShareSettings() &&
+      hasValidBirthDateChange() &&
       (
         !('gender' in request.resource.data) ||
         request.resource.data.gender == null ||
@@ -521,6 +534,11 @@ service cloud.firestore {
       // 클라이언트 가입은 회원/트레이너의 '승인 대기' 계정만 가능하다.
       // 관리자 계정과 센터는 서버 함수(registerCenterAdmin)만 만든다.
       allow create: if isOwner(uid) &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'email', 'name', 'role', 'status', 'centerId', 'centerName',
+          'trainerId', 'trainerName', 'birthDate', 'gender', 'profile',
+          'shareSettings', 'createdAt', 'updatedAt'
+        ]) &&
         request.resource.data.uid == uid &&
         request.resource.data.role in ['member', 'trainer'] &&
         request.resource.data.status == 'pending' &&
@@ -568,7 +586,8 @@ service cloud.firestore {
           canAdminUpdateUser()
         );
 
-      allow delete: if isCenterAdmin(resource.data.centerId);
+      // 계정 삭제는 탈퇴 서버 함수(deleteMyAccount)만 한다 (PT 이력 보관 절차를 거치도록).
+      allow delete: if false;
     }
 
     // 알림함: 서버 함수(notifyUser)만 만든다. 본인은 읽기, 읽음 처리, 삭제만 할 수 있다.
@@ -584,7 +603,8 @@ service cloud.firestore {
       allow read: if resource.data.status == 'active' || signedIn();
       // 센터 생성은 관리자 설정 코드를 검증하는 서버 함수만 한다.
       allow create: if false;
-      allow update, delete: if isCenterAdmin(centerId);
+      // 센터 정보 변경·삭제는 서버에서만 한다 (앱에 해당 화면 없음).
+      allow update, delete: if false;
     }
 
     // 탈퇴 회원의 PT 계약·이용 내역 (회원을 알 수 없게 바꾼 사본, 3년 보관 후 서버가 파기).
@@ -601,9 +621,13 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.role in ['member', 'trainer'] &&
         request.resource.data.status == 'pending' &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        request.resource.data.centerId == currentUser().centerId &&
-        request.resource.data.role == currentUser().role;
+        // 가입 시 사용자 문서와 같은 배치로 만들 수 있게 '쓰기 후' 상태로 확인한다.
+        existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        request.resource.data.centerId ==
+          getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.centerId &&
+        request.resource.data.role ==
+          getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role &&
+        getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'pending';
       allow read: if signedIn() &&
         (
           resource.data.userId == request.auth.uid ||
@@ -620,22 +644,10 @@ service cloud.firestore {
         resource.data.memberId,
         'none'
       );
-      allow create: if canAdminCreatePtInfo(ptInfoId) ||
-        (
-          isTrainer() &&
-          sameCenter(request.resource.data.centerId) &&
-          request.resource.data.trainerId == request.auth.uid &&
-          isAssignedTrainer(request.resource.data.memberId)
-        );
-      allow update: if canAdminUpdatePtInfo() ||
-        (
-          isTrainer() &&
-          sameCenter(resource.data.centerId) &&
-          resource.data.trainerId == request.auth.uid &&
-          isAssignedTrainer(resource.data.memberId) &&
-          canUpdatePtRemaining()
-        );
-      allow delete: if isCenterAdmin(resource.data.centerId);
+      // PT권은 관리자만 만들고 고친다. 세션 완료에 따른 잔여 차감·복구는 서버 함수만 한다.
+      allow create: if canAdminCreatePtInfo(ptInfoId);
+      allow update: if canAdminUpdatePtInfo();
+      allow delete: if false;
     }
 
     match /pt_info_logs/{logId} {
@@ -644,14 +656,10 @@ service cloud.firestore {
         resource.data.memberId,
         'none'
       );
-      allow create: if (
-        isCenterAdmin(request.resource.data.centerId) ||
-        (
-          isTrainer() &&
-          sameCenter(request.resource.data.centerId) &&
-          isAssignedTrainer(request.resource.data.memberId)
-        )
-      ) && canCreatePtInfoLog();
+      // 관리자의 PT권 등록·수정 기록만 앱에서 쓴다 (세션 완료 기록은 서버 함수가 쓴다).
+      allow create: if isCenterAdmin(request.resource.data.centerId) &&
+        canCreatePtInfoLog() &&
+        request.resource.data.changedById == request.auth.uid;
       allow update, delete: if false;
     }
 
@@ -668,41 +676,41 @@ service cloud.firestore {
           isTrainer() &&
           sameCenter(request.resource.data.centerId) &&
           request.resource.data.trainerId == request.auth.uid &&
-          isAssignedTrainer(request.resource.data.memberId)
+          isAssignedTrainer(request.resource.data.memberId) &&
+          canCreateScheduledPtSession(sessionId)
         );
-      allow update: if (
-          isCenterAdmin(resource.data.centerId) &&
-          (
-            canUpdatePtSessionSchedule() ||
-            canUpdatePtSessionStatus() ||
-            canUpdatePtSessionTrainer()
-          )
-        ) ||
+      // 상태(완료·취소)는 서버 함수만 바꾼다. 앱은 예약된 일정의 시간·메모와 담당 변경만.
+      allow update: if resource.data.status == 'scheduled' &&
         (
-          isTrainer() &&
-          sameCenter(resource.data.centerId) &&
-          resource.data.trainerId == request.auth.uid &&
-          isAssignedTrainer(resource.data.memberId) &&
           (
-            canUpdatePtSessionSchedule() ||
-            canUpdatePtSessionStatus()
+            isCenterAdmin(resource.data.centerId) &&
+            (canUpdatePtSessionSchedule() || canUpdatePtSessionTrainer())
+          ) ||
+          (
+            isTrainer() &&
+            sameCenter(resource.data.centerId) &&
+            resource.data.trainerId == request.auth.uid &&
+            isAssignedTrainer(resource.data.memberId) &&
+            canUpdatePtSessionSchedule()
           )
         );
-      allow delete: if isCenterAdmin(resource.data.centerId) ||
-        (
-          isTrainer() &&
-          sameCenter(resource.data.centerId) &&
-          resource.data.trainerId == request.auth.uid &&
-          isAssignedTrainer(resource.data.memberId)
-        );
+      allow delete: if false;
     }
 
     match /workouts/{workoutId} {
+      // 담당 트레이너는 회원의 운동 공유 설정과 관계없이 자기가 남긴 PT 기록은 읽는다.
       allow read: if canReadMemberScoped(
         resource.data.centerId,
         resource.data.memberId,
         'workout'
-      );
+      ) ||
+        (
+          isTrainer() &&
+          sameCenter(resource.data.centerId) &&
+          resource.data.workoutType == 'pt' &&
+          resource.data.trainerId == request.auth.uid &&
+          isAssignedTrainer(resource.data.memberId)
+        );
       allow create: if canCreateOwnWorkout(workoutId) ||
         (
           isCenterAdmin(request.resource.data.centerId) &&
@@ -831,6 +839,14 @@ service cloud.firestore {
           isAssignedTrainer(resource.data.memberId)
         );
       allow create: if isTrainer() &&
+        request.resource.data.keys().hasOnly([
+          'id', 'centerId', 'trainerId', 'trainerName', 'memberId', 'memberName',
+          'targetType', 'targetId', 'targetDate', 'content', 'readAt',
+          'createdAt', 'updatedAt'
+        ]) &&
+        request.resource.data.id == feedbackId &&
+        request.resource.data.get('readAt', null) == null &&
+        request.resource.data.trainerName == currentUser().name &&
         sameCenter(request.resource.data.centerId) &&
         request.resource.data.trainerId == request.auth.uid &&
         isAssignedTrainer(request.resource.data.memberId);
@@ -843,7 +859,8 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'readAt',
             'updatedAt'
-          ])
+          ]) &&
+          request.resource.data.readAt == request.time
         ) ||
         (
           isTrainer() &&

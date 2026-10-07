@@ -305,7 +305,7 @@ describe('firestore feedback rules', () => {
     );
   });
 
-  it('담당 트레이너는 PT 세션 상태를 완료로 바꾸고 PT권 차감 로그를 만들 수 있다', async () => {
+  it('트레이너는 앱에서 PT 완료·잔여 차감·차감 로그를 직접 쓸 수 없다 (서버 함수 setPtSessionStatus 전용)', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore();
       await setDoc(doc(db, 'pt_sessions', 'pt-session-complete'), {
@@ -365,7 +365,10 @@ describe('firestore feedback rules', () => {
       createdAt: serverTimestamp(),
     });
 
-    await assertSucceeds(batch.commit());
+    await assertFails(batch.commit());
+    // 하나씩 따로 써도 막힌다
+    await assertFails(updateDoc(doc(db, 'pt_sessions', 'pt-session-complete'), { status: 'completed', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db, 'pt_infos', 'pt-info-complete'), { remainingSessions: 4, updatedAt: serverTimestamp() }));
   });
 
   it('담당 트레이너는 잘못된 PT 세션 상태로 변경할 수 없다', async () => {

@@ -17,6 +17,7 @@ const {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } = require('firebase/firestore');
 
 let testEnv;
@@ -215,6 +216,100 @@ describe('users / centers / pt_infos security rules', () => {
     });
   });
 
+  describe('보안 강화 (2026-10-08 전수 점검)', () => {
+    it('가입 시 사용자 문서와 가입 신청을 한 배치로 만들 수 있다', async () => {
+      const db = authedDb(newUid, newEmail);
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'users', newUid), newUserDoc());
+      batch.set(doc(db, 'join_requests', 'req-batch'), {
+        id: 'req-batch', userId: newUid, userName: '신규', userEmail: newEmail,
+        role: 'member', status: 'pending', centerId, createdAt: new Date(),
+      });
+      await assertSucceeds(batch.commit());
+    });
+
+    it('가입 시 허용되지 않은 필드(예: 탈퇴 보관 정보)를 넣을 수 없다', async () => {
+      const db = authedDb(newUid, newEmail);
+      await assertFails(setDoc(doc(db, 'users', newUid), newUserDoc({
+        deletionPrep: { memberAlias: 'x', expireAt: new Date(0) },
+      })));
+    });
+
+    it('관리자도 사용자 문서·PT권을 지울 수 없고 센터 정보를 바꿀 수 없다', async () => {
+      const db = authedDb(adminId);
+      await assertFails(deleteDoc(doc(db, 'users', memberId)));
+      await assertFails(deleteDoc(doc(db, 'users', adminId)));
+      await assertFails(deleteDoc(doc(db, 'pt_infos', ptInfoId)));
+      await assertFails(updateDoc(doc(db, 'centers', centerId), { status: 'inactive' }));
+    });
+
+    it('관리자는 자기 자신이나 다른 관리자의 상태를 바꿀 수 없다', async () => {
+      await assertFails(updateDoc(doc(authedDb(adminId), 'users', adminId), { status: 'rejected', updatedAt: new Date() }));
+    });
+
+    it('트레이너는 PT권을 만들 수 없다', async () => {
+      await assertFails(setDoc(doc(authedDb(trainerId), 'pt_infos', 'pt-forged'), {
+        id: 'pt-forged', centerId, trainerId, memberId, memberName: '회원',
+        startDate: new Date(), endDate: new Date(), totalSessions: 999, remainingSessions: 999,
+        createdAt: new Date(), updatedAt: new Date(),
+      }));
+    });
+
+    it('관리자 PT권은 횟수가 올바라야 한다 (잔여 ≤ 전체, 0 이상 정수)', async () => {
+      const db = authedDb(adminId);
+      await assertFails(updateDoc(doc(db, 'pt_infos', ptInfoId), { remainingSessions: 31, updatedAt: new Date() }));
+      await assertFails(updateDoc(doc(db, 'pt_infos', ptInfoId), { remainingSessions: -1, updatedAt: new Date() }));
+      await assertSucceeds(updateDoc(doc(db, 'pt_infos', ptInfoId), { remainingSessions: 20, updatedAt: new Date() }));
+    });
+
+    it('PT 변경 기록은 관리자 본인 이름으로만 남길 수 있다', async () => {
+      const base = {
+        ptInfoId, centerId, memberId, memberName: '회원', changedByName: '관리자', type: 'updated',
+        previousTotalSessions: 30, nextTotalSessions: 30, previousRemainingSessions: 12,
+        nextRemainingSessions: 12, ptSessionId: null, note: null, createdAt: new Date(),
+      };
+      await assertFails(setDoc(doc(authedDb(adminId), 'pt_info_logs', 'log-forged'), { ...base, id: 'log-forged', changedById: trainerId }));
+      await assertSucceeds(setDoc(doc(authedDb(adminId), 'pt_info_logs', 'log-ok'), { ...base, id: 'log-ok', changedById: adminId }));
+      await assertFails(setDoc(doc(authedDb(trainerId), 'pt_info_logs', 'log-t'), { ...base, id: 'log-t', changedById: trainerId }));
+    });
+
+    it('PT 일정은 예약 상태로만 만들 수 있다 (완료로 바로 만들기 금지)', async () => {
+      const session = (status, id) => ({
+        id, centerId, trainerId, trainerName: '트레이너', memberId, memberName: '회원',
+        scheduledAt: new Date(), durationMinutes: 50, note: '', status,
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      await assertFails(setDoc(doc(authedDb(trainerId), 'pt_sessions', 's-done'), session('completed', 's-done')));
+      await assertSucceeds(setDoc(doc(authedDb(trainerId), 'pt_sessions', 's-ok'), session('scheduled', 's-ok')));
+      await assertFails(deleteDoc(doc(authedDb(trainerId), 'pt_sessions', 's-ok')));
+    });
+
+    it('트레이너 재배정 조회: centerId를 넣으면 허용, 빼면 거부 (규칙은 필터가 아니다)', async () => {
+      const db = authedDb(adminId);
+      await assertSucceeds(getDocs(query(collection(db, 'pt_infos'),
+        where('centerId', '==', centerId), where('memberId', '==', memberId))));
+      await assertSucceeds(getDocs(query(collection(db, 'pt_sessions'),
+        where('centerId', '==', centerId), where('memberId', '==', memberId), where('status', '==', 'scheduled'))));
+      await assertFails(getDocs(query(collection(db, 'pt_infos'), where('memberId', '==', memberId))));
+    });
+
+    it('운동 공유를 끈 회원이어도 담당 트레이너는 자기가 남긴 PT 기록을 읽는다', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await updateDoc(doc(db, 'users', memberId), { shareSettings: { workout: false, meal: true, body: true } });
+        const w = (id, type, by) => ({ id, centerId, memberId, trainerId: by, workoutType: type, workoutDate: '2026-10-08' });
+        await setDoc(doc(db, 'workouts', 'w-pt'), w('w-pt', 'pt', trainerId));
+        await setDoc(doc(db, 'workouts', 'w-personal'), w('w-personal', 'personal', trainerId));
+      });
+      const db = authedDb(trainerId);
+      await assertSucceeds(getDoc(doc(db, 'workouts', 'w-pt')));
+      await assertFails(getDoc(doc(db, 'workouts', 'w-personal')));
+      await assertSucceeds(getDocs(query(collection(db, 'workouts'),
+        where('centerId', '==', centerId), where('memberId', '==', memberId),
+        where('workoutType', '==', 'pt'), where('trainerId', '==', trainerId))));
+    });
+  });
+
   describe('승인되지 않은 사용자의 역할 권한', () => {
     it('승인 대기 트레이너는 같은 센터 트레이너 정보를 읽을 수 없다', async () => {
       const db = authedDb(pendingTrainerId);
@@ -355,18 +450,49 @@ describe('users / centers / pt_infos security rules', () => {
     });
   });
 
-  describe('PT 잔여 횟수 변경 (트레이너)', () => {
-    it('1회 차감은 허용한다', async () => {
+  describe('본인 기본 정보 수정 (생년월일·성별)', () => {
+    it('8자리 생년월일과 성별은 바꿀 수 있다', async () => {
+      const db = authedDb(memberId);
+      await assertSucceeds(updateDoc(doc(db, 'users', memberId), {
+        birthDate: '19940512',
+        gender: 'female',
+        updatedAt: new Date(),
+      }));
+    });
+
+    it('형식이 다른 생년월일은 거부된다', async () => {
+      const db = authedDb(memberId);
+      for (const birthDate of ['1994-05-12', '1994051', 'x'.repeat(5000), 19940512]) {
+        await assertFails(updateDoc(doc(db, 'users', memberId), { birthDate, updatedAt: new Date() }));
+      }
+    });
+
+    it('목록에 없는 성별은 거부된다', async () => {
+      const db = authedDb(memberId);
+      await assertFails(updateDoc(doc(db, 'users', memberId), { gender: 'unknown', updatedAt: new Date() }));
+    });
+
+    it('예전 형식으로 남은 생년월일이 있어도 다른 필드는 고칠 수 있다', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await updateDoc(doc(context.firestore(), 'users', memberId), { birthDate: '1994.05.12' });
+      });
+      const db = authedDb(memberId);
+      await assertSucceeds(updateDoc(doc(db, 'users', memberId), { name: '회원2', updatedAt: new Date() }));
+    });
+  });
+
+  describe('PT 잔여 횟수 변경 (트레이너는 직접 못 바꾼다 — 서버 함수 setPtSessionStatus 전용)', () => {
+    it('1회 차감도 직접 쓸 수 없다', async () => {
       const db = authedDb(trainerId);
-      await assertSucceeds(updateDoc(doc(db, 'pt_infos', ptInfoId), {
+      await assertFails(updateDoc(doc(db, 'pt_infos', ptInfoId), {
         remainingSessions: 11,
         updatedAt: new Date(),
       }));
     });
 
-    it('1회 복구(완료 취소)는 허용한다', async () => {
+    it('1회 복구도 직접 쓸 수 없다', async () => {
       const db = authedDb(trainerId);
-      await assertSucceeds(updateDoc(doc(db, 'pt_infos', ptInfoId), {
+      await assertFails(updateDoc(doc(db, 'pt_infos', ptInfoId), {
         remainingSessions: 13,
         updatedAt: new Date(),
       }));

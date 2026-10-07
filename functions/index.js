@@ -11,6 +11,7 @@ const adminSetup = require('./admin_setup');
 const accountDeletion = require('./account_deletion');
 const retentionStore = require('./retention_store');
 const inbox = require('./notifications');
+const ptSessions = require('./pt_sessions');
 
 initializeApp();
 
@@ -50,18 +51,29 @@ async function clearToken(uid) {
 
 // 알림함에 남기고 푸시를 보낸다. 사용자 문서가 없으면(탈퇴 등) 아무것도 하지 않는다.
 // 푸시가 꺼져 있거나 토큰이 없어도 알림함에는 남는다.
-async function notifyUser(uid, title, body, data) {
+// dedupeKey(트리거 이벤트 ID 등)를 주면 같은 이벤트가 다시 전달돼도 알림이 두 번 생기지 않는다.
+async function notifyUser(uid, title, body, data, dedupeKey) {
   if (!uid) return;
   const userRef = db.collection('users').doc(uid);
   const snap = await userRef.get();
   if (!snap.exists) return;
 
-  await userRef.collection('notifications').add(inbox.buildInboxDoc({
+  const inboxDoc = inbox.buildInboxDoc({
     title,
     body,
     data,
     createdAt: FieldValue.serverTimestamp(),
-  }));
+  });
+  if (dedupeKey) {
+    try {
+      await userRef.collection('notifications').doc(`${dedupeKey}`.replace(/[^A-Za-z0-9_-]/g, '_')).create(inboxDoc);
+    } catch (e) {
+      if (e?.code === 6) return; // ALREADY_EXISTS: 이미 보낸 이벤트
+      throw e;
+    }
+  } else {
+    await userRef.collection('notifications').add(inboxDoc);
+  }
   await sendNotification({ uid, token: snap.data().fcmToken ?? null }, title, body, data);
 }
 
@@ -114,6 +126,7 @@ exports.onPtSessionCreated = onDocumentCreated(
       'PT 일정이 등록됐습니다',
       `${session.trainerName} 트레이너 · ${dateStr} · ${session.durationMinutes}분`,
       { type: 'pt_session_created', sessionId: event.params.sessionId },
+      `${event.id}`,
     );
   },
 );
@@ -132,10 +145,10 @@ exports.onPtSessionUpdated = onDocumentUpdated(
     if (!before || !after) return;
 
     const statusChanged = before.status !== after.status;
+    // 담당 트레이너만 바뀐 경우(재배정)는 세션마다 알리지 않는다 — onUserUpdated가 한 번 알린다.
     const scheduleChanged =
       timestampMillis(before.scheduledAt) !== timestampMillis(after.scheduledAt) ||
-      before.durationMinutes !== after.durationMinutes ||
-      before.trainerId !== after.trainerId;
+      before.durationMinutes !== after.durationMinutes;
 
     if (!statusChanged && !scheduleChanged) return;
 
@@ -147,6 +160,7 @@ exports.onPtSessionUpdated = onDocumentUpdated(
         'PT 일정이 취소됐습니다',
         `${dateStr} 세션이 취소됐습니다.`,
         { type: 'pt_session_cancelled', sessionId: event.params.sessionId },
+        `${event.id}`,
       );
       return;
     }
@@ -157,7 +171,51 @@ exports.onPtSessionUpdated = onDocumentUpdated(
         'PT 일정이 변경됐습니다',
         `${after.trainerName} 트레이너 · ${dateStr} · ${after.durationMinutes}분`,
         { type: 'pt_session_updated', sessionId: event.params.sessionId },
+        `${event.id}`,
       );
+    }
+  },
+);
+
+// ─────────────────────────────────────────────
+// 2-1. 사용자 변경 → 가입 승인 · 담당 트레이너 배정 알림
+// ─────────────────────────────────────────────
+
+exports.onUserUpdated = onDocumentUpdated(
+  'users/{uid}',
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    if (!before || !after) return;
+    const uid = event.params.uid;
+
+    if (before.status !== 'approved' && after.status === 'approved') {
+      await notifyUser(
+        uid,
+        '가입이 승인됐습니다',
+        `${after.centerName ?? '센터'}에서 가입을 승인했어요. 지금 바로 이용할 수 있어요.`,
+        { type: 'account_approved' },
+        `${event.id}-approved`,
+      );
+    }
+
+    if (after.role === 'member' && after.trainerId && before.trainerId !== after.trainerId) {
+      await Promise.all([
+        notifyUser(
+          uid,
+          '담당 트레이너가 배정됐습니다',
+          `${after.trainerName ?? ''} 트레이너가 담당합니다.`,
+          { type: 'trainer_assigned' },
+          `${event.id}-member`,
+        ),
+        notifyUser(
+          after.trainerId,
+          '새 담당 회원',
+          `${after.name ?? '회원'}님이 담당 회원으로 배정됐습니다.`,
+          { type: 'member_assigned' },
+          `${event.id}-trainer`,
+        ),
+      ]);
     }
   },
 );
@@ -187,6 +245,7 @@ exports.onFeedbackCreated = onDocumentCreated(
       `${feedback.trainerName ?? ''} 트레이너가 피드백을 남겼습니다`,
       `${targetLabel} 기록에 새 피드백: ${preview}`,
       { type: 'feedback_created', feedbackId: event.params.feedbackId },
+      `${event.id}`,
     );
   },
 );
@@ -214,8 +273,8 @@ exports.onPtInfoUpdated = onDocumentUpdated(
     const data = { type: 'pt_remaining_warning', ptInfoId: event.params.ptInfoId };
 
     await Promise.all([
-      notifyUser(after.memberId, 'PT 잔여 횟수 알림', message, data),
-      notifyUser(after.trainerId, `${after.memberName}님 PT 잔여 횟수 알림`, message, data),
+      notifyUser(after.memberId, 'PT 잔여 횟수 알림', message, data, `${event.id}-m`),
+      notifyUser(after.trainerId, `${after.memberName}님 PT 잔여 횟수 알림`, message, data, `${event.id}-t`),
     ]);
   },
 );
@@ -232,16 +291,14 @@ function userFacingError(code, message) {
   return new HttpsError(code, message, { userMessage: message });
 }
 
-async function assertNotThrottled(throttleRef) {
-  const snap = await throttleRef.get();
-  if (adminSetup.isThrottled(snap.data(), Date.now())) {
-    throw userFacingError('resource-exhausted', '시도 횟수를 초과했습니다. 1시간 후 다시 시도해주세요.');
-  }
-}
-
-async function recordFailure(throttleRef) {
+// 시도 한 번을 먼저 기록(예약)한 뒤 코드를 비교한다. 확인과 기록을 한 트랜잭션에서 하므로
+// 동시에 여러 요청을 보내도 '1시간 5회' 제한을 넘길 수 없다. 성공하면 기록을 지운다.
+async function reserveAttempt(throttleRef) {
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(throttleRef);
+    if (adminSetup.isThrottled(snap.data(), Date.now())) {
+      throw userFacingError('resource-exhausted', '시도 횟수를 초과했습니다. 1시간 후 다시 시도해주세요.');
+    }
     tx.set(throttleRef, adminSetup.nextFailureRecord(snap.data(), Date.now()));
   });
 }
@@ -260,13 +317,13 @@ exports.registerCenterAdmin = onCall(
     const throttleRef = db
       .collection('security_throttles')
       .doc(adminSetup.throttleKey(request.rawRequest?.ip));
-    await assertNotThrottled(throttleRef);
+    await reserveAttempt(throttleRef);
 
     // 비밀값 저장 시 끝에 줄바꿈이 섞여도 맞도록 앞뒤 공백을 지우고 비교한다.
     if (!adminSetup.setupCodeMatches(input.setupCode, ADMIN_SETUP_CODE.value().trim())) {
-      await recordFailure(throttleRef);
       throw userFacingError('permission-denied', '설정 코드가 올바르지 않습니다.');
     }
+    await throttleRef.delete().catch(() => {});
 
     let authUser;
     try {
@@ -398,6 +455,86 @@ exports.deleteMyAccount = onCall(async (request) => {
 
   console.log('[deleteMyAccount] 완료:', uid, user?.role ?? 'unknown');
   return { deleted: true };
+});
+
+// ─────────────────────────────────────────────
+// 6-1. PT 세션 상태 변경 (완료 · 완료 취소 · 예약 취소)
+//    잔여 횟수와 변경 기록은 서버에서만 바꾼다. 같은 상태로 다시 부르면 아무 일도 없다 (재시도 안전).
+// ─────────────────────────────────────────────
+
+exports.setPtSessionStatus = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw userFacingError('unauthenticated', '로그인이 필요합니다.');
+  const sessionId = request.data?.sessionId;
+  const nextStatus = request.data?.status;
+  if (typeof sessionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) {
+    throw userFacingError('invalid-argument', '세션 정보가 올바르지 않습니다.');
+  }
+  if (!ptSessions.STATUSES.includes(nextStatus)) {
+    throw userFacingError('invalid-argument', '알 수 없는 세션 상태입니다.');
+  }
+
+  const callerSnap = await db.collection('users').doc(uid).get();
+  const caller = callerSnap.data();
+  const sessionRef = db.collection('pt_sessions').doc(sessionId);
+
+  try {
+    return await db.runTransaction(async (tx) => {
+      const sessionSnap = await tx.get(sessionRef);
+      if (!sessionSnap.exists) throw new ptSessions.PtStatusRefused('not-found', 'PT 일정을 찾을 수 없습니다.');
+      const session = sessionSnap.data();
+      const memberSnap = await tx.get(db.collection('users').doc(session.memberId));
+      if (!ptSessions.canChangeSession({ caller, callerUid: uid, session, member: memberSnap.data() })) {
+        throw new ptSessions.PtStatusRefused('permission-denied', '이 PT 일정을 바꿀 권한이 없습니다.');
+      }
+
+      const ptQuery = await tx.get(
+        db.collection('pt_infos')
+          .where('centerId', '==', session.centerId)
+          .where('memberId', '==', session.memberId)
+          .limit(1),
+      );
+      const ptDoc = ptQuery.docs[0];
+      const plan = ptSessions.planStatusChange({
+        session,
+        ptInfo: ptDoc?.data(),
+        nextStatus,
+      });
+      if (!plan.changed) return { changed: false };
+
+      tx.update(sessionRef, { status: nextStatus, updatedAt: FieldValue.serverTimestamp() });
+      if (plan.remaining && ptDoc) {
+        const pt = ptDoc.data();
+        tx.update(ptDoc.ref, {
+          remainingSessions: plan.remaining.next,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        const logRef = db.collection('pt_info_logs').doc();
+        tx.set(logRef, {
+          id: logRef.id,
+          ptInfoId: ptDoc.id,
+          centerId: session.centerId,
+          memberId: session.memberId,
+          memberName: pt.memberName ?? session.memberName ?? '',
+          changedById: uid,
+          changedByName: caller?.name ?? '',
+          type: plan.logType,
+          previousTotalSessions: plan.remaining.total,
+          nextTotalSessions: plan.remaining.total,
+          previousRemainingSessions: plan.remaining.previous,
+          nextRemainingSessions: plan.remaining.next,
+          ptSessionId: sessionId,
+          note: null,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+      return { changed: true, remainingSessions: plan.remaining?.next ?? null };
+    });
+  } catch (e) {
+    if (e instanceof ptSessions.PtStatusRefused) throw userFacingError(e.code, e.message);
+    console.error('[setPtSessionStatus] 실패:', sessionId, e?.code ?? e?.message);
+    throw userFacingError('internal', 'PT 일정 상태를 바꾸지 못했습니다. 잠시 후 다시 시도해주세요.');
+  }
 });
 
 // ─────────────────────────────────────────────
