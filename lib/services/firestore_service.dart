@@ -104,12 +104,6 @@ class FirestoreService {
     return all.where((c) => c.name.toLowerCase().contains(q)).toList();
   }
 
-  static Future<void> createCenter(center_model.Center center) async {
-    _validateCenter(center);
-
-    await _db.collection('centers').doc(center.id).set(center.toMap());
-  }
-
   // ---------- Join Requests ----------
 
   static Future<void> createJoinRequest(JoinRequest req) async {
@@ -715,19 +709,6 @@ class FirestoreService {
     );
   }
 
-  static Future<void> createAdmin({
-    required AppUser admin,
-    required center_model.Center center,
-  }) async {
-    _validateUser(admin);
-    _validateCenter(center);
-
-    final batch = _db.batch();
-    batch.set(_db.collection('users').doc(admin.uid), admin.toMap());
-    batch.set(_db.collection('centers').doc(center.id), center.toMap());
-    await batch.commit();
-  }
-
   // ---------- Admin Dashboard ----------
 
   static Future<AdminStats> getAdminStats(String centerId) async {
@@ -866,13 +847,6 @@ class FirestoreService {
     ServiceValidator.requireText(user.name, '이름');
     ServiceValidator.requireText(user.centerId, '센터 ID');
     ServiceValidator.requireText(user.centerName, '센터 이름');
-  }
-
-  static void _validateCenter(center_model.Center center) {
-    ServiceValidator.requireText(center.id, '센터 ID');
-    ServiceValidator.requireText(center.name, '센터 이름');
-    ServiceValidator.requireText(center.adminId, '관리자 ID');
-    ServiceValidator.requireText(center.status, '센터 상태');
   }
 
   static void _validateJoinRequest(JoinRequest req) {

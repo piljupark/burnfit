@@ -122,6 +122,18 @@ class MemberProfileScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const AppRowDivider(),
+                      AppActionRow(
+                        icon: Icons.restaurant_outlined,
+                        label: '식단 기록',
+                        onTap: () => MemberRoutes.openMealLog(context),
+                      ),
+                      const AppRowDivider(),
+                      AppActionRow(
+                        icon: Icons.chat_bubble_outline_rounded,
+                        label: '트레이너 피드백',
+                        onTap: () => MemberRoutes.openFeedback(context),
+                      ),
                     ],
                   ),
                   const Gap(AppSpacing.lg),
@@ -753,6 +765,8 @@ class _ProfileActionRows extends StatelessWidget {
             onLogout();
           },
         ),
+        const Gap(AppSpacing.lg),
+        const DeleteAccountLink(),
       ],
     );
   }

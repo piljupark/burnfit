@@ -17,16 +17,35 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    // 역할 권한은 승인된(approved) 계정에만 부여한다.
+    // 승인 대기·거절 계정은 isOwner()로 자기 문서만 다룰 수 있다.
+    function hasApprovedRole(role) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        currentUser().role == role &&
+        currentUser().status == 'approved';
+    }
+
     function isAdmin() {
-      return signedIn() && currentUser().role == 'admin';
+      return hasApprovedRole('admin');
     }
 
     function isTrainer() {
-      return signedIn() && currentUser().role == 'trainer';
+      return hasApprovedRole('trainer');
     }
 
     function isMember() {
-      return signedIn() && currentUser().role == 'member';
+      return hasApprovedRole('member');
+    }
+
+    function centerDoc(centerId) {
+      return get(/databases/$(database)/documents/centers/$(centerId));
+    }
+
+    function isActiveCenter(centerId) {
+      return centerId is string &&
+        exists(/databases/$(database)/documents/centers/$(centerId)) &&
+        centerDoc(centerId).data.status == 'active';
     }
 
     function sameCenter(centerId) {
@@ -427,11 +446,18 @@ service cloud.firestore {
       ]);
     }
 
+    // 트레이너는 세션 완료/완료 취소에 따라 잔여 횟수를 1회씩만 바꿀 수 있다.
     function canUpdatePtRemaining() {
+      let next = request.resource.data.remainingSessions;
+      let prev = resource.data.remainingSessions;
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'remainingSessions',
         'updatedAt'
-      ]);
+      ]) &&
+      next is int &&
+      (next == prev - 1 || next == prev + 1) &&
+      next >= 0 &&
+      next <= resource.data.totalSessions;
     }
 
     function canUpdatePtSessionSchedule() {
@@ -492,18 +518,21 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
+      // 클라이언트 가입은 회원/트레이너의 '승인 대기' 계정만 가능하다.
+      // 관리자 계정과 센터는 서버 함수(registerCenterAdmin)만 만든다.
       allow create: if isOwner(uid) &&
         request.resource.data.uid == uid &&
-        (
-          (
-            request.resource.data.role in ['member', 'trainer'] &&
-            request.resource.data.status == 'pending'
-          ) ||
-          (
-            request.resource.data.role == 'admin' &&
-            request.resource.data.status == 'approved'
-          )
-        );
+        request.resource.data.role in ['member', 'trainer'] &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.email is string &&
+        request.auth.token.email is string &&
+        request.resource.data.email.lower() == request.auth.token.email.lower() &&
+        isActiveCenter(request.resource.data.centerId) &&
+        request.resource.data.centerName == centerDoc(request.resource.data.centerId).data.name &&
+        request.resource.data.get('trainerId', null) == null &&
+        request.resource.data.get('trainerName', null) == null &&
+        hasValidUserProfile() &&
+        hasValidShareSettings();
 
       allow get: if isOwner(uid) ||
         isCenterAdmin(resource.data.centerId) ||
@@ -544,8 +573,8 @@ service cloud.firestore {
 
     match /centers/{centerId} {
       allow read: if resource.data.status == 'active' || signedIn();
-      allow create: if signedIn() &&
-        request.resource.data.adminId == request.auth.uid;
+      // 센터 생성은 관리자 설정 코드를 검증하는 서버 함수만 한다.
+      allow create: if false;
       allow update, delete: if isCenterAdmin(centerId);
     }
 
@@ -555,7 +584,10 @@ service cloud.firestore {
         request.resource.data.id == requestId &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.role in ['member', 'trainer'] &&
-        request.resource.data.status == 'pending';
+        request.resource.data.status == 'pending' &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        request.resource.data.centerId == currentUser().centerId &&
+        request.resource.data.role == currentUser().role;
       allow read: if signedIn() &&
         (
           resource.data.userId == request.auth.uid ||

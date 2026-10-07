@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
@@ -16,6 +17,13 @@ class AppFeedback {
     }
     if (error is TimeoutException) {
       return '응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.';
+    }
+    // 서버 함수가 사용자에게 보여줄 문구를 details.userMessage로 내려준 경우 그대로 쓴다.
+    if (error is FirebaseFunctionsException) {
+      final details = error.details;
+      if (details is Map && details['userMessage'] is String) {
+        return details['userMessage'] as String;
+      }
     }
     if (error is FirebaseException) {
       switch (error.code) {

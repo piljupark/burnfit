@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
 import '../../core/validators.dart';
-import '../../models/center.dart' as center_model;
 import '../../models/user.dart';
-import '../../services/auth_service.dart';
-import '../../services/firestore_service.dart';
+import '../../services/admin_setup_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_screen_header.dart';
@@ -51,71 +49,48 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final cred = await AuthService.signUp(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
-
-      const uuid = Uuid();
-      final centerId = uuid.v4();
-      final now = DateTime.now();
-
-      final center = center_model.Center(
-        id: centerId,
-        name: _centerNameController.text.trim(),
-        address: _centerAddressController.text.trim().isEmpty
-            ? null
-            : _centerAddressController.text.trim(),
-        adminId: cred.user!.uid,
-        status: 'active',
-        createdAt: now,
-      );
-
-      final admin = AppUser(
-        uid: cred.user!.uid,
-        email: _emailController.text.trim(),
+      final address = _centerAddressController.text.trim();
+      await AdminSetupService.registerCenterAdmin(
         name: _nameController.text.trim(),
-        role: UserRole.admin,
-        status: UserStatus.approved,
-        centerId: centerId,
-        centerName: center.name,
-        createdAt: now,
-        updatedAt: now,
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        centerName: _centerNameController.text.trim(),
+        centerAddress: address.isEmpty ? null : address,
+        setupCode: _codeController.text.trim(),
       );
-
-      await FirestoreService.createAdmin(admin: admin, center: center);
-
       if (!mounted) return;
-      context.read<UserProvider>().setUser(admin);
-      Navigator.of(context).pushReplacementNamed(AppRoutes.adminHome);
-    } on Exception {
+
+      final userProvider = context.read<UserProvider>();
+      await userProvider.loadUser();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '가입 중 오류가 발생했습니다. 다시 시도해주세요.',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textOnAccent,
-            ),
-          ),
-          backgroundColor: AppColors.destructive,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.xs),
-          ),
-          margin: const EdgeInsets.fromLTRB(
-            AppSpacing.screenH,
-            0,
-            AppSpacing.screenH,
-            AppSpacing.md,
-          ),
-        ),
+
+      if (userProvider.user?.role != UserRole.admin) {
+        // 서버 문서가 아직 보이지 않는 등 예외 상황: 로그인부터 다시 시작한다.
+        await userProvider.signOut();
+        if (!mounted) return;
+        _returnToLogin('가입이 완료되었습니다. 로그인해주세요.');
+        return;
+      }
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.adminHome,
+        (_) => false,
       );
+    } on AdminRegisteredButSignInFailed {
+      if (!mounted) return;
+      _returnToLogin('가입이 완료되었습니다. 로그인해주세요.');
+    } on Exception catch (e) {
+      if (!mounted) return;
+      AppFeedback.showErrorSnackBar(context, e);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _returnToLogin(String message) {
+    AppFeedback.showSuccessSnackBar(context, message);
+    Navigator.of(context).pop();
   }
 
   @override
@@ -184,10 +159,13 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '비밀번호',
-                        hint: '비밀번호를 입력해주세요',
+                        hint: '8자 이상 입력해주세요',
                         controller: _passwordController,
                         obscureText: true,
-                        validator: Validators.password,
+                        validator: (v) => Validators.password(
+                          v,
+                          minLength: AdminSetupService.passwordMinLength,
+                        ),
                         textInputAction: TextInputAction.next,
                         fillColor: AppColors.card,
                         showEnabledBorder: true,
@@ -198,10 +176,8 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                         label: '설정 코드',
                         hint: '관리자 설정 코드를 입력해주세요',
                         controller: _codeController,
-                        validator: (v) => Validators.adminCode(
-                          v,
-                          AppConstants.adminSetupCode,
-                        ),
+                        obscureText: true,
+                        validator: (v) => Validators.required(v, '설정 코드'),
                         textInputAction: TextInputAction.next,
                         fillColor: AppColors.card,
                         showEnabledBorder: true,

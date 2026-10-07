@@ -1,7 +1,11 @@
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const adminSetup = require('./admin_setup');
 
 initializeApp();
 
@@ -207,5 +211,104 @@ exports.onPtInfoUpdated = onDocumentUpdated(
       sendNotification(memberTarget, 'PT 잔여 횟수 알림', message, data),
       sendNotification(trainerTarget, `${after.memberName}님 PT 잔여 횟수 알림`, message, data),
     ]);
+  },
+);
+
+// ─────────────────────────────────────────────
+// 5. 센터 관리자 가입 (callable)
+//    설정 코드는 Secret Manager에만 두고 서버에서 검증한다.
+//    관리자 계정·센터 문서는 이 함수만 만들 수 있다 (firestore.rules 참고).
+// ─────────────────────────────────────────────
+
+const ADMIN_SETUP_CODE = defineSecret('ADMIN_SETUP_CODE');
+
+function userFacingError(code, message) {
+  return new HttpsError(code, message, { userMessage: message });
+}
+
+async function assertNotThrottled(throttleRef) {
+  const snap = await throttleRef.get();
+  if (adminSetup.isThrottled(snap.data(), Date.now())) {
+    throw userFacingError('resource-exhausted', '시도 횟수를 초과했습니다. 1시간 후 다시 시도해주세요.');
+  }
+}
+
+async function recordFailure(throttleRef) {
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(throttleRef);
+    tx.set(throttleRef, adminSetup.nextFailureRecord(snap.data(), Date.now()));
+  });
+}
+
+exports.registerCenterAdmin = onCall(
+  { secrets: [ADMIN_SETUP_CODE] },
+  async (request) => {
+    let input;
+    try {
+      input = adminSetup.parseAdminSetupInput(request.data);
+    } catch (e) {
+      if (e instanceof adminSetup.InputError) throw userFacingError('invalid-argument', e.message);
+      throw e;
+    }
+
+    const throttleRef = db
+      .collection('security_throttles')
+      .doc(adminSetup.throttleKey(request.rawRequest?.ip));
+    await assertNotThrottled(throttleRef);
+
+    if (!adminSetup.setupCodeMatches(input.setupCode, ADMIN_SETUP_CODE.value())) {
+      await recordFailure(throttleRef);
+      throw userFacingError('permission-denied', '설정 코드가 올바르지 않습니다.');
+    }
+
+    let authUser;
+    try {
+      authUser = await getAuth().createUser({
+        email: input.email,
+        password: input.password,
+        displayName: input.name,
+      });
+    } catch (e) {
+      if (e?.code === 'auth/email-already-exists') {
+        throw userFacingError('already-exists', '이미 가입된 이메일입니다.');
+      }
+      if (e?.code === 'auth/invalid-password') {
+        throw userFacingError('invalid-argument', '비밀번호 형식이 올바르지 않습니다.');
+      }
+      console.error('[registerCenterAdmin] 계정 생성 실패:', e?.code);
+      throw new HttpsError('internal', 'account-creation-failed');
+    }
+
+    const centerRef = db.collection('centers').doc();
+    const now = FieldValue.serverTimestamp();
+    try {
+      const batch = db.batch();
+      batch.create(centerRef, adminSetup.buildCenterDoc({
+        centerId: centerRef.id,
+        adminId: authUser.uid,
+        centerName: input.centerName,
+        centerAddress: input.centerAddress,
+        now,
+      }));
+      batch.create(db.collection('users').doc(authUser.uid), adminSetup.buildAdminUserDoc({
+        uid: authUser.uid,
+        email: input.email,
+        name: input.name,
+        centerId: centerRef.id,
+        centerName: input.centerName,
+        now,
+      }));
+      batch.delete(throttleRef);
+      await batch.commit();
+    } catch (e) {
+      // 문서 생성에 실패하면 고아 계정이 남지 않도록 인증 계정도 되돌린다.
+      await getAuth().deleteUser(authUser.uid).catch((rollbackError) => {
+        console.error('[registerCenterAdmin] 롤백 실패:', authUser.uid, rollbackError?.code);
+      });
+      console.error('[registerCenterAdmin] 문서 생성 실패:', e?.code);
+      throw new HttpsError('internal', 'center-creation-failed');
+    }
+
+    return { uid: authUser.uid, centerId: centerRef.id };
   },
 );

@@ -8,9 +8,9 @@ class Validators {
     return null;
   }
 
-  static String? password(String? value) {
+  static String? password(String? value, {int minLength = 6}) {
     if (value == null || value.isEmpty) return '비밀번호를 입력해주세요.';
-    if (value.length < 6) return '비밀번호는 6자 이상이어야 합니다.';
+    if (value.length < minLength) return '비밀번호는 $minLength자 이상이어야 합니다.';
     return null;
   }
 
@@ -29,12 +29,6 @@ class Validators {
     if (value == null || value.trim().isEmpty) return '$fieldName을(를) 입력해주세요.';
     final n = double.tryParse(value.trim());
     if (n == null || n <= 0) return '올바른 $fieldName을(를) 입력해주세요.';
-    return null;
-  }
-
-  static String? adminCode(String? value, String correct) {
-    if (value == null || value.trim().isEmpty) return '설정 코드를 입력해주세요.';
-    if (value.trim() != correct) return '설정 코드가 올바르지 않습니다.';
     return null;
   }
 }

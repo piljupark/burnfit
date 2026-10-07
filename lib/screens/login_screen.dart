@@ -15,6 +15,7 @@ import '../services/firestore_service.dart';
 import '../services/user_provider.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/password_reset_sheet.dart';
 import 'member/member_register_screen.dart';
 import 'trainer/trainer_register_screen.dart';
 import 'admin/admin_register_screen.dart';

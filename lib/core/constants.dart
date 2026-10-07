@@ -1,8 +1,6 @@
 class AppConstants {
   AppConstants._();
 
-  static const String adminSetupCode = 'FITNESSCENTER2026';
-
   static const int imageMaxWidth = 1080;
   static const int imageMaxHeight = 1080;
   static const int imageQuality = 75;
