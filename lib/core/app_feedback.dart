@@ -27,6 +27,18 @@ class AppFeedback {
     }
     if (error is FirebaseException) {
       switch (error.code) {
+        // firebase_auth
+        case 'wrong-password':
+        case 'invalid-credential':
+          return '비밀번호가 올바르지 않습니다.';
+        case 'invalid-email':
+          return '이메일 형식이 올바르지 않습니다.';
+        case 'too-many-requests':
+          return '시도가 너무 많습니다. 잠시 후 다시 시도해주세요.';
+        case 'network-request-failed':
+          return '네트워크 연결을 확인해주세요.';
+        case 'requires-recent-login':
+          return '보안을 위해 다시 로그인해주세요.';
         case 'unavailable':
         case 'deadline-exceeded':
           return '네트워크 연결이 불안정합니다. 잠시 후 다시 시도해주세요.';

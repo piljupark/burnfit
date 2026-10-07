@@ -21,6 +21,7 @@ import 'edit_profile_sheet.dart';
 import 'member_pt_workout_screen.dart';
 import 'member_share_settings_screen.dart';
 import 'member_workout_stats_screen.dart';
+import 'member_routes.dart';
 
 class MemberProfileScreen extends StatelessWidget {
   const MemberProfileScreen({super.key});

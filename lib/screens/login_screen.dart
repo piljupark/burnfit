@@ -254,7 +254,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   showEnabledBorder: true,
                   labelAbove: true,
                 ).animate().fadeIn(delay: 240.ms, duration: 400.ms),
-                const Gap(AppSpacing.xl),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => showPasswordResetSheet(
+                      context,
+                      initialEmail: _emailController.text,
+                    ),
+                    child: Text(
+                      '비밀번호를 잊으셨나요?',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+                const Gap(AppSpacing.sm),
 
                 // 로그인 버튼
                 AppButton(

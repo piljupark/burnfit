@@ -21,10 +21,10 @@ class MemberPtScheduleScreen extends StatefulWidget {
   const MemberPtScheduleScreen({super.key, this.showBackButton = true});
 
   @override
-  State<MemberPtScheduleScreen> createState() => _MemberPtScheduleScreenState();
+  State<MemberPtScheduleScreen> createState() => MemberPtScheduleScreenState();
 }
 
-class _MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
+class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
   PtInfo? _ptInfo;
   List<PtSession> _sessions = [];
   bool _isLoading = false;
@@ -35,6 +35,9 @@ class _MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
     super.initState();
     _load();
   }
+
+  /// 알림 등으로 탭에 들어올 때 최신 일정을 다시 불러온다.
+  void refresh() => _load();
 
   Future<void> _load() async {
     final user = context.read<UserProvider>().user;

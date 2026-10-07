@@ -22,6 +22,7 @@ import 'admin_dashboard_screen.dart';
 import 'admin_member_list_screen.dart';
 import 'admin_requests_screen.dart';
 import 'admin_trainer_list_screen.dart';
+import 'admin_withdrawn_members_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});

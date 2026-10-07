@@ -7,6 +7,8 @@ import '../../core/app_colors.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
+import '../../services/fcm_service.dart';
+import '../../services/notification_target.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_nav_bar.dart';
@@ -24,6 +26,9 @@ class TrainerHomeScreen extends StatefulWidget {
 class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
   int _currentIndex = 0;
   final _calendarKey = GlobalKey<TrainerCalendarScreenState>();
+  final _scheduleKey = GlobalKey<TrainerScheduleScreenState>();
+
+  static const _scheduleTab = 1;
 
   static const _navItems = [
     AppNavItem(
@@ -50,9 +55,31 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
     super.initState();
     _pages = [
       TrainerCalendarScreen(key: _calendarKey, showGreeting: true),
-      const TrainerScheduleScreen(),
+      TrainerScheduleScreen(key: _scheduleKey),
       const _TrainerProfileTab(),
     ];
+    FcmService.pendingTarget.addListener(_handleNotificationTarget);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleNotificationTarget());
+  }
+
+  @override
+  void dispose() {
+    FcmService.pendingTarget.removeListener(_handleNotificationTarget);
+    super.dispose();
+  }
+
+  void _handleNotificationTarget() {
+    if (!mounted || FcmService.pendingTarget.value == null) return;
+    switch (FcmService.takePendingTarget()) {
+      case NotificationTarget.ptSchedule:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        setState(() => _currentIndex = _scheduleTab);
+        _scheduleKey.currentState?.refresh();
+      // 트레이너에게는 피드백 알림이 오지 않는다.
+      case NotificationTarget.feedback:
+      case null:
+        break;
+    }
   }
 
   @override

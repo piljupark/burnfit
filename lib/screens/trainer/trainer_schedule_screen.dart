@@ -23,10 +23,10 @@ class TrainerScheduleScreen extends StatefulWidget {
   const TrainerScheduleScreen({super.key});
 
   @override
-  State<TrainerScheduleScreen> createState() => _TrainerScheduleScreenState();
+  State<TrainerScheduleScreen> createState() => TrainerScheduleScreenState();
 }
 
-class _TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
+class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
   List<PtSession> _sessions = [];
@@ -41,6 +41,9 @@ class _TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
     super.initState();
     _loadSessions();
   }
+
+  /// 알림 등으로 탭에 들어올 때 최신 일정을 다시 불러온다.
+  void refresh() => _loadSessions();
 
   Future<void> _loadSessions() async {
     final user = context.read<UserProvider>().user;

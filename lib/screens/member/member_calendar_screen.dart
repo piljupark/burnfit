@@ -19,6 +19,8 @@ import '../../widgets/app_card.dart';
 import '../../widgets/app_icon_box.dart';
 import 'package:iconsax/iconsax.dart';
 
+import 'member_routes.dart';
+
 class MemberCalendarScreen extends StatefulWidget {
   final bool showGreeting;
 
@@ -35,6 +37,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
   List<PtSession> _ptSessions = [];
   List<Meal> _meals = [];
   List<fb.Feedback> _feedbacks = [];
+  int _unreadFeedbackCount = 0;
   bool _isLoading = false;
   String? _errorMessage;
   int _monthLoadId = 0;
@@ -96,10 +99,12 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
       ]).timeout(const Duration(seconds: 12));
 
       if (!mounted || loadId != _monthLoadId) return;
+      final allFeedbacks = results[2] as List<fb.Feedback>;
       setState(() {
         _workouts = results[0] as List<Workout>;
         _meals = results[1] as List<Meal>;
-        _feedbacks = (results[2] as List<fb.Feedback>).where((item) {
+        _unreadFeedbackCount = allFeedbacks.where((item) => !item.isRead).length;
+        _feedbacks = allFeedbacks.where((item) {
           final targetDate = item.targetDate;
           return targetDate != null &&
               targetDate.compareTo(startKey) >= 0 &&
@@ -150,6 +155,17 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
     return _feedbacks.where((item) => item.targetDate == key).toList();
   }
 
+  // 하위 화면에서 기록을 바꾸거나 피드백을 읽을 수 있으므로 돌아오면 다시 불러온다.
+  Future<void> _openMealLog({DateTime? date}) async {
+    await MemberRoutes.openMealLog(context, date: date);
+    if (mounted) _loadMonth();
+  }
+
+  Future<void> _openFeedback() async {
+    await MemberRoutes.openFeedback(context);
+    if (mounted) _loadMonth();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -176,6 +192,12 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
                       else
                         Text('캘린더', style: AppTextStyles.h1),
                       const Gap(16),
+                      _RecordShortcuts(
+                        unreadFeedbackCount: _unreadFeedbackCount,
+                        onMealTap: () => _openMealLog(),
+                        onFeedbackTap: _openFeedback,
+                      ),
+                      const Gap(20),
                       _MonthHeader(
                         month: _focusedMonth,
                         onPrev: () => _moveMonth(-1),
@@ -214,6 +236,8 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
                           ptReservations: _selectedPtReservations,
                           meals: _selectedMeals,
                           feedbacks: _selectedFeedbacks,
+                          onMealTap: () => _openMealLog(date: _selectedDay),
+                          onFeedbackTap: _openFeedback,
                         ),
                       const Gap(120),
                     ],
@@ -460,12 +484,16 @@ class _DayRecords extends StatelessWidget {
   final List<PtSession> ptReservations;
   final List<Meal> meals;
   final List<fb.Feedback> feedbacks;
+  final VoidCallback onMealTap;
+  final VoidCallback onFeedbackTap;
 
   const _DayRecords({
     required this.workouts,
     required this.ptReservations,
     required this.meals,
     required this.feedbacks,
+    required this.onMealTap,
+    required this.onFeedbackTap,
   });
 
   @override
@@ -500,11 +528,11 @@ class _DayRecords extends StatelessWidget {
           const Gap(12),
         ],
         for (final meal in meals) ...[
-          _MealRecordCard(meal: meal),
+          _MealRecordCard(meal: meal, onTap: onMealTap),
           const Gap(12),
         ],
         for (final feedback in feedbacks) ...[
-          _FeedbackRecordCard(feedback: feedback),
+          _FeedbackRecordCard(feedback: feedback, onTap: onFeedbackTap),
           const Gap(12),
         ],
       ],
@@ -557,8 +585,9 @@ class _PtReservationRecordCard extends StatelessWidget {
 
 class _MealRecordCard extends StatelessWidget {
   final Meal meal;
+  final VoidCallback onTap;
 
-  const _MealRecordCard({required this.meal});
+  const _MealRecordCard({required this.meal, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -572,6 +601,7 @@ class _MealRecordCard extends StatelessWidget {
       color: AppColors.diet,
       title: meal.mealType.label,
       detail: detail.isNotEmpty ? detail : '메모 없음',
+      onTap: onTap,
     );
   }
 }
@@ -581,17 +611,19 @@ class _RecordCard extends StatelessWidget {
   final Color color;
   final String title;
   final String detail;
+  final VoidCallback? onTap;
 
   const _RecordCard({
     required this.icon,
     required this.color,
     required this.title,
     required this.detail,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.fromLTRB(AppSpacing.base, AppSpacing.md, AppSpacing.base, AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -626,20 +658,23 @@ class _RecordCard extends StatelessWidget {
               ],
             ),
           ),
+          if (onTap != null) const _Chevron(),
         ],
       ),
     );
+    return _tappable(card, onTap);
   }
 }
 
 class _FeedbackRecordCard extends StatelessWidget {
   final fb.Feedback feedback;
+  final VoidCallback onTap;
 
-  const _FeedbackRecordCard({required this.feedback});
+  const _FeedbackRecordCard({required this.feedback, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.fromLTRB(AppSpacing.base, AppSpacing.md, AppSpacing.base, AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -688,7 +723,149 @@ class _FeedbackRecordCard extends StatelessWidget {
               ],
             ),
           ),
+          const _Chevron(),
         ],
+      ),
+    );
+    return _tappable(card, onTap);
+  }
+}
+
+Widget _tappable(Widget child, VoidCallback? onTap) {
+  if (onTap == null) return child;
+  return GestureDetector(
+    onTap: onTap,
+    behavior: HitTestBehavior.opaque,
+    child: child,
+  );
+}
+
+class _Chevron extends StatelessWidget {
+  const _Chevron();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(left: AppSpacing.sm),
+      child: Icon(Iconsax.arrow_right_3, size: 16, color: AppColors.textTertiary),
+    );
+  }
+}
+
+/// 홈에서 식단 기록·트레이너 피드백으로 바로 가는 버튼 묶음.
+class _RecordShortcuts extends StatelessWidget {
+  final int unreadFeedbackCount;
+  final VoidCallback onMealTap;
+  final VoidCallback onFeedbackTap;
+
+  const _RecordShortcuts({
+    required this.unreadFeedbackCount,
+    required this.onMealTap,
+    required this.onFeedbackTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ShortcutTile(
+            icon: Iconsax.cup,
+            color: AppColors.diet,
+            label: '식단 기록',
+            onTap: onMealTap,
+          ),
+        ),
+        const Gap(AppSpacing.sm),
+        Expanded(
+          child: _ShortcutTile(
+            icon: Iconsax.message_text_1,
+            color: AppColors.trainer,
+            label: '트레이너 피드백',
+            badgeCount: unreadFeedbackCount,
+            onTap: onFeedbackTap,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ShortcutTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final int badgeCount;
+  final VoidCallback onTap;
+
+  const _ShortcutTile({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.onTap,
+    this.badgeCount = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final semanticLabel = badgeCount > 0 ? '$label, 새 피드백 $badgeCount개' : label;
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      excludeSemantics: true,
+      child: AppCard(
+        onTap: onTap,
+        hasShadow: true,
+        hasBorder: false,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            AppIconBox(icon: icon, color: color, size: 36),
+            const Gap(AppSpacing.sm),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.label.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (badgeCount > 0) _CountBadge(count: badgeCount),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  final int count;
+
+  const _CountBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 20),
+      height: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.destructive,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: AppTextStyles.captionSmall.copyWith(
+          color: AppColors.textOnAccent,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_logger.dart';
 import '../core/service_validator.dart';
+import 'notification_target.dart';
 
 // 백그라운드 메시지 핸들러 — 반드시 top-level 함수여야 함
 @pragma('vm:entry-point')
@@ -23,6 +24,23 @@ class FcmService {
   static GlobalKey<ScaffoldMessengerState>? _messengerKey;
   static StreamSubscription<String>? _tokenRefreshSub;
 
+  /// 사용자가 누른 알림이 가리키는 화면. 역할별 홈 화면이 읽고 [takePendingTarget]으로 비운다.
+  /// 앱이 꺼진 상태에서 알림으로 열린 경우 로그인·스플래시가 끝날 때까지 여기 보관된다.
+  static final ValueNotifier<NotificationTarget?> pendingTarget = ValueNotifier(null);
+
+  static NotificationTarget? takePendingTarget() {
+    final target = pendingTarget.value;
+    pendingTarget.value = null;
+    return target;
+  }
+
+  static void clearPendingTarget() => pendingTarget.value = null;
+
+  static void _openFromMessage(RemoteMessage message) {
+    final target = NotificationTarget.fromData(message.data);
+    if (target != null) pendingTarget.value = target;
+  }
+
   // ── 초기화 (앱 시작 시 1회 호출) ──
 
   static Future<void> initialize({
@@ -32,6 +50,11 @@ class FcmService {
 
     // 백그라운드 핸들러 등록
     FirebaseMessaging.onBackgroundMessage(_onBackgroundMessage);
+
+    // 알림을 눌러 앱이 열린 경우 (백그라운드 → 포그라운드, 종료 상태 → 실행)
+    FirebaseMessaging.onMessageOpenedApp.listen(_openFromMessage);
+    final initialMessage = await _messaging.getInitialMessage();
+    if (initialMessage != null) _openFromMessage(initialMessage);
 
     // iOS 알림 권한 요청
     final settings = await _messaging.requestPermission(
@@ -65,6 +88,7 @@ class FcmService {
     final body = notification?.body ?? '';
     final messenger = _messengerKey?.currentState;
     if (messenger == null) return;
+    final target = NotificationTarget.fromData(message.data);
 
     messenger
       ..hideCurrentSnackBar()
@@ -80,6 +104,12 @@ class FcmService {
               if (body.isNotEmpty) ...[const SizedBox(height: 2), Text(body)],
             ],
           ),
+          action: target == null
+              ? null
+              : SnackBarAction(
+                  label: '보기',
+                  onPressed: () => pendingTarget.value = target,
+                ),
         ),
       );
   }

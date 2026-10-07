@@ -53,6 +53,7 @@ class UserProvider extends ChangeNotifier {
 
   Future<void> signOut() async {
     final uid = _user?.uid;
+    FcmService.clearPendingTarget();
     if (uid != null) await FcmService.removeToken(uid);
     await AuthService.signOut();
     _user = null;
@@ -60,6 +61,7 @@ class UserProvider extends ChangeNotifier {
   }
 
   void clear() {
+    FcmService.clearPendingTarget();
     _user = null;
     notifyListeners();
   }

@@ -14,14 +14,17 @@ import '../../widgets/app_section.dart';
 import 'meal_input_sheet.dart';
 
 class MemberMealLogScreen extends StatefulWidget {
-  const MemberMealLogScreen({super.key});
+  /// 처음 보여줄 날짜. 없으면 오늘.
+  final DateTime? initialDate;
+
+  const MemberMealLogScreen({super.key, this.initialDate});
 
   @override
   State<MemberMealLogScreen> createState() => _MemberMealLogScreenState();
 }
 
 class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate = widget.initialDate ?? DateTime.now();
   List<Meal> _meals = [];
   bool _isLoading = false;
   int _filterIndex = 0;
