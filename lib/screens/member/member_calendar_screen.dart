@@ -17,6 +17,7 @@ import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_icon_box.dart';
+import '../../widgets/notification_bell_button.dart';
 import 'package:iconsax/iconsax.dart';
 
 import 'member_routes.dart';
@@ -892,18 +893,7 @@ class _GreetingHeader extends StatelessWidget {
             style: AppTextStyles.h1,
           ),
         ),
-        GestureDetector(
-          onTap: () {},
-          behavior: HitTestBehavior.opaque,
-          child: const Padding(
-            padding: EdgeInsets.only(left: AppSpacing.sm),
-            child: Icon(
-              Iconsax.notification,
-              size: 24,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ),
+        const NotificationBellButton(),
       ],
     );
   }

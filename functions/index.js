@@ -4,12 +4,13 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { getStorage } = require('firebase-admin/storage');
 const adminSetup = require('./admin_setup');
 const accountDeletion = require('./account_deletion');
 const retentionStore = require('./retention_store');
+const inbox = require('./notifications');
 
 initializeApp();
 
@@ -30,13 +31,6 @@ function timestampMillis(timestamp) {
   return timestamp?.toMillis ? timestamp.toMillis() : null;
 }
 
-// ── 헬퍼: FCM 토큰 조회 ──
-
-async function getToken(uid) {
-  const doc = await db.collection('users').doc(uid).get();
-  return { uid, token: doc.data()?.fcmToken ?? null };
-}
-
 // ── 헬퍼: FCM 단건 발송 ──
 
 function isInvalidTokenError(error) {
@@ -52,6 +46,23 @@ async function clearToken(uid) {
     fcmToken: null,
     fcmTokenUpdatedAt: null,
   });
+}
+
+// 알림함에 남기고 푸시를 보낸다. 사용자 문서가 없으면(탈퇴 등) 아무것도 하지 않는다.
+// 푸시가 꺼져 있거나 토큰이 없어도 알림함에는 남는다.
+async function notifyUser(uid, title, body, data) {
+  if (!uid) return;
+  const userRef = db.collection('users').doc(uid);
+  const snap = await userRef.get();
+  if (!snap.exists) return;
+
+  await userRef.collection('notifications').add(inbox.buildInboxDoc({
+    title,
+    body,
+    data,
+    createdAt: FieldValue.serverTimestamp(),
+  }));
+  await sendNotification({ uid, token: snap.data().fcmToken ?? null }, title, body, data);
 }
 
 async function sendNotification(target, title, body, data = {}) {
@@ -96,12 +107,10 @@ exports.onPtSessionCreated = onDocumentCreated(
     const session = event.data.data();
     if (!session) return;
 
-    const target = await getToken(session.memberId);
-
     const dateStr = formatSessionTime(session.scheduledAt);
 
-    await sendNotification(
-      target,
+    await notifyUser(
+      session.memberId,
       'PT 일정이 등록됐습니다',
       `${session.trainerName} 트레이너 · ${dateStr} · ${session.durationMinutes}분`,
       { type: 'pt_session_created', sessionId: event.params.sessionId },
@@ -130,13 +139,11 @@ exports.onPtSessionUpdated = onDocumentUpdated(
 
     if (!statusChanged && !scheduleChanged) return;
 
-    const target = await getToken(after.memberId);
-
     const dateStr = formatSessionTime(after.scheduledAt);
 
     if (after.status === 'cancelled') {
-      await sendNotification(
-        target,
+      await notifyUser(
+        after.memberId,
         'PT 일정이 취소됐습니다',
         `${dateStr} 세션이 취소됐습니다.`,
         { type: 'pt_session_cancelled', sessionId: event.params.sessionId },
@@ -145,8 +152,8 @@ exports.onPtSessionUpdated = onDocumentUpdated(
     }
 
     if (after.status === 'scheduled' && scheduleChanged) {
-      await sendNotification(
-        target,
+      await notifyUser(
+        after.memberId,
         'PT 일정이 변경됐습니다',
         `${after.trainerName} 트레이너 · ${dateStr} · ${after.durationMinutes}분`,
         { type: 'pt_session_updated', sessionId: event.params.sessionId },
@@ -165,8 +172,6 @@ exports.onFeedbackCreated = onDocumentCreated(
     const feedback = event.data.data();
     if (!feedback) return;
 
-    const target = await getToken(feedback.memberId);
-
     const targetLabels = {
       meal: '식단',
       workout: '운동',
@@ -177,8 +182,8 @@ exports.onFeedbackCreated = onDocumentCreated(
     const content = typeof feedback.content === 'string' ? feedback.content : '';
     const preview = content.length > 40 ? `${content.slice(0, 40)}...` : content;
 
-    await sendNotification(
-      target,
+    await notifyUser(
+      feedback.memberId,
       `${feedback.trainerName ?? ''} 트레이너가 피드백을 남겼습니다`,
       `${targetLabel} 기록에 새 피드백: ${preview}`,
       { type: 'feedback_created', feedbackId: event.params.feedbackId },
@@ -205,17 +210,12 @@ exports.onPtInfoUpdated = onDocumentUpdated(
     // threshold 아래로 처음 진입했을 때만 발송
     if (!wasAbove || !isBelow) return;
 
-    const [memberTarget, trainerTarget] = await Promise.all([
-      getToken(after.memberId),
-      after.trainerId ? getToken(after.trainerId) : Promise.resolve(null),
-    ]);
-
     const message = `PT 잔여 횟수가 ${after.remainingSessions}회 남았습니다. 갱신을 확인해주세요.`;
     const data = { type: 'pt_remaining_warning', ptInfoId: event.params.ptInfoId };
 
     await Promise.all([
-      sendNotification(memberTarget, 'PT 잔여 횟수 알림', message, data),
-      sendNotification(trainerTarget, `${after.memberName}님 PT 잔여 횟수 알림`, message, data),
+      notifyUser(after.memberId, 'PT 잔여 횟수 알림', message, data),
+      notifyUser(after.trainerId, `${after.memberName}님 PT 잔여 횟수 알림`, message, data),
     ]);
   },
 );
@@ -387,7 +387,8 @@ exports.deleteMyAccount = onCall(async (request) => {
 
   try {
     await executeDeletionPlan(plan, uid, userRef);
-    await userRef.delete();
+    // 사용자 문서와 하위 알림함(notifications)을 함께 지운다.
+    await db.recursiveDelete(userRef);
     await getAuth().deleteUser(uid);
   } catch (e) {
     console.error('[deleteMyAccount] 실패:', uid, e?.code ?? e?.message);
@@ -408,5 +409,21 @@ exports.purgeExpiredRetainedRecords = onSchedule(
   async () => {
     const purged = await retentionStore.purgeExpired(db);
     console.log('[purgeExpiredRetainedRecords] 파기:', purged);
+  },
+);
+
+// ─────────────────────────────────────────────
+// 8. 알림함 정리 (매일 04:30 KST) — 90일 지난 알림 삭제
+// ─────────────────────────────────────────────
+
+exports.purgeOldNotifications = onSchedule(
+  { schedule: 'every day 04:30', timeZone: 'Asia/Seoul' },
+  async () => {
+    const cutoff = Timestamp.fromDate(inbox.inboxCutoff());
+    const purged = await drainQuery(
+      db.collectionGroup('notifications').where('createdAt', '<', cutoff),
+      (writer, ref) => writer.delete(ref),
+    );
+    console.log('[purgeOldNotifications] 삭제:', purged);
   },
 );

@@ -16,6 +16,7 @@ import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_icon_box.dart';
+import '../../widgets/notification_bell_button.dart';
 import 'trainer_member_detail_screen.dart';
 import 'trainer_pt_workout_screen.dart';
 
@@ -267,14 +268,7 @@ class _TrainerGreetingHeader extends StatelessWidget {
             style: AppTextStyles.h1,
           ),
         ),
-        GestureDetector(
-          onTap: () {},
-          behavior: HitTestBehavior.opaque,
-          child: const Padding(
-            padding: EdgeInsets.only(left: AppSpacing.sm),
-            child: Icon(Iconsax.notification, size: 24, color: AppColors.textPrimary),
-          ),
-        ),
+        const NotificationBellButton(),
       ],
     );
   }

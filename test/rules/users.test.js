@@ -8,10 +8,12 @@ const {
 } = require('@firebase/rules-unit-testing');
 const {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   query,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
@@ -305,6 +307,51 @@ describe('users / centers / pt_infos security rules', () => {
       const db = authedDb(adminId);
       await assertFails(setDoc(doc(db, 'retained_pt_records', 'forged'), { centerId }));
       await assertFails(updateDoc(doc(db, recordPath), { memberAlias: 'changed' }));
+    });
+  });
+
+  describe('알림함 (users/{uid}/notifications)', () => {
+    const inboxPath = `users/${memberId}/notifications/n1`;
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), inboxPath), {
+          type: 'feedback_created', title: '제목', body: '내용', targetId: 'f1',
+          createdAt: new Date(), readAt: null,
+        });
+      });
+    });
+
+    it('본인만 읽을 수 있다 (트레이너·관리자도 불가)', async () => {
+      await assertSucceeds(getDoc(doc(authedDb(memberId), inboxPath)));
+      await assertSucceeds(getDocs(collection(authedDb(memberId), `users/${memberId}/notifications`)));
+      await assertFails(getDoc(doc(authedDb(trainerId), inboxPath)));
+      await assertFails(getDoc(doc(authedDb(adminId), inboxPath)));
+    });
+
+    it('본인은 서버 시각으로 읽음 처리만 할 수 있다', async () => {
+      const db = authedDb(memberId);
+      await assertSucceeds(updateDoc(doc(db, inboxPath), { readAt: serverTimestamp() }));
+    });
+
+    it('읽음 시각을 꾸미거나 내용을 바꿀 수 없다', async () => {
+      const db = authedDb(memberId);
+      await assertFails(updateDoc(doc(db, inboxPath), { readAt: new Date(2000, 0, 1) }));
+      await assertFails(updateDoc(doc(db, inboxPath), { title: '바꿈' }));
+    });
+
+    it('앱에서는 알림을 만들 수 없다', async () => {
+      await assertFails(setDoc(doc(authedDb(memberId), `users/${memberId}/notifications/forged`), {
+        type: 'feedback_created', title: '가짜', body: '', readAt: null,
+      }));
+      await assertFails(setDoc(doc(authedDb(adminId), `users/${memberId}/notifications/forged`), {
+        type: 'feedback_created', title: '가짜', body: '', readAt: null,
+      }));
+    });
+
+    it('본인은 지울 수 있고 남은 지울 수 없다', async () => {
+      await assertFails(deleteDoc(doc(authedDb(trainerId), inboxPath)));
+      await assertSucceeds(deleteDoc(doc(authedDb(memberId), inboxPath)));
     });
   });
 

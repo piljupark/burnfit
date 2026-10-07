@@ -228,6 +228,58 @@ describe('deleteMyAccount', () => {
   });
 });
 
+async function waitFor(check, { timeoutMs = 10000, intervalMs = 250 } = {}) {
+  const started = Date.now();
+  for (;;) {
+    const value = await check();
+    if (value) return value;
+    if (Date.now() - started > timeoutMs) return value;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
+const inboxOf = (uid) => db.collection(`users/${uid}/notifications`).get();
+
+describe('알림함 (notifyUser)', () => {
+  beforeEach(clearAll);
+
+  it('PT 일정 등록 알림이 회원 알림함에 읽지 않음으로 쌓인다', async () => {
+    // 트리거는 비동기라 다른 테스트의 늦은 알림과 섞이지 않게 이 테스트만의 회원을 쓴다.
+    const memberId = 'inbox-member';
+    await set(`users/${memberId}`, { uid: memberId, role: 'member', status: 'approved', centerId: 'c1' });
+    await set('pt_sessions/inbox-session', {
+      memberId, trainerId: 't1', trainerName: '김트', centerId: 'c1',
+      status: 'scheduled', durationMinutes: 50, scheduledAt: Timestamp.fromDate(new Date(Date.UTC(2026, 9, 9, 5))),
+    });
+
+    const item = await waitFor(async () => {
+      const s = await inboxOf(memberId);
+      return s.docs.map((d) => d.data()).find((n) => n.targetId === 'inbox-session') ?? null;
+    });
+    assert.ok(item, '알림함에 기록이 생기지 않았다');
+    assert.strictEqual(item.type, 'pt_session_created');
+    assert.strictEqual(item.readAt, null);
+    assert.match(item.body, /김트 트레이너/);
+  });
+
+  it('없는 사용자(탈퇴 등)에게는 알림함을 만들지 않는다', async () => {
+    await set('pt_sessions/s2', { memberId: 'gone', trainerId: 't1', centerId: 'c1', status: 'scheduled' });
+    // 트리거가 끝날 시간을 준 뒤 확인한다.
+    await new Promise((r) => setTimeout(r, 3000));
+    assert.strictEqual((await inboxOf('gone')).size, 0);
+  });
+
+  it('탈퇴하면 알림함도 지운다', async () => {
+    const { uid, idToken } = await signUp('inbox@example.com');
+    await set(`users/${uid}`, { uid, role: 'member', status: 'approved', centerId: 'c1' });
+    await set(`users/${uid}/notifications/n1`, { type: 'feedback_created', title: 't', body: 'b', readAt: null });
+
+    await call('deleteMyAccount', {}, idToken);
+
+    assert.strictEqual((await inboxOf(uid)).size, 0);
+  });
+});
+
 describe('purgeExpired (매일 파기 작업)', () => {
   beforeEach(clearAll);
 
