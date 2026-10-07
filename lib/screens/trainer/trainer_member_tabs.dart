@@ -25,7 +25,7 @@ class TrainerShareBlockedMessage extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
             color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
             border: Border.all(color: AppColors.border, width: 0.5),
           ),
           child: Column(
@@ -111,7 +111,7 @@ class TrainerMealsTab extends StatelessWidget {
                 return Container(
                   decoration: BoxDecoration(
                     color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                     border: Border.all(
                       color: AppColors.border,
                       width: 0.5,
@@ -284,7 +284,7 @@ class TrainerWorkoutsTab extends StatelessWidget {
                 return Container(
                   decoration: BoxDecoration(
                     color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                     border: Border.all(
                       color: AppColors.border,
                       width: 0.5,
@@ -411,7 +411,7 @@ class TrainerCardiosTab extends StatelessWidget {
                 return Container(
                   decoration: BoxDecoration(
                     color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                     border: Border.all(
                       color: AppColors.border,
                       width: 0.5,

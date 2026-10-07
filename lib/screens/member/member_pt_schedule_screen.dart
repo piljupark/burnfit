@@ -110,16 +110,19 @@ class _MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, 0,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      AppScreenHeader(
-                        title: 'PT 일정',
-                        onBack: widget.showBackButton
-                            ? () => Navigator.of(context).pop()
-                            : null,
-                      ),
+                      if (widget.showBackButton)
+                        AppScreenHeader(
+                          title: 'PT 일정',
+                          onBack: () => Navigator.of(context).pop(),
+                        )
+                      else
+                        Text('PT 일정', style: AppTextStyles.h1),
                       const Gap(16),
                       _PtSummaryCard(info: _ptInfo),
                       const Gap(20),
@@ -173,7 +176,7 @@ class _PtSummaryCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         boxShadow: const [
           BoxShadow(
             color: Color(0x08000000),
@@ -380,7 +383,7 @@ class _StatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Text(
         label,

@@ -131,7 +131,7 @@ class _TrainerExercisePickerSheetState
         decoration: const BoxDecoration(
           color: AppColors.card,
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xl),
+            top: Radius.circular(AppRadius.xs),
           ),
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
@@ -179,21 +179,21 @@ class _TrainerExercisePickerSheetState
                           vertical: AppSpacing.itemV,
                         ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                           borderSide: const BorderSide(
                             color: AppColors.border,
                             width: 0.5,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                           borderSide: const BorderSide(
                             color: AppColors.border,
                             width: 0.5,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                           borderSide: const BorderSide(
                             color: AppColors.brand,
                             width: 1,
@@ -247,7 +247,7 @@ class _TrainerExercisePickerSheetState
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.brand,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        borderRadius: BorderRadius.circular(AppRadius.xs),
                       ),
                       child: Text(
                         _addingCustom
@@ -283,7 +283,7 @@ class _TrainerExercisePickerSheetState
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.bg,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                           border: Border.all(
                             color: AppColors.border,
                             width: 0.5,
@@ -398,7 +398,7 @@ class TrainerExerciseMenuSheet extends StatelessWidget {
         decoration: const BoxDecoration(
           color: AppColors.card,
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xl),
+            top: Radius.circular(AppRadius.xs),
           ),
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
@@ -498,7 +498,7 @@ class _MenuTile extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: AppColors.bg,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
           border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Row(

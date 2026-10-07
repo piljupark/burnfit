@@ -301,7 +301,7 @@ class _MetricCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         boxShadow: const [
           BoxShadow(
             color: Color(0x08000000),
@@ -442,7 +442,7 @@ class _InsightCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         boxShadow: const [
           BoxShadow(
             color: Color(0x08000000),
@@ -458,7 +458,7 @@ class _InsightCard extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: AppColors.workout.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
+              borderRadius: BorderRadius.circular(AppRadius.xs),
             ),
             child: Icon(icon, color: AppColors.workout, size: 20),
           ),
@@ -529,7 +529,7 @@ class _VolumeBarChart extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
@@ -690,7 +690,7 @@ class _CategoryDonutChartState extends State<_CategoryDonutChart> {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
@@ -805,7 +805,7 @@ class _CategoryDetailList extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(

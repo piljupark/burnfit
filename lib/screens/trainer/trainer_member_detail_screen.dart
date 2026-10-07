@@ -327,7 +327,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: Row(
                     children: List.generate(tabs.length, (index) {
@@ -345,7 +345,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                               color: selected
                                   ? AppColors.brand
                                   : Colors.transparent,
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              borderRadius: BorderRadius.circular(AppRadius.xs),
                             ),
                             child: Text(
                               tabs[index],
@@ -476,7 +476,7 @@ class _ProfileTabState extends State<_ProfileTab> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         title: const Text('InBody 기록 삭제'),
         content: Text('${item.measurementDate} 기록을 삭제할까요?'),
@@ -661,7 +661,7 @@ class _InbodySection extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
+                borderRadius: BorderRadius.circular(AppRadius.xs),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x0C000000),
@@ -703,7 +703,7 @@ class _InbodySection extends StatelessWidget {
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x0C000000),
@@ -798,7 +798,7 @@ class _InbodyMetric extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -872,7 +872,7 @@ class _MetricTile extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0C000000),
@@ -933,7 +933,7 @@ class _InfoPanel extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0C000000),

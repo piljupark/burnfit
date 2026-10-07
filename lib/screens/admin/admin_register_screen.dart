@@ -101,7 +101,7 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
           backgroundColor: AppColors.destructive,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
           margin: const EdgeInsets.fromLTRB(
             AppSpacing.screenH,
@@ -121,7 +121,7 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.card,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,35 +161,51 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '이름',
+                        hint: '이름을 입력해주세요',
                         controller: _nameController,
                         validator: Validators.name,
                         textInputAction: TextInputAction.next,
+                        fillColor: AppColors.card,
+                        showEnabledBorder: true,
+                        labelAbove: true,
                       ).animate().fadeIn(delay: 50.ms, duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '이메일',
+                        hint: 'example@email.com',
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         validator: Validators.email,
                         textInputAction: TextInputAction.next,
+                        fillColor: AppColors.card,
+                        showEnabledBorder: true,
+                        labelAbove: true,
                       ).animate().fadeIn(delay: 80.ms, duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '비밀번호',
+                        hint: '비밀번호를 입력해주세요',
                         controller: _passwordController,
                         obscureText: true,
                         validator: Validators.password,
                         textInputAction: TextInputAction.next,
+                        fillColor: AppColors.card,
+                        showEnabledBorder: true,
+                        labelAbove: true,
                       ).animate().fadeIn(delay: 110.ms, duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '설정 코드',
+                        hint: '관리자 설정 코드를 입력해주세요',
                         controller: _codeController,
                         validator: (v) => Validators.adminCode(
                           v,
                           AppConstants.adminSetupCode,
                         ),
                         textInputAction: TextInputAction.next,
+                        fillColor: AppColors.card,
+                        showEnabledBorder: true,
+                        labelAbove: true,
                       ).animate().fadeIn(delay: 140.ms, duration: 300.ms),
                       const Gap(AppSpacing.xl),
 
@@ -203,15 +219,23 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '센터 이름',
+                        hint: '센터 이름을 입력해주세요',
                         controller: _centerNameController,
                         validator: (v) => Validators.required(v, '센터 이름'),
                         textInputAction: TextInputAction.next,
+                        fillColor: AppColors.card,
+                        showEnabledBorder: true,
+                        labelAbove: true,
                       ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '주소 (선택)',
+                        hint: '주소를 입력해주세요',
                         controller: _centerAddressController,
                         textInputAction: TextInputAction.done,
+                        fillColor: AppColors.card,
+                        showEnabledBorder: true,
+                        labelAbove: true,
                       ).animate().fadeIn(delay: 230.ms, duration: 300.ms),
                       const Gap(AppSpacing.xl2),
                       AppButton(

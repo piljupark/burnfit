@@ -133,7 +133,7 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.card,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                   border: Border.all(color: AppColors.border, width: 0.5),
                 ),
                 child: Row(
@@ -229,14 +229,14 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                                 Container(
                                   decoration: BoxDecoration(
                                     color: AppColors.card,
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    borderRadius: BorderRadius.circular(AppRadius.xs),
                                     border: Border.all(
                                       color: AppColors.border,
                                       width: 0.5,
                                     ),
                                   ),
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    borderRadius: BorderRadius.circular(AppRadius.xs),
                                     child: Column(
                                       children: [
                                         for (int i = 0; i < _filtered.length; i++) ...[
@@ -472,7 +472,7 @@ class _TrainerDetailSheet extends StatelessWidget {
                     Container(
                       decoration: BoxDecoration(
                         color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        borderRadius: BorderRadius.circular(AppRadius.xs),
                         border: Border.all(color: AppColors.border, width: 0.5),
                       ),
                       child: Column(
@@ -505,14 +505,14 @@ class _TrainerDetailSheet extends StatelessWidget {
                       Container(
                         decoration: BoxDecoration(
                           color: AppColors.card,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                           border: Border.all(
                             color: AppColors.border,
                             width: 0.5,
                           ),
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                           child: Column(
                             children: [
                               for (int i = 0; i < members.length; i++) ...[
@@ -620,7 +620,7 @@ class _TrainerMetricTile extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(

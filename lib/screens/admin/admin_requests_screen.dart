@@ -83,7 +83,7 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         title: Text('가입 거절', style: AppTextStyles.h3),
         content: Text(
@@ -249,7 +249,7 @@ class _RequestCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(

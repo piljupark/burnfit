@@ -98,7 +98,7 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         title: Text('식단 삭제', style: AppTextStyles.h4),
         content: Text('이 식단 기록을 삭제할까요?', style: AppTextStyles.body),
@@ -192,7 +192,7 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
                               decoration: BoxDecoration(
                                 color: AppColors.diet,
                                 borderRadius: BorderRadius.circular(
-                                  AppRadius.sm,
+                                  AppRadius.xs,
                                 ),
                               ),
                               child: Row(
@@ -313,7 +313,7 @@ class _WeekStrip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Row(
@@ -335,7 +335,7 @@ class _WeekStrip extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   color: isSel ? AppColors.diet : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+                  borderRadius: BorderRadius.circular(AppRadius.xs + 2),
                 ),
                 child: Column(
                   children: [
@@ -455,7 +455,7 @@ class _Chip extends StatelessWidget {
           color: active
               ? AppColors.diet.withValues(alpha: 0.12)
               : AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
           boxShadow: [
             BoxShadow(
               color: const Color(0x08000000),
@@ -574,11 +574,11 @@ class _MealCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = _typeColor;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.lg),
+      borderRadius: BorderRadius.circular(AppRadius.xs),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
           boxShadow: const [
             BoxShadow(
               color: Color(0x08000000),
@@ -612,7 +612,7 @@ class _MealCard extends StatelessWidget {
                           height: 40,
                           decoration: BoxDecoration(
                             color: accent.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
                           ),
                           child: Icon(_typeIcon, size: 18, color: accent),
                         ),
@@ -714,7 +714,7 @@ class _MealCard extends StatelessWidget {
                           separatorBuilder: (_, __) =>
                               const SizedBox(width: AppSpacing.xs),
                           itemBuilder: (_, i) => ClipRRect(
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
                             child: Image.network(
                               meal.imageUrls[i],
                               width: 100,

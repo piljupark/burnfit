@@ -161,7 +161,7 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.card,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                   border: Border.all(color: AppColors.border, width: 0.5),
                 ),
                 child: Row(
@@ -273,14 +273,14 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
                                 Container(
                                   decoration: BoxDecoration(
                                     color: AppColors.card,
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    borderRadius: BorderRadius.circular(AppRadius.xs),
                                     border: Border.all(
                                       color: AppColors.border,
                                       width: 0.5,
                                     ),
                                   ),
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    borderRadius: BorderRadius.circular(AppRadius.xs),
                                     child: Column(
                                       children: [
                                         for (int i = 0; i < _filtered.length; i++) ...[

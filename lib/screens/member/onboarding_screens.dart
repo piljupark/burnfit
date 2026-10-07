@@ -79,7 +79,7 @@ class _OnboardingBasicScreenState extends State<OnboardingBasicScreen> {
         backgroundColor: AppColors.textNeutral,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         margin: const EdgeInsets.fromLTRB(
           AppSpacing.screenH,
@@ -442,7 +442,7 @@ class _GenderOption extends StatelessWidget {
         height: 72,
         decoration: BoxDecoration(
           color: selected ? AppColors.brand : AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
           border: selected
               ? null
               : Border.all(color: AppColors.border, width: 0.5),

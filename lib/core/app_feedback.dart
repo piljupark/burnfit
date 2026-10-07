@@ -74,7 +74,7 @@ class AppErrorCard extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
             border: Border.all(color: AppColors.border, width: 0.5),
           ),
           child: Column(
@@ -105,7 +105,7 @@ class AppErrorCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.brand,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: const Text(
                     '다시 시도',

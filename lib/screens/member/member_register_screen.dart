@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
@@ -126,7 +127,7 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
         backgroundColor: AppColors.textNeutral,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         margin: const EdgeInsets.fromLTRB(
           AppSpacing.screenH,
@@ -141,7 +142,7 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.card,
       body: SafeArea(
         child: Column(
           children: [
@@ -171,52 +172,54 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // 섹션 제목 - 기본 정보
-                      Text(
-                        '기본 정보',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ).animate().fadeIn(duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '이름',
+                        hint: '이름을 입력해주세요',
                         controller: _nameController,
                         validator: Validators.name,
                         textInputAction: TextInputAction.next,
+                        fillColor: AppColors.card,
+                        showEnabledBorder: true,
+                        labelAbove: true,
                       ).animate().fadeIn(delay: 50.ms, duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '이메일',
+                        hint: 'example@email.com',
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         validator: Validators.email,
                         textInputAction: TextInputAction.next,
+                        fillColor: AppColors.card,
+                        showEnabledBorder: true,
+                        labelAbove: true,
                       ).animate().fadeIn(delay: 80.ms, duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '비밀번호',
+                        hint: '비밀번호를 입력해주세요',
                         controller: _passwordController,
                         obscureText: true,
                         validator: Validators.password,
                         textInputAction: TextInputAction.done,
+                        fillColor: AppColors.card,
+                        showEnabledBorder: true,
+                        labelAbove: true,
                       ).animate().fadeIn(delay: 110.ms, duration: 300.ms),
                       const Gap(AppSpacing.xl),
 
                       // 섹션 제목 - 센터 선택
-                      Text(
-                        '센터 선택',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ).animate().fadeIn(delay: 140.ms, duration: 300.ms),
                       const Gap(AppSpacing.sm),
                       AppTextField(
                         label: '센터 검색',
-                        hint: '센터 이름을 입력하세요 (2자 이상)',
+                        hint: '센터 이름을 입력해주세요',
                         controller: _searchController,
                         onChanged: _searchCenters,
+                        fillColor: AppColors.card,
+                        showEnabledBorder: true,
+                        labelAbove: true,
+                        prefix: const Icon(Iconsax.search_normal_1, size: 18, color: AppColors.textTertiary),
                         suffix: _isSearching
                             ? const Padding(
                                 padding: EdgeInsets.only(right: 14),
@@ -284,7 +287,7 @@ class _SelectedCenterChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppColors.brand.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(
           color: AppColors.brand.withValues(alpha: 0.28),
           width: 1,
@@ -333,7 +336,7 @@ class _CenterSearchResults extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
         boxShadow: const [
           BoxShadow(
@@ -359,8 +362,8 @@ class _CenterSearchResults extends StatelessWidget {
           return InkWell(
             onTap: () => onSelect(c),
             borderRadius: BorderRadius.vertical(
-              top: isFirst ? const Radius.circular(AppRadius.md) : Radius.zero,
-              bottom: isLast ? const Radius.circular(AppRadius.md) : Radius.zero,
+              top: isFirst ? const Radius.circular(AppRadius.xs) : Radius.zero,
+              bottom: isLast ? const Radius.circular(AppRadius.xs) : Radius.zero,
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(

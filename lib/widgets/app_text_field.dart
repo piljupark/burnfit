@@ -22,6 +22,9 @@ class AppTextField extends StatefulWidget {
   final TextInputAction textInputAction;
   final FocusNode? focusNode;
   final bool autofocus;
+  final Color? fillColor;
+  final bool showEnabledBorder;
+  final bool labelAbove;
 
   const AppTextField({
     super.key,
@@ -42,6 +45,9 @@ class AppTextField extends StatefulWidget {
     this.textInputAction = TextInputAction.next,
     this.focusNode,
     this.autofocus = false,
+    this.fillColor,
+    this.showEnabledBorder = false,
+    this.labelAbove = false,
   });
 
   @override
@@ -75,9 +81,9 @@ class _AppTextFieldState extends State<AppTextField> {
         widget.maxLines > 1 && widget.keyboardType == TextInputType.text
         ? TextInputType.multiline
         : widget.keyboardType;
-    final radius = BorderRadius.circular(AppRadius.md);
+    final radius = BorderRadius.circular(AppRadius.xs);
 
-    return TextFormField(
+    final field = TextFormField(
       controller: widget.controller,
       validator: widget.validator,
       keyboardType: effectiveKeyboardType,
@@ -97,13 +103,13 @@ class _AppTextFieldState extends State<AppTextField> {
       ),
       cursorColor: AppColors.brand,
       decoration: InputDecoration(
-        labelText: widget.label,
+        labelText: widget.labelAbove ? null : widget.label,
         hintText: widget.hint,
         filled: true,
-        fillColor: _focused ? AppColors.card : AppColors.bg,
+        fillColor: widget.fillColor ?? (_focused ? AppColors.card : AppColors.bg),
         prefixIcon: widget.prefix != null
             ? Padding(
-                padding: const EdgeInsets.only(left: 16, right: 12),
+                padding: const EdgeInsets.only(left: 12, right: 4),
                 child: widget.prefix,
               )
             : null,
@@ -122,7 +128,7 @@ class _AppTextFieldState extends State<AppTextField> {
             : widget.suffix,
         counterText: '',
         contentPadding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.base,
+          horizontal: AppSpacing.md,
           vertical: widget.maxLines > 1 ? AppSpacing.base : AppSpacing.itemV,
         ),
         border: OutlineInputBorder(
@@ -130,7 +136,9 @@ class _AppTextFieldState extends State<AppTextField> {
           borderRadius: radius,
         ),
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide.none,
+          borderSide: widget.showEnabledBorder
+              ? const BorderSide(color: AppColors.border, width: 1)
+              : BorderSide.none,
           borderRadius: radius,
         ),
         focusedBorder: OutlineInputBorder(
@@ -166,6 +174,23 @@ class _AppTextFieldState extends State<AppTextField> {
           color: AppColors.destructive,
         ),
       ),
+    );
+
+    if (!widget.labelAbove) return field;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.label,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 6),
+        field,
+      ],
     );
   }
 }

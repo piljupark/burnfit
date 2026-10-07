@@ -20,7 +20,7 @@ class AppIconBox extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Icon(icon, size: size * 0.48, color: color),
     );

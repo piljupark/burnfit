@@ -327,7 +327,7 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                               decoration: BoxDecoration(
                                 color: AppColors.card,
                                 borderRadius: BorderRadius.circular(
-                                  AppRadius.lg,
+                                  AppRadius.xs,
                                 ),
                                 border: Border.all(
                                   color: AppColors.border,
@@ -370,7 +370,7 @@ class _InfoSection extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
@@ -435,7 +435,7 @@ class _TrainerPickerDialog extends StatelessWidget {
     return AlertDialog(
       backgroundColor: AppColors.card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       title: Text('트레이너 선택', style: AppTextStyles.h3),
       content: SizedBox(
@@ -525,7 +525,7 @@ class _PtInfoLogSection extends StatelessWidget {
           width: double.infinity,
           decoration: BoxDecoration(
             color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
             border: Border.all(color: AppColors.border, width: 0.5),
           ),
           child: logs.isEmpty
@@ -752,7 +752,7 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
                         Container(
                           decoration: BoxDecoration(
                             color: AppColors.card,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
                             border: Border.all(
                               color: AppColors.border,
                               width: 0.5,
@@ -912,7 +912,7 @@ class _PtInfoDialogState extends State<_PtInfoDialog> {
     return AlertDialog(
       backgroundColor: AppColors.card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       title: Text('PT 정보', style: AppTextStyles.h3),
       content: SingleChildScrollView(
@@ -1029,7 +1029,7 @@ class _DateRow extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: AppColors.bg,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         child: Row(
           children: [

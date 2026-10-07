@@ -183,7 +183,7 @@ class _TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         title: Text('예약 취소', style: AppTextStyles.h3),
         content: Text(
@@ -284,7 +284,7 @@ class _TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
                       height: 40,
                       decoration: BoxDecoration(
                         color: AppColors.brand,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        borderRadius: BorderRadius.circular(AppRadius.xs),
                       ),
                       child: const Icon(
                         Icons.add_rounded,
@@ -604,7 +604,7 @@ class _WorkoutCalendarCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A000000),
@@ -680,7 +680,7 @@ class _SessionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0C000000),
@@ -700,8 +700,8 @@ class _SessionCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: barColor,
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppRadius.lg),
-                  bottomLeft: Radius.circular(AppRadius.lg),
+                  topLeft: Radius.circular(AppRadius.xs),
+                  bottomLeft: Radius.circular(AppRadius.xs),
                 ),
               ),
             ),
@@ -790,7 +790,7 @@ class _SessionCard extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.brand,
                                 borderRadius: BorderRadius.circular(
-                                  AppRadius.sm,
+                                  AppRadius.xs,
                                 ),
                               ),
                               child: Text(
@@ -815,7 +815,7 @@ class _SessionCard extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.bg,
                                 borderRadius: BorderRadius.circular(
-                                  AppRadius.sm,
+                                  AppRadius.xs,
                                 ),
                               ),
                               child: Text(
@@ -840,7 +840,7 @@ class _SessionCard extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.bg,
                                 borderRadius: BorderRadius.circular(
-                                  AppRadius.sm,
+                                  AppRadius.xs,
                                 ),
                               ),
                               child: Text(
@@ -1026,7 +1026,7 @@ class _SessionSheetState extends State<_SessionSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xs)),
       ),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.screenH,
@@ -1255,21 +1255,21 @@ class _SessionSheetState extends State<_SessionSheet> {
                 vertical: AppSpacing.sm,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
+                borderRadius: BorderRadius.circular(AppRadius.xs),
                 borderSide: const BorderSide(
                   color: AppColors.border,
                   width: 0.5,
                 ),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
+                borderRadius: BorderRadius.circular(AppRadius.xs),
                 borderSide: const BorderSide(
                   color: AppColors.border,
                   width: 0.5,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
+                borderRadius: BorderRadius.circular(AppRadius.xs),
                 borderSide: const BorderSide(
                   color: AppColors.brand,
                   width: 1,
@@ -1292,7 +1292,7 @@ class _SessionSheetState extends State<_SessionSheet> {
                 ),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
               ),
               child: _isSaving
@@ -1367,7 +1367,7 @@ class _PickerField extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: AppColors.bg,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
           border: Border.all(
             color: isExpanded
                 ? AppColors.brand
@@ -1419,7 +1419,7 @@ class _PickerContainer extends StatelessWidget {
         height: 160,
         decoration: BoxDecoration(
           color: AppColors.bg,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         child: child,
       ),

@@ -422,7 +422,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
         return AlertDialog(
           backgroundColor: AppColors.card,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
           title: Text('운동 삭제', style: AppTextStyles.h3),
           content: Text(
@@ -677,7 +677,7 @@ class _TopBar extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: AppColors.card,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
+              borderRadius: BorderRadius.circular(AppRadius.xs),
               border: Border.all(color: AppColors.border, width: 0.5),
             ),
             child: const Icon(
@@ -732,7 +732,7 @@ class _SummaryBand extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
@@ -835,7 +835,7 @@ class _EmptyCard extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
           border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Column(
@@ -845,7 +845,7 @@ class _EmptyCard extends StatelessWidget {
               height: 58,
               decoration: BoxDecoration(
                 color: AppColors.brand,
-                borderRadius: BorderRadius.circular(AppRadius.md),
+                borderRadius: BorderRadius.circular(AppRadius.xs),
               ),
               child: const Icon(
                 Icons.add_rounded,
@@ -886,7 +886,7 @@ class _NoteField extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: TextField(
@@ -1016,7 +1016,7 @@ class _ActionBox extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
           border: primary
               ? null
               : Border.all(color: AppColors.border, width: 0.5),

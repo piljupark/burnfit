@@ -165,7 +165,7 @@ class _MealInputSheetState extends State<MealInputSheet> {
                             color: selected
                                 ? AppColors.diet
                                 : AppColors.card,
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
                             boxShadow: selected
                                 ? null
                                 : const [
@@ -202,7 +202,7 @@ class _MealInputSheetState extends State<MealInputSheet> {
                         height: 160,
                         decoration: BoxDecoration(
                           color: AppColors.card,
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                           border: Border.all(
                             color: AppColors.border,
                             width: 0.5,
@@ -244,7 +244,7 @@ class _MealInputSheetState extends State<MealInputSheet> {
                                   decoration: BoxDecoration(
                                     color: AppColors.card,
                                     borderRadius: BorderRadius.circular(
-                                      AppRadius.sm,
+                                      AppRadius.xs,
                                     ),
                                     border: Border.all(
                                       color: AppColors.border,
@@ -262,7 +262,7 @@ class _MealInputSheetState extends State<MealInputSheet> {
                               children: [
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(
-                                    AppRadius.sm,
+                                    AppRadius.xs,
                                   ),
                                   child: kIsWeb
                                       ? Image.memory(
@@ -341,7 +341,7 @@ class _MealInputSheetState extends State<MealInputSheet> {
                     color: _isSaving
                         ? AppColors.diet.withValues(alpha: 0.45)
                         : AppColors.diet,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   alignment: Alignment.center,
                   child: _isSaving
@@ -401,21 +401,21 @@ class _MealMemoField extends StatelessWidget {
             color: AppColors.border,
             width: 0.5,
           ),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         enabledBorder: OutlineInputBorder(
           borderSide: const BorderSide(
             color: AppColors.border,
             width: 0.5,
           ),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         focusedBorder: OutlineInputBorder(
           borderSide: const BorderSide(
             color: AppColors.brand,
             width: 1,
           ),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         labelStyle: AppTextStyles.bodySmall.copyWith(
           color: AppColors.textSecondary,

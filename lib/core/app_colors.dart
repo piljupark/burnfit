@@ -15,7 +15,7 @@ class AppColors {
   static const Color destructive = Color(0xFFE15361);
 
   // ── Background ────────────────────────────────────────────────────────────
-  static const Color bg = Color(0xFFF2F2F7);
+  static const Color bg = Color(0xFFF2F5F5);
   static const Color bgElevated = Color(0xFFFFFFFF);
   static const Color bgLogin = Color(0xFFEAF2FF);
 

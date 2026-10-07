@@ -41,6 +41,9 @@ dependencies:
   # iOS Liquid Glass
   cupertino_liquid_glass: ^0.6.0
 
+  # Icons
+  iconsax: ^0.0.8
+
 
   # Utils
   intl: ^0.20.0
@@ -59,17 +62,17 @@ flutter:
     - assets/fonts/
 
   fonts:
-    - family: Pretendard
+    - family: WantedSans
       fonts:
-        - asset: assets/fonts/Pretendard-Regular.otf
+        - asset: assets/fonts/WantedSans-Regular.otf
           weight: 400
-        - asset: assets/fonts/Pretendard-Medium.otf
+        - asset: assets/fonts/WantedSans-Medium.otf
           weight: 500
-        - asset: assets/fonts/Pretendard-SemiBold.otf
+        - asset: assets/fonts/WantedSans-SemiBold.otf
           weight: 600
-        - asset: assets/fonts/Pretendard-Bold.otf
+        - asset: assets/fonts/WantedSans-Bold.otf
           weight: 700
-        - asset: assets/fonts/Pretendard-ExtraBold.otf
+        - asset: assets/fonts/WantedSans-ExtraBold.otf
           weight: 800
-        - asset: assets/fonts/Pretendard-Black.otf
+        - asset: assets/fonts/WantedSans-Black.otf
           weight: 900

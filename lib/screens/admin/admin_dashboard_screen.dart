@@ -214,7 +214,7 @@ class _KpiCard extends StatelessWidget {
         color: data.highlight
             ? AppColors.brand.withValues(alpha: 0.06)
             : AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(
           color: data.highlight
               ? AppColors.brand.withValues(alpha: 0.25)
@@ -290,7 +290,7 @@ class _OperationInsightCard extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
@@ -374,7 +374,7 @@ class _MiniInsight extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.bg,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Row(
         children: [
@@ -426,7 +426,7 @@ class _TrainerBarChart extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
@@ -571,7 +571,7 @@ class _LowPtList extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(
@@ -701,7 +701,7 @@ class _ExpiringPtList extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(

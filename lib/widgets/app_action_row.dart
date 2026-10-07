@@ -36,7 +36,7 @@ class AppActionRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         splashColor: AppColors.brand.withValues(alpha: 0.04),
         highlightColor: Colors.transparent,
         child: Padding(
@@ -51,7 +51,7 @@ class AppActionRow extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: iColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Icon(
                   icon,

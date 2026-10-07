@@ -80,9 +80,9 @@ class _AppButtonState extends State<AppButton>
 
     // Toss 스타일: sm은 sm 반경, md/lg는 lg 반경
     final radius = switch (widget.size) {
-      AppButtonSize.sm => AppRadius.sm,
-      AppButtonSize.md => AppRadius.lg,
-      AppButtonSize.lg => AppRadius.lg,
+      AppButtonSize.sm => AppRadius.xs,
+      AppButtonSize.md => AppRadius.xs,
+      AppButtonSize.lg => AppRadius.xs,
     };
 
     final bg = switch (widget.variant) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -34,23 +35,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   static const _navItems = [
     AppNavItem(
       label: '홈',
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home_rounded,
+      icon: Iconsax.home,
+      activeIcon: Iconsax.home,
     ),
     AppNavItem(
       label: '회원',
-      icon: Icons.people_outline_rounded,
-      activeIcon: Icons.people_rounded,
+      icon: Iconsax.people,
+      activeIcon: Iconsax.people,
     ),
     AppNavItem(
       label: '트레이너',
-      icon: Icons.fitness_center_outlined,
-      activeIcon: Icons.fitness_center_rounded,
+      icon: Iconsax.activity,
+      activeIcon: Iconsax.activity,
     ),
     AppNavItem(
       label: '마이',
-      icon: Icons.person_outline_rounded,
-      activeIcon: Icons.person_rounded,
+      icon: Iconsax.user,
+      activeIcon: Iconsax.user,
     ),
   ];
 
@@ -335,7 +336,7 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        borderRadius: BorderRadius.circular(AppRadius.xs),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x08000000),
@@ -446,7 +447,7 @@ class _AdminProfileTab extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.card,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x08000000),

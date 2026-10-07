@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
@@ -128,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: AppColors.textPrimary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         margin: const EdgeInsets.fromLTRB(
           AppSpacing.screenH,
@@ -166,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.card,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
@@ -175,46 +176,48 @@ class _LoginScreenState extends State<LoginScreen> {
             AppSpacing.screenH,
             AppSpacing.xl2 + bottom,
           ),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height
+                  - MediaQuery.of(context).padding.top
+                  - MediaQuery.of(context).padding.bottom
+                  - AppSpacing.xl2 * 2,
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 브랜드 영역
-                Center(
-                  child: const _BrandMark()
-                      .animate()
-                      .fadeIn(duration: 600.ms)
-                      .slideY(begin: 0.08, curve: Curves.easeOut),
-                ),
-                const Gap(AppSpacing.xl2),
-
                 // 역할 선택 타일
-                Text(
-                  '로그인 유형',
-                  style: AppTextStyles.label.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ).animate().fadeIn(delay: 80.ms, duration: 400.ms),
-                const Gap(AppSpacing.sm),
                 Row(
-                  children: List.generate(_roles.length, (i) {
-                    final active = i == _roleIndex;
-                    return Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.only(right: i < _roles.length - 1 ? 8 : 0),
-                        child: _RoleTile(
-                          label: _roles[i].label,
-                          icon: _roles[i].icon,
-                          selected: active,
-                          onTap: () => setState(() => _roleIndex = i),
-                        ),
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      '로그인',
+                      style: AppTextStyles.label.copyWith(
+                        fontSize: 24,
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
                       ),
-                    );
-                  }),
-                ).animate().fadeIn(delay: 120.ms, duration: 400.ms),
-                const Gap(AppSpacing.base),
+                    ),
+                    Row(
+                      children: List.generate(_roles.length, (i) {
+                        final active = i == _roleIndex;
+                        return Padding(
+                          padding: EdgeInsets.only(left: i > 0 ? 14 : 0),
+                          child: _RoleTile(
+                            label: _roles[i].label,
+                            selected: active,
+                            onTap: () => setState(() => _roleIndex = i),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ).animate().fadeIn(delay: 80.ms, duration: 400.ms),
+                const Gap(AppSpacing.xl2),
 
                 // 센터 선택
                 _CenterSelector(
@@ -225,22 +228,30 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // 이메일
                 AppTextField(
-                  label: '이메일',
+                  label: '이메일 주소',
+                  hint: 'example@email.com',
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   validator: Validators.email,
                   textInputAction: TextInputAction.next,
+                  fillColor: AppColors.card,
+                  showEnabledBorder: true,
+                  labelAbove: true,
                 ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
                 const Gap(AppSpacing.sm),
 
                 // 비밀번호
                 AppTextField(
                   label: '비밀번호',
+                  hint: '비밀번호를 입력해주세요',
                   controller: _passwordController,
                   obscureText: true,
                   validator: Validators.password,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _login(),
+                  fillColor: AppColors.card,
+                  showEnabledBorder: true,
+                  labelAbove: true,
                 ).animate().fadeIn(delay: 240.ms, duration: 400.ms),
                 const Gap(AppSpacing.xl),
 
@@ -281,56 +292,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ],
             ),
           ),
+          ),
         ),
       ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 브랜드 마크
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _BrandMark extends StatelessWidget {
-  const _BrandMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: AppColors.brand,
-            shape: BoxShape.circle,
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x08000000),
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: const Icon(
-            Icons.local_fire_department_rounded,
-            color: Colors.white,
-            size: 36,
-          ),
-        ),
-        const Gap(AppSpacing.md),
-        Text(
-          'BurnFit',
-          style: AppTextStyles.h1,
-        ),
-        const Gap(AppSpacing.xxs),
-        Text(
-          '운동과 식단을 한 곳에서 기록하세요',
-          style: AppTextStyles.caption,
-        ),
-      ],
     );
   }
 }
@@ -341,13 +305,11 @@ class _BrandMark extends StatelessWidget {
 
 class _RoleTile extends StatelessWidget {
   final String label;
-  final IconData icon;
   final bool selected;
   final VoidCallback onTap;
 
   const _RoleTile({
     required this.label,
-    required this.icon,
     required this.selected,
     required this.onTap,
   });
@@ -356,43 +318,13 @@ class _RoleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
+      child: AnimatedDefaultTextStyle(
         duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: selected ? AppColors.brand : AppColors.border,
-            width: selected ? 1.5 : 0.5,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x08000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
+        style: AppTextStyles.caption.copyWith(
+          color: selected ? const Color(0xFF111111) : AppColors.textTertiary,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 22,
-              color: selected ? AppColors.brand : AppColors.textSecondary,
-            ),
-            const Gap(AppSpacing.xxs),
-            Text(
-              label,
-              style: AppTextStyles.caption.copyWith(
-                color: selected ? AppColors.brand : AppColors.textSecondary,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
+        child: Text(label),
       ),
     );
   }
@@ -413,29 +345,36 @@ class _CenterSelector extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 52,
+        height: 56,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
         decoration: BoxDecoration(
-          color: AppColors.bg,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.xs),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0F000000),
+              blurRadius: 12,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
             Expanded(
               child: Text(
-                centerName ?? '센터 선택',
+                centerName ?? '센터를 선택해주세요',
                 style: AppTextStyles.body.copyWith(
                   color: centerName == null
-                      ? AppColors.textTertiary
+                      ? AppColors.textSecondary
                       : AppColors.textPrimary,
                   fontWeight: FontWeight.w400,
                 ),
               ),
             ),
             const Icon(
-              Icons.keyboard_arrow_down_rounded,
+              Icons.chevron_right_rounded,
               size: 20,
-              color: AppColors.textSecondary,
+              color: AppColors.textTertiary,
             ),
           ],
         ),
@@ -492,7 +431,7 @@ class _CenterPickerSheetState extends State<_CenterPickerSheet> {
         AppSpacing.xl + bottom,
       ),
       decoration: const BoxDecoration(
-        color: AppColors.bg,
+        color: AppColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
@@ -516,9 +455,14 @@ class _CenterPickerSheetState extends State<_CenterPickerSheet> {
             const Gap(AppSpacing.md),
             AppTextField(
               label: '센터 검색',
+              hint: '센터 이름을 입력해주세요',
               controller: widget.controller,
               onChanged: _search,
               textInputAction: TextInputAction.search,
+              fillColor: AppColors.card,
+              showEnabledBorder: true,
+              labelAbove: true,
+              prefix: const Icon(Iconsax.search_normal_1, size: 18, color: AppColors.textTertiary),
             ),
             const Gap(AppSpacing.md),
             ConstrainedBox(
@@ -552,7 +496,7 @@ class _CenterPickerSheetState extends State<_CenterPickerSheet> {
                             padding: const EdgeInsets.all(AppSpacing.base),
                             decoration: BoxDecoration(
                               color: AppColors.card,
-                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              borderRadius: BorderRadius.circular(AppRadius.xs),
                               boxShadow: const [
                                 BoxShadow(
                                   color: Color(0x08000000),

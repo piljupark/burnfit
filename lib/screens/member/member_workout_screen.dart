@@ -25,12 +25,14 @@ class MemberWorkoutScreen extends StatefulWidget {
   final VoidCallback? onExit;
   final WorkoutType workoutType;
   final AppUser? targetMember;
+  final bool showAsTab;
 
   const MemberWorkoutScreen({
     super.key,
     this.onExit,
     this.workoutType = WorkoutType.personal,
     this.targetMember,
+    this.showAsTab = false,
   });
 
   @override
@@ -673,7 +675,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
         return AlertDialog(
           backgroundColor: AppColors.card,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
           title: Text('운동 삭제', style: AppTextStyles.h3),
           content: Text('이 운동 기록을 삭제할까요?', style: AppTextStyles.body),
@@ -791,11 +793,14 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _WorkoutTopBar(
-                                  title: widget.workoutType == WorkoutType.pt
-                                      ? 'PT 운동 · ${DateFormat('M월 d일').format(date)}'
-                                      : DateFormat('M월 d일').format(date),
-                                  onBack: _handleExit,
+                                  title: widget.showAsTab
+                                      ? '운동'
+                                      : widget.workoutType == WorkoutType.pt
+                                          ? 'PT 운동 · ${DateFormat('M월 d일').format(date)}'
+                                          : DateFormat('M월 d일').format(date),
+                                  onBack: widget.showAsTab ? null : _handleExit,
                                   onDateTap: _pickDate,
+                                  isTabTitle: widget.showAsTab,
                                 ),
                                 const Gap(20),
                                 if (_sessionExercises.isNotEmpty ||
@@ -871,7 +876,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                                     ),
                                   ),
                                 ],
-                                const Gap(132),
+                                Gap(widget.showAsTab ? 202 : 132),
                               ],
                             ),
                           ),
@@ -883,7 +888,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 0,
+            bottom: widget.showAsTab ? 70 : 0,
             child: _WorkoutBottomBar(
               elapsed: formatDuration(_elapsedSeconds),
               saving: _saving,
@@ -902,22 +907,32 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
 class _WorkoutTopBar extends StatelessWidget {
   final String title;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
   final VoidCallback onDateTap;
+  final bool isTabTitle;
 
   const _WorkoutTopBar({
     required this.title,
     required this.onBack,
     required this.onDateTap,
+    this.isTabTitle = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (isTabTitle) {
+      return Row(
+        children: [
+          Expanded(child: Text(title, style: AppTextStyles.h1)),
+          _IconSquareButton(icon: Icons.calendar_month_rounded, onTap: onDateTap),
+        ],
+      );
+    }
     return Row(
       children: [
         _IconSquareButton(
           icon: Icons.arrow_back_ios_new_rounded,
-          onTap: onBack,
+          onTap: onBack ?? () => Navigator.of(context).pop(),
         ),
         Expanded(
           child: Center(
@@ -951,7 +966,7 @@ class _IconSquareButton extends StatelessWidget {
         height: 40,
         decoration: BoxDecoration(
           color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
           border: Border.all(color: AppColors.border, width: 0.5),
         ),
         child: Icon(icon, size: 20, color: AppColors.textPrimary),

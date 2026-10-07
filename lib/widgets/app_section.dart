@@ -82,7 +82,7 @@ class AppEmptyState extends StatelessWidget {
             height: 56,
             decoration: BoxDecoration(
               color: AppColors.bg,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
+              borderRadius: BorderRadius.circular(AppRadius.xs),
             ),
             child: Icon(icon, size: 26, color: AppColors.textDisabled),
           ),
@@ -105,7 +105,7 @@ class AppEmptyState extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.brand.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Text(
                   actionLabel!,

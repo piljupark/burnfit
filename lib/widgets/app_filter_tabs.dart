@@ -23,7 +23,7 @@ class AppFilterTabs extends StatelessWidget {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: AppColors.bg,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -41,7 +41,7 @@ class AppFilterTabs extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: selected ? AppColors.card : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+                borderRadius: BorderRadius.circular(AppRadius.xs - 2),
                 boxShadow: selected
                     ? const [
                         BoxShadow(

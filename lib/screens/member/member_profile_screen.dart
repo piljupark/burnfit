@@ -49,14 +49,10 @@ class MemberProfileScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    child: Text(
-                      '프로필',
-                      style: AppTextStyles.h1.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, 0,
                     ),
+                    child: Text('프로필', style: AppTextStyles.h1),
                   ),
                   const Gap(20),
                   Padding(
@@ -243,7 +239,7 @@ class _ProfileHero extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         boxShadow: const [
           BoxShadow(
             color: Color(0x08000000),
@@ -360,7 +356,7 @@ class _BodyMetricBar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0F000000),
@@ -460,7 +456,7 @@ class _WeightTrendCardState extends State<_WeightTrendCard> {
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0F000000),
@@ -837,7 +833,7 @@ class _SectionGroup extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Column(children: children),
@@ -919,7 +915,7 @@ class _BodyCompositionSection extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.circular(AppRadius.md),
+                borderRadius: BorderRadius.circular(AppRadius.xs),
                 border: Border.all(color: AppColors.border, width: 0.5),
               ),
               child: Column(
@@ -1056,7 +1052,7 @@ class _GoalSection extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: AppColors.card,
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderRadius: BorderRadius.circular(AppRadius.xs),
               border: Border.all(color: AppColors.border, width: 0.5),
             ),
             child: Text(

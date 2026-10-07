@@ -94,16 +94,14 @@ class FirestoreService {
 
   static Future<List<center_model.Center>> searchCenters(String query) async {
     final q = query.trim().toLowerCase();
-    if (q.length < 2) return [];
 
     final snap = await _db
         .collection('centers')
         .where('status', isEqualTo: 'active')
         .get();
-    return snap.docs
-        .map((d) => center_model.Center.fromMap(d.data()))
-        .where((c) => c.name.toLowerCase().contains(q))
-        .toList();
+    final all = snap.docs.map((d) => center_model.Center.fromMap(d.data()));
+    if (q.isEmpty) return all.toList();
+    return all.where((c) => c.name.toLowerCase().contains(q)).toList();
   }
 
   static Future<void> createCenter(center_model.Center center) async {

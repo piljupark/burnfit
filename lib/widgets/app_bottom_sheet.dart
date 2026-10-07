@@ -36,7 +36,7 @@ class _AppBottomSheetWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    const topRadius = Radius.circular(AppRadius.xxl);
+    const topRadius = Radius.circular(AppRadius.xs);
 
     return CupertinoLiquidGlass(
       borderRadius: const BorderRadius.vertical(top: topRadius),

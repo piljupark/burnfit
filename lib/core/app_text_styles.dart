@@ -4,7 +4,7 @@ import 'app_colors.dart';
 class AppTextStyles {
   AppTextStyles._();
 
-  static const String _font = 'Pretendard';
+  static const String _font = 'WantedSans';
 
   static TextStyle _base({
     double size = 15,
@@ -30,8 +30,8 @@ class AppTextStyles {
   );
 
   static TextStyle get h1 => _base(
-    size: 26,
-    weight: FontWeight.w800,
+    size: 24,
+    weight: FontWeight.w700,
     height: 1.2,
     letterSpacing: -0.8,
   );

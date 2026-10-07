@@ -6,7 +6,7 @@ import 'app_spacing.dart';
 class AppTheme {
   AppTheme._();
 
-  static const String _font = 'Pretendard';
+  static const String _font = 'WantedSans';
 
   static ThemeData get light {
     return ThemeData(
@@ -52,23 +52,23 @@ class AppTheme {
         fillColor: AppColors.card,
         border: OutlineInputBorder(
           borderSide: const BorderSide(color: AppColors.border, width: 0.5),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         enabledBorder: OutlineInputBorder(
           borderSide: const BorderSide(color: AppColors.border, width: 0.5),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         focusedBorder: OutlineInputBorder(
           borderSide: const BorderSide(color: AppColors.brand, width: 1.5),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         errorBorder: OutlineInputBorder(
           borderSide: const BorderSide(color: AppColors.error, width: 1),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderSide: const BorderSide(color: AppColors.error, width: 1.5),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         labelStyle: const TextStyle(
           fontFamily: _font,
@@ -95,7 +95,7 @@ class AppTheme {
           disabledForegroundColor: AppColors.textDisabled,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
           minimumSize: const Size(double.infinity, 52),
           textStyle: const TextStyle(
@@ -111,7 +111,7 @@ class AppTheme {
           foregroundColor: AppColors.textPrimary,
           side: const BorderSide(color: AppColors.border, width: 0.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
           minimumSize: const Size(double.infinity, 52),
           textStyle: const TextStyle(
@@ -137,7 +137,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           side: const BorderSide(color: AppColors.border, width: 0.5),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -151,7 +151,7 @@ class AppTheme {
         ),
         behavior: SnackBarBehavior.floating,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(AppRadius.sm)),
+          borderRadius: BorderRadius.all(Radius.circular(AppRadius.xs)),
         ),
       ),
       navigationBarTheme: const NavigationBarThemeData(
@@ -169,7 +169,7 @@ class AppTheme {
       popupMenuTheme: PopupMenuThemeData(
         color: AppColors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
         textStyle: const TextStyle(
           fontFamily: _font,
