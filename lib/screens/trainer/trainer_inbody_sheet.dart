@@ -1,31 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../models/inbody.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_text_field.dart';
 
 class TrainerInbodyInputSheet extends StatefulWidget {
   final AppUser member;
   final AppUser trainer;
 
-  const TrainerInbodyInputSheet({
-    super.key,
-    required this.member,
-    required this.trainer,
-  });
+  const TrainerInbodyInputSheet({super.key, required this.member, required this.trainer});
 
   @override
-  State<TrainerInbodyInputSheet> createState() =>
-      _TrainerInbodyInputSheetState();
+  State<TrainerInbodyInputSheet> createState() => _TrainerInbodyInputSheetState();
 }
 
 class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
@@ -130,134 +128,139 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
   @override
   Widget build(BuildContext context) {
     final numberType = const TextInputType.numberWithOptions(decimal: true);
-    final numberFormatters = [
-      FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-    ];
+    final numberFormatters = [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))];
 
     return Form(
       key: _formKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppBottomSheetHeader(
-              title: 'InBody 입력',
-              subtitle: '${widget.member.name} 회원의 측정 기록',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppBottomSheetHeader(title: 'InBody 입력', subtitle: '${widget.member.name} 회원의 측정 기록'),
+          const _SheetSection(label: 'DATE', first: true),
+          AppTextField(
+            label: '측정일',
+            controller: _dateCtrl,
+            readOnly: true,
+            onTap: _pickDate,
+            suffix: AppIconButton(
+              icon: AppIcons.calendar,
+              label: '측정일 선택',
+              onPressed: _pickDate,
+              color: AppColors.body,
             ),
-            AppTextField(
-              label: '측정일',
-              controller: _dateCtrl,
-              readOnly: true,
-              suffix: IconButton(
-                onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today_rounded, size: 18),
+            validator: (v) => DateTime.tryParse(v?.trim() ?? '') == null ? '측정일을 선택해주세요.' : null,
+          ),
+          const _SheetSection(label: 'BODY COMPOSITION'),
+          Row(
+            children: [
+              Expanded(
+                child: AppTextField(
+                  label: '체중 (kg)',
+                  controller: _weightCtrl,
+                  keyboardType: numberType,
+                  inputFormatters: numberFormatters,
+                  validator: (v) {
+                    final value = double.tryParse(v?.trim() ?? '');
+                    if (value == null) return '체중을 입력해주세요.';
+                    if (value <= 0) return '0보다 큰 값을 입력해주세요.';
+                    return null;
+                  },
+                ),
               ),
-              validator: (v) => DateTime.tryParse(v?.trim() ?? '') == null
-                  ? '측정일을 선택해주세요.'
-                  : null,
-            ),
-            const Gap(AppSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: AppTextField(
-                    label: '체중 (kg)',
-                    controller: _weightCtrl,
-                    keyboardType: numberType,
-                    inputFormatters: numberFormatters,
-                    validator: (v) {
-                      final value = double.tryParse(v?.trim() ?? '');
-                      if (value == null) return '체중을 입력해주세요.';
-                      if (value <= 0) return '0보다 큰 값을 입력해주세요.';
-                      return null;
-                    },
-                  ),
+              const SizedBox(width: AppSpacing.md, height: AppSpacing.base),
+              Expanded(
+                child: AppTextField(
+                  label: '골격근량 (kg)',
+                  controller: _muscleCtrl,
+                  keyboardType: numberType,
+                  inputFormatters: numberFormatters,
+                  validator: _optionalNumber,
                 ),
-                const Gap(AppSpacing.sm),
-                Expanded(
-                  child: AppTextField(
-                    label: '골격근량 (kg)',
-                    controller: _muscleCtrl,
-                    keyboardType: numberType,
-                    inputFormatters: numberFormatters,
-                    validator: _optionalNumber,
-                  ),
+              ),
+            ],
+          ),
+          const SizedBox(width: AppSpacing.md, height: AppSpacing.base),
+          Row(
+            children: [
+              Expanded(
+                child: AppTextField(
+                  label: '체지방량 (kg)',
+                  controller: _bodyFatCtrl,
+                  keyboardType: numberType,
+                  inputFormatters: numberFormatters,
+                  validator: _optionalNumber,
                 ),
-              ],
-            ),
-            const Gap(AppSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: AppTextField(
-                    label: '체지방량 (kg)',
-                    controller: _bodyFatCtrl,
-                    keyboardType: numberType,
-                    inputFormatters: numberFormatters,
-                    validator: _optionalNumber,
-                  ),
+              ),
+              const SizedBox(width: AppSpacing.md, height: AppSpacing.base),
+              Expanded(
+                child: AppTextField(
+                  label: '체지방률 (%)',
+                  controller: _bodyFatPercentCtrl,
+                  keyboardType: numberType,
+                  inputFormatters: numberFormatters,
+                  validator: _optionalNumber,
                 ),
-                const Gap(AppSpacing.sm),
-                Expanded(
-                  child: AppTextField(
-                    label: '체지방률 (%)',
-                    controller: _bodyFatPercentCtrl,
-                    keyboardType: numberType,
-                    inputFormatters: numberFormatters,
-                    validator: _optionalNumber,
-                  ),
+              ),
+            ],
+          ),
+          const _SheetSection(label: 'INDEX'),
+          Row(
+            children: [
+              Expanded(
+                child: AppTextField(
+                  label: 'BMI',
+                  controller: _bmiCtrl,
+                  keyboardType: numberType,
+                  inputFormatters: numberFormatters,
+                  validator: _optionalNumber,
                 ),
-              ],
-            ),
-            const Gap(AppSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: AppTextField(
-                    label: 'BMI',
-                    controller: _bmiCtrl,
-                    keyboardType: numberType,
-                    inputFormatters: numberFormatters,
-                    validator: _optionalNumber,
-                  ),
+              ),
+              const SizedBox(width: AppSpacing.md, height: AppSpacing.base),
+              Expanded(
+                child: AppTextField(
+                  label: 'BMR',
+                  controller: _bmrCtrl,
+                  keyboardType: numberType,
+                  inputFormatters: numberFormatters,
+                  validator: _optionalNumber,
                 ),
-                const Gap(AppSpacing.sm),
-                Expanded(
-                  child: AppTextField(
-                    label: 'BMR',
-                    controller: _bmrCtrl,
-                    keyboardType: numberType,
-                    inputFormatters: numberFormatters,
-                    validator: _optionalNumber,
-                  ),
-                ),
-              ],
-            ),
-            const Gap(AppSpacing.sm),
-            AppTextField(
-              label: '내장지방 레벨',
-              controller: _visceralFatCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: (v) {
-                final trimmed = v?.trim() ?? '';
-                if (trimmed.isEmpty) return null;
-                return int.tryParse(trimmed) == null ? '숫자만 입력해주세요.' : null;
-              },
-              textInputAction: TextInputAction.done,
-            ),
-            const Gap(AppSpacing.lg),
-            AppButton(
-              label: '저장',
-              onPressed: _save,
-              isLoading: _isSaving,
-              fullWidth: true,
-              size: AppButtonSize.lg,
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(width: AppSpacing.md, height: AppSpacing.base),
+          AppTextField(
+            label: '내장지방 레벨',
+            controller: _visceralFatCtrl,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            validator: (v) {
+              final trimmed = v?.trim() ?? '';
+              if (trimmed.isEmpty) return null;
+              return int.tryParse(trimmed) == null ? '숫자만 입력해주세요.' : null;
+            },
+            textInputAction: TextInputAction.done,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: '저장', onPressed: _save, isLoading: _isSaving, fullWidth: true, size: AppButtonSize.lg),
+        ],
       ),
+    );
+  }
+}
+
+/// 시트 안 묶음 머리말: 모노 라벨 + 남은 폭 hairline.
+class _SheetSection extends StatelessWidget {
+  final String label;
+  final bool first;
+
+  const _SheetSection({required this.label, this.first = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppMonthHeader(
+      label: label,
+      padding: EdgeInsets.only(top: first ? 0 : AppSpacing.xl, bottom: AppSpacing.md),
     );
   }
 }

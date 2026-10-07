@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
-import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/pt_session.dart';
@@ -14,9 +13,14 @@ import '../../models/workout.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
-import '../../widgets/app_card.dart';
-import '../../widgets/app_icon_box.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_avatar.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_tag.dart';
 import '../../widgets/notification_bell_button.dart';
+import '../../widgets/orb_loader.dart';
 import 'trainer_member_detail_screen.dart';
 import 'trainer_pt_workout_screen.dart';
 
@@ -148,98 +152,105 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
     return map;
   }
 
+  Future<void> _openPt(PtSession session) async {
+    final member = _members.where((m) => m.uid == session.memberId).firstOrNull;
+    if (member == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TrainerPtWorkoutScreen(session: session, member: member),
+      ),
+    );
+    _loadMonth();
+  }
+
+  void _openMember(AppUser member) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => TrainerMemberDetailScreen(member: member)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<UserProvider>().user;
+    final ptSessions = _selectedPtSessions;
+    final workouts = _selectedWorkouts;
+
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
           onRefresh: _loadMonth,
-          color: AppColors.brand,
-          backgroundColor: AppColors.card,
-          child: CustomScrollView(
+          color: AppColors.ink,
+          backgroundColor: AppColors.canvasCard,
+          child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, 0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (widget.showGreeting)
-                        _TrainerGreetingHeader(
-                          user: context.watch<UserProvider>().user,
-                        )
-                      else
-                        Text('캘린더', style: AppTextStyles.h1),
-                      const Gap(16),
-                      _MonthHeader(
-                        month: _focusedMonth,
-                        onPrev: () => _moveMonth(-1),
-                        onNext: () => _moveMonth(1),
-                      ),
-                      const Gap(16),
-                      _TrainerCalendarGrid(
-                        focusedMonth: _focusedMonth,
-                        selectedDay: _selectedDay,
-                        personalCountByDay: _personalCountByDay,
-                        ptCountByDay: _ptCountByDay,
-                        onSelect: (day) => setState(() => _selectedDay = day),
-                      ),
-                      const Gap(20),
-                      Text(
-                        DateFormat('M월 d일 (E)', 'ko').format(_selectedDay),
-                        style: AppTextStyles.h3.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const Gap(12),
-                      if (_isLoading)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 48),
-                          child: Center(
-                            child: CircularProgressIndicator(color: AppColors.brand),
-                          ),
-                        )
-                      else if (_errorMessage != null)
-                        AppErrorCard(message: _errorMessage!, onRetry: _loadMonth)
-                      else
-                        _DayRecords(
-                          workouts: _selectedWorkouts,
-                          ptSessions: _selectedPtSessions,
-                          members: _members,
-                          onPtTap: (session) async {
-                            final member = _members
-                                .where((m) => m.uid == session.memberId)
-                                .firstOrNull;
-                            if (member == null) return;
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => TrainerPtWorkoutScreen(
-                                  session: session,
-                                  member: member,
-                                ),
-                              ),
-                            );
-                            _loadMonth();
-                          },
-                          onMemberTap: (member) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => TrainerMemberDetailScreen(member: member),
-                              ),
-                            );
-                          },
-                        ),
-                      const Gap(120),
-                    ],
-                  ),
+            padding: const EdgeInsets.only(bottom: 120),
+            children: [
+              if (widget.showGreeting)
+                AppHero(
+                  eyebrow: 'BURNFIT · TRAINER',
+                  title: '${user?.name ?? ''} 트레이너님',
+                  actions: const [NotificationBellButton()],
+                )
+              else
+                const AppHero(eyebrow: 'BURNFIT · TRAINER', title: '캘린더'),
+              _MonthNav(
+                month: _focusedMonth,
+                onPrev: () => _moveMonth(-1),
+                onNext: () => _moveMonth(1),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: _TrainerCalendarGrid(
+                  focusedMonth: _focusedMonth,
+                  selectedDay: _selectedDay,
+                  personalCountByDay: _personalCountByDay,
+                  ptCountByDay: _ptCountByDay,
+                  onSelect: (day) => setState(() => _selectedDay = day),
                 ),
               ),
+              const _CalendarLegend(),
+              AppMonthHeader(
+                label: DateFormat('MM.dd EEE', 'en_US').format(_selectedDay),
+                count: 'PT ${ptSessions.length} · SELF ${workouts.length}',
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, AppSpacing.xs,
+                ),
+              ),
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl3),
+                  child: Center(child: OrbLoader.screen()),
+                )
+              else if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.screenH),
+                  child: AppErrorCard(message: _errorMessage!, onRetry: _loadMonth),
+                )
+              else if (workouts.isEmpty && ptSessions.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl2),
+                  child: Center(child: Text('이 날의 기록이 없습니다', style: AppTextStyles.bodySm)),
+                )
+              else ...[
+                for (final session in ptSessions)
+                  _PtSessionRow(
+                    session: session,
+                    onRecord: session.status == PtSessionStatus.scheduled
+                        ? () => _openPt(session)
+                        : null,
+                  ),
+                for (final workout in workouts)
+                  _WorkoutRow(
+                    workout: workout,
+                    onTap: () {
+                      final member =
+                          _members.where((m) => m.uid == workout.memberId).firstOrNull;
+                      if (member != null) _openMember(member);
+                    },
+                  ),
+              ],
             ],
           ),
         ),
@@ -249,84 +260,35 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 인사 헤더
+// 월 이동: 모노 '2026.10' + 이전/다음 아이콘 버튼
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _TrainerGreetingHeader extends StatelessWidget {
-  final dynamic user;
-
-  const _TrainerGreetingHeader({required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Text(
-            '${user?.name ?? ''} 트레이너님',
-            style: AppTextStyles.h1,
-          ),
-        ),
-        const NotificationBellButton(),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 월 헤더
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MonthHeader extends StatelessWidget {
+class _MonthNav extends StatelessWidget {
   final DateTime month;
   final VoidCallback onPrev;
   final VoidCallback onNext;
 
-  const _MonthHeader({
-    required this.month,
-    required this.onPrev,
-    required this.onNext,
-  });
+  const _MonthNav({required this.month, required this.onPrev, required this.onNext});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _MonthButton(icon: Iconsax.arrow_square_left, onTap: onPrev),
-        const Gap(12),
-        Text(
-          DateFormat('yyyy년 M월', 'ko').format(month),
-          style: AppTextStyles.h3.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.xs, AppSpacing.sm),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              label: DateFormat('yyyy년 M월', 'ko').format(month),
+              excludeSemantics: true,
+              child: Text(
+                DateFormat('yyyy.MM').format(month),
+                style: AppTextStyles.eyebrow.copyWith(color: AppColors.ink, fontSize: 13),
+              ),
+            ),
           ),
-        ),
-        const Gap(12),
-        Transform.rotate(
-          angle: 3.14159,
-          child: _MonthButton(icon: Iconsax.arrow_square_left, onTap: onNext),
-        ),
-      ],
-    );
-  }
-}
-
-class _MonthButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _MonthButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Icon(icon, size: 18, color: const Color(0xFF111111)),
+          AppIconButton(icon: AppIcons.back, label: '이전 달', onPressed: onPrev),
+          AppIconButton(icon: AppIcons.forward, label: '다음 달', onPressed: onNext),
+        ],
       ),
     );
   }
@@ -334,6 +296,7 @@ class _MonthButton extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 트레이너용 캘린더 그리드
+// 선택일 = 흰 원, 오늘 = 외곽선 원, PT = 채운 점, 개인운동 = 외곽선 점
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TrainerCalendarGrid extends StatelessWidget {
@@ -361,36 +324,33 @@ class _TrainerCalendarGrid extends StatelessWidget {
     final leading = firstDay.weekday - 1;
     final cells = leading + lastDay.day;
     final totalCells = cells <= 35 ? 35 : 42;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
     return Column(
       children: [
-        Row(
-          children: weekdayLabels
-              .map(
-                (label) => Expanded(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            children: [
+              for (final label in weekdayLabels)
+                Expanded(
                   child: Center(
-                    child: Text(
-                      label,
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textTertiary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Text(label, style: AppTextStyles.bodySm.copyWith(fontSize: 12, height: 16 / 12)),
                   ),
                 ),
-              )
-              .toList(),
+            ],
+          ),
         ),
-        const Gap(6),
         GridView.builder(
           shrinkWrap: true,
+          padding: EdgeInsets.zero,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: totalCells,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 7,
-            mainAxisExtent: 58,
-            crossAxisSpacing: 4,
-            mainAxisSpacing: 2,
+            mainAxisExtent: AppSize.touchMin,
+            mainAxisSpacing: AppSpacing.xxs,
           ),
           itemBuilder: (context, index) {
             final dayNumber = index - leading + 1;
@@ -400,65 +360,66 @@ class _TrainerCalendarGrid extends StatelessWidget {
 
             final day = DateTime(focusedMonth.year, focusedMonth.month, dayNumber);
             final key = _key(day);
-            final isToday = _sameDate(day, DateTime.now());
+            final isToday = _sameDate(day, today);
             final isSelected = _sameDate(day, selectedDay);
+            final isFuture = day.isAfter(today);
             final personalCount = personalCountByDay[key] ?? 0;
             final ptCount = ptCountByDay[key] ?? 0;
 
-            return GestureDetector(
-              onTap: () => onSelect(day),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.brand
-                          : isToday
-                              ? AppColors.brand.withValues(alpha: 0.15)
-                              : Colors.transparent,
-                      borderRadius: BorderRadius.circular(AppRadius.xs),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '$dayNumber',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: isSelected
-                            ? Colors.white
-                            : isToday
-                                ? AppColors.brand
-                                : AppColors.textPrimary,
-                        fontWeight: (isToday || isSelected)
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+            final semantic = [
+              '${focusedMonth.month}월 $dayNumber일',
+              if (isToday) '오늘',
+              if (ptCount > 0) 'PT $ptCount건',
+              if (personalCount > 0) '개인운동 $personalCount건',
+            ].join(', ');
+
+            return Semantics(
+              button: true,
+              selected: isSelected,
+              label: semantic,
+              excludeSemantics: true,
+              child: GestureDetector(
+                onTap: () => onSelect(day),
+                behavior: HitTestBehavior.opaque,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isSelected ? AppColors.primary : Colors.transparent,
+                        border: isToday && !isSelected ? Border.all(color: AppColors.ink) : null,
+                      ),
+                      child: Text(
+                        '$dayNumber',
+                        style: AppTextStyles.bodyMd.copyWith(
+                          fontSize: 14,
+                          height: 18 / 14,
+                          color: isSelected
+                              ? AppColors.onPrimary
+                              : isFuture
+                                  ? AppColors.body
+                                  : AppColors.ink,
+                        ),
                       ),
                     ),
-                  ),
-                  const Gap(2),
-                  SizedBox(
-                    height: 24,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        if (personalCount > 0)
-                          _CalendarLabel(
-                            label: '개인운동 $personalCount건',
-                            color: AppColors.brand,
-                          ),
-                        if (ptCount > 0) ...[
-                          if (personalCount > 0) const Gap(1),
-                          _CalendarLabel(
-                            label: 'PT $ptCount건',
-                            color: AppColors.destructive,
-                          ),
+                    const SizedBox(height: 3),
+                    SizedBox(
+                      height: 5,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (ptCount > 0) const _Dot(filled: true),
+                          if (ptCount > 0 && personalCount > 0) const SizedBox(width: 3),
+                          if (personalCount > 0) const _Dot(filled: false),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
@@ -468,225 +429,158 @@ class _TrainerCalendarGrid extends StatelessWidget {
   }
 }
 
-class _CalendarLabel extends StatelessWidget {
-  final String label;
-  final Color color;
+class _Dot extends StatelessWidget {
+  final bool filled;
 
-  const _CalendarLabel({required this.label, required this.color});
+  const _Dot({required this.filled});
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: TextStyle(
-        fontFamily: 'WantedSans',
-        fontSize: 8,
-        color: color,
-        fontWeight: FontWeight.w500,
-        height: 1.2,
-        letterSpacing: -0.2,
+    return Container(
+      width: 5,
+      height: 5,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: filled ? AppColors.ink : Colors.transparent,
+        border: filled ? null : Border.all(color: AppColors.ink),
+      ),
+    );
+  }
+}
+
+class _CalendarLegend extends StatelessWidget {
+  const _CalendarLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
+      child: Row(
+        children: [
+          const _Dot(filled: true),
+          const SizedBox(width: 6),
+          Text('PT', style: AppTextStyles.counter),
+          const SizedBox(width: AppSpacing.base),
+          const _Dot(filled: false),
+          const SizedBox(width: 6),
+          Text('개인운동', style: AppTextStyles.bodySm.copyWith(fontSize: 12, height: 16 / 12)),
+        ],
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 선택된 날짜 기록
+// 선택된 날짜 기록 — 화면 폭 행 + hairline
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _DayRecords extends StatelessWidget {
-  final List<Workout> workouts;
-  final List<PtSession> ptSessions;
-  final List<AppUser> members;
-  final void Function(PtSession) onPtTap;
-  final void Function(AppUser) onMemberTap;
-
-  const _DayRecords({
-    required this.workouts,
-    required this.ptSessions,
-    required this.members,
-    required this.onPtTap,
-    required this.onMemberTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (workouts.isEmpty && ptSessions.isEmpty) {
-      return AppCard(
-        hasShadow: true,
-        hasBorder: false,
-        padding: const EdgeInsets.all(28),
-        child: Center(
-          child: Text(
-            '이 날의 기록이 없습니다',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textTertiary),
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        for (final session in ptSessions) ...[
-          _PtSessionCard(
-            session: session,
-            onTap: session.status == PtSessionStatus.scheduled
-                ? () => onPtTap(session)
-                : null,
-          ),
-          const Gap(12),
-        ],
-        for (final workout in workouts) ...[
-          _WorkoutCard(
-            workout: workout,
-            onTap: () {
-              final member =
-                  members.where((m) => m.uid == workout.memberId).firstOrNull;
-              if (member != null) onMemberTap(member);
-            },
-          ),
-          const Gap(12),
-        ],
-      ],
-    );
-  }
-}
-
-class _PtSessionCard extends StatelessWidget {
+class _PtSessionRow extends StatelessWidget {
   final PtSession session;
-  final VoidCallback? onTap;
 
-  const _PtSessionCard({required this.session, this.onTap});
+  /// 예약 상태일 때만 기록 화면으로 들어간다 (완료·취소는 null).
+  final VoidCallback? onRecord;
+
+  const _PtSessionRow({required this.session, this.onRecord});
 
   @override
   Widget build(BuildContext context) {
     final isCompleted = session.status == PtSessionStatus.completed;
-    final timeStr = DateFormat('a h:mm', 'ko').format(session.scheduledAt);
+    final timeStr = DateFormat('HH:mm').format(session.scheduledAt);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.base, AppSpacing.md, AppSpacing.base, AppSpacing.md,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 4)),
-          ],
-        ),
-        child: Row(
-          children: [
-            AppIconBox(icon: Iconsax.activity, color: AppColors.destructive, size: 40),
-            const Gap(AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'PT · ${session.memberName}',
-                    style: AppTextStyles.label.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const Gap(3),
-                  Text(
-                    '$timeStr · ${session.durationMinutes}분',
-                    style: AppTextStyles.captionSmall.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: isCompleted
-                    ? AppColors.workout.withValues(alpha: 0.1)
-                    : AppColors.brand,
-                borderRadius: BorderRadius.circular(AppRadius.xs),
-              ),
-              child: Text(
-                isCompleted ? '완료' : '기록',
-                style: AppTextStyles.captionSmall.copyWith(
-                  color: isCompleted ? AppColors.workout : Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return _MemberRow(
+      name: session.memberName,
+      seed: session.memberId,
+      meta: '$timeStr · PT · ${session.durationMinutes}분',
+      onTap: onRecord,
+      trailing: isCompleted
+          ? const AppTag('DONE', strong: true)
+          : onRecord != null
+              ? AppButton(
+                  label: '기록',
+                  variant: AppButtonVariant.secondary,
+                  size: AppButtonSize.sm,
+                  onPressed: onRecord,
+                )
+              : null,
     );
   }
 }
 
-class _WorkoutCard extends StatelessWidget {
+class _WorkoutRow extends StatelessWidget {
   final Workout workout;
   final VoidCallback onTap;
 
-  const _WorkoutCard({required this.workout, required this.onTap});
+  const _WorkoutRow({required this.workout, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final minutes = workout.durationSeconds ~/ 60;
     final detail = [
+      '개인운동',
+      workout.category.label,
       if (minutes > 0) '$minutes분',
       '${workout.totalSets}세트',
-      '${workout.totalVolume.toStringAsFixed(0)}kg',
+      '볼륨 ${NumberFormat('#,###').format(workout.totalVolume.round())}kg',
     ].join(' · ');
 
-    return GestureDetector(
+    return _MemberRow(
+      name: workout.memberName,
+      seed: workout.memberId,
+      meta: detail,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.base, AppSpacing.md, AppSpacing.base, AppSpacing.md,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 4)),
-          ],
-        ),
-        child: Row(
-          children: [
-            AppIconBox(icon: Iconsax.weight, color: AppColors.brand, size: 40),
-            const Gap(AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '개인운동 · ${workout.memberName}',
-                    style: AppTextStyles.label.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
+      trailing: const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+    );
+  }
+}
+
+/// 아바타 + 이름(17) + 메타(13) + 오른쪽 요소. 아래 hairline.
+class _MemberRow extends StatelessWidget {
+  final String name;
+  final String seed;
+  final String meta;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+
+  const _MemberRow({
+    required this.name,
+    required this.seed,
+    required this.meta,
+    this.onTap,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: onTap,
+          highlightColor: AppColors.canvasSoft,
+          splashFactory: NoSplash.splashFactory,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+            child: Row(
+              children: [
+                AppAvatar(name: name, seed: seed),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name, style: AppTextStyles.bodyLg, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(meta, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
                   ),
-                  const Gap(3),
-                  Text(
-                    detail,
-                    style: AppTextStyles.captionSmall.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                if (trailing != null) ...[const SizedBox(width: AppSpacing.sm), trailing!],
+              ],
             ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: AppColors.textTertiary,
-            ),
-          ],
+          ),
         ),
-      ),
+        const AppRowDivider(),
+      ],
     );
   }
 }

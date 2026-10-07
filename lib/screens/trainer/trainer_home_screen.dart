@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:iconsax/iconsax.dart';
-import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
-import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
 import '../../services/fcm_service.dart';
 import '../../services/notification_target.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
+import '../../widgets/app_hero.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/delete_account_sheet.dart';
@@ -32,21 +31,9 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
   static const _scheduleTab = 1;
 
   static const _navItems = [
-    AppNavItem(
-      label: '홈',
-      icon: Iconsax.home,
-      activeIcon: Iconsax.home,
-    ),
-    AppNavItem(
-      label: '일정',
-      icon: Iconsax.calendar_1,
-      activeIcon: Iconsax.calendar_1,
-    ),
-    AppNavItem(
-      label: '마이',
-      icon: Iconsax.user,
-      activeIcon: Iconsax.user,
-    ),
+    AppNavItem(label: '홈', icon: AppIcons.home, activeIcon: AppIcons.homeFill),
+    AppNavItem(label: '일정', icon: AppIcons.calendar, activeIcon: AppIcons.calendarFill),
+    AppNavItem(label: '마이', icon: AppIcons.profile, activeIcon: AppIcons.profileFill),
   ];
 
   late final List<Widget> _pages;
@@ -86,7 +73,7 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: Stack(
         children: [
           Positioned.fill(
@@ -113,77 +100,54 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
   }
 }
 
-
-
 // ─────────────────────────────────────────────────────────────────────────────
-// 마이 탭
+// 마이 탭: AppHero → 프로필 → hairline 목록 → 로그아웃(danger) → 탈퇴 링크
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TrainerProfileTab extends StatelessWidget {
   const _TrainerProfileTab();
 
+  Future<void> _signOut(BuildContext context) async {
+    await context.read<UserProvider>().signOut();
+    if (!context.mounted) return;
+    Navigator.of(context).pushReplacementNamed(AppRoutes.memberLogin);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<UserProvider>().user;
+    final subtitle = [
+      if ((user?.centerName ?? '').isNotEmpty) user!.centerName,
+      if ((user?.email ?? '').isNotEmpty) user!.email,
+    ].join(' · ');
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, 0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '마이',
-                      style: AppTextStyles.h1,
-                    ),
-                    const Gap(AppSpacing.xl),
-                    AppProfileCard(
-                      name: user?.name ?? '',
-                      subtitle: user?.centerName ?? '',
-                      roleLabel: '트레이너',
-                      gradientStart: AppColors.trainer,
-                      gradientEnd: const Color(0xFF6A5DB8),
-                    ),
-                    const Gap(AppSpacing.xl),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.xs),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x08000000),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: AppActionRow(
-                        icon: Icons.logout_rounded,
-                        label: '로그아웃',
-                        isDestructive: true,
-                        onTap: () async {
-                          await context.read<UserProvider>().signOut();
-                          if (!context.mounted) return;
-                          Navigator.of(context)
-                              .pushReplacementNamed(AppRoutes.memberLogin);
-                        },
-                      ),
-                    ),
-                    const Gap(AppSpacing.lg),
-                    const DeleteAccountLink(),
-                  ],
-                ),
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 120),
+          children: [
+            const AppHero(eyebrow: 'BURNFIT · TRAINER', title: '마이'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.xl),
+              child: AppProfileCard(
+                name: user?.name ?? '',
+                subtitle: subtitle,
+                roleLabel: '트레이너',
+                seed: user?.uid,
               ),
             ),
-            const SliverToBoxAdapter(child: Gap(120)),
+            const AppMonthHeader(label: 'ACCOUNT'),
+            AppActionRow(
+              icon: AppIcons.signOut,
+              label: '로그아웃',
+              isDestructive: true,
+              onTap: () => _signOut(context),
+            ),
+            const AppRowDivider(),
+            const SizedBox(height: AppSpacing.xl),
+            const DeleteAccountLink(),
           ],
         ),
       ),

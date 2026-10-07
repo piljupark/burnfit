@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
@@ -67,111 +66,57 @@ class _OnboardingBasicScreenState extends State<OnboardingBasicScreen> {
     }
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          msg,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textOnAccent,
-          ),
-        ),
-        backgroundColor: AppColors.textNeutral,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-        ),
-        margin: const EdgeInsets.fromLTRB(
-          AppSpacing.screenH,
-          0,
-          AppSpacing.screenH,
-          AppSpacing.md,
-        ),
-      ),
-    );
-  }
+  void _showError(String msg) => AppFeedback.showWarning(context, msg);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Gap(AppSpacing.xl2),
-              // 프로그레스
-              _OnboardingProgress(
-                step: 1,
-                total: 2,
-              ).animate().fadeIn(duration: 300.ms),
-              const Gap(AppSpacing.xl),
-              Text('기본 정보', style: AppTextStyles.h2)
-                  .animate()
-                  .fadeIn(delay: 50.ms, duration: 400.ms)
-                  .slideY(begin: 0.08),
-              const Gap(AppSpacing.xs),
-              Text(
-                '서비스 이용을 위해 기본 정보를 입력해주세요.',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
-              const Gap(AppSpacing.xl),
-              AppTextField(
-                label: '생년월일 (8자리)',
-                hint: '19900101',
-                controller: _birthController,
-                keyboardType: TextInputType.number,
-                maxLength: 8,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                textInputAction: TextInputAction.done,
-              ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
-              const Gap(AppSpacing.xl),
-              Text(
-                '성별',
-                style: AppTextStyles.label.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
-              const Gap(AppSpacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: _GenderOption(
-                      label: '남성',
-                      icon: Icons.male_rounded,
-                      selected: _gender == Gender.male,
-                      onTap: () => setState(() => _gender = Gender.male),
-                    ),
-                  ),
-                  const Gap(AppSpacing.sm),
-                  Expanded(
-                    child: _GenderOption(
-                      label: '여성',
-                      icon: Icons.female_rounded,
-                      selected: _gender == Gender.female,
-                      onTap: () => setState(() => _gender = Gender.female),
-                    ),
-                  ),
-                ],
-              ).animate().fadeIn(delay: 250.ms, duration: 400.ms),
-              const Spacer(),
-              AppButton(
-                label: '다음',
-                onPressed: _next,
-                isLoading: _isSaving,
-                fullWidth: true,
-                size: AppButtonSize.lg,
-              ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
-              const Gap(AppSpacing.lg),
-            ],
-          ),
+    return _OnboardingScaffold(
+      step: 1,
+      total: 2,
+      title: '기본 정보',
+      description: '서비스 이용을 위해 기본 정보를 입력해주세요.',
+      fields: [
+        AppTextField(
+          label: '생년월일 (8자리)',
+          hint: '19900101',
+          controller: _birthController,
+          keyboardType: TextInputType.number,
+          maxLength: 8,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          textInputAction: TextInputAction.done,
         ),
-      ),
+        const Gap(AppSpacing.xl),
+        Text('성별', style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+        const Gap(AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: _GenderOption(
+                label: '남성',
+                selected: _gender == Gender.male,
+                onTap: () => setState(() => _gender = Gender.male),
+              ),
+            ),
+            const Gap(AppSpacing.sm),
+            Expanded(
+              child: _GenderOption(
+                label: '여성',
+                selected: _gender == Gender.female,
+                onTap: () => setState(() => _gender = Gender.female),
+              ),
+            ),
+          ],
+        ),
+      ],
+      actions: [
+        AppButton(
+          label: '다음',
+          onPressed: _next,
+          isLoading: _isSaving,
+          fullWidth: true,
+          size: AppButtonSize.lg,
+        ),
+      ],
     );
   }
 }
@@ -235,152 +180,163 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: Column(
+    return _OnboardingScaffold(
+      step: 2,
+      total: 2,
+      title: '신체 정보',
+      description: '나중에 프로필에서 수정할 수 있습니다.',
+      fields: [
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.xl2,
-                AppSpacing.screenH,
-                0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _OnboardingProgress(
-                    step: 2,
-                    total: 2,
-                  ).animate().fadeIn(duration: 300.ms),
-                  const Gap(AppSpacing.xl),
-                  Text('신체 정보', style: AppTextStyles.h2)
-                      .animate()
-                      .fadeIn(delay: 50.ms, duration: 400.ms)
-                      .slideY(begin: 0.08),
-                  const Gap(AppSpacing.xs),
-                  Text(
-                    '나중에 프로필에서 수정할 수 있습니다.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
-                ],
+            Expanded(
+              child: AppTextField(
+                label: '키 (cm)',
+                controller: _heightController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                textInputAction: TextInputAction.next,
               ),
             ),
+            const Gap(AppSpacing.sm),
+            Expanded(
+              child: AppTextField(
+                label: '체중 (kg)',
+                controller: _weightController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                textInputAction: TextInputAction.next,
+              ),
+            ),
+          ],
+        ),
+        const Gap(AppSpacing.base),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: AppTextField(
+                label: '골격근량 (kg)',
+                hint: '선택',
+                controller: _muscleController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                textInputAction: TextInputAction.next,
+              ),
+            ),
+            const Gap(AppSpacing.sm),
+            Expanded(
+              child: AppTextField(
+                label: '체지방 (kg)',
+                hint: '선택',
+                controller: _bodyFatController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                textInputAction: TextInputAction.next,
+              ),
+            ),
+          ],
+        ),
+        const Gap(AppSpacing.base),
+        AppTextField(
+          label: '목표',
+          hint: '예) 체중 감량 5kg',
+          controller: _goalController,
+          maxLines: 3,
+          textInputAction: TextInputAction.done,
+        ),
+      ],
+      actions: [
+        AppButton(
+          label: '시작하기',
+          onPressed: _done,
+          isLoading: _isSaving,
+          fullWidth: true,
+          size: AppButtonSize.lg,
+        ),
+        const Gap(AppSpacing.xs),
+        AppButton(
+          label: '나중에 입력',
+          variant: AppButtonVariant.ghost,
+          onPressed: () => Navigator.of(
+            context,
+          ).pushReplacementNamed(AppRoutes.memberHome),
+          fullWidth: true,
+        ),
+      ],
+    );
+  }
+}
+
+// ── 공유 위젯 ─────────────────────────────────────────────────────────────
+
+/// 온보딩 화면 틀: 단계 막대 + 모노 단계 표시 + 28 제목 + 설명 → 스크롤 입력 → 아래 고정 행동.
+class _OnboardingScaffold extends StatelessWidget {
+  final int step;
+  final int total;
+  final String title;
+  final String description;
+  final List<Widget> fields;
+  final List<Widget> actions;
+
+  const _OnboardingScaffold({
+    required this.step,
+    required this.total,
+    required this.title,
+    required this.description,
+    required this.fields,
+    required this.actions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screenH,
                   AppSpacing.xl,
                   AppSpacing.screenH,
-                  AppSpacing.xl2,
+                  AppSpacing.xl,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: AppTextField(
-                            label: '키 (cm)',
-                            controller: _heightController,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'[\d.]'),
-                              ),
-                            ],
-                            textInputAction: TextInputAction.next,
-                          ),
-                        ),
-                        const Gap(AppSpacing.sm),
-                        Expanded(
-                          child: AppTextField(
-                            label: '체중 (kg)',
-                            controller: _weightController,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'[\d.]'),
-                              ),
-                            ],
-                            textInputAction: TextInputAction.next,
-                          ),
-                        ),
-                      ],
-                    ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
+                    _OnboardingProgress(step: step, total: total),
+                    const Gap(AppSpacing.xl2),
+                    Text('STEP $step / $total', style: AppTextStyles.eyebrow),
                     const Gap(AppSpacing.sm),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: AppTextField(
-                            label: '골격근량 (kg)',
-                            hint: '선택',
-                            controller: _muscleController,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'[\d.]'),
-                              ),
-                            ],
-                            textInputAction: TextInputAction.next,
-                          ),
-                        ),
-                        const Gap(AppSpacing.sm),
-                        Expanded(
-                          child: AppTextField(
-                            label: '체지방 (kg)',
-                            hint: '선택',
-                            controller: _bodyFatController,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'[\d.]'),
-                              ),
-                            ],
-                            textInputAction: TextInputAction.next,
-                          ),
-                        ),
-                      ],
-                    ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
+                    Semantics(
+                      header: true,
+                      child: Text(title, style: AppTextStyles.displayMd),
+                    ),
                     const Gap(AppSpacing.sm),
-                    AppTextField(
-                      label: '목표',
-                      hint: '예) 체중 감량 5kg',
-                      controller: _goalController,
-                      maxLines: 3,
-                      textInputAction: TextInputAction.done,
-                    ).animate().fadeIn(delay: 250.ms, duration: 400.ms),
-                    const Gap(AppSpacing.xl),
-                    AppButton(
-                      label: '시작하기',
-                      onPressed: _done,
-                      isLoading: _isSaving,
-                      fullWidth: true,
-                      size: AppButtonSize.lg,
-                    ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
-                    const Gap(AppSpacing.sm),
-                    AppButton(
-                      label: '나중에 입력',
-                      variant: AppButtonVariant.ghost,
-                      onPressed: () => Navigator.of(
-                        context,
-                      ).pushReplacementNamed(AppRoutes.memberHome),
-                      fullWidth: true,
-                    ).animate().fadeIn(delay: 350.ms, duration: 400.ms),
+                    Text(description, style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
+                    const Gap(AppSpacing.xl2),
+                    ...fields,
                   ],
                 ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.md,
+                AppSpacing.screenH,
+                AppSpacing.base,
+              ),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.hairline)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: actions,
               ),
             ),
           ],
@@ -390,7 +346,7 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
   }
 }
 
-// ── 공유 위젯 ─────────────────────────────────────────────────────────────
+/// 단계 막대: 4px pill 트랙(canvasMid) + ink 채움.
 class _OnboardingProgress extends StatelessWidget {
   final int step;
   final int total;
@@ -399,85 +355,65 @@ class _OnboardingProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(total, (i) {
-        final active = i < step;
-        return Expanded(
-          child: Container(
-            height: 3,
-            margin: EdgeInsets.only(right: i < total - 1 ? 6 : 0),
-            decoration: BoxDecoration(
-              color: active
-                  ? AppColors.brand
-                  : AppColors.border,
-              borderRadius: BorderRadius.circular(AppRadius.full),
+    return Semantics(
+      label: '$total단계 중 $step단계',
+      excludeSemantics: true,
+      child: Row(
+        children: List.generate(total, (i) {
+          final active = i < step;
+          return Expanded(
+            child: Container(
+              height: 4,
+              margin: EdgeInsets.only(right: i < total - 1 ? AppSpacing.xs : 0),
+              decoration: BoxDecoration(
+                color: active ? AppColors.ink : AppColors.canvasMid,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
             ),
-          ),
-        );
-      }),
+          );
+        }),
+      ),
     );
   }
 }
 
+/// 성별 선택 pill (선택 = 흰 채움, 아니면 외곽선). 높이 48.
 class _GenderOption extends StatelessWidget {
   final String label;
-  final IconData icon;
   final bool selected;
   final VoidCallback onTap;
 
   const _GenderOption({
     required this.label,
-    required this.icon,
     required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-        height: 72,
-        decoration: BoxDecoration(
-          color: selected ? AppColors.brand : AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          border: selected
-              ? null
-              : Border.all(color: AppColors.border, width: 0.5),
-          boxShadow: [
-            if (selected)
-              BoxShadow(
-                color: AppColors.brand.withValues(alpha: 0.30),
-                blurRadius: 8,
-                offset: const Offset(0, 6),
-              )
-            else
-              const BoxShadow(
-                color: Color(0x0A000000),
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 22,
-              color: selected ? Colors.white : AppColors.textSecondary,
+    return Semantics(
+      button: true,
+      selected: selected,
+      inMutuallyExclusiveGroup: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: selected ? AppColors.primary : AppColors.outline),
+          ),
+          child: Text(
+            label,
+            style: AppTextStyles.bodyMd.copyWith(
+              color: selected ? AppColors.onPrimary : AppColors.ink,
             ),
-            const Gap(AppSpacing.xs),
-            Text(
-              label,
-              style: AppTextStyles.label.copyWith(
-                color: selected ? Colors.white : AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

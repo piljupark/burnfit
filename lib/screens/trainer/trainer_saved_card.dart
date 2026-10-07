@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/workout.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_tag.dart';
 import 'trainer_workout_models.dart';
 
+/// 저장된 PT 기록 한 덩어리 (카드 없이 화면 폭, 아래 hairline).
+/// 머리: 부위 태그 + 요약 줄 + 수정/삭제 아이콘 버튼 → 운동 줄(이름 · 세트 요약).
 class TrainerSavedWorkoutCard extends StatelessWidget {
   final Workout workout;
   final VoidCallback onEdit;
@@ -23,71 +27,39 @@ class TrainerSavedWorkoutCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final summary = [
+      if (!_isCardio) '총 볼륨 ${workout.totalVolume.toStringAsFixed(0)}kg',
+      '${workout.totalSets}세트',
+      trainerFormatDuration(workout.durationSeconds),
+    ].join(' · ');
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.hairline)),
       ),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              _CategoryBadge(label: workout.category.label),
-              const Spacer(),
-              IconButton(
-                onPressed: onEdit,
-                icon: const Icon(
-                  Icons.edit_rounded,
-                  color: AppColors.textSecondary,
-                  size: 20,
-                ),
+              AppTag(workout.category.label),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(summary, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodySm),
               ),
-              IconButton(
-                onPressed: onDelete,
-                icon: const Icon(
-                  Icons.delete_outline_rounded,
-                  color: AppColors.textSecondary,
-                  size: 20,
-                ),
+              AppIconButton(icon: AppIcons.edit, label: '기록 수정', onPressed: onEdit, color: AppColors.body),
+              Transform.translate(
+                offset: const Offset(12, 0),
+                child: AppIconButton(icon: AppIcons.trash, label: '기록 삭제', onPressed: onDelete, color: AppColors.body),
               ),
             ],
           ),
-          const Gap(14),
-          ...workout.exercises.map(
-            (exercise) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+          for (final exercise in workout.exercises)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: _SavedExerciseRow(exercise: exercise, isCardio: _isCardio),
             ),
-          ),
-          const Gap(6),
-          Container(height: 1, color: AppColors.border),
-          const Gap(12),
-          Row(
-            children: [
-              Expanded(
-                child: _FooterMetric(
-                  label: '총 볼륨',
-                  value: '${workout.totalVolume.toStringAsFixed(0)}kg',
-                ),
-              ),
-              Expanded(
-                child: _FooterMetric(
-                  label: '총 세트',
-                  value: '${workout.totalSets}세트',
-                ),
-              ),
-              Expanded(
-                child: _FooterMetric(
-                  label: '운동시간',
-                  value: trainerFormatDuration(workout.durationSeconds),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -103,31 +75,30 @@ class _SavedExerciseRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
       children: [
-        Container(
-          width: 7,
-          height: 7,
-          margin: const EdgeInsets.only(top: 9),
-          decoration: const BoxDecoration(
-            color: AppColors.brand,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 10),
         Expanded(
           child: Text(
-            isCardio
-                ? _cardioSummary(exercise)
-                : '${exercise.name} ${exercise.sets.length}세트',
-            style: AppTextStyles.bodyLarge.copyWith(
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
+            exercise.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodyMd,
           ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Text(
+          isCardio ? _cardioSummary(exercise) : _strengthSummary(exercise),
+          style: AppTextStyles.bodySm,
         ),
       ],
     );
+  }
+
+  String _strengthSummary(Exercise exercise) {
+    if (exercise.sets.isEmpty) return '0세트';
+    final max = exercise.sets.map((s) => s.weight).reduce((a, b) => a > b ? a : b);
+    return '${exercise.sets.length}세트 · 최고 ${trainerFormatWeight(max)}kg';
   }
 
   String _cardioSummary(Exercise exercise) {
@@ -137,62 +108,6 @@ class _SavedExerciseRow extends StatelessWidget {
         ? 0.0
         : exercise.sets.map((s) => s.weight).reduce((a, b) => a > b ? a : b);
     final minutes = exercise.sets.fold<int>(0, (sum, s) => sum + s.reps);
-    return '${exercise.name} · $metricLabel ${trainerFormatMetricValue(primaryMax)}$metricSuffix · $minutes분';
-  }
-}
-
-class _CategoryBadge extends StatelessWidget {
-  final String label;
-
-  const _CategoryBadge({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.brand,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.label.copyWith(
-          color: AppColors.textOnAccent,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _FooterMetric extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _FooterMetric({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.bodyLarge.copyWith(
-            color: AppColors.brand,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const Gap(4),
-        Text(
-          label,
-          style: AppTextStyles.caption.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
+    return '$metricLabel ${trainerFormatMetricValue(primaryMax)}$metricSuffix · $minutes분';
   }
 }

@@ -1,16 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
+import '../../core/app_logger.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../models/feedback.dart' as fb;
 import '../../models/meal.dart';
+import '../../services/firestore_service.dart';
 import '../../services/meal_service.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_avatar.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_filter_tabs.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
+import '../../widgets/app_tag.dart';
+import '../../widgets/orb_loader.dart';
 import 'meal_input_sheet.dart';
 
 class MemberMealLogScreen extends StatefulWidget {
@@ -29,9 +41,16 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   bool _isLoading = false;
   int _filterIndex = 0;
 
-  static const _filterLabels = ['전체', '아침', '점심', '저녁', '간식'];
+  /// 이번 주에 기록이 있는 날짜(yyyy-MM-dd) — 주간 스트립 점 표시용.
+  Set<String> _weekRecordDates = {};
 
-  String get _dateKey => DateFormat('yyyy-MM-dd').format(_selectedDate);
+  /// 식단 id → 트레이너 피드백 (피드백 완료된 식단만).
+  Map<String, fb.Feedback> _feedbacks = {};
+
+  static const _filterLabels = ['전체', '아침', '점심', '저녁', '간식'];
+  static final _keyFormat = DateFormat('yyyy-MM-dd');
+
+  String get _dateKey => _keyFormat.format(_selectedDate);
 
   @override
   void initState() {
@@ -43,6 +62,7 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
     final user = context.read<UserProvider>().user;
     if (user == null) return;
     setState(() => _isLoading = true);
+    _loadWeekMarkers(user.centerId, user.uid);
     try {
       final list = await MealService.getMealsByDate(
         user.centerId,
@@ -51,6 +71,7 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
       );
       if (!mounted) return;
       setState(() => _meals = list);
+      _loadFeedbacks(list, user.centerId, user.uid);
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
@@ -58,6 +79,49 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  /// 주간 스트립의 기록 점. 실패해도 화면은 그대로 둔다.
+  Future<void> _loadWeekMarkers(String centerId, String memberId) async {
+    final monday = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+    final sunday = monday.add(const Duration(days: 6));
+    try {
+      final meals = await MealService.getMealsByDateRange(
+        centerId,
+        memberId,
+        _keyFormat.format(monday),
+        _keyFormat.format(sunday),
+      );
+      if (!mounted) return;
+      setState(() => _weekRecordDates = meals.map((m) => m.mealDate).toSet());
+    } catch (e) {
+      AppLogger.debug('[식단 주간 표시 오류] $e');
+    }
+  }
+
+  /// 피드백 완료 식단의 트레이너 코멘트. 실패해도 태그만 보인다.
+  Future<void> _loadFeedbacks(List<Meal> meals, String centerId, String memberId) async {
+    final targets = meals.where((m) => m.hasFeedback).toList();
+    if (targets.isEmpty) {
+      if (mounted) setState(() => _feedbacks = {});
+      return;
+    }
+    try {
+      final results = await Future.wait(
+        targets.map(
+          (m) => FirestoreService.getFeedbackByTarget(m.id, centerId: centerId, memberId: memberId),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _feedbacks = {
+          for (var i = 0; i < targets.length; i++)
+            if (results[i] != null) targets[i].id: results[i]!,
+        };
+      });
+    } catch (e) {
+      AppLogger.debug('[식단 피드백 조회 오류] $e');
     }
   }
 
@@ -75,8 +139,6 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
 
   int get _totalCalories =>
       _meals.fold<int>(0, (sum, m) => sum + (m.calories ?? 0));
-  int get _feedbackDoneCount => _meals.where((e) => e.hasFeedback).length;
-  int get _feedbackPendingCount => _meals.where((e) => !e.hasFeedback).length;
 
   Future<void> _addMeal() async {
     final user = context.read<UserProvider>().user;
@@ -96,34 +158,25 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   }
 
   Future<void> _deleteMeal(Meal meal) async {
+    final photoNote = meal.imageUrls.isEmpty ? '' : ' 사진 ${meal.imageUrls.length}장도 함께 사라집니다.';
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xs),
+        title: const Text('식단 삭제'),
+        content: Text(
+          '${meal.mealType.label} 식단 기록을 삭제할까요?$photoNote',
+          style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
         ),
-        title: Text('식단 삭제', style: AppTextStyles.h4),
-        content: Text('이 식단 기록을 삭제할까요?', style: AppTextStyles.body),
         actions: [
-          TextButton(
+          AppButton(
+            label: '취소',
+            variant: AppButtonVariant.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
-              '취소',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
           ),
-          TextButton(
+          AppButton(
+            label: '삭제',
+            variant: AppButtonVariant.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              '삭제',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.error,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
           ),
         ],
       ),
@@ -139,157 +192,117 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
     }
   }
 
+  void _selectDate(DateTime d) {
+    setState(() => _selectedDate = d);
+    _load();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filtered = _filtered;
+    final canPop = Navigator.of(context).canPop();
+    final kcal = NumberFormat('#,###').format(_totalCalories);
+    final mealCount = _meals.length;
+
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: RefreshIndicator(
-        onRefresh: _load,
-        color: AppColors.diet,
-        backgroundColor: AppColors.card,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.lg,
-                    AppSpacing.screenH,
-                    0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 헤더
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('식단 기록', style: AppTextStyles.h1),
-                                const Gap(AppSpacing.xxs),
-                                Text(
-                                  DateFormat(
-                                    'M월 d일 (E)',
-                                    'ko',
-                                  ).format(_selectedDate),
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: _addMeal,
-                            child: Container(
-                              height: 40,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.diet,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.xs,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.add_rounded,
-                                    size: 16,
-                                    color: AppColors.textOnAccent,
-                                  ),
-                                  const Gap(4),
-                                  Text(
-                                    '추가',
-                                    style: AppTextStyles.label.copyWith(
-                                      color: AppColors.textOnAccent,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Gap(AppSpacing.lg),
-                      // 주간 캘린더
-                      _WeekStrip(
-                        selected: _selectedDate,
-                        onSelect: (d) {
-                          setState(() => _selectedDate = d);
-                          _load();
-                        },
-                      ),
-                      const Gap(AppSpacing.md),
-                      // 요약 카드
-                      _SummaryRow(
-                        totalMeals: _meals.length,
-                        totalCalories: _totalCalories,
-                        feedbackDone: _feedbackDoneCount,
-                        feedbackPending: _feedbackPendingCount,
-                      ),
-                      const Gap(AppSpacing.md),
-                      // 필터
-                      _FilterBar(
-                        labels: _filterLabels,
-                        selected: _filterIndex,
-                        onSelected: (i) => setState(() => _filterIndex = i),
-                      ),
-                      const Gap(AppSpacing.md),
-                    ],
-                  ),
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.screenH, right: AppSpacing.xs),
+              child: AppScreenHeader(
+                title: '식단 기록',
+                subtitle: DateFormat('M월 d일 (E)', 'ko').format(_selectedDate),
+                onBack: canPop ? () => Navigator.of(context).pop() : null,
+                trailing: AppIconButton(
+                  icon: AppIcons.add,
+                  label: '식단 추가',
+                  onPressed: _addMeal,
                 ),
               ),
             ),
-            // 식단 목록
-            if (_isLoading)
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 64),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              )
-            else if (_filtered.isEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screenH,
-                    vertical: AppSpacing.xl2,
-                  ),
-                  child: AppEmptyState(
-                    icon: Icons.restaurant_outlined,
-                    message: '기록된 식단이 없습니다.\n상단 추가 버튼으로 식단을 기록하세요.',
-                    actionLabel: '식단 추가',
-                    onAction: _addMeal,
-                  ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  0,
-                  AppSpacing.screenH,
-                  120,
-                ),
-                sliver: SliverList.separated(
-                  itemCount: _filtered.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: AppSpacing.xs),
-                  itemBuilder: (_, i) => _MealCard(
-                    meal: _filtered[i],
-                    onDelete: () => _deleteMeal(_filtered[i]),
-                  ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                color: AppColors.ink,
+                backgroundColor: AppColors.canvasCard,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: _WeekStrip(
+                        selected: _selectedDate,
+                        recordDates: _weekRecordDates,
+                        onSelect: _selectDate,
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: AppRowDivider()),
+                    SliverToBoxAdapter(
+                      child: AppScrollableChips(
+                        labels: _filterLabels,
+                        selectedIndex: _filterIndex,
+                        onSelected: (i) => setState(() => _filterIndex = i),
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.screenH,
+                          AppSpacing.sm,
+                          AppSpacing.screenH,
+                          0,
+                        ),
+                      ),
+                    ),
+                    if (!_isLoading && mealCount > 0)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.screenH,
+                            AppSpacing.sm,
+                            AppSpacing.screenH,
+                            0,
+                          ),
+                          child: Semantics(
+                            label: '총 $kcal 킬로칼로리, $mealCount끼',
+                            excludeSemantics: true,
+                            child: Text(
+                              '$kcal KCAL · $mealCount ${mealCount == 1 ? 'MEAL' : 'MEALS'}',
+                              style: AppTextStyles.eyebrow,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (_isLoading)
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: AppSpacing.xl4),
+                          child: Center(child: OrbLoader(semanticLabel: '식단 불러오는 중')),
+                        ),
+                      )
+                    else if (filtered.isEmpty)
+                      SliverToBoxAdapter(
+                        child: AppEmptyState(
+                          icon: AppIcons.meal,
+                          message: '기록된 식단이 없습니다',
+                          description: '먹은 음식을 사진과 함께 남기면 트레이너가 피드백을 드려요.',
+                          actionLabel: '식단 추가',
+                          onAction: _addMeal,
+                        ),
+                      )
+                    else
+                      SliverList.builder(
+                        itemCount: filtered.length,
+                        itemBuilder: (_, i) => _MealEntry(
+                          meal: filtered[i],
+                          feedback: _feedbacks[filtered[i].id],
+                          onDelete: () => _deleteMeal(filtered[i]),
+                        ),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                  ],
                 ),
               ),
+            ),
           ],
         ),
       ),
@@ -297,12 +310,17 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   }
 }
 
-// ── 주간 스트립 (홈 탭과 동일 스타일) ────────────────────────────────────
+// ── 주간 스트립: 요일 캡션 + 날짜 원. 선택 = 흰 원, 오늘 = 외곽선 원, 기록 있음 = 점 ──
 class _WeekStrip extends StatelessWidget {
   final DateTime selected;
+  final Set<String> recordDates;
   final ValueChanged<DateTime> onSelect;
 
-  const _WeekStrip({required this.selected, required this.onSelect});
+  const _WeekStrip({
+    required this.selected,
+    required this.recordDates,
+    required this.onSelect,
+  });
 
   static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -310,73 +328,61 @@ class _WeekStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final monday = selected.subtract(Duration(days: selected.weekday - 1));
     final days = List.generate(7, (i) => monday.add(Duration(days: i)));
-    final today = DateTime.now();
+    final today = DateUtils.dateOnly(DateTime.now());
+    final keyFormat = DateFormat('yyyy-MM-dd');
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.md),
       child: Row(
         children: days.map((day) {
-          final isSel =
-              day.year == selected.year &&
-              day.month == selected.month &&
-              day.day == selected.day;
-          final isToday =
-              day.year == today.year &&
-              day.month == today.month &&
-              day.day == today.day;
+          final isSel = DateUtils.isSameDay(day, selected);
+          final isToday = DateUtils.isSameDay(day, today);
+          final isFuture = DateUtils.dateOnly(day).isAfter(today);
+          final hasRecord = recordDates.contains(keyFormat.format(day));
+          final weekday = _weekdays[day.weekday - 1];
 
           return Expanded(
-            child: GestureDetector(
-              onTap: () => onSelect(day),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSel ? AppColors.diet : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.xs + 2),
-                ),
+            child: Semantics(
+              button: true,
+              selected: isSel,
+              label: '${day.month}월 ${day.day}일 $weekday요일${hasRecord ? ', 기록 있음' : ''}',
+              excludeSemantics: true,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onSelect(day),
                 child: Column(
                   children: [
-                    Text(
-                      _weekdays[day.weekday - 1],
-                      style: AppTextStyles.captionSmall.copyWith(
-                        color: isSel
-                            ? AppColors.textOnAccent.withValues(alpha: 0.7)
-                            : AppColors.textTertiary,
-                        fontWeight: FontWeight.w500,
+                    Text(weekday, style: AppTextStyles.bodySm),
+                    const SizedBox(height: AppSpacing.xs),
+                    Container(
+                      width: AppSize.touchMin,
+                      height: AppSize.touchMin,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isSel ? AppColors.primary : Colors.transparent,
+                        border: isToday && !isSel ? Border.all(color: AppColors.outline) : null,
                       ),
-                    ),
-                    const Gap(4),
-                    Text(
-                      '${day.day}',
-                      style: AppTextStyles.body.copyWith(
-                        color: isSel
-                            ? AppColors.textOnAccent
-                            : isToday
-                            ? AppColors.diet
-                            : AppColors.textPrimary,
-                        fontWeight: isSel || isToday
-                            ? FontWeight.w700
-                            : FontWeight.w400,
-                        fontSize: 15,
-                      ),
-                    ),
-                    if (isToday && !isSel) ...[
-                      const Gap(3),
-                      Container(
-                        width: 4,
-                        height: 4,
-                        decoration: const BoxDecoration(
-                          color: AppColors.diet,
-                          shape: BoxShape.circle,
+                      child: Text(
+                        '${day.day}',
+                        style: AppTextStyles.bodyMd.copyWith(
+                          color: isSel
+                              ? AppColors.onPrimary
+                              : isFuture
+                                  ? AppColors.mute
+                                  : AppColors.ink,
                         ),
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: hasRecord ? AppColors.ink : Colors.transparent,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -388,396 +394,171 @@ class _WeekStrip extends StatelessWidget {
   }
 }
 
-// ── 요약 행 ───────────────────────────────────────────────────────────────
-class _SummaryRow extends StatelessWidget {
-  final int totalMeals;
-  final int totalCalories;
-  final int feedbackDone;
-  final int feedbackPending;
+// ── 끼니 한 덩어리: 머리말(끼니 + 시각) → 사진 3열 → 캡션 줄 → 트레이너 피드백 ──
+class _MealEntry extends StatelessWidget {
+  final Meal meal;
+  final fb.Feedback? feedback;
+  final VoidCallback onDelete;
 
-  const _SummaryRow({
-    required this.totalMeals,
-    required this.totalCalories,
-    required this.feedbackDone,
-    required this.feedbackPending,
-  });
+  const _MealEntry({required this.meal, required this.feedback, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final description = (meal.description ?? '').trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Chip(
-          icon: Icons.restaurant_outlined,
-          label: '식사',
-          value: '$totalMeals',
-          unit: '건',
+        AppMonthHeader(
+          label: meal.mealType.label,
+          count: meal.mealTime,
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.base, AppSpacing.xs, AppSpacing.xs),
+          trailing: AppIconButton(
+            icon: AppIcons.trash,
+            label: '${meal.mealType.label} 식단 삭제',
+            color: AppColors.body,
+            onPressed: onDelete,
+          ),
         ),
-        const Gap(AppSpacing.xs),
-        _Chip(
-          icon: Icons.local_fire_department_outlined,
-          label: '칼로리',
-          value: totalCalories > 0 ? '$totalCalories' : '-',
-          unit: totalCalories > 0 ? 'kcal' : '',
+        if (meal.imageUrls.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+            child: _MealPhotoGrid(urls: meal.imageUrls, mealLabel: meal.mealType.label),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  description.isEmpty ? '메모 없음' : description,
+                  style: description.isEmpty
+                      ? AppTextStyles.bodyMd.copyWith(color: AppColors.mute)
+                      : AppTextStyles.bodyMd,
+                ),
+              ),
+              if (meal.calories != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(
+                    '${NumberFormat('#,###').format(meal.calories)} KCAL',
+                    style: AppTextStyles.counter.copyWith(color: AppColors.body),
+                  ),
+                ),
+              ],
+              const SizedBox(width: AppSpacing.sm),
+              meal.hasFeedback ? const AppTag('피드백 완료', strong: true) : const AppTag('검토 대기'),
+            ],
+          ),
         ),
-        const Gap(AppSpacing.xs),
-        _Chip(
-          icon: feedbackDone > 0
-              ? Icons.check_circle_outline_rounded
-              : Icons.hourglass_empty_rounded,
-          label: '피드백',
-          value: feedbackDone > 0 ? '$feedbackDone' : '$feedbackPending',
-          unit: feedbackDone > 0 ? '완료' : '대기',
-          active: feedbackDone > 0,
-        ),
+        if (feedback != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, 0),
+            child: _FeedbackQuote(feedback: feedback!),
+          ),
+        const SizedBox(height: AppSpacing.base),
       ],
     );
   }
 }
 
-class _Chip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final String unit;
-  final bool active;
+/// 사진 3열 격자 (간격 2, 반경 0). 3장 넘으면 마지막 칸에 +N 배지.
+class _MealPhotoGrid extends StatelessWidget {
+  final List<String> urls;
+  final String mealLabel;
 
-  const _Chip({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.unit,
-    this.active = false,
-  });
+  const _MealPhotoGrid({required this.urls, required this.mealLabel});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: active
-              ? AppColors.diet.withValues(alpha: 0.12)
-              : AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0x08000000),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: active ? AppColors.diet : AppColors.textTertiary,
-            ),
-            const Gap(6),
-            Text(
-              value,
-              style: AppTextStyles.h3.copyWith(
-                color: active ? AppColors.diet : AppColors.textPrimary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            Text(
-              unit.isNotEmpty ? unit : label,
-              style: AppTextStyles.captionSmall.copyWith(
-                color: active
-                    ? AppColors.diet.withValues(alpha: 0.7)
-                    : AppColors.textTertiary,
-              ),
-            ),
-          ],
-        ),
+    const maxTiles = 3;
+    final shown = urls.take(maxTiles).toList();
+    final extra = urls.length - shown.length;
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: shown.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: AppSpacing.xxs,
+        crossAxisSpacing: AppSpacing.xxs,
       ),
-    );
-  }
-}
-
-// ── 필터 바 ───────────────────────────────────────────────────────────────
-class _FilterBar extends StatelessWidget {
-  final List<String> labels;
-  final int selected;
-  final ValueChanged<int> onSelected;
-
-  const _FilterBar({
-    required this.labels,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: labels.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.xxs),
-        itemBuilder: (_, i) {
-          final active = i == selected;
-          return GestureDetector(
-            onTap: () => onSelected(i),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: active ? AppColors.card : AppColors.card,
-                borderRadius: BorderRadius.circular(AppRadius.full),
-                border: Border.all(
-                  color: active
-                      ? AppColors.diet.withValues(alpha: 0.4)
-                      : AppColors.border,
-                  width: 0.5,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                labels[i],
-                style: AppTextStyles.label.copyWith(
-                  color: active
-                      ? AppColors.textPrimary
-                      : AppColors.textSecondary,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-// ── 식단 카드 ─────────────────────────────────────────────────────────────
-class _MealCard extends StatelessWidget {
-  final Meal meal;
-  final VoidCallback onDelete;
-
-  const _MealCard({required this.meal, required this.onDelete});
-
-  IconData get _typeIcon => switch (meal.mealType) {
-    MealType.breakfast => Icons.wb_sunny_outlined,
-    MealType.lunch => Icons.lunch_dining_outlined,
-    MealType.dinner => Icons.dinner_dining_outlined,
-    MealType.snack => Icons.local_cafe_outlined,
-  };
-
-  Color get _typeColor => switch (meal.mealType) {
-    MealType.breakfast => const Color(0xFFFF9500),
-    MealType.lunch => AppColors.brand,
-    MealType.dinner => AppColors.workout,
-    MealType.snack => AppColors.diet,
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = _typeColor;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.xs),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x08000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 왼쪽 색상 바
-            Container(width: 4, color: accent),
-            // 카드 본문
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 카드 헤더
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      AppSpacing.sm,
-                      AppSpacing.sm,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(AppRadius.xs),
-                          ),
-                          child: Icon(_typeIcon, size: 18, color: accent),
-                        ),
-                        const Gap(AppSpacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                meal.mealType.label,
-                                style: AppTextStyles.label.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              if (meal.mealTime != null)
-                                Text(
-                                  meal.mealTime!,
-                                  style: AppTextStyles.captionSmall.copyWith(
-                                    color: AppColors.textTertiary,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        if (meal.hasFeedback)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.success.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(AppRadius.full),
-                            ),
-                            child: Text(
-                              '피드백 완료',
-                              style: AppTextStyles.captionSmall.copyWith(
-                                color: AppColors.success,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.bg,
-                              borderRadius: BorderRadius.circular(AppRadius.full),
-                            ),
-                            child: Text(
-                              '검토 대기',
-                              style: AppTextStyles.captionSmall.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        const Gap(AppSpacing.xs),
-                        GestureDetector(
-                          onTap: onDelete,
-                          child: Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: AppColors.bg,
-                              borderRadius: BorderRadius.circular(AppRadius.xs),
-                            ),
-                            child: const Icon(
-                              Icons.delete_outline_rounded,
-                              size: 15,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+      itemBuilder: (_, i) {
+        final isLast = i == shown.length - 1 && extra > 0;
+        return Semantics(
+          image: true,
+          label: isLast
+              ? '$mealLabel 식단 사진 ${i + 1}, 외 $extra장'
+              : '$mealLabel 식단 사진 ${i + 1}',
+          excludeSemantics: true,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ColoredBox(
+                color: AppColors.canvasSoft,
+                child: Image.network(
+                  shown[i],
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const Center(
+                    child: Icon(AppIcons.image, size: AppSize.icon, color: AppColors.mute),
                   ),
-                  // 이미지
-                  if (meal.imageUrls.isNotEmpty) ...[
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                      child: Divider(height: 0.5, thickness: 0.5, color: AppColors.border),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        AppSpacing.sm,
-                        AppSpacing.md,
-                        0,
-                      ),
-                      child: SizedBox(
-                        height: 100,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: meal.imageUrls.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: AppSpacing.xs),
-                          itemBuilder: (_, i) => ClipRRect(
-                            borderRadius: BorderRadius.circular(AppRadius.xs),
-                            child: Image.network(
-                              meal.imageUrls[i],
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  // 설명 + 칼로리
-                  if ((meal.description ?? '').trim().isNotEmpty ||
-                      meal.calories != null) ...[
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                      child: Divider(
-                        height: AppSpacing.sm,
-                        thickness: 0.5,
-                        color: AppColors.border,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        0,
-                        AppSpacing.md,
-                        AppSpacing.md,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if ((meal.description ?? '').trim().isNotEmpty)
-                            Text(
-                              meal.description!.trim(),
-                              style: AppTextStyles.bodySmall.copyWith(height: 1.5),
-                            ),
-                          if (meal.calories != null) ...[
-                            if ((meal.description ?? '').trim().isNotEmpty)
-                              const Gap(AppSpacing.xxs),
-                            Text(
-                              '${meal.calories} kcal',
-                              style: AppTextStyles.label.copyWith(
-                                color: AppColors.diet,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ] else
-                    const Gap(AppSpacing.sm),
-                ],
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+              if (isLast)
+                Positioned(
+                  right: AppSpacing.xs,
+                  bottom: AppSpacing.xs,
+                  child: AppCountBadge('+$extra'),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
+/// 트레이너 코멘트 인용 카드: 작은 아바타 + 이름 + 시각 + 본문.
+class _FeedbackQuote extends StatelessWidget {
+  final fb.Feedback feedback;
+
+  const _FeedbackQuote({required this.feedback});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = feedback.trainerName.trim();
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.hairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              AppAvatar(name: name.isEmpty ? '트레이너' : name, seed: feedback.trainerId, size: 24),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  name.isEmpty ? '트레이너' : '$name 트레이너',
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(DateFormat('HH:mm').format(feedback.createdAt), style: AppTextStyles.counter.copyWith(color: AppColors.body)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(feedback.content, style: AppTextStyles.bodyMd),
+        ],
+      ),
+    );
+  }
+}

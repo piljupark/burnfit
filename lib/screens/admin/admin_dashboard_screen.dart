@@ -1,10 +1,9 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/app_logger.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
@@ -12,7 +11,14 @@ import '../../models/admin_stats.dart';
 import '../../models/pt_info.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_avatar.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_tag.dart';
+import '../../widgets/orb_loader.dart';
+import '../../widgets/app_progress_bar.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -62,86 +68,87 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final monthLabel = DateFormat('M월').format(DateTime.now());
+    final stats = _stats;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: RefreshIndicator(
-        onRefresh: _load,
-        color: AppColors.brand,
-        backgroundColor: AppColors.card,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          slivers: [
-            SliverToBoxAdapter(
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.screenH,
-                    AppSpacing.screenH,
-                    0,
-                  ),
-                  child: AppScreenHeader(
-                    title: '대시보드',
-                    subtitle: '센터 현황을 한눈에.',
-                    onBack: () => Navigator.of(context).pop(),
-                  ),
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+              child: AppScreenHeader(
+                title: '대시보드',
+                onBack: () => Navigator.of(context).pop(),
+              ),
+            ),
+            const AppRowDivider(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                color: AppColors.ink,
+                backgroundColor: AppColors.canvasCard,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    if (_loading)
+                      const SliverFillRemaining(hasScrollBody: false, child: AppLoadingView())
+                    else if (stats == null)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.xl),
+                          child: AppErrorCard(
+                            message: _loadError ?? '데이터를 불러올 수 없습니다.',
+                            onRetry: _load,
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: EdgeInsets.only(
+                          bottom: AppSpacing.xl2 + MediaQuery.of(context).padding.bottom,
+                        ),
+                        sliver: SliverList.list(
+                          children: [
+                            _CompletionHero(stats: stats),
+                            AppStatStrip(
+                              topBorder: true,
+                              cells: [
+                                AppKpiCard(
+                                  framed: false,
+                                  label: '오늘 예정',
+                                  value: '${stats.todayScheduledSessions}',
+                                  unit: '회',
+                                ),
+                                AppKpiCard(
+                                  framed: false,
+                                  label: '오늘 완료',
+                                  value: '${stats.todayCompletedSessions}',
+                                  unit: '회',
+                                ),
+                                AppKpiCard(
+                                  framed: false,
+                                  label: '승인 회원',
+                                  value: '${stats.memberCount}',
+                                  unit: '명',
+                                ),
+                              ],
+                            ),
+                            const AppMonthHeader(label: 'TRAINERS', count: 'SESSIONS'),
+                            _TrainerBars(trainerStats: stats.trainerStats),
+                            AppMonthHeader(label: 'PT 잔여 3회 이하', count: '${stats.lowPtMembers.length}'),
+                            _LowPtList(members: stats.lowPtMembers),
+                            AppMonthHeader(label: 'PT 만료 14일 이내', count: '${stats.expiringPtMembers.length}'),
+                            _ExpiringPtList(members: stats.expiringPtMembers),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
-            if (_loading)
-              const SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.brand,
-                    strokeWidth: 2,
-                  ),
-                ),
-              )
-            else if (_stats == null)
-              SliverFillRemaining(
-                child: Center(
-                  child: Text(
-                    _loadError ?? '데이터를 불러올 수 없습니다.',
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.screenH,
-                  AppSpacing.screenH,
-                  120,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // KPI 2×2 그리드
-                      _KpiGrid(stats: _stats!, monthLabel: monthLabel),
-                      const Gap(16),
-                      _OperationInsightCard(stats: _stats!),
-                      const Gap(16),
-                      _TrainerBarChart(
-                        trainerStats: _stats!.trainerStats,
-                        monthLabel: monthLabel,
-                      ),
-                      const Gap(16),
-                      _LowPtList(members: _stats!.lowPtMembers),
-                      const Gap(16),
-                      _ExpiringPtList(members: _stats!.expiringPtMembers),
-                    ],
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -149,411 +156,117 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 }
 
-// ── KPI 2×2 그리드 ────────────────────────────────────────────────────────────
+// ── 이번 달 PT 완료율 ─────────────────────────────────────────────────────────
 
-class _KpiGrid extends StatelessWidget {
-  final AdminStats stats;
-  final String monthLabel;
-
-  const _KpiGrid({required this.stats, required this.monthLabel});
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      _KpiData(label: '승인 회원', value: '${stats.memberCount}', suffix: '명'),
-      _KpiData(label: '트레이너', value: '${stats.trainerCount}', suffix: '명'),
-      _KpiData(
-        label: '$monthLabel PT 완료',
-        value: '${stats.monthlyCompletedSessions}',
-        suffix: '회',
-        highlight: true,
-      ),
-      _KpiData(
-        label: '예정 세션',
-        value: '${stats.upcomingSessionCount}',
-        suffix: '건',
-      ),
-    ];
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.6,
-      children: items.map((kpi) => _KpiCard(data: kpi)).toList(),
-    );
-  }
-}
-
-class _KpiData {
-  final String label;
-  final String value;
-  final String suffix;
-  final bool highlight;
-
-  const _KpiData({
-    required this.label,
-    required this.value,
-    required this.suffix,
-    this.highlight = false,
-  });
-}
-
-class _KpiCard extends StatelessWidget {
-  final _KpiData data;
-
-  const _KpiCard({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: data.highlight
-            ? AppColors.brand.withValues(alpha: 0.06)
-            : AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(
-          color: data.highlight
-              ? AppColors.brand.withValues(alpha: 0.25)
-              : AppColors.border,
-          width: 0.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // 라벨 (caption)
-          Text(
-            data.label,
-            style: AppTextStyles.caption.copyWith(
-              color: data.highlight
-                  ? AppColors.brand
-                  : AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          // 큰 숫자 (numberLarge) + 단위 (caption)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                data.value,
-                style: AppTextStyles.numberLarge.copyWith(
-                  color: data.highlight
-                      ? AppColors.brand
-                      : AppColors.textPrimary,
-                ),
-              ),
-              const Gap(3),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
-                  data.suffix,
-                  style: AppTextStyles.caption.copyWith(
-                    color: data.highlight
-                        ? AppColors.brand.withValues(alpha: 0.7)
-                        : AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── 운영 인사이트 ────────────────────────────────────────────────────────────
-
-class _OperationInsightCard extends StatelessWidget {
+/// 모노 머리말 + 40 큰 숫자 + 캡션 + 2px 진행 막대.
+class _CompletionHero extends StatelessWidget {
   final AdminStats stats;
 
-  const _OperationInsightCard({required this.stats});
+  const _CompletionHero({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    final rate = (stats.monthlyCompletionRate * 100).clamp(0, 100);
+    final ratio = stats.monthlyCompletionRate.clamp(0.0, 1.0);
+    final percent = (ratio * 100).toStringAsFixed(0);
+    final month = DateFormat('yyyy.MM').format(DateTime.now());
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.base,
-        AppSpacing.base,
-        AppSpacing.base,
-        AppSpacing.base,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '운영 인사이트',
-            style: AppTextStyles.h3,
-          ),
-          const Gap(AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _MiniInsight(
-                  label: '오늘 예정',
-                  value: '${stats.todayScheduledSessions}건',
-                  icon: Icons.event_available_rounded,
-                ),
-              ),
-              const Gap(AppSpacing.sm),
-              Expanded(
-                child: _MiniInsight(
-                  label: '오늘 완료',
-                  value: '${stats.todayCompletedSessions}건',
-                  icon: Icons.check_circle_outline_rounded,
-                ),
-              ),
-            ],
-          ),
-          const Gap(AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                  child: LinearProgressIndicator(
-                    minHeight: 8,
-                    value: stats.monthlyCompletionRate.clamp(0.0, 1.0),
-                    color: AppColors.brand,
-                    backgroundColor: AppColors.bg,
-                  ),
-                ),
-              ),
-              const Gap(AppSpacing.md),
-              Text(
-                '${rate.toStringAsFixed(0)}%',
-                style: AppTextStyles.label.copyWith(
-                  color: AppColors.brand,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const Gap(AppSpacing.xs),
-          Text(
-            '이번 달 PT 완료율',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniInsight extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _MiniInsight({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.brand, size: 18),
-          const Gap(AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.xl),
+      child: Semantics(
+        label: '이번 달 PT 완료율 $percent퍼센트, 완료 ${stats.monthlyCompletedSessions}회',
+        excludeSemantics: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$month · PT COMPLETION', style: AppTextStyles.eyebrow),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(
-                  label,
-                  style: AppTextStyles.caption,
-                ),
-                Text(
-                  value,
-                  style: AppTextStyles.label.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
+                Text('$percent%', style: AppTextStyles.displayLg),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    '이번 달 완료 ${stats.monthlyCompletedSessions}회',
+                    style: AppTextStyles.bodySm,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.base),
+            AppProgressBar(value: ratio, height: 2),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ── 트레이너별 PT 완료 바 차트 ─────────────────────────────────────────────────
+// ── 트레이너별 완료 세션 (가로 막대) ──────────────────────────────────────────
 
-class _TrainerBarChart extends StatelessWidget {
+class _TrainerBars extends StatelessWidget {
   final List<TrainerSessionStat> trainerStats;
-  final String monthLabel;
 
-  const _TrainerBarChart({
-    required this.trainerStats,
-    required this.monthLabel,
-  });
+  const _TrainerBars({required this.trainerStats});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.base,
-        AppSpacing.base + 4,
-        AppSpacing.base,
-        AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
+    if (trainerStats.isEmpty) {
+      return const _EmptyLine('이번 달 완료된 세션이 없습니다.');
+    }
+    final maxCount = trainerStats.map((t) => t.completedCount).fold<int>(0, (a, b) => b > a ? b : a);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$monthLabel 트레이너별 완료 세션',
-            style: AppTextStyles.h3,
-          ),
-          const Gap(4),
-          if (trainerStats.isEmpty) ...[
-            const Gap(AppSpacing.md),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                child: Text(
-                  '이번 달 완료된 세션이 없습니다.',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ),
-          ] else ...[
-            Text(
-              '완료 세션 수 기준 정렬',
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const Gap(AppSpacing.lg),
-            SizedBox(
-              height: 200,
-              child: BarChart(
-                BarChartData(
-                  maxY:
-                      trainerStats
-                          .map((t) => t.completedCount.toDouble())
-                          .reduce((a, b) => a > b ? a : b) *
-                      1.3,
-                  minY: 0,
-                  barGroups: trainerStats.asMap().entries.map((e) {
-                    return BarChartGroupData(
-                      x: e.key,
-                      barRods: [
-                        BarChartRodData(
-                          toY: e.value.completedCount.toDouble(),
-                          color: AppColors.brand,
-                          width: trainerStats.length <= 3 ? 36 : 22,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(4),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    getDrawingHorizontalLine: (_) => const FlLine(
-                      color: AppColors.border,
-                      strokeWidth: 1,
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, _) {
-                          final idx = value.toInt();
-                          if (idx < 0 || idx >= trainerStats.length) {
-                            return const SizedBox.shrink();
-                          }
-                          final name = trainerStats[idx].trainerName;
-                          final short = name.length > 3
-                              ? name.substring(0, 3)
-                              : name;
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text(
-                              short,
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textSecondary,
-                                fontSize: 10,
-                              ),
-                            ),
-                          );
-                        },
+          for (final stat in trainerStats)
+            Semantics(
+              label: '${stat.trainerName} ${stat.completedCount}회',
+              excludeSemantics: true,
+              child: SizedBox(
+                height: AppSize.touchMin,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 72,
+                      child: Text(
+                        stat.trainerName,
+                        style: AppTextStyles.bodyMd,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                  barTouchData: BarTouchData(
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (_) => AppColors.bg,
-                      getTooltipItem: (group, _, rod, __) {
-                        final stat = trainerStats[group.x];
-                        return BarTooltipItem(
-                          '${stat.trainerName}\n${stat.completedCount}회',
-                          AppTextStyles.label.copyWith(
-                            color: AppColors.brand,
-                            fontSize: 12,
-                          ),
-                        );
-                      },
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: AppProgressBar(
+                        value: maxCount == 0 ? 0 : stat.completedCount / maxCount,
+                        height: 4,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: AppSpacing.md),
+                    SizedBox(
+                      width: 32,
+                      child: Text(
+                        '${stat.completedCount}',
+                        textAlign: TextAlign.right,
+                        style: AppTextStyles.counter.copyWith(color: AppColors.ink),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
         ],
       ),
     );
   }
 }
 
-// ── PT 잔여 횟수 경고 리스트 ──────────────────────────────────────────────────
+// ── PT 잔여 3회 이하 ──────────────────────────────────────────────────────────
 
 class _LowPtList extends StatelessWidget {
   final List<PtInfo> members;
@@ -562,128 +275,26 @@ class _LowPtList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.base,
-        AppSpacing.base + 4,
-        AppSpacing.base,
-        AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.warning_amber_rounded,
-                size: 16,
-                color: AppColors.diet,
-              ),
-              const Gap(6),
-              Text(
-                'PT 잔여 3회 이하',
-                style: AppTextStyles.h3,
-              ),
-              const Spacer(),
-              Text(
-                '${members.length}명',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
+    if (members.isEmpty) return const _EmptyLine('잔여 횟수 경고 대상이 없습니다.');
+    return Column(
+      children: [
+        for (int i = 0; i < members.length; i++) ...[
+          if (i > 0) const AppRowDivider(indent: AppSpacing.screenH),
+          _CompactMemberRow(
+            name: members[i].memberName,
+            seed: members[i].memberId,
+            meta: members[i].endDate == null
+                ? '만료일 없음'
+                : '${DateFormat('M월 d일').format(members[i].endDate!)} 만료',
+            tag: AppTag('${members[i].remainingSessions} LEFT', strong: members[i].remainingSessions <= 1),
           ),
-          const Gap(AppSpacing.md),
-          if (members.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
-              child: Center(
-                child: Text(
-                  '잔여 횟수 경고 대상이 없습니다.',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            )
-          else
-            ...members.asMap().entries.map((e) {
-              final info = e.value;
-              final isLast = e.key == members.length - 1;
-              return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.md,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppColors.diet.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '${info.remainingSessions}',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.diet,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const Gap(AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                info.memberName,
-                                style: AppTextStyles.body.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                '잔여 ${info.remainingSessions}회',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: info.remainingSessions == 1
-                                      ? AppColors.destructive
-                                      : AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (info.endDate != null)
-                          Text(
-                            '만료 ${DateFormat('MM/dd').format(info.endDate!)}',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (!isLast)
-                    const Divider(height: 1, color: AppColors.border),
-                ],
-              );
-            }),
         ],
-      ),
+      ],
     );
   }
 }
 
-// ── PT 만료 임박 리스트 ───────────────────────────────────────────────────────
+// ── PT 만료 14일 이내 ─────────────────────────────────────────────────────────
 
 class _ExpiringPtList extends StatelessWidget {
   final List<PtInfo> members;
@@ -692,133 +303,78 @@ class _ExpiringPtList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.base,
-        AppSpacing.base + 4,
-        AppSpacing.base,
-        AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.event_busy_rounded,
-                size: 16,
-                color: AppColors.destructive,
-              ),
-              const Gap(6),
-              Text(
-                'PT 만료 14일 이내',
-                style: AppTextStyles.h3,
-              ),
-              const Spacer(),
-              Text(
-                '${members.length}명',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const Gap(AppSpacing.md),
-          if (members.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
-              child: Center(
-                child: Text(
-                  '만료 임박 회원이 없습니다.',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            )
-          else
-            ...members.asMap().entries.map((e) {
-              final info = e.value;
-              final isLast = e.key == members.length - 1;
-              final endDate = info.endDate;
-              final dDay = endDate
-                  ?.difference(
-                    DateTime(
-                      DateTime.now().year,
-                      DateTime.now().month,
-                      DateTime.now().day,
-                    ),
-                  )
-                  .inDays;
-
-              return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.md,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppColors.destructive.withValues(alpha: 0.10),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            dDay == null ? '-' : 'D-$dDay',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.destructive,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const Gap(AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                info.memberName,
-                                style: AppTextStyles.body.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                endDate == null
-                                    ? '만료일 없음'
-                                    : '만료 ${DateFormat('yyyy.MM.dd').format(endDate)}',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          '잔여 ${info.remainingSessions}회',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!isLast)
-                    const Divider(height: 1, color: AppColors.border),
-                ],
-              );
-            }),
+    if (members.isEmpty) return const _EmptyLine('만료 임박 회원이 없습니다.');
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return Column(
+      children: [
+        for (int i = 0; i < members.length; i++) ...[
+          if (i > 0) const AppRowDivider(indent: AppSpacing.screenH),
+          Builder(builder: (_) {
+            final info = members[i];
+            final endDate = info.endDate;
+            final dDay = endDate?.difference(today).inDays;
+            return _CompactMemberRow(
+              name: info.memberName,
+              seed: info.memberId,
+              meta: endDate == null
+                  ? '만료일 없음 · 잔여 ${info.remainingSessions}회'
+                  : '${DateFormat('M월 d일').format(endDate)} 만료 · 잔여 ${info.remainingSessions}회',
+              tag: dDay == null ? null : AppTag('D-$dDay', strong: dDay <= 7),
+            );
+          }),
         ],
+      ],
+    );
+  }
+}
+
+/// 대시보드용 짧은 회원 줄: 32 아바타 + 이름 + 보조 줄 + 오른쪽 태그.
+class _CompactMemberRow extends StatelessWidget {
+  final String name;
+  final String seed;
+  final String meta;
+  final Widget? tag;
+
+  const _CompactMemberRow({required this.name, required this.seed, required this.meta, this.tag});
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 56),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            AppAvatar(name: name, seed: seed, size: 32),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: AppTextStyles.bodyMd, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(meta, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            if (tag != null) ...[const SizedBox(width: AppSpacing.sm), tag!],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _EmptyLine extends StatelessWidget {
+  final String text;
+
+  const _EmptyLine(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+      child: Text(text, style: AppTextStyles.bodySm),
     );
   }
 }

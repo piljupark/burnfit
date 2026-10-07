@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:iconsax/iconsax.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
@@ -15,9 +15,13 @@ import '../../models/user.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_section.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/orb_loader.dart';
 
 class MemberRegisterScreen extends StatefulWidget {
   const MemberRegisterScreen({super.key});
@@ -115,49 +119,24 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
     }
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          msg,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textOnAccent,
-          ),
-        ),
-        backgroundColor: AppColors.textNeutral,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-        ),
-        margin: const EdgeInsets.fromLTRB(
-          AppSpacing.screenH,
-          0,
-          AppSpacing.screenH,
-          AppSpacing.md,
-        ),
-      ),
-    );
-  }
+  void _showError(String msg) => AppFeedback.showWarning(context, msg);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.card,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.base,
-                AppSpacing.screenH,
-                0,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
               child: AppScreenHeader(
                 title: '회원가입',
                 onBack: () => Navigator.of(context).pop(),
               ),
             ),
+            const AppRowDivider(),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(
@@ -171,19 +150,16 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 섹션 제목 - 기본 정보
-                      const Gap(AppSpacing.sm),
+                      const AppSectionHeader(title: '계정 정보'),
+                      const Gap(AppSpacing.base),
                       AppTextField(
                         label: '이름',
                         hint: '이름을 입력해주세요',
                         controller: _nameController,
                         validator: Validators.name,
                         textInputAction: TextInputAction.next,
-                        fillColor: AppColors.card,
-                        showEnabledBorder: true,
-                        labelAbove: true,
-                      ).animate().fadeIn(delay: 50.ms, duration: 300.ms),
-                      const Gap(AppSpacing.sm),
+                      ),
+                      const Gap(AppSpacing.base),
                       AppTextField(
                         label: '이메일',
                         hint: 'example@email.com',
@@ -191,11 +167,8 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                         keyboardType: TextInputType.emailAddress,
                         validator: Validators.email,
                         textInputAction: TextInputAction.next,
-                        fillColor: AppColors.card,
-                        showEnabledBorder: true,
-                        labelAbove: true,
-                      ).animate().fadeIn(delay: 80.ms, duration: 300.ms),
-                      const Gap(AppSpacing.sm),
+                      ),
+                      const Gap(AppSpacing.base),
                       AppTextField(
                         label: '비밀번호',
                         hint: '비밀번호를 입력해주세요',
@@ -203,46 +176,32 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                         obscureText: true,
                         validator: Validators.password,
                         textInputAction: TextInputAction.done,
-                        fillColor: AppColors.card,
-                        showEnabledBorder: true,
-                        labelAbove: true,
-                      ).animate().fadeIn(delay: 110.ms, duration: 300.ms),
-                      const Gap(AppSpacing.xl),
-
-                      // 섹션 제목 - 센터 선택
-                      const Gap(AppSpacing.sm),
+                      ),
+                      const Gap(AppSpacing.xl2),
+                      const AppSectionHeader(title: '소속 센터'),
+                      const Gap(AppSpacing.base),
                       AppTextField(
                         label: '센터 검색',
                         hint: '센터 이름을 입력해주세요',
                         controller: _searchController,
                         onChanged: _searchCenters,
-                        fillColor: AppColors.card,
-                        showEnabledBorder: true,
-                        labelAbove: true,
-                        prefix: const Icon(Iconsax.search_normal_1, size: 18, color: AppColors.textTertiary),
+                        prefix: const Icon(AppIcons.search),
                         suffix: _isSearching
                             ? const Padding(
-                                padding: EdgeInsets.only(right: 14),
-                                child: SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
+                                padding: EdgeInsets.only(right: AppSpacing.md),
+                                child: OrbLoader.inline(semanticLabel: '센터 검색 중'),
                               )
                             : null,
-                      ).animate().fadeIn(delay: 170.ms, duration: 300.ms),
+                      ),
                       if (_selectedCenter != null) ...[
-                        const Gap(AppSpacing.xs),
-                        _SelectedCenterChip(
+                        const Gap(AppSpacing.sm),
+                        _SelectedCenter(
                           name: _selectedCenter!.name,
                           onClear: () => setState(() => _selectedCenter = null),
                         ),
                       ],
                       if (_searchResults.isNotEmpty && _selectedCenter == null) ...[
-                        const Gap(AppSpacing.xs),
+                        const Gap(AppSpacing.sm),
                         _CenterSearchResults(
                           results: _searchResults,
                           onSelect: (c) => setState(() {
@@ -252,17 +211,28 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                           }),
                         ),
                       ],
-                      const Gap(AppSpacing.xl2),
-                      AppButton(
-                        label: '가입 신청',
-                        onPressed: _register,
-                        isLoading: _isLoading,
-                        fullWidth: true,
-                        size: AppButtonSize.lg,
-                      ).animate().fadeIn(delay: 220.ms, duration: 300.ms),
                     ],
                   ),
                 ),
+              ),
+            ),
+            // 주 행동: 아래 고정 pill 하나
+            Container(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.md,
+                AppSpacing.screenH,
+                AppSpacing.base,
+              ),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.hairline)),
+              ),
+              child: AppButton(
+                label: '가입 신청',
+                onPressed: _register,
+                isLoading: _isLoading,
+                fullWidth: true,
+                size: AppButtonSize.lg,
               ),
             ),
           ],
@@ -272,52 +242,39 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
   }
 }
 
-class _SelectedCenterChip extends StatelessWidget {
+/// 선택된 센터: 입력창 모양(canvasSoft + hairline) + 체크 + 이름 + 해제 버튼.
+class _SelectedCenter extends StatelessWidget {
   final String name;
   final VoidCallback onClear;
 
-  const _SelectedCenterChip({required this.name, required this.onClear});
+  const _SelectedCenter({required this.name, required this.onClear});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.only(left: AppSpacing.base),
       decoration: BoxDecoration(
-        color: AppColors.brand.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(
-          color: AppColors.brand.withValues(alpha: 0.28),
-          width: 1,
-        ),
+        color: AppColors.canvasSoft,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.hairline),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.check_circle_rounded,
-            size: 16,
-            color: AppColors.brand,
-          ),
-          const Gap(AppSpacing.xs),
+          const Icon(AppIcons.checkCircle, size: AppSize.icon, color: AppColors.ink),
+          const Gap(AppSpacing.sm),
           Expanded(
             child: Text(
               name,
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.brand,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodyMd,
             ),
           ),
-          GestureDetector(
-            onTap: onClear,
-            child: const Icon(
-              Icons.close_rounded,
-              size: 16,
-              color: AppColors.brand,
-            ),
+          AppIconButton(
+            icon: AppIcons.close,
+            label: '센터 선택 해제',
+            color: AppColors.body,
+            onPressed: onClear,
           ),
         ],
       ),
@@ -325,6 +282,7 @@ class _SelectedCenterChip extends StatelessWidget {
   }
 }
 
+/// 센터 검색 결과: 화면 폭 목록 (hairline으로 나눔).
 class _CenterSearchResults extends StatelessWidget {
   final List<center_model.Center> results;
   final ValueChanged<center_model.Center> onSelect;
@@ -333,62 +291,42 @@ class _CenterSearchResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: results.length,
-        separatorBuilder: (_, __) => const Divider(
-          height: 0.5,
-          thickness: 0.5,
-          color: AppColors.border,
-        ),
-        itemBuilder: (_, i) {
-          final c = results[i];
-          final isFirst = i == 0;
-          final isLast = i == results.length - 1;
-          return InkWell(
-            onTap: () => onSelect(c),
-            borderRadius: BorderRadius.vertical(
-              top: isFirst ? const Radius.circular(AppRadius.xs) : Radius.zero,
-              bottom: isLast ? const Radius.circular(AppRadius.xs) : Radius.zero,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    c.name,
-                    style: AppTextStyles.body.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final c in results) ...[
+          Semantics(
+            button: true,
+            child: InkWell(
+              onTap: () => onSelect(c),
+              highlightColor: AppColors.canvasSoft,
+              splashFactory: NoSplash.splashFactory,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 56),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(c.name, style: AppTextStyles.bodyLg),
+                            if ((c.address ?? '').isNotEmpty)
+                              Text(c.address!, style: AppTextStyles.bodySm),
+                          ],
+                        ),
+                      ),
+                      const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+                    ],
                   ),
-                  if (c.address != null) ...[
-                    const Gap(2),
-                    Text(c.address!, style: AppTextStyles.caption),
-                  ],
-                ],
+                ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+          const AppRowDivider(),
+        ],
+      ],
     );
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
@@ -19,10 +19,19 @@ import '../../services/firestore_service.dart';
 import '../../services/meal_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_filter_tabs.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_kpi_card.dart';
+import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_section.dart';
+import '../../widgets/app_tag.dart';
 import '../../widgets/feedback_sheet.dart';
-import '../../widgets/status_badge.dart';
+import '../../widgets/orb_loader.dart';
 import 'trainer_inbody_sheet.dart';
 import 'trainer_member_tabs.dart';
 
@@ -39,6 +48,7 @@ class TrainerMemberDetailScreen extends StatefulWidget {
 class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final _profileKey = GlobalKey<_ProfileTabState>();
 
   List<Meal> _meals = [];
   List<Workout> _workouts = [];
@@ -215,209 +225,228 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     }
   }
 
+  void _openInbodyInput() {
+    if (_tabController.index != 0) _tabController.animateTo(0);
+    _profileKey.currentState?.openInbodySheet();
+  }
+
+  /// '여성 · 28세 · 165cm · email' 형식의 메타 줄.
+  String _memberMeta(AppUser m) {
+    final gender = switch (m.gender) {
+      Gender.male => '남성',
+      Gender.female => '여성',
+      Gender.other => null,
+      null => null,
+    };
+    int? age;
+    final birth = m.birthDate?.trim() ?? '';
+    if (birth.length == 8) {
+      final y = int.tryParse(birth.substring(0, 4));
+      final mo = int.tryParse(birth.substring(4, 6));
+      final d = int.tryParse(birth.substring(6, 8));
+      if (y != null && mo != null && d != null) {
+        final now = DateTime.now();
+        age = now.year - y - ((now.month < mo || (now.month == mo && now.day < d)) ? 1 : 0);
+      }
+    }
+    final height = m.profile?.height;
+    return [
+      ?gender,
+      if (age != null) '$age세',
+      if (height != null) '${_formatProfileValue(height)}cm',
+      if (m.email.isNotEmpty) m.email,
+    ].join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final m = widget.member;
-    final tabs = const ['프로필', '식단', '운동', '유산소'];
+    const tabs = ['프로필', '식단', '운동', '유산소'];
+    final meta = _memberMeta(m);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: Column(
-        children: [
-          // ── 네비게이션 바 + 회원 프로필 ────────────────���─────────────────
-          Builder(
-            builder: (context) {
-              final topPadding = MediaQuery.of(context).padding.top;
-              return Padding(
-                padding: EdgeInsets.fromLTRB(16, topPadding + AppSpacing.sm, 16, AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 네비게이션 행
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                          onTap: () => Navigator.of(context).pop(),
-                          behavior: HitTestBehavior.opaque,
-                          child: const Padding(
-                            padding: EdgeInsets.only(right: 8),
-                            child: Icon(
-                              Icons.chevron_left_rounded,
-                              size: 30,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => _writeFeedback(
-                            type: fb.FeedbackTargetType.general,
-                          ),
-                          behavior: HitTestBehavior.opaque,
-                          child: const Padding(
-                            padding: EdgeInsets.all(4),
-                            child: Icon(
-                              Icons.edit_rounded,
-                              size: 20,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Gap(AppSpacing.md),
-                    // 아바타 + 이름 + 이메일
-                    Row(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: AppColors.trainer.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            m.name.isNotEmpty
-                                ? m.name.substring(0, 1).toUpperCase()
-                                : '?',
-                            style: AppTextStyles.h2.copyWith(
-                              color: AppColors.trainer,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const Gap(AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                m.name,
-                                style: AppTextStyles.headline.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const Gap(AppSpacing.xxs),
-                              Text(
-                                m.email,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── 앱바 ─────────────────────────────────────────────────────────
+            Container(
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.hairline)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+              child: AppScreenHeader(
+                title: '회원 상세',
+                onBack: () => Navigator.of(context).pop(),
+                trailing: Transform.translate(
+                  offset: const Offset(12, 0),
+                  child: AppIconButton(
+                    icon: AppIcons.more,
+                    label: '더보기',
+                    onPressed: _showMoreActions,
+                  ),
                 ),
-              );
-            },
-          ),
-          // ── 탭 바 ──────────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: AnimatedBuilder(
-              animation: _tabController,
-              builder: (context, _) {
-                return Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
+              ),
+            ),
+            // ── 회원 머리 ────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, AppSpacing.base,
+              ),
+              child: Row(
+                children: [
+                  AppAvatar(name: m.name, seed: m.uid, size: 56),
+                  const SizedBox(width: AppSpacing.base),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(m.name, style: AppTextStyles.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        if (meta.isNotEmpty)
+                          Text(meta, style: AppTextStyles.bodySm, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: List.generate(tabs.length, (index) {
-                      final selected = _tabController.index == index;
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () => _tabController.animateTo(index),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            alignment: Alignment.center,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: AppSpacing.xs,
-                            ),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? AppColors.brand
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(AppRadius.xs),
-                            ),
-                            child: Text(
-                              tabs[index],
-                              style: AppTextStyles.label.copyWith(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: selected
-                                    ? AppColors.textOnAccent
-                                    : AppColors.textTertiary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
+                ],
+              ),
+            ),
+            // ── 행동 (외곽선 두 개) ──────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      label: '피드백 작성',
+                      icon: const Icon(AppIcons.feedback),
+                      variant: AppButtonVariant.secondary,
+                      fullWidth: true,
+                      onPressed: () => _writeFeedback(type: fb.FeedbackTargetType.general),
+                    ),
                   ),
-                );
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: AppButton(
+                      label: 'InBody 입력',
+                      icon: const Icon(AppIcons.inbody),
+                      variant: AppButtonVariant.secondary,
+                      fullWidth: true,
+                      onPressed: m.shareSettings.body ? _openInbodyInput : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // ── 탭 칩 (위아래 hairline) ──────────────────────────────────────
+            Container(
+              decoration: const BoxDecoration(
+                border: Border.symmetric(horizontal: BorderSide(color: AppColors.hairline)),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: AnimatedBuilder(
+                animation: _tabController,
+                builder: (context, _) => AppScrollableChips(
+                  labels: tabs,
+                  selectedIndex: _tabController.index,
+                  onSelected: (i) => _tabController.animateTo(i),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                ),
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _ProfileTab(key: _profileKey, member: m, ptInfo: _ptInfo),
+                  TrainerMealsTab(
+                    meals: _meals,
+                    isLoading: _loadingMeals,
+                    canView: m.shareSettings.meal,
+                    onFeedback: (meal) => _writeFeedback(
+                      type: fb.FeedbackTargetType.meal,
+                      targetId: meal.id,
+                      targetDate: meal.mealDate,
+                    ),
+                    onRefresh: _loadMeals,
+                  ),
+                  TrainerWorkoutsTab(
+                    workouts: _workouts,
+                    isLoading: _loadingWorkouts,
+                    canView: m.shareSettings.workout,
+                    onFeedback: (w) => _writeFeedback(
+                      type: fb.FeedbackTargetType.workout,
+                      targetId: w.id,
+                      targetDate: w.workoutDate,
+                    ),
+                    onRefresh: _loadWorkouts,
+                  ),
+                  TrainerCardiosTab(
+                    cardios: _cardios,
+                    isLoading: _loadingCardios,
+                    canView: m.shareSettings.workout,
+                    onFeedback: (c) => _writeFeedback(
+                      type: fb.FeedbackTargetType.cardio,
+                      targetId: c.id,
+                      targetDate: c.cardioDate,
+                    ),
+                    onRefresh: _loadCardios,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showMoreActions() async {
+    final m = widget.member;
+    await showAppBottomSheet<void>(
+      context: context,
+      child: Builder(
+        builder: (sheetContext) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppBottomSheetHeader(title: m.name, subtitle: m.email.isEmpty ? null : m.email),
+            AppSheetAction(
+              icon: AppIcons.feedback,
+              label: '피드백 작성',
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _writeFeedback(type: fb.FeedbackTargetType.general);
               },
             ),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _ProfileTab(member: m, ptInfo: _ptInfo),
-                TrainerMealsTab(
-                  meals: _meals,
-                  isLoading: _loadingMeals,
-                  canView: m.shareSettings.meal,
-                  onFeedback: (meal) => _writeFeedback(
-                    type: fb.FeedbackTargetType.meal,
-                    targetId: meal.id,
-                    targetDate: meal.mealDate,
-                  ),
-                  onRefresh: _loadMeals,
-                ),
-                TrainerWorkoutsTab(
-                  workouts: _workouts,
-                  isLoading: _loadingWorkouts,
-                  canView: m.shareSettings.workout,
-                  onFeedback: (w) => _writeFeedback(
-                    type: fb.FeedbackTargetType.workout,
-                    targetId: w.id,
-                    targetDate: w.workoutDate,
-                  ),
-                  onRefresh: _loadWorkouts,
-                ),
-                TrainerCardiosTab(
-                  cardios: _cardios,
-                  isLoading: _loadingCardios,
-                  canView: m.shareSettings.workout,
-                  onFeedback: (c) => _writeFeedback(
-                    type: fb.FeedbackTargetType.cardio,
-                    targetId: c.id,
-                    targetDate: c.cardioDate,
-                  ),
-                  onRefresh: _loadCardios,
-                ),
-              ],
-            ),
-          ),
-        ],
+            if (m.shareSettings.body) ...[
+              const AppRowDivider(),
+              AppSheetAction(
+                icon: AppIcons.inbody,
+                label: 'InBody 입력',
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _openInbodyInput();
+                },
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 프로필 탭: 신체 정보 숫자 격자 → PT 정보 카드 → InBody 목록
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _ProfileTab extends StatefulWidget {
   final AppUser member;
   final PtInfo? ptInfo;
 
-  const _ProfileTab({required this.member, this.ptInfo});
+  const _ProfileTab({super.key, required this.member, this.ptInfo});
 
   @override
   State<_ProfileTab> createState() => _ProfileTabState();
@@ -474,20 +503,18 @@ class _ProfileTabState extends State<_ProfileTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-        ),
         title: const Text('InBody 기록 삭제'),
-        content: Text('${item.measurementDate} 기록을 삭제할까요?'),
+        content: Text('${item.measurementDate} 측정 기록 1건을 삭제합니다. 되돌릴 수 없습니다.'),
         actions: [
-          TextButton(
+          AppButton(
+            label: '취소',
+            variant: AppButtonVariant.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('취소'),
           ),
-          TextButton(
+          AppButton(
+            label: '삭제',
+            variant: AppButtonVariant.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('삭제'),
           ),
         ],
       ),
@@ -503,6 +530,45 @@ class _ProfileTabState extends State<_ProfileTab> {
     }
   }
 
+  /// 상단 'InBody 입력' 버튼에서 부른다.
+  Future<void> openInbodySheet() => _openInbodySheet();
+
+  Future<void> _showInbodyDetail(Inbody item) async {
+    String fmt(num v) => v.toStringAsFixed(v % 1 == 0 ? 0 : 1);
+    final rows = <(String, String)>[
+      ('체중', '${fmt(item.weight)} kg'),
+      if (item.muscleMass != null) ('골격근량', '${fmt(item.muscleMass!)} kg'),
+      if (item.bodyFat != null) ('체지방량', '${fmt(item.bodyFat!)} kg'),
+      if (item.bodyFatPercent != null) ('체지방률', '${fmt(item.bodyFatPercent!)}%'),
+      if (item.bmi != null) ('BMI', fmt(item.bmi!)),
+      if (item.bmr != null) ('BMR', '${fmt(item.bmr!)} kcal'),
+      if (item.visceralFat != null) ('내장지방 레벨', '${item.visceralFat}'),
+    ];
+    await showAppBottomSheet<void>(
+      context: context,
+      child: Builder(
+        builder: (sheetContext) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppBottomSheetHeader(title: 'InBody 기록', subtitle: item.measurementDate),
+            for (var i = 0; i < rows.length; i++) _KeyValueRow(label: rows[i].$1, value: rows[i].$2, divider: true),
+            const SizedBox(height: AppSpacing.sm),
+            AppSheetAction(
+              icon: AppIcons.trash,
+              label: '기록 삭제',
+              destructive: true,
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _deleteInbody(item);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final member = widget.member;
@@ -510,86 +576,127 @@ class _ProfileTabState extends State<_ProfileTab> {
     final p = member.profile;
     final fmt = DateFormat('yyyy.MM.dd');
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.lg,
-        AppSpacing.screenH,
-        AppSpacing.xl2,
+    return ListView(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
+      children: [
+        if (!member.shareSettings.body)
+          const TrainerShareBlockedMessage(message: '회원이 신체 정보 공유를 꺼두었습니다.')
+        else if (p != null) ...[
+          const AppMonthHeader(label: 'BODY'),
+          AppStatGrid(
+            cells: [
+              _metric('키', p.height, 'cm'),
+              _metric('체중', p.weight, 'kg'),
+              _metric('골격근', p.muscleMass, 'kg'),
+              _metric('체지방', p.bodyFat, 'kg'),
+              AppKpiCard(
+                label: 'BMI',
+                value: p.bmi != null ? p.bmi!.toStringAsFixed(1) : '-',
+                unit: '',
+                framed: false,
+                valueSize: 22,
+              ),
+            ],
+          ),
+        ],
+        if (ptInfo != null)
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.screenH),
+            child: _PtInfoCard(
+              remaining: '${ptInfo.remainingSessions} / ${ptInfo.totalSessions}회',
+              startDate: ptInfo.startDate != null ? fmt.format(ptInfo.startDate!) : '-',
+              endDate: ptInfo.endDate != null ? fmt.format(ptInfo.endDate!) : '-',
+              dDay: _dDayLabel(ptInfo.endDate),
+            ),
+          ),
+        if (member.shareSettings.body)
+          _InbodySection(
+            items: _inbodies,
+            isLoading: _loadingInbodies,
+            onAdd: _openInbodySheet,
+            onOpen: _showInbodyDetail,
+          ),
+      ],
+    );
+  }
+
+  Widget _metric(String label, double? value, String unit) {
+    return AppKpiCard(
+      label: label,
+      value: value != null ? _formatProfileValue(value) : '-',
+      unit: value != null ? unit : '',
+      framed: false,
+      valueSize: 22,
+    );
+  }
+
+  /// 종료일까지 남은 날 (D-12, D-DAY, 지났으면 END).
+  String? _dDayLabel(DateTime? end) {
+    if (end == null) return null;
+    final now = DateTime.now();
+    final days = DateTime(end.year, end.month, end.day).difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (days < 0) return 'END';
+    if (days == 0) return 'D-DAY';
+    return 'D-$days';
+  }
+}
+
+class _PtInfoCard extends StatelessWidget {
+  final String remaining;
+  final String startDate;
+  final String endDate;
+  final String? dDay;
+
+  const _PtInfoCard({required this.remaining, required this.startDate, required this.endDate, this.dDay});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.hairline),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!member.shareSettings.body) ...[
-            TrainerShareBlockedMessage(message: '회원이 신체 정보 공유를 꺼두었습니다.'),
-            const Gap(AppSpacing.lg),
-          ] else if (p != null) ...[
-            Text('신체 정보', style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700)),
-            const Gap(AppSpacing.sm),
-            _MetricGrid(
-              metrics: [
-                _MetricData(
-                  '키',
-                  p.height != null ? _formatProfileValue(p.height!) : '-',
-                  'cm',
-                ),
-                _MetricData(
-                  '체중',
-                  p.weight != null ? _formatProfileValue(p.weight!) : '-',
-                  'kg',
-                ),
-                _MetricData(
-                  '골격근',
-                  p.muscleMass != null
-                      ? _formatProfileValue(p.muscleMass!)
-                      : '-',
-                  'kg',
-                ),
-                _MetricData(
-                  '체지방',
-                  p.bodyFat != null ? _formatProfileValue(p.bodyFat!) : '-',
-                  'kg',
-                ),
-                _MetricData(
-                  'BMI',
-                  p.bmi != null ? p.bmi!.toStringAsFixed(1) : '-',
-                  null,
-                ),
+          SizedBox(
+            height: 40,
+            child: Row(
+              children: [
+                Expanded(child: Text('PT INFO', style: AppTextStyles.eyebrow.copyWith(color: AppColors.body))),
+                if (dDay != null) AppTag(dDay!, muted: dDay == 'END'),
               ],
             ),
-            const Gap(AppSpacing.lg),
-          ],
-          if (ptInfo != null) ...[
-            Text('PT 정보', style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700)),
-            const Gap(AppSpacing.sm),
-            _InfoPanel(
-              rows: [
-                _InfoData(
-                  '시작일',
-                  ptInfo.startDate != null
-                      ? fmt.format(ptInfo.startDate!)
-                      : '-',
-                ),
-                _InfoData(
-                  '종료일',
-                  ptInfo.endDate != null ? fmt.format(ptInfo.endDate!) : '-',
-                ),
-                _InfoData(
-                  '잔여 횟수',
-                  '${ptInfo.remainingSessions} / ${ptInfo.totalSessions}회',
-                ),
-              ],
-            ),
-            const Gap(AppSpacing.lg),
-          ],
-          if (member.shareSettings.body) ...[
-            _InbodySection(
-              items: _inbodies,
-              isLoading: _loadingInbodies,
-              onAdd: _openInbodySheet,
-              onDelete: _deleteInbody,
-            ),
-          ],
+          ),
+          _KeyValueRow(label: '잔여 횟수', value: remaining, divider: true),
+          _KeyValueRow(label: '시작일', value: startDate, divider: true),
+          _KeyValueRow(label: '종료일', value: endDate),
+        ],
+      ),
+    );
+  }
+}
+
+/// 44 높이 키/값 줄. 키는 body, 값은 ink.
+class _KeyValueRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool divider;
+
+  const _KeyValueRow({required this.label, required this.value, this.divider = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: AppSize.touchMin),
+      decoration: divider
+          ? const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline)))
+          : null,
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: AppTextStyles.bodyMd.copyWith(color: AppColors.body))),
+          Text(value, style: AppTextStyles.bodyMd),
         ],
       ),
     );
@@ -600,227 +707,79 @@ class _InbodySection extends StatelessWidget {
   final List<Inbody> items;
   final bool isLoading;
   final VoidCallback onAdd;
-  final void Function(Inbody) onDelete;
+  final void Function(Inbody) onOpen;
 
   const _InbodySection({
     required this.items,
     required this.isLoading,
     required this.onAdd,
-    required this.onDelete,
+    required this.onOpen,
   });
 
-  String _fmt(num value) {
-    return value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
-  }
+  String _fmt(num value) => value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(child: Text('InBody 기록', style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700))),
-            GestureDetector(
-              onTap: onAdd,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xxs,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.bg,
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                ),
-                child: Text(
-                  '입력',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
+        AppMonthHeader(
+          label: 'INBODY',
+          count: '${items.length} ${items.length == 1 ? 'RECORD' : 'RECORDS'}',
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
         ),
-        const Gap(AppSpacing.sm),
         if (isLoading)
           const Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
-            child: Center(
-              child: CircularProgressIndicator(
-                color: AppColors.brand,
-              ),
-            ),
+            padding: EdgeInsets.all(AppSpacing.xl),
+            child: Center(child: OrbLoader.inline(semanticLabel: 'InBody 기록 불러오는 중')),
           )
         else if (items.isEmpty)
-          GestureDetector(
-            onTap: onAdd,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(AppRadius.xs),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x0C000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.monitor_weight_outlined,
-                    color: AppColors.textTertiary,
-                    size: 28,
-                  ),
-                  const Gap(AppSpacing.xs),
-                  Text(
-                    'InBody 기록이 없습니다.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const Gap(AppSpacing.md),
-                  AppButton(
-                    label: '첫 기록 입력',
-                    onPressed: onAdd,
-                    size: AppButtonSize.sm,
-                  ),
-                ],
-              ),
-            ),
+          AppEmptyState(
+            icon: AppIcons.inbody,
+            message: 'InBody 기록이 없습니다.',
+            actionLabel: '첫 기록 입력',
+            onAction: onAdd,
           )
         else
-          Column(
-            children: [
-              for (final item in items) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x0C000000),
-                        blurRadius: 8,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          for (final item in items)
+            Semantics(
+              button: true,
+              child: InkWell(
+                onTap: () => onOpen(item),
+                highlightColor: AppColors.canvasSoft,
+                splashFactory: NoSplash.splashFactory,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+                  decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline))),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            item.measurementDate,
-                            style: AppTextStyles.label.copyWith(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
+                      TrainerDateBlock(date: item.measurementDate),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${_fmt(item.weight)}kg', style: AppTextStyles.bodyLg),
+                            Text(
+                              [
+                                if (item.muscleMass != null) '골격근 ${_fmt(item.muscleMass!)}',
+                                if (item.bodyFatPercent != null) '체지방률 ${_fmt(item.bodyFatPercent!)}%',
+                                if (item.bodyFatPercent == null && item.bodyFat != null) '체지방 ${_fmt(item.bodyFat!)}kg',
+                              ].join(' · '),
+                              style: AppTextStyles.bodySm,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          const Gap(AppSpacing.sm),
-                          StatusBadge.fromString(
-                            item.measurementDate,
-                            AppColors.info,
-                          ),
-                          const Spacer(),
-                          GestureDetector(
-                            onTap: () => onDelete(item),
-                            child: const Icon(
-                              Icons.delete_outline_rounded,
-                              color: AppColors.textTertiary,
-                              size: 20,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const Gap(AppSpacing.sm),
-                      Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        children: [
-                          _InbodyMetric(
-                            label: '체중',
-                            value: '${_fmt(item.weight)} kg',
-                          ),
-                          if (item.muscleMass != null)
-                            _InbodyMetric(
-                              label: '골격근',
-                              value: '${_fmt(item.muscleMass!)} kg',
-                            ),
-                          if (item.bodyFat != null)
-                            _InbodyMetric(
-                              label: '체지방',
-                              value: '${_fmt(item.bodyFat!)} kg',
-                            ),
-                          if (item.bodyFatPercent != null)
-                            _InbodyMetric(
-                              label: '체지방률',
-                              value: '${_fmt(item.bodyFatPercent!)}%',
-                            ),
-                          if (item.bmi != null)
-                            _InbodyMetric(label: 'BMI', value: _fmt(item.bmi!)),
-                          if (item.bmr != null)
-                            _InbodyMetric(
-                              label: 'BMR',
-                              value: '${_fmt(item.bmr!)} kcal',
-                            ),
-                        ],
-                      ),
+                      const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
                     ],
                   ),
                 ),
-                const Gap(AppSpacing.sm),
-              ],
-            ],
-          ),
+              ),
+            ),
       ],
-    );
-  }
-}
-
-class _InbodyMetric extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InbodyMetric({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 96,
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const Gap(2),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -828,148 +787,3 @@ class _InbodyMetric extends StatelessWidget {
 String _formatProfileValue(num value) {
   return value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
 }
-
-class _MetricData {
-  final String label;
-  final String value;
-  final String? suffix;
-
-  const _MetricData(this.label, this.value, this.suffix);
-}
-
-class _MetricGrid extends StatelessWidget {
-  final List<_MetricData> metrics;
-
-  const _MetricGrid({required this.metrics});
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final itemWidth = (constraints.maxWidth - AppSpacing.sm) / 2;
-        return Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: metrics
-              .map((metric) => _MetricTile(width: itemWidth, data: metric))
-              .toList(),
-        );
-      },
-    );
-  }
-}
-
-class _MetricTile extends StatelessWidget {
-  final double width;
-  final _MetricData data;
-
-  const _MetricTile({required this.width, required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0C000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            data.label,
-            style: AppTextStyles.captionSmall.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const Gap(AppSpacing.xs),
-          RichText(
-            text: TextSpan(
-              style: AppTextStyles.h2.copyWith(
-                fontSize: 22,
-                color: AppColors.textPrimary,
-              ),
-              children: [
-                TextSpan(text: data.value),
-                if (data.suffix != null && data.value != '-')
-                  TextSpan(
-                    text: ' ${data.suffix}',
-                    style: AppTextStyles.captionSmall.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoData {
-  final String label;
-  final String value;
-
-  const _InfoData(this.label, this.value);
-}
-
-class _InfoPanel extends StatelessWidget {
-  final List<_InfoData> rows;
-
-  const _InfoPanel({required this.rows});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0C000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: rows
-            .map(
-              (row) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                child: Row(
-                  children: [
-                    Text(
-                      row.label,
-                      style: AppTextStyles.captionSmall.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      row.value,
-                      style: AppTextStyles.label.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-}
-

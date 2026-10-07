@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
-import 'package:iconsax/iconsax.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_logger.dart';
 import '../../core/app_spacing.dart';
@@ -14,7 +13,9 @@ import '../../services/fcm_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/notification_target.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
 import '../../widgets/app_async_body.dart';
+import '../../widgets/app_icon_box.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 
@@ -94,34 +95,33 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, 0,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
               child: AppScreenHeader(
                 title: '알림',
                 subtitle: '${NotificationService.retentionDays}일 동안 보관돼요',
                 onBack: () => Navigator.of(context).pop(),
               ),
             ),
-            const Gap(AppSpacing.md),
+            const AppRowDivider(),
             Expanded(
               child: AppAsyncBody(
                 isLoading: _isLoading,
                 errorMessage: _errorMessage,
                 isEmpty: _items.isEmpty,
                 onRefresh: _load,
+                padding: EdgeInsets.zero,
                 empty: const AppEmptyState(
-                  icon: Iconsax.notification,
-                  message: '받은 알림이 없습니다.',
+                  icon: AppIcons.bell,
+                  message: '받은 알림이 없어요',
+                  description: 'PT 일정이나 피드백 소식이 오면 여기에 모여요.',
                 ),
                 children: [
-                  for (final item in _items) ...[
+                  for (final item in _items)
                     Dismissible(
                       key: ValueKey(item.id),
                       direction: DismissDirection.endToStart,
@@ -133,8 +133,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         onTap: item.target == null ? null : () => _open(item),
                       ),
                     ),
-                    const Gap(AppSpacing.sm),
-                  ],
                 ],
               ),
             ),
@@ -145,6 +143,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 }
 
+/// 알림 한 줄: 아이콘 상자 + 제목(17) + 내용 + 시각. 새 알림은 오른쪽 흰 점(모양)으로 표시한다.
 class _NotificationTile extends StatelessWidget {
   final AppNotification item;
   final bool isNew;
@@ -155,103 +154,55 @@ class _NotificationTile extends StatelessWidget {
   static IconData _iconFor(NotificationTarget? target) {
     switch (target) {
       case NotificationTarget.feedback:
-        return Iconsax.message_text_1;
+        return AppIcons.feedback;
       case NotificationTarget.ptSchedule:
-        return Iconsax.calendar_1;
+        return AppIcons.calendar;
       case null:
-        return Iconsax.notification;
-    }
-  }
-
-  static Color _colorFor(NotificationTarget? target) {
-    switch (target) {
-      case NotificationTarget.feedback:
-        return AppColors.trainer;
-      case NotificationTarget.ptSchedule:
-        return AppColors.brand;
-      case null:
-        return AppColors.textSecondary;
+        return AppIcons.bell;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = _colorFor(item.target);
     return Semantics(
       button: onTap != null,
       label: isNew ? '새 알림, ${item.title}' : item.title,
-      child: Material(
-        color: isNew ? AppColors.brand.withValues(alpha: 0.06) : AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.base),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                  ),
-                  child: Icon(_iconFor(item.target), size: 18, color: color),
-                ),
-                const Gap(AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.title,
-                              style: AppTextStyles.label.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: isNew ? FontWeight.w700 : FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          if (item.createdAt != null)
-                            Text(
-                              formatRelativeTime(item.createdAt!),
-                              style: AppTextStyles.captionSmall.copyWith(
-                                color: AppColors.textTertiary,
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (item.body.isNotEmpty) ...[
-                        const Gap(4),
-                        Text(
-                          item.body,
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
-                            height: 1.45,
-                          ),
-                        ),
-                      ],
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: Container(
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline))),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppIconBox(icon: _iconFor(item.target)),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.title, style: AppTextStyles.bodyLg),
+                    if (item.body.isNotEmpty)
+                      Text(item.body, style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
+                    if (item.createdAt != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(formatRelativeTime(item.createdAt!), style: AppTextStyles.bodySm),
                     ],
+                  ],
+                ),
+              ),
+              if (isNew)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.sm, top: 10),
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(color: AppColors.ink, shape: BoxShape.circle),
                   ),
                 ),
-                if (isNew) ...[
-                  const Gap(AppSpacing.sm),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.only(top: 6),
-                    decoration: const BoxDecoration(
-                      color: AppColors.destructive,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+            ],
           ),
         ),
       ),
@@ -265,13 +216,17 @@ class _DeleteBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      color: AppColors.canvasSoft,
       alignment: Alignment.centerRight,
-      padding: const EdgeInsets.only(right: AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.destructive,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
+      padding: const EdgeInsets.only(right: AppSpacing.xl),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(AppIcons.trash, color: AppColors.danger, size: AppSize.icon),
+          const SizedBox(width: AppSpacing.sm),
+          Text('삭제', style: AppTextStyles.bodyMd.copyWith(color: AppColors.danger)),
+        ],
       ),
-      child: const Icon(Iconsax.trash, color: AppColors.textOnAccent),
     );
   }
 }

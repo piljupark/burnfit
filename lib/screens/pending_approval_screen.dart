@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
@@ -8,6 +7,7 @@ import '../core/app_text_styles.dart';
 import '../core/constants.dart';
 import '../services/user_provider.dart';
 import '../widgets/app_button.dart';
+import '../widgets/orb_loader.dart';
 
 class PendingApprovalScreen extends StatelessWidget {
   const PendingApprovalScreen({super.key});
@@ -15,58 +15,35 @@ class PendingApprovalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(flex: 2),
-
-              // 아이콘
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: AppColors.textPrimary.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.access_time_rounded,
-                  color: AppColors.textPrimary,
-                  size: 32,
-                ),
-              )
-                  .animate()
-                  .fadeIn(duration: 500.ms)
-                  .scale(begin: const Offset(0.85, 0.85)),
-
-              const Gap(AppSpacing.xl),
-
-              Text(
-                '가입 승인 대기 중',
-                style: AppTextStyles.h2,
-                textAlign: TextAlign.center,
-              ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
-
+              const Gap(AppSpacing.xl3),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: ExcludeSemantics(child: OrbLoader(size: 96)),
+              ),
+              const Gap(AppSpacing.xl2),
+              Text('BURNFIT · PENDING', style: AppTextStyles.eyebrow),
               const Gap(AppSpacing.sm),
-
+              Semantics(
+                header: true,
+                child: Text('가입 승인 대기 중', style: AppTextStyles.displayMd),
+              ),
+              const Gap(AppSpacing.md),
               Text(
                 '관리자가 가입 신청을 검토하고 있습니다.\n승인이 완료되면 바로 서비스를 이용하실 수 있습니다.',
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary,
-                  height: 1.6,
-                ),
-                textAlign: TextAlign.center,
-              ).animate().fadeIn(delay: 160.ms, duration: 400.ms),
+                style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+              ),
+              const Spacer(),
 
-              const Spacer(flex: 3),
-
-              // 새로고침 버튼
+              // 새로고침 (화면의 주 행동)
               AppButton(
                 label: '새로고침',
-                variant: AppButtonVariant.secondary,
                 fullWidth: true,
                 size: AppButtonSize.lg,
                 onPressed: () {
@@ -81,15 +58,16 @@ class PendingApprovalScreen extends StatelessWidget {
                     }
                   });
                 },
-              ).animate().fadeIn(delay: 220.ms, duration: 400.ms),
+              ),
 
               const Gap(AppSpacing.sm),
 
-              // 로그아웃 버튼
+              // 로그아웃
               AppButton(
                 label: '로그아웃',
-                variant: AppButtonVariant.ghost,
+                variant: AppButtonVariant.secondary,
                 fullWidth: true,
+                size: AppButtonSize.lg,
                 onPressed: () async {
                   await context.read<UserProvider>().signOut();
                   if (!context.mounted) return;
@@ -97,7 +75,7 @@ class PendingApprovalScreen extends StatelessWidget {
                     context,
                   ).pushReplacementNamed(AppRoutes.memberLogin);
                 },
-              ).animate().fadeIn(delay: 270.ms, duration: 400.ms),
+              ),
 
               const Gap(AppSpacing.xl),
             ],

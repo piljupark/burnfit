@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/app_logger.dart';
+import '../core/app_spacing.dart';
+import '../core/app_text_styles.dart';
 import '../core/constants.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/user_provider.dart';
+import '../widgets/orb_loader.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -93,12 +96,21 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppColors.bg,
+    return Scaffold(
+      backgroundColor: AppColors.canvas,
       body: Center(
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: AppColors.brand,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const OrbLoader(size: 160, semanticLabel: '불러오는 중'),
+            const SizedBox(height: AppSpacing.xl),
+            Text('BurnFit', style: AppTextStyles.displayMd),
+            const SizedBox(height: 6),
+            Text(
+              'FITNESS CENTER',
+              style: AppTextStyles.counter.copyWith(color: AppColors.body, letterSpacing: 1.1),
+            ),
+          ],
         ),
       ),
     );

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
-import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
 import '../../core/validators.dart';
 import '../../models/user.dart';
 import '../../services/admin_setup_service.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_section.dart';
 import '../../widgets/app_text_field.dart';
 
 class AdminRegisterScreen extends StatefulWidget {
@@ -96,23 +96,19 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.card,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.base,
-                AppSpacing.screenH,
-                0,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
               child: AppScreenHeader(
                 title: '관리자 등록',
                 onBack: () => Navigator.of(context).pop(),
               ),
             ),
+            const AppRowDivider(),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(
@@ -126,25 +122,16 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '관리자 정보',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ).animate().fadeIn(duration: 300.ms),
-                      const Gap(AppSpacing.sm),
+                      const AppSectionHeader(title: '관리자 정보'),
+                      const Gap(AppSpacing.base),
                       AppTextField(
                         label: '이름',
                         hint: '이름을 입력해주세요',
                         controller: _nameController,
                         validator: Validators.name,
                         textInputAction: TextInputAction.next,
-                        fillColor: AppColors.card,
-                        showEnabledBorder: true,
-                        labelAbove: true,
-                      ).animate().fadeIn(delay: 50.ms, duration: 300.ms),
-                      const Gap(AppSpacing.sm),
+                      ),
+                      const Gap(AppSpacing.base),
                       AppTextField(
                         label: '이메일',
                         hint: 'example@email.com',
@@ -152,11 +139,8 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                         keyboardType: TextInputType.emailAddress,
                         validator: Validators.email,
                         textInputAction: TextInputAction.next,
-                        fillColor: AppColors.card,
-                        showEnabledBorder: true,
-                        labelAbove: true,
-                      ).animate().fadeIn(delay: 80.ms, duration: 300.ms),
-                      const Gap(AppSpacing.sm),
+                      ),
+                      const Gap(AppSpacing.base),
                       AppTextField(
                         label: '비밀번호',
                         hint: '8자 이상 입력해주세요',
@@ -167,11 +151,8 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                           minLength: AdminSetupService.passwordMinLength,
                         ),
                         textInputAction: TextInputAction.next,
-                        fillColor: AppColors.card,
-                        showEnabledBorder: true,
-                        labelAbove: true,
-                      ).animate().fadeIn(delay: 110.ms, duration: 300.ms),
-                      const Gap(AppSpacing.sm),
+                      ),
+                      const Gap(AppSpacing.base),
                       AppTextField(
                         label: '설정 코드',
                         hint: '관리자 설정 코드를 입력해주세요',
@@ -179,51 +160,46 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                         obscureText: true,
                         validator: (v) => Validators.required(v, '설정 코드'),
                         textInputAction: TextInputAction.next,
-                        fillColor: AppColors.card,
-                        showEnabledBorder: true,
-                        labelAbove: true,
-                      ).animate().fadeIn(delay: 140.ms, duration: 300.ms),
-                      const Gap(AppSpacing.xl),
-
-                      Text(
-                        '센터 정보',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ).animate().fadeIn(delay: 170.ms, duration: 300.ms),
-                      const Gap(AppSpacing.sm),
+                      ),
+                      const Gap(AppSpacing.xl2),
+                      const AppSectionHeader(title: '센터 정보'),
+                      const Gap(AppSpacing.base),
                       AppTextField(
                         label: '센터 이름',
                         hint: '센터 이름을 입력해주세요',
                         controller: _centerNameController,
                         validator: (v) => Validators.required(v, '센터 이름'),
                         textInputAction: TextInputAction.next,
-                        fillColor: AppColors.card,
-                        showEnabledBorder: true,
-                        labelAbove: true,
-                      ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
-                      const Gap(AppSpacing.sm),
+                      ),
+                      const Gap(AppSpacing.base),
                       AppTextField(
                         label: '주소 (선택)',
                         hint: '주소를 입력해주세요',
                         controller: _centerAddressController,
                         textInputAction: TextInputAction.done,
-                        fillColor: AppColors.card,
-                        showEnabledBorder: true,
-                        labelAbove: true,
-                      ).animate().fadeIn(delay: 230.ms, duration: 300.ms),
-                      const Gap(AppSpacing.xl2),
-                      AppButton(
-                        label: '등록',
-                        onPressed: _register,
-                        isLoading: _isLoading,
-                        fullWidth: true,
-                        size: AppButtonSize.lg,
-                      ).animate().fadeIn(delay: 260.ms, duration: 300.ms),
+                      ),
                     ],
                   ),
                 ),
+              ),
+            ),
+            // 주 행동: 아래 고정 pill 하나
+            Container(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.md,
+                AppSpacing.screenH,
+                AppSpacing.base,
+              ),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.hairline)),
+              ),
+              child: AppButton(
+                label: '등록',
+                onPressed: _register,
+                isLoading: _isLoading,
+                fullWidth: true,
+                size: AppButtonSize.lg,
               ),
             ),
           ],

@@ -1,12 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:gap/gap.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
+import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/workout.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_tag.dart';
+import '../../widgets/set_input.dart';
 import 'workout_draft_models.dart';
 
+/// 세트 표 치수 (디자인 시스템 "세트 입력" 패턴).
+const double _setRowHeight = 48;
+const double _setNumberWidth = 32;
+
+/// 부위 → 모노 태그용 영문 코드 (한글은 모노로 쓰지 않는다).
+String workoutCategoryCode(WorkoutCategory category) {
+  return switch (category) {
+    WorkoutCategory.shoulder => 'SHOULDER',
+    WorkoutCategory.chest => 'CHEST',
+    WorkoutCategory.back => 'BACK',
+    WorkoutCategory.lower => 'LEGS',
+    WorkoutCategory.arms => 'ARMS',
+    WorkoutCategory.abs => 'CORE',
+    WorkoutCategory.cardio => 'CARDIO',
+  };
+}
+
+/// 진행 중인 운동 한 덩어리: 이름 + 부위 태그 + 메뉴, 지난 기록 캡션,
+/// 모노 머리 세트 표(48 높이 줄), "세트 추가" ghost 버튼.
+/// 카드로 감싸지 않고 화면 폭에 바로 놓는다 (좌우 16).
 class ExerciseInputCard extends StatelessWidget {
   final int order;
   final WorkoutExerciseDraft exercise;
@@ -29,133 +53,126 @@ class ExerciseInputCard extends StatelessWidget {
     required this.onToggleSetDone,
   });
 
+  String get _comparisonCaption {
+    return switch (comparison.tone) {
+      ComparisonTone.up || ComparisonTone.down => '지난 기록 대비 ${comparison.label}',
+      ComparisonTone.same => '지난 기록과 동일',
+      ComparisonTone.muted => comparison.label,
+    };
+  }
+
+  /// 표 머리: 영문 단위는 모노 대문자, 한글 지표(속도·경사 등)는 sans.
+  String _headerLabel(String label) {
+    return switch (label) {
+      '회' => 'REPS',
+      '시간' => 'MIN',
+      _ => label,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Text(
-                '$order',
-                style: AppTextStyles.h3.copyWith(
-                  color: AppColors.brand,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '${exercise.category.label} | ${exercise.name}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.h3.copyWith(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              _ComparisonPill(comparison: comparison),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: onMenuTap,
-                child: const Icon(
-                  Icons.more_vert_rounded,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const Gap(16),
-          Container(height: 1, color: AppColors.border),
-          const Gap(14),
-          Row(
-            children: [
-              const Expanded(child: _TableHeaderCell(label: '회차')),
-              const SizedBox(width: workoutGap),
-              Expanded(
-                child: _TableHeaderCell(label: exercise.primaryMetricLabel),
-              ),
-              const SizedBox(width: workoutGap),
-              Expanded(
-                child: _TableHeaderCell(label: exercise.secondaryMetricLabel),
-              ),
-              const SizedBox(width: workoutGap),
-              const Expanded(child: _TableHeaderCell(label: '완료')),
-            ],
-          ),
-          const Gap(10),
-          ...exercise.sets.asMap().entries.map((entry) {
-            final index = entry.key;
-            final set = entry.value;
+    // 진행 중 줄 = 아직 완료하지 않은 첫 세트
+    final currentIndex = exercise.sets.indexWhere((set) => !set.done);
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _WorkoutSetRow(
-                number: index + 1,
-                set: set,
-                onChanged: onChanged,
-                onRemove: () => onRemoveSet(index),
-                onToggleDone: () => onToggleSetDone(index),
-              ),
-            );
-          }),
-          const Gap(6),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: exercise.sets.length > 1
-                      ? () => onRemoveSet(exercise.sets.length - 1)
-                      : null,
-                  child: Container(
-                    height: 46,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.bg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '— 세트삭제',
-                      style: AppTextStyles.body.copyWith(
-                        color: exercise.sets.length > 1
-                            ? AppColors.textSecondary
-                            : AppColors.textTertiary,
-                        fontWeight: FontWeight.w600,
+    return Semantics(
+      container: true,
+      label: '$order번째 운동 ${exercise.name}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, AppSpacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        exercise.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodyLg,
                       ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: GestureDetector(
-                  onTap: onAddSet,
-                  child: Container(
-                    height: 46,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.bg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '+ 세트추가',
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.brand,
-                        fontWeight: FontWeight.w700,
+                    const SizedBox(width: AppSpacing.sm),
+                    AppTag(workoutCategoryCode(exercise.category)),
+                    const Spacer(),
+                    Transform.translate(
+                      offset: const Offset(12, 0),
+                      child: AppIconButton(
+                        icon: AppIcons.more,
+                        label: '${exercise.name} 메뉴',
+                        onPressed: onMenuTap,
                       ),
                     ),
+                  ],
+                ),
+                Text(_comparisonCaption, style: AppTextStyles.bodySm),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 28,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: _setNumberWidth, child: _HeaderText('SET', align: TextAlign.start)),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(child: _HeaderText(_headerLabel(exercise.primaryMetricLabel))),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(child: _HeaderText(_headerLabel(exercise.secondaryMetricLabel))),
+                      const SizedBox(width: AppSpacing.sm),
+                      const SizedBox(width: AppSize.touchMin),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                for (var i = 0; i < exercise.sets.length; i++)
+                  _WorkoutSetRow(
+                    number: i + 1,
+                    set: exercise.sets[i],
+                    current: i == currentIndex,
+                    primaryLabel: exercise.primaryMetricLabel,
+                    secondaryLabel: exercise.secondaryMetricLabel,
+                    onChanged: onChanged,
+                    onRemove: () => onRemoveSet(i),
+                    onToggleDone: () => onToggleSetDone(i),
+                  ),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    Transform.translate(
+                      offset: const Offset(-AppSpacing.md, 0),
+                      child: AppButton(
+                        label: '세트 추가',
+                        variant: AppButtonVariant.ghost,
+                        size: AppButtonSize.sm,
+                        icon: const Icon(AppIcons.add),
+                        onPressed: onAddSet,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (exercise.sets.length > 1)
+                      Transform.translate(
+                        offset: const Offset(AppSpacing.md, 0),
+                        child: AppButton(
+                          label: '마지막 세트 삭제',
+                          variant: AppButtonVariant.ghost,
+                          size: AppButtonSize.sm,
+                          icon: const Icon(AppIcons.remove),
+                          onPressed: () => onRemoveSet(exercise.sets.length - 1),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            ),
           ),
         ],
       ),
@@ -163,32 +180,30 @@ class ExerciseInputCard extends StatelessWidget {
   }
 }
 
-class _TableHeaderCell extends StatelessWidget {
+class _HeaderText extends StatelessWidget {
   final String label;
+  final TextAlign align;
 
-  const _TableHeaderCell({required this.label});
+  const _HeaderText(this.label, {this.align = TextAlign.center});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 28,
-      child: Center(
-        child: Text(
-          label,
-          style: AppTextStyles.body.copyWith(
-            color: AppColors.textSecondary,
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+    return Text(
+      monoCase(label),
+      textAlign: align,
+      style: monoOrSans(label, mono: AppTextStyles.counter, sans: AppTextStyles.captionSmall),
     );
   }
 }
 
+/// 세트 한 줄 (높이 48): 모노 세트 번호 · 값 상자 2개 · 완료 원.
+/// 완료 = 흰 채운 원 + 굵은 체크, 진행 중 = 흰 테두리 원 + 값 상자 흰 테두리, 대기 = 외곽선 원.
 class _WorkoutSetRow extends StatelessWidget {
   final int number;
   final WorkoutSetDraft set;
+  final bool current;
+  final String primaryLabel;
+  final String secondaryLabel;
   final VoidCallback onChanged;
   final VoidCallback onRemove;
   final VoidCallback onToggleDone;
@@ -196,6 +211,9 @@ class _WorkoutSetRow extends StatelessWidget {
   const _WorkoutSetRow({
     required this.number,
     required this.set,
+    required this.current,
+    required this.primaryLabel,
+    required this.secondaryLabel,
     required this.onChanged,
     required this.onRemove,
     required this.onToggleDone,
@@ -203,196 +221,63 @@ class _WorkoutSetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final done = set.done;
+    final valueColor = done ? AppColors.body : AppColors.ink;
+
     return SizedBox(
-      height: workoutCellHeight,
+      height: _setRowHeight,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
+          Semantics(
+            label: '$number세트. 길게 눌러 삭제',
+            onLongPress: onRemove,
+            excludeSemantics: true,
             child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onLongPress: onRemove,
-              child: _WorkoutInputBox(
-                child: Text(
-                  '$number',
-                  style: AppTextStyles.h2.copyWith(
-                    fontSize: 25,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w700,
-                    height: 1.0,
+              child: SizedBox(
+                width: _setNumberWidth,
+                height: _setRowHeight,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    number.toString().padLeft(2, '0'),
+                    style: AppTextStyles.counter.copyWith(
+                      fontSize: 12,
+                      color: done ? AppColors.mute : AppColors.ink,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: workoutGap),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: _BigNumberField(
+            child: SetValueField(
               controller: set.weightController,
               decimal: true,
+              highlighted: current,
+              textColor: valueColor,
+              semanticLabel: '$number세트 $primaryLabel',
               onChanged: onChanged,
             ),
           ),
-          const SizedBox(width: workoutGap),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: _BigNumberField(
+            child: SetValueField(
               controller: set.repsController,
               decimal: false,
+              highlighted: current,
+              textColor: valueColor,
+              semanticLabel: '$number세트 $secondaryLabel',
               onChanged: onChanged,
             ),
           ),
-          const SizedBox(width: workoutGap),
-          Expanded(
-            child: GestureDetector(
-              onTap: onToggleDone,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: set.done
-                      ? AppColors.brand
-                      : AppColors.bg,
-                  borderRadius: BorderRadius.circular(workoutCellRadius),
-                  border: Border.all(
-                    color: set.done
-                        ? AppColors.brand
-                        : AppColors.border,
-                  ),
-                ),
-                child: Icon(
-                  Icons.check_rounded,
-                  size: 34,
-                  color: set.done
-                      ? AppColors.textOnAccent
-                      : AppColors.textSecondary,
-                ),
-              ),
-            ),
-          ),
+          const SizedBox(width: AppSpacing.sm),
+          SetDoneButton(number: number, done: done, current: current, onTap: onToggleDone),
         ],
       ),
     );
   }
 }
 
-class _WorkoutInputBox extends StatelessWidget {
-  final Widget child;
-
-  const _WorkoutInputBox({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: workoutCellHeight,
-      alignment: Alignment.center,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.circular(workoutCellRadius),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _BigNumberField extends StatelessWidget {
-  final TextEditingController controller;
-  final bool decimal;
-  final VoidCallback onChanged;
-
-  const _BigNumberField({
-    required this.controller,
-    required this.decimal,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _WorkoutInputBox(
-      child: Theme(
-        data: Theme.of(context).copyWith(
-          inputDecorationTheme: const InputDecorationTheme(
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        child: Center(
-          child: SizedBox(
-            height: 34,
-            child: TextField(
-              controller: controller,
-              keyboardType: TextInputType.numberWithOptions(decimal: decimal),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(
-                  decimal ? RegExp(r'^\d*\.?\d*') : RegExp(r'\d*'),
-                ),
-              ],
-              onChanged: (_) => onChanged(),
-              textAlign: TextAlign.center,
-              textAlignVertical: TextAlignVertical.center,
-              style: AppTextStyles.h2.copyWith(
-                fontSize: 25,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-                height: 1.0,
-              ),
-              strutStyle: const StrutStyle(
-                fontSize: 25,
-                height: 1.0,
-                forceStrutHeight: true,
-              ),
-              cursorColor: AppColors.brand,
-              cursorHeight: 25,
-              decoration: const InputDecoration(
-                filled: false,
-                isCollapsed: true,
-                isDense: true,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ComparisonPill extends StatelessWidget {
-  final ExerciseComparison comparison;
-
-  const _ComparisonPill({required this.comparison});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = switch (comparison.tone) {
-      ComparisonTone.up => AppColors.workout,
-      ComparisonTone.down => AppColors.destructive,
-      ComparisonTone.same => AppColors.brand,
-      ComparisonTone.muted => AppColors.textSecondary,
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        comparison.label,
-        style: AppTextStyles.caption.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}

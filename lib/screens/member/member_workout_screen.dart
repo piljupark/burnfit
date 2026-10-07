@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/custom_exercise.dart';
@@ -16,6 +16,16 @@ import '../../services/exercise_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_draft_service.dart';
 import '../../services/workout_service.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_bottom_sheet.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_kpi_card.dart';
+import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_section.dart';
+import '../../widgets/app_text_field.dart';
+import '../../widgets/orb_loader.dart';
 import 'workout_draft_models.dart';
 import 'workout_exercise_input.dart';
 import 'workout_saved_card.dart';
@@ -51,6 +61,9 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
   WorkoutCategory _defaultCategory = WorkoutCategory.chest;
   String? _editingWorkoutId;
+
+  /// 펼쳐서 세트 표를 보여 줄 운동 (나머지는 한 줄로 접는다). 화면 표시 전용 상태.
+  int _activeIndex = 0;
 
   bool _loading = false;
   bool _saving = false;
@@ -225,12 +238,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
     setState(() => _restoredDraft = true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('기록 중이던 운동을 불러왔습니다.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    AppFeedback.showSuccessSnackBar(context, '기록 중이던 운동을 불러왔습니다.');
   }
 
   void _replaceSessionFromDraft(Map<String, dynamic> draft) {
@@ -269,6 +277,16 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
         }
       }
     }
+
+    _activeIndex = _firstOpenExerciseIndex();
+  }
+
+  /// 아직 완료하지 않은 세트가 있는 첫 운동 (없으면 0).
+  int _firstOpenExerciseIndex() {
+    final index = _sessionExercises.indexWhere(
+      (exercise) => exercise.sets.any((set) => !set.done),
+    );
+    return index < 0 ? 0 : index;
   }
 
   void _queueDraftSave() {
@@ -357,21 +375,19 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
   }
 
   Future<void> _showExercisePicker() async {
-    final picked = await showModalBottomSheet<PickedExercise>(
+    final picked = await showAppBottomSheet<PickedExercise>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) {
-        return ExercisePickerSheet(
-          memberId: context.read<UserProvider>().user!.uid,
-          defaultCategory: _defaultCategory,
-          customExercises: _customExercises,
-          previousStatsByName: _previousStatsByName,
-          onCustomAdded: (exercise) {
-            setState(() => _customExercises.add(exercise));
-          },
-        );
-      },
+      heightFactor: 0.85,
+      padded: false,
+      child: ExercisePickerSheet(
+        memberId: context.read<UserProvider>().user!.uid,
+        defaultCategory: _defaultCategory,
+        customExercises: _customExercises,
+        previousStatsByName: _previousStatsByName,
+        onCustomAdded: (exercise) {
+          setState(() => _customExercises.add(exercise));
+        },
+      ),
     );
 
     if (picked == null) return;
@@ -385,6 +401,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
           sets: [WorkoutSetDraft()],
         ),
       );
+      _activeIndex = _sessionExercises.length - 1;
     });
 
     _queueDraftSave();
@@ -411,12 +428,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     final exercise = _sessionExercises[exerciseIndex];
 
     if (exercise.sets.length == 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('세트는 최소 1개 이상 필요합니다.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppFeedback.showSuccessSnackBar(context, '세트는 최소 1개 이상 필요합니다.');
       return;
     }
 
@@ -432,6 +444,11 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     setState(() {
       _sessionExercises[index].dispose();
       _sessionExercises.removeAt(index);
+
+      if (index < _activeIndex) _activeIndex--;
+      if (_activeIndex >= _sessionExercises.length) {
+        _activeIndex = _sessionExercises.isEmpty ? 0 : _sessionExercises.length - 1;
+      }
     });
 
     _queueDraftSave();
@@ -440,13 +457,9 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
   Future<void> _showExerciseMenu(int index) async {
     final exercise = _sessionExercises[index];
 
-    final action = await showModalBottomSheet<ExerciseMenuAction>(
+    final action = await showAppBottomSheet<ExerciseMenuAction>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) {
-        return ExerciseMenuSheet(exercise: exercise);
-      },
+      child: ExerciseMenuSheet(exercise: exercise),
     );
 
     if (action == null) return;
@@ -511,6 +524,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     }
 
     _sessionExercises.clear();
+    _activeIndex = 0;
 
     if (!disposeOnly) {
       _noteController.clear();
@@ -545,12 +559,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     }
 
     if (exercises.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('운동명, 무게, 횟수를 입력해주세요.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppFeedback.showSuccessSnackBar(context, '운동명, 무게, 횟수를 입력해주세요.');
       return;
     }
 
@@ -611,11 +620,9 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(wasEditing ? '운동 기록을 수정했습니다.' : '운동 기록을 저장했습니다.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppFeedback.showSuccessSnackBar(
+        context,
+        wasEditing ? '운동 기록을 수정했습니다.' : '운동 기록을 저장했습니다.',
       );
     } catch (e) {
       if (!mounted) return;
@@ -654,48 +661,41 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
           ),
         );
       }
+      _activeIndex = 0;
     });
 
     _queueDraftSave();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('수정 모드로 불러왔습니다.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    AppFeedback.showSuccessSnackBar(context, '수정 모드로 불러왔습니다.');
   }
 
   Future<void> _deleteWorkout(Workout workout) async {
-    final body = AppTextStyles.body;
-
     final ok = await showDialog<bool>(
       context: context,
+      barrierColor: AppColors.backdrop,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppColors.card,
+          backgroundColor: AppColors.canvasCard,
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.xs),
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            side: const BorderSide(color: AppColors.hairline),
           ),
-          title: Text('운동 삭제', style: AppTextStyles.h3),
-          content: Text('이 운동 기록을 삭제할까요?', style: AppTextStyles.body),
+          title: Text('운동 기록 삭제', style: AppTextStyles.title),
+          content: Text(
+            '${workout.exercises.length}개 종목, ${workout.totalSets}세트 기록이 삭제됩니다. 되돌릴 수 없습니다.',
+            style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+          ),
           actions: [
-            TextButton(
+            AppButton(
+              label: '취소',
+              variant: AppButtonVariant.ghost,
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(
-                '취소',
-                style: body.copyWith(color: AppColors.textSecondary),
-              ),
             ),
-            TextButton(
+            AppButton(
+              label: '삭제',
+              variant: AppButtonVariant.danger,
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(
-                '삭제',
-                style: body.copyWith(
-                  color: AppColors.destructive,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ),
           ],
         );
@@ -770,117 +770,175 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     return const ExerciseComparison(label: '동일', tone: ComparisonTone.same);
   }
 
+  /// 머리말: `10.07 WED · IN PROGRESS` (영문·숫자만 → 모노).
+  String get _eyebrow {
+    final date = DateTime.parse(_selectedDate);
+    final day = DateFormat('MM.dd EEE', 'en_US').format(date);
+    final prefix = widget.workoutType == WorkoutType.pt ? 'PT · ' : '';
+    final status = _editingWorkoutId != null
+        ? 'EDITING'
+        : _workoutStarted
+        ? 'IN PROGRESS'
+        : _sessionExercises.isNotEmpty
+        ? 'READY'
+        : null;
+    return status == null ? '$prefix$day' : '$prefix$day · $status';
+  }
+
+  String _collapsedSubtitle(WorkoutExerciseDraft exercise) {
+    final total = exercise.sets.length;
+    final done = exercise.sets.where((set) => set.done).length;
+    final max = exercise.maxWeight;
+    final metric = max == null
+        ? ''
+        : ' · ${formatMetricValue(max)}${exercise.primaryMetricSuffix}';
+    return '$total세트 · 완료 $done/$total$metric';
+  }
+
   @override
   Widget build(BuildContext context) {
     final date = DateTime.parse(_selectedDate);
+    final hasSession = _sessionExercises.isNotEmpty || _editingWorkoutId != null;
+    final activeIndex = _sessionExercises.isEmpty
+        ? 0
+        : _activeIndex.clamp(0, _sessionExercises.length - 1);
+
+    final calendarButton = AppIconButton(
+      icon: AppIcons.calendar,
+      label: '날짜 선택',
+      onPressed: _pickDate,
+    );
+
+    final header = widget.showAsTab
+        ? AppHero(
+            eyebrow: _eyebrow,
+            title: '운동',
+            actions: [calendarButton],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                child: AppScreenHeader(
+                  title: widget.workoutType == WorkoutType.pt ? 'PT 운동' : '운동 기록',
+                  subtitle: _editingWorkoutId != null
+                      ? '${DateFormat('M월 d일').format(date)} · 수정 중'
+                      : DateFormat('M월 d일').format(date),
+                  onBack: _handleExit,
+                  trailing: Transform.translate(
+                    offset: const Offset(12, 0),
+                    child: calendarButton,
+                  ),
+                ),
+              ),
+              const AppRowDivider(),
+            ],
+          );
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: Stack(
         children: [
           Positioned.fill(
             child: SafeArea(
               bottom: false,
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : CustomScrollView(
+                  ? const AppLoadingView()
+                  : ListView(
                       physics: const BouncingScrollPhysics(),
-                      slivers: [
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _WorkoutTopBar(
-                                  title: widget.showAsTab
-                                      ? '운동'
-                                      : widget.workoutType == WorkoutType.pt
-                                          ? 'PT 운동 · ${DateFormat('M월 d일').format(date)}'
-                                          : DateFormat('M월 d일').format(date),
-                                  onBack: widget.showAsTab ? null : _handleExit,
-                                  onDateTap: _pickDate,
-                                  isTabTitle: widget.showAsTab,
-                                ),
-                                const Gap(20),
-                                if (_sessionExercises.isNotEmpty ||
-                                    _editingWorkoutId != null) ...[
-                                  _WorkoutSummaryBand(
-                                    elapsed: formatDuration(_elapsedSeconds),
-                                    volume: _sessionVolume,
-                                    cardioMinutes: _sessionCardioMinutes,
-                                    cardioMode: _isCardioSession,
-                                    completedSets: _completedSetCount,
-                                    totalSets: _totalSetCount,
-                                    editing: _editingWorkoutId != null,
-                                  ),
-                                  const Gap(20),
-                                ],
-                                const Gap(20),
-                                if (_sessionExercises.isEmpty)
-                                  _EmptySessionCard(
-                                    onAddExercise: _showExercisePicker,
-                                  )
-                                else ...[
-                                  ..._sessionExercises.asMap().entries.map((
-                                    entry,
-                                  ) {
-                                    final index = entry.key;
-                                    final exercise = entry.value;
-
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 16,
-                                      ),
-                                      child: ExerciseInputCard(
-                                        order: index + 1,
-                                        exercise: exercise,
-                                        comparison: _comparisonFor(exercise),
-                                        onChanged: () {
-                                          setState(() {});
-                                          _queueDraftSave();
-                                        },
-                                        onAddSet: () => _addSet(index),
-                                        onMenuTap: () =>
-                                            _showExerciseMenu(index),
-                                        onRemoveSet: (setIndex) =>
-                                            _removeSet(index, setIndex),
-                                        onToggleSetDone: (setIndex) =>
-                                            _toggleSetDone(index, setIndex),
-                                      ),
-                                    );
-                                  }),
-                                  _SessionNoteField(
-                                    controller: _noteController,
-                                  ),
-                                ],
-                                if (_workouts.isNotEmpty) ...[
-                                  const Gap(24),
-                                  Text(
-                                    '오늘 저장된 기록',
-                                    style: AppTextStyles.h3.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const Gap(12),
-                                  ..._workouts.map(
-                                    (workout) => Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 12,
-                                      ),
-                                      child: SavedWorkoutCard(
-                                        workout: workout,
-                                        onEdit: () => _editWorkout(workout),
-                                        onDelete: () => _deleteWorkout(workout),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                Gap(widget.showAsTab ? 202 : 132),
-                              ],
+                      padding: EdgeInsets.zero,
+                      children: [
+                        header,
+                        if (hasSession)
+                          AppStatStrip(
+                            cells: [
+                              AppKpiCard(
+                                framed: false,
+                                valueSize: 20,
+                                label: '총 시간',
+                                value: formatDuration(_elapsedSeconds),
+                                unit: '',
+                              ),
+                              AppKpiCard(
+                                framed: false,
+                                valueSize: 20,
+                                label: _isCardioSession ? '유산소' : '총 볼륨',
+                                value: _isCardioSession
+                                    ? '$_sessionCardioMinutes'
+                                    : NumberFormat('#,###').format(_sessionVolume.round()),
+                                unit: _isCardioSession ? '분' : 'kg',
+                              ),
+                              AppKpiCard(
+                                framed: false,
+                                valueSize: 20,
+                                label: '완료세트',
+                                value: '$_completedSetCount/$_totalSetCount',
+                                unit: '',
+                              ),
+                            ],
+                          ),
+                        if (_sessionExercises.isEmpty)
+                          const AppEmptyState(
+                            icon: AppIcons.workout,
+                            message: '운동을 추가하고 바로 기록하세요',
+                            description: '무게, 횟수, 완료 체크를 한 화면에서 입력할 수 있습니다.',
+                          )
+                        else ...[
+                          for (var index = 0; index < _sessionExercises.length; index++) ...[
+                            if (index > 0) const AppRowDivider(),
+                            if (index == activeIndex)
+                              ExerciseInputCard(
+                                order: index + 1,
+                                exercise: _sessionExercises[index],
+                                comparison: _comparisonFor(_sessionExercises[index]),
+                                onChanged: () {
+                                  setState(() {});
+                                  _queueDraftSave();
+                                },
+                                onAddSet: () => _addSet(index),
+                                onMenuTap: () => _showExerciseMenu(index),
+                                onRemoveSet: (setIndex) => _removeSet(index, setIndex),
+                                onToggleSetDone: (setIndex) => _toggleSetDone(index, setIndex),
+                              )
+                            else
+                              AppActionRow(
+                                icon: AppIcons.workout,
+                                label: _sessionExercises[index].name,
+                                subtitle: _collapsedSubtitle(_sessionExercises[index]),
+                                onTap: () => setState(() => _activeIndex = index),
+                              ),
+                          ],
+                          const AppRowDivider(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.screenH,
+                              AppSpacing.xl,
+                              AppSpacing.screenH,
+                              0,
+                            ),
+                            child: AppTextField(
+                              label: '메모',
+                              hint: '오늘 운동은 어땠나요?',
+                              controller: _noteController,
+                              maxLines: 3,
+                              textInputAction: TextInputAction.newline,
                             ),
                           ),
-                        ),
+                        ],
+                        if (_workouts.isNotEmpty) ...[
+                          AppMonthHeader(
+                            label: '저장된 기록',
+                            count: '${_workouts.length}',
+                          ),
+                          for (final workout in _workouts)
+                            SavedWorkoutCard(
+                              workout: workout,
+                              onEdit: () => _editWorkout(workout),
+                              onDelete: () => _deleteWorkout(workout),
+                            ),
+                        ],
+                        SizedBox(height: widget.showAsTab ? 202 : 132),
                       ],
                     ),
             ),
@@ -890,7 +948,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
             right: 0,
             bottom: widget.showAsTab ? 70 : 0,
             child: _WorkoutBottomBar(
-              elapsed: formatDuration(_elapsedSeconds),
               saving: _saving,
               editing: _editingWorkoutId != null,
               workoutStarted: _workoutStarted,
@@ -905,269 +962,8 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
   }
 }
 
-class _WorkoutTopBar extends StatelessWidget {
-  final String title;
-  final VoidCallback? onBack;
-  final VoidCallback onDateTap;
-  final bool isTabTitle;
-
-  const _WorkoutTopBar({
-    required this.title,
-    required this.onBack,
-    required this.onDateTap,
-    this.isTabTitle = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (isTabTitle) {
-      return Row(
-        children: [
-          Expanded(child: Text(title, style: AppTextStyles.h1)),
-          _IconSquareButton(icon: Icons.calendar_month_rounded, onTap: onDateTap),
-        ],
-      );
-    }
-    return Row(
-      children: [
-        _IconSquareButton(
-          icon: Icons.arrow_back_ios_new_rounded,
-          onTap: onBack ?? () => Navigator.of(context).pop(),
-        ),
-        Expanded(
-          child: Center(
-            child: Text(
-              title,
-              style: AppTextStyles.h2.copyWith(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-        _IconSquareButton(icon: Icons.calendar_month_rounded, onTap: onDateTap),
-      ],
-    );
-  }
-}
-
-class _IconSquareButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _IconSquareButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          border: Border.all(color: AppColors.border, width: 0.5),
-        ),
-        child: Icon(icon, size: 20, color: AppColors.textPrimary),
-      ),
-    );
-  }
-}
-
-class _WorkoutSummaryBand extends StatelessWidget {
-  final String elapsed;
-  final double volume;
-  final int completedSets;
-  final int totalSets;
-  final bool editing;
-  final int cardioMinutes;
-  final bool cardioMode;
-
-  const _WorkoutSummaryBand({
-    required this.elapsed,
-    required this.volume,
-    required this.completedSets,
-    required this.totalSets,
-    required this.editing,
-    required this.cardioMinutes,
-    required this.cardioMode,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (editing) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(
-                color: AppColors.brand,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '수정 중',
-                style: AppTextStyles.label.copyWith(
-                  color: AppColors.textOnAccent,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const Gap(14),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryMetric(label: '운동시간', value: elapsed),
-              ),
-              Expanded(
-                child: _SummaryMetric(
-                  label: cardioMode ? '총 시간' : '총 볼륨',
-                  value: cardioMode
-                      ? '$cardioMinutes분'
-                      : '${volume.toStringAsFixed(0)}kg',
-                ),
-              ),
-              Expanded(
-                child: _SummaryMetric(
-                  label: '완료세트',
-                  value: '$completedSets/$totalSets',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryMetric extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _SummaryMetric({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.h3.copyWith(
-            color: AppColors.brand,
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const Gap(5),
-        Text(
-          label,
-          style: AppTextStyles.caption.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _EmptySessionCard extends StatelessWidget {
-  final VoidCallback onAddExercise;
-
-  const _EmptySessionCard({required this.onAddExercise});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onAddExercise,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 36),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                color: AppColors.brand,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.add_rounded,
-                color: AppColors.textOnAccent,
-                size: 32,
-              ),
-            ),
-            const Gap(18),
-            Text(
-              '운동을 추가하고 바로 기록하세요.',
-              style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const Gap(6),
-            Text(
-              'kg, 회차, 완료 체크를 한 화면에서 빠르게 입력할 수 있습니다.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SessionNoteField extends StatelessWidget {
-  final TextEditingController controller;
-
-  const _SessionNoteField({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: TextField(
-        controller: controller,
-        minLines: 1,
-        maxLines: 3,
-        style: AppTextStyles.bodyLarge,
-        cursorColor: AppColors.brand,
-        decoration: InputDecoration(
-          hintText: '메모',
-          hintStyle: AppTextStyles.bodyLarge.copyWith(
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w700,
-          ),
-          border: InputBorder.none,
-        ),
-      ),
-    );
-  }
-}
-
+/// 아래 고정 버튼 줄: 외곽선 "운동 추가" + 주 행동(흰 채움) 하나.
 class _WorkoutBottomBar extends StatelessWidget {
-  final String elapsed;
   final bool saving;
   final bool editing;
   final bool workoutStarted;
@@ -1176,7 +972,6 @@ class _WorkoutBottomBar extends StatelessWidget {
   final VoidCallback onComplete;
 
   const _WorkoutBottomBar({
-    required this.elapsed,
     required this.saving,
     required this.editing,
     required this.workoutStarted,
@@ -1190,7 +985,7 @@ class _WorkoutBottomBar extends StatelessWidget {
     final bottom = MediaQuery.of(context).padding.bottom;
 
     final primaryTitle = saving
-        ? '저장 중...'
+        ? '저장 중'
         : editing
         ? '수정 저장'
         : workoutStarted
@@ -1206,108 +1001,39 @@ class _WorkoutBottomBar extends StatelessWidget {
         : onStart;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(14, 12, 14, bottom + 12),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.md,
+        AppSpacing.screenH,
+        bottom + AppSpacing.md,
+      ),
       decoration: const BoxDecoration(
-        color: AppColors.bg,
-        border: Border(top: BorderSide(color: AppColors.border)),
+        color: AppColors.canvas,
+        border: Border(top: BorderSide(color: AppColors.hairline)),
       ),
       child: Row(
         children: [
           Expanded(
-            child: _BottomActionBox(
-              title: elapsed,
-              subtitle: '운동시간',
-              primary: false,
-              onTap: null,
+            child: AppButton(
+              label: '운동 추가',
+              variant: AppButtonVariant.secondary,
+              size: AppButtonSize.lg,
+              fullWidth: true,
+              icon: const Icon(AppIcons.add),
+              onPressed: onAddExercise,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: _BottomActionBox(
-              title: '+ 운동 추가',
-              subtitle: null,
-              primary: false,
-              onTap: onAddExercise,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _BottomActionBox(
-              title: primaryTitle,
-              subtitle: null,
-              primary: true,
-              onTap: primaryTap,
+            child: AppButton(
+              label: primaryTitle,
+              size: AppButtonSize.lg,
+              fullWidth: true,
+              isLoading: saving,
+              onPressed: primaryTap,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BottomActionBox extends StatelessWidget {
-  final String title;
-  final String? subtitle;
-  final bool primary;
-  final VoidCallback? onTap;
-
-  const _BottomActionBox({
-    required this.title,
-    required this.subtitle,
-    required this.primary,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final background = primary
-        ? AppColors.brand
-        : AppColors.card;
-    final foreground = primary
-        ? AppColors.textOnAccent
-        : AppColors.brand;
-    final subColor = primary
-        ? AppColors.textOnAccent
-        : AppColors.textSecondary;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 66,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(10),
-          border: primary ? null : Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyLarge.copyWith(
-                color: foreground,
-                fontSize: primary ? 17 : 16,
-                fontWeight: FontWeight.w800,
-                height: 1.0,
-              ),
-            ),
-            if (subtitle != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                subtitle!,
-                style: AppTextStyles.caption.copyWith(
-                  color: subColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  height: 1.0,
-                ),
-              ),
-            ],
-          ],
-        ),
       ),
     );
   }

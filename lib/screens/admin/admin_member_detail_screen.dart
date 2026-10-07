@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/pt_info.dart';
@@ -13,7 +14,21 @@ import '../../models/pt_info_log.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_avatar.dart';
+import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_kpi_card.dart';
+import '../../widgets/app_profile_card.dart';
+import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_section.dart';
+import '../../widgets/app_text_field.dart';
+import '../../widgets/orb_loader.dart';
+
+final _ymd = DateFormat('yyyy.MM.dd');
+
+String _fmt(DateTime? d) => d == null ? '-' : _ymd.format(d);
 
 class AdminMemberDetailScreen extends StatefulWidget {
   final AppUser member;
@@ -72,9 +87,9 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
   }
 
   Future<void> _assignTrainer() async {
-    final trainer = await showDialog<AppUser>(
+    final trainer = await showAppBottomSheet<AppUser>(
       context: context,
-      builder: (ctx) => _TrainerPickerDialog(trainers: _trainers),
+      child: _TrainerPickerSheet(trainers: _trainers, currentTrainerId: _member.trainerId),
     );
     if (trainer == null) return;
 
@@ -93,12 +108,7 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
       });
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${trainer.name} 트레이너를 배정했습니다.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppFeedback.showSuccessSnackBar(context, '${trainer.name} 트레이너를 배정했습니다.');
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
@@ -107,9 +117,9 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
 
   Future<void> _editPtInfo() async {
     final admin = context.read<UserProvider>().user;
-    final result = await showDialog<PtInfo>(
+    final result = await showAppBottomSheet<PtInfo>(
       context: context,
-      builder: (ctx) => _PtInfoDialog(
+      child: _PtInfoSheet(
         memberId: _member.uid,
         memberName: _member.name,
         centerId: _member.centerId,
@@ -135,220 +145,115 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final m = _member;
+    final pt = _ptInfo;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 네비게이션 바: 뒤로가기(chevron_left 30px) + "회원 상세" h2
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.sm,
-                AppSpacing.screenH,
-                AppSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(_member),
-                    behavior: HitTestBehavior.opaque,
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.chevron_left_rounded,
-                        size: 30,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  const Gap(AppSpacing.xs),
-                  Expanded(
-                    child: Text(
-                      '회원 상세',
-                      style: AppTextStyles.h2,
-                    ),
-                  ),
-                ],
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+              child: AppScreenHeader(
+                title: '회원 상세',
+                onBack: () => Navigator.of(context).pop(_member),
               ),
             ),
-            // 프로필 행: 48px 원형 아바타 + 이름 headline + 이메일 caption (카드 없음)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.xs,
-                AppSpacing.screenH,
-                AppSpacing.md,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.brand.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      m.name.isNotEmpty ? m.name[0].toUpperCase() : '?',
-                      style: AppTextStyles.headline.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.brand,
-                      ),
-                    ),
-                  ),
-                  const Gap(AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          m.name,
-                          style: AppTextStyles.headline,
-                        ),
-                        const Gap(2),
-                        Text(
-                          m.email,
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // 본문
+            const AppRowDivider(),
             Expanded(
               child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.brand,
-                      ),
-                    )
+                  ? const AppLoadingView()
                   : _errorMessage != null
                   ? AppErrorCard(message: _errorMessage!, onRetry: _load)
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.screenH,
-                        AppSpacing.sm,
-                        AppSpacing.screenH,
-                        AppSpacing.xl2,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 기본 정보 섹션
-                          Text(
-                            '기본 정보',
-                            style: AppTextStyles.h3,
+                  : ListView(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
+                      children: [
+                        // 프로필 머리
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.screenH,
+                            AppSpacing.xl,
+                            AppSpacing.screenH,
+                            AppSpacing.sm,
                           ),
-                          const Gap(AppSpacing.xs),
-                          _InfoSection(
-                            children: [
-                              _InfoRow(label: '이메일', value: m.email),
-                              _InfoRow(
-                                label: '트레이너',
-                                value: m.trainerName ?? '미배정',
-                              ),
-                            ],
+                          child: AppProfileCard(
+                            name: m.name,
+                            subtitle: m.email,
+                            roleLabel: 'MEMBER',
+                            seed: m.uid,
                           ),
-                          const Gap(AppSpacing.md),
-                          AppButton(
-                            label: m.trainerName != null
-                                ? '트레이너 변경'
-                                : '트레이너 배정',
+                        ),
+
+                        // 기본 정보
+                        const AppMonthHeader(label: '기본 정보'),
+                        _KeyValueRow(label: '이메일', value: m.email),
+                        const AppRowDivider(indent: AppSpacing.screenH),
+                        _KeyValueRow(
+                          label: '트레이너',
+                          value: m.trainerName ?? '미배정',
+                          muted: m.trainerName == null,
+                          trailing: AppButton(
+                            label: m.trainerName != null ? '트레이너 변경' : '트레이너 배정',
                             variant: AppButtonVariant.secondary,
+                            size: AppButtonSize.sm,
                             onPressed: _assignTrainer,
-                            fullWidth: true,
                           ),
+                        ),
 
-                          const Gap(AppSpacing.xl),
-
-                          // PT 관리 섹션
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'PT 관리',
-                                  style: AppTextStyles.h3,
-                                ),
+                        // PT 관리
+                        AppMonthHeader(
+                          label: 'PT',
+                          trailing: AppButton(
+                            label: pt != null ? 'PT 정보 수정' : 'PT 정보 등록',
+                            variant: AppButtonVariant.ghost,
+                            size: AppButtonSize.sm,
+                            onPressed: _editPtInfo,
+                          ),
+                        ),
+                        if (pt != null) ...[
+                          AppStatStrip(
+                            cells: [
+                              AppKpiCard(
+                                framed: false,
+                                label: '잔여',
+                                value: '${pt.remainingSessions}',
+                                unit: '회',
                               ),
-                              AppButton(
-                                label: _ptInfo != null ? '수정' : '등록',
-                                variant: AppButtonVariant.ghost,
-                                onPressed: _editPtInfo,
+                              AppKpiCard(
+                                framed: false,
+                                label: '전체',
+                                value: '${pt.totalSessions}',
+                                unit: '회',
                               ),
                             ],
                           ),
-                          const Gap(AppSpacing.xs),
-                          if (_ptInfo != null)
-                            _InfoSection(
-                              children: [
-                                _InfoRow(
-                                  label: '시작일',
-                                  value: _ptInfo!.startDate != null
-                                      ? DateFormat(
-                                          'yyyy.MM.dd',
-                                        ).format(_ptInfo!.startDate!)
-                                      : '-',
-                                ),
-                                _InfoRow(
-                                  label: '종료일',
-                                  value: _ptInfo!.endDate != null
-                                      ? DateFormat(
-                                          'yyyy.MM.dd',
-                                        ).format(_ptInfo!.endDate!)
-                                      : '-',
-                                ),
-                                _InfoRow(
-                                  label: '잔여',
-                                  value:
-                                      '${_ptInfo!.remainingSessions} / ${_ptInfo!.totalSessions}회',
-                                ),
-                                _InfoRow(
-                                  label: '갱신일',
-                                  value: _ptInfo!.renewalDate != null
-                                      ? DateFormat(
-                                          'yyyy.MM.dd',
-                                        ).format(_ptInfo!.renewalDate!)
-                                      : '-',
-                                ),
-                              ],
-                            )
-                          else
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(AppSpacing.md),
-                              decoration: BoxDecoration(
-                                color: AppColors.card,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.xs,
-                                ),
-                                border: Border.all(
-                                  color: AppColors.border,
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: Text(
-                                'PT 정보가 없습니다.',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          const Gap(AppSpacing.md),
-                          _PtInfoLogSection(
-                            logs: _ptInfoLogs,
-                            onViewAll: _openPtInfoLogs,
+                          _KeyValueRow(label: '시작일', value: _fmt(pt.startDate)),
+                          const AppRowDivider(indent: AppSpacing.screenH),
+                          _KeyValueRow(label: '종료일', value: _fmt(pt.endDate)),
+                          const AppRowDivider(indent: AppSpacing.screenH),
+                          _KeyValueRow(label: '갱신일', value: _fmt(pt.renewalDate)),
+                        ] else
+                          const _MutedLine('PT 정보가 없습니다.'),
+
+                        // PT 변경 이력
+                        AppMonthHeader(
+                          label: 'PT 변경 이력',
+                          trailing: AppButton(
+                            label: '전체 보기',
+                            variant: AppButtonVariant.ghost,
+                            size: AppButtonSize.sm,
+                            onPressed: _openPtInfoLogs,
                           ),
-                        ],
-                      ),
+                        ),
+                        if (_ptInfoLogs.isEmpty)
+                          const _MutedLine('변경 이력이 없습니다.')
+                        else
+                          for (int i = 0; i < _ptInfoLogs.length; i++) ...[
+                            if (i > 0) const AppRowDivider(indent: AppSpacing.screenH),
+                            _PtInfoLogRow(log: _ptInfoLogs[i]),
+                          ],
+                      ],
                     ),
             ),
           ],
@@ -358,198 +263,126 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
   }
 }
 
-// ── _InfoSection ──────────────────────────────────────────────────────────────
+// ── _KeyValueRow ──────────────────────────────────────────────────────────────
 
-class _InfoSection extends StatelessWidget {
-  final List<_InfoRow> children;
+/// 화면 폭 키/값 줄: 왼쪽 라벨(13, mute) + 값(15) + (선택) 오른쪽 행동. 최소 높이 52.
+class _KeyValueRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool muted;
+  final Widget? trailing;
 
-  const _InfoSection({required this.children});
+  const _KeyValueRow({required this.label, required this.value, this.muted = false, this.trailing});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Column(
-        children: [
-          for (int i = 0; i < children.length; i++) ...[
-            children[i],
-            if (i < children.length - 1)
-              const Divider(height: 1, color: AppColors.border),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 52),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.xs),
+        child: Row(
+          children: [
+            SizedBox(width: 72, child: Text(label, style: AppTextStyles.bodySm)),
+            Expanded(
+              child: Text(
+                value,
+                style: AppTextStyles.bodyMd.copyWith(color: muted ? AppColors.mute : AppColors.ink),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (trailing != null) ...[const SizedBox(width: AppSpacing.sm), trailing!],
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
-// ── _InfoRow ──────────────────────────────────────────────────────────────────
+class _MutedLine extends StatelessWidget {
+  final String text;
 
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow({required this.label, required this.value});
+  const _MutedLine(this.text);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.sm + 2,
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 72,
-            child: Text(
-              label,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+      child: Text(text, style: AppTextStyles.bodySm),
     );
   }
 }
 
-// ── _TrainerPickerDialog ──────────────────────────────────────────────────────
+// ── _TrainerPickerSheet ───────────────────────────────────────────────────────
 
-class _TrainerPickerDialog extends StatelessWidget {
+/// 트레이너 선택 시트: 아바타 + 이름, 현재 담당은 체크 표시. 고르면 그 트레이너를 돌려준다.
+class _TrainerPickerSheet extends StatelessWidget {
   final List<AppUser> trainers;
-  const _TrainerPickerDialog({required this.trainers});
+  final String? currentTrainerId;
 
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      title: Text('트레이너 선택', style: AppTextStyles.h3),
-      content: SizedBox(
-        width: 300,
-        child: trainers.isEmpty
-            ? Text(
-                '등록된 트레이너가 없습니다.',
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              )
-            : ListView.separated(
-                shrinkWrap: true,
-                itemCount: trainers.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(height: 1, color: AppColors.border),
-                itemBuilder: (_, i) {
-                  final t = trainers[i];
-                  return InkWell(
-                    onTap: () => Navigator.of(context).pop(t),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm + 2,
-                      ),
-                      child: Text(
-                        t.name,
-                        style: AppTextStyles.body.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(
-            '취소',
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── _PtInfoLogSection ─────────────────────────────────────────────────────────
-
-class _PtInfoLogSection extends StatelessWidget {
-  final List<PtInfoLog> logs;
-  final VoidCallback onViewAll;
-
-  const _PtInfoLogSection({required this.logs, required this.onViewAll});
+  const _TrainerPickerSheet({required this.trainers, this.currentTrainerId});
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'PT 변경 이력',
-                style: AppTextStyles.h3,
-              ),
+        AppBottomSheetHeader(
+          title: '트레이너 선택',
+          subtitle: trainers.isEmpty ? null : '${trainers.length}명',
+        ),
+        if (trainers.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
+            child: Text(
+              '등록된 트레이너가 없습니다.',
+              style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
             ),
-            TextButton(
-              onPressed: onViewAll,
-              child: Text(
-                '전체 보기',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.brand,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+          )
+        else
+          for (int i = 0; i < trainers.length; i++) ...[
+            if (i > 0) const AppRowDivider(),
+            _TrainerOption(
+              trainer: trainers[i],
+              selected: trainers[i].uid == currentTrainerId,
+              onTap: () => Navigator.of(context).pop(trainers[i]),
             ),
           ],
-        ),
-        const Gap(AppSpacing.xs),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.xs),
-            border: Border.all(color: AppColors.border, width: 0.5),
-          ),
-          child: logs.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Text(
-                    '변경 이력이 없습니다.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                )
-              : Column(
-                  children: [
-                    for (int i = 0; i < logs.length; i++) ...[
-                      _PtInfoLogRow(log: logs[i]),
-                      if (i < logs.length - 1)
-                        const Divider(height: 1, color: AppColors.border),
-                    ],
-                  ],
-                ),
-        ),
       ],
+    );
+  }
+}
+
+class _TrainerOption extends StatelessWidget {
+  final AppUser trainer;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TrainerOption({required this.trainer, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: SizedBox(
+          height: 56,
+          child: Row(
+            children: [
+              AppAvatar(name: trainer.name, seed: trainer.uid, size: 32),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(trainer.name, style: AppTextStyles.bodyMd, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+              if (selected) const Icon(AppIcons.check, size: AppSize.icon, color: AppColors.ink),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -566,19 +399,14 @@ class _PtInfoLogRow extends StatelessWidget {
     final date = DateFormat('MM.dd HH:mm').format(log.createdAt);
     final totalDiff = _signed(log.totalDiff);
     final remainingDiff = _signed(log.remainingDiff);
-    final actor = log.changedByName?.trim().isNotEmpty == true
-        ? log.changedByName!
-        : '시스템';
+    final actor = log.changedByName?.trim().isNotEmpty == true ? log.changedByName! : '시스템';
     final detail = [
       if (totalDiff != '0') '전체 $totalDiff',
       if (remainingDiff != '0') '잔여 $remainingDiff',
     ].join(' · ');
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.sm + 2,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -586,40 +414,20 @@ class _PtInfoLogRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  log.type.label,
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Gap(2),
-                Text(
-                  detail.isEmpty ? actor : '$detail · $actor',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                if (log.note != null && log.note!.trim().isNotEmpty) ...[
-                  const Gap(2),
+                Text(log.type.label, style: AppTextStyles.bodyMd),
+                Text(detail.isEmpty ? actor : '$detail · $actor', style: AppTextStyles.bodySm),
+                if (log.note != null && log.note!.trim().isNotEmpty)
                   Text(
                     log.note!,
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                    style: AppTextStyles.bodySm,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ],
               ],
             ),
           ),
-          const Gap(AppSpacing.sm),
-          Text(
-            date,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(date, style: AppTextStyles.counter),
         ],
       ),
     );
@@ -679,95 +487,35 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.sm,
-                AppSpacing.screenH,
-                AppSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    behavior: HitTestBehavior.opaque,
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.chevron_left_rounded,
-                        color: AppColors.textPrimary,
-                        size: 30,
-                      ),
-                    ),
-                  ),
-                  const Gap(AppSpacing.xs),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('PT 변경 이력', style: AppTextStyles.h2),
-                        const Gap(2),
-                        Text(
-                          widget.member.name,
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+              child: AppScreenHeader(
+                title: 'PT 변경 이력',
+                subtitle: widget.member.name,
+                onBack: () => Navigator.of(context).pop(),
               ),
             ),
+            const AppRowDivider(),
             Expanded(
               child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.brand,
-                      ),
-                    )
+                  ? const AppLoadingView()
                   : _errorMessage != null
                   ? AppErrorCard(message: _errorMessage!, onRetry: _load)
                   : _logs.isEmpty
-                  ? Center(
-                      child: Text(
-                        '변경 이력이 없습니다.',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    )
+                  ? const AppEmptyState(icon: AppIcons.clipboard, message: '변경 이력이 없습니다.')
                   : ListView(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.screenH,
-                        AppSpacing.sm,
-                        AppSpacing.screenH,
-                        AppSpacing.xl,
-                      ),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
                       children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(AppRadius.xs),
-                            border: Border.all(
-                              color: AppColors.border,
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              for (int i = 0; i < _logs.length; i++) ...[
-                                _PtInfoLogRow(log: _logs[i]),
-                                if (i < _logs.length - 1)
-                                  const Divider(height: 1, color: AppColors.border),
-                              ],
-                            ],
-                          ),
-                        ),
+                        AppMonthHeader(label: 'LOG', count: '${_logs.length}'),
+                        for (int i = 0; i < _logs.length; i++) ...[
+                          if (i > 0) const AppRowDivider(indent: AppSpacing.screenH),
+                          _PtInfoLogRow(log: _logs[i]),
+                        ],
                       ],
                     ),
             ),
@@ -778,9 +526,9 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
   }
 }
 
-// ── _PtInfoDialog ─────────────────────────────────────────────────────────────
+// ── _PtInfoSheet ──────────────────────────────────────────────────────────────
 
-class _PtInfoDialog extends StatefulWidget {
+class _PtInfoSheet extends StatefulWidget {
   final String memberId;
   final String memberName;
   final String centerId;
@@ -789,7 +537,7 @@ class _PtInfoDialog extends StatefulWidget {
   final String? changedByName;
   final PtInfo? existing;
 
-  const _PtInfoDialog({
+  const _PtInfoSheet({
     required this.memberId,
     required this.memberName,
     required this.centerId,
@@ -800,10 +548,10 @@ class _PtInfoDialog extends StatefulWidget {
   });
 
   @override
-  State<_PtInfoDialog> createState() => _PtInfoDialogState();
+  State<_PtInfoSheet> createState() => _PtInfoSheetState();
 }
 
-class _PtInfoDialogState extends State<_PtInfoDialog> {
+class _PtInfoSheetState extends State<_PtInfoSheet> {
   final _totalController = TextEditingController();
   final _remainingController = TextEditingController();
   final _noteController = TextEditingController();
@@ -857,12 +605,7 @@ class _PtInfoDialogState extends State<_PtInfoDialog> {
     final note = _noteController.text.trim();
 
     if (_isEditing && note.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('수정 사유를 입력해주세요.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppFeedback.showErrorSnackBar(context, ArgumentError('수정 사유를 입력해주세요.'));
       return;
     }
 
@@ -907,98 +650,77 @@ class _PtInfoDialogState extends State<_PtInfoDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = DateFormat('yyyy.MM.dd');
-
-    return AlertDialog(
-      backgroundColor: AppColors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      title: Text('PT 정보', style: AppTextStyles.h3),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppBottomSheetHeader(
+          title: _isEditing ? 'PT 정보 수정' : 'PT 정보 등록',
+          subtitle: widget.memberName,
+        ),
+        _DateRow(
+          label: '시작일',
+          value: _startDate,
+          onTap: () => _pickDate(context, _startDate, (d) => setState(() => _startDate = d)),
+        ),
+        const AppRowDivider(),
+        _DateRow(
+          label: '종료일',
+          value: _endDate,
+          onTap: () => _pickDate(context, _endDate, (d) => setState(() => _endDate = d)),
+        ),
+        const AppRowDivider(),
+        _DateRow(
+          label: '갱신일',
+          value: _renewalDate,
+          onTap: () => _pickDate(context, _renewalDate, (d) => setState(() => _renewalDate = d)),
+        ),
+        const AppRowDivider(),
+        const SizedBox(height: AppSpacing.base),
+        Row(
           children: [
-            _DateRow(
-              label: '시작일',
-              value: _startDate != null ? fmt.format(_startDate!) : '선택',
-              onTap: () => _pickDate(
-                context,
-                _startDate,
-                (d) => setState(() => _startDate = d),
+            Expanded(
+              child: AppTextField(
+                label: '총 횟수',
+                controller: _totalController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
             ),
-            const Gap(AppSpacing.xs),
-            _DateRow(
-              label: '종료일',
-              value: _endDate != null ? fmt.format(_endDate!) : '선택',
-              onTap: () => _pickDate(
-                context,
-                _endDate,
-                (d) => setState(() => _endDate = d),
-              ),
-            ),
-            const Gap(AppSpacing.xs),
-            _DateRow(
-              label: '갱신일',
-              value: _renewalDate != null ? fmt.format(_renewalDate!) : '선택',
-              onTap: () => _pickDate(
-                context,
-                _renewalDate,
-                (d) => setState(() => _renewalDate = d),
-              ),
-            ),
-            const Gap(AppSpacing.md),
-            TextField(
-              controller: _totalController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: '총 횟수'),
-            ),
-            const Gap(AppSpacing.xs),
-            TextField(
-              controller: _remainingController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: '잔여 횟수'),
-            ),
-            const Gap(AppSpacing.xs),
-            TextField(
-              controller: _noteController,
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: _isEditing ? '수정 사유' : '등록 메모',
-                hintText: _isEditing ? '예: 추가 결제, 횟수 보정' : '선택 사항',
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: AppTextField(
+                label: '잔여 횟수',
+                controller: _remainingController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
             ),
           ],
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(
-            '취소',
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
+        const SizedBox(height: AppSpacing.base),
+        AppTextField(
+          label: _isEditing ? '수정 사유' : '등록 메모',
+          hint: _isEditing ? '예: 추가 결제, 횟수 보정' : '선택 사항',
+          controller: _noteController,
+          maxLines: 2,
+          textInputAction: TextInputAction.done,
         ),
-        TextButton(
-          onPressed: _isSaving ? null : _save,
-          child: _isSaving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(
-                  '저장',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.brand,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+        const SizedBox(height: AppSpacing.xl),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            AppButton(
+              label: '취소',
+              variant: AppButtonVariant.ghost,
+              onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            AppButton(
+              label: '저장',
+              onPressed: _isSaving ? null : _save,
+              isLoading: _isSaving,
+            ),
+          ],
         ),
       ],
     );
@@ -1007,53 +729,41 @@ class _PtInfoDialogState extends State<_PtInfoDialog> {
 
 // ── _DateRow ──────────────────────────────────────────────────────────────────
 
+/// 시트 안 날짜 선택 줄 (높이 52): 라벨 + 값(미선택이면 '선택', mute) + 화살표.
 class _DateRow extends StatelessWidget {
   final String label;
-  final String value;
+  final DateTime? value;
   final VoidCallback onTap;
 
-  const _DateRow({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
+  const _DateRow({required this.label, required this.value, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.bg,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 72,
-              child: Text(
-                label,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textSecondary,
+    return Semantics(
+      button: true,
+      label: '$label ${value == null ? '선택 안 됨' : _fmt(value)}',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: SizedBox(
+          height: 52,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 72,
+                child: Text(label, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+              ),
+              Expanded(
+                child: Text(
+                  value == null ? '선택' : _fmt(value),
+                  style: AppTextStyles.bodyMd.copyWith(color: value == null ? AppColors.body : AppColors.ink),
                 ),
               ),
-            ),
-            Expanded(
-              child: Text(
-                value,
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w500),
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 16,
-              color: AppColors.textDisabled,
-            ),
-          ],
+              const Icon(AppIcons.calendar, size: AppSize.icon, color: AppColors.body),
+            ],
+          ),
         ),
       ),
     );

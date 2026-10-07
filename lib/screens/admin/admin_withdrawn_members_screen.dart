@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/pt_info_log.dart';
@@ -14,8 +14,10 @@ import '../../services/account_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/retained_pt_record_service.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
 import '../../widgets/app_async_body.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/app_hero.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/status_badge.dart';
@@ -91,22 +93,20 @@ class _AdminWithdrawnMembersScreenState extends State<AdminWithdrawnMembersScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, 0,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
               child: AppScreenHeader(
                 title: '탈퇴 회원 PT 이력',
                 subtitle: _members.isNotEmpty ? '${_members.length}명' : null,
                 onBack: () => Navigator.of(context).pop(),
               ),
             ),
-            const Gap(AppSpacing.md),
+            const AppRowDivider(),
             Expanded(
               child: AppAsyncBody(
                 isLoading: _isLoading,
@@ -116,23 +116,27 @@ class _AdminWithdrawnMembersScreenState extends State<AdminWithdrawnMembersScree
                 empty: const Column(
                   children: [
                     _RetentionNotice(),
-                    Gap(AppSpacing.lg),
                     AppEmptyState(
-                      icon: Icons.inventory_2_outlined,
+                      icon: AppIcons.archive,
                       message: '보관 중인 탈퇴 회원 PT 이력이 없습니다.',
                     ),
                   ],
                 ),
                 children: [
+                  const SizedBox(height: AppSpacing.base),
                   const _RetentionNotice(),
-                  const Gap(AppSpacing.md),
-                  for (final member in _members) ...[
-                    _WithdrawnMemberCard(
-                      member: member,
-                      trainerLabel: _trainerLabel(member.trainerIds),
-                      onTap: () => _openDetail(member),
+                  AppMonthHeader(
+                    label: 'WITHDRAWN',
+                    count: '${_members.length}',
+                    padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
+                  ),
+                  for (int i = 0; i < _members.length; i++) ...[
+                    if (i > 0) const AppRowDivider(),
+                    _WithdrawnMemberRow(
+                      member: _members[i],
+                      trainerLabel: _trainerLabel(_members[i].trainerIds),
+                      onTap: () => _openDetail(_members[i]),
                     ),
-                    const Gap(AppSpacing.sm),
                   ],
                 ],
               ),
@@ -144,28 +148,23 @@ class _AdminWithdrawnMembersScreenState extends State<AdminWithdrawnMembersScree
   }
 }
 
+/// 보관 안내: 카드 한 덩어리 (정보 아이콘 + 한 문단).
 class _RetentionNotice extends StatelessWidget {
   const _RetentionNotice();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
+    return AppCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.textSecondary),
-          const Gap(AppSpacing.sm),
+          const Icon(AppIcons.info, size: AppSize.icon, color: AppColors.body),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               '탈퇴한 회원의 이름 등 개인정보는 삭제되었습니다. 계약 기간과 담당 트레이너로 기록을 찾아주세요. '
               'PT 종료일(또는 탈퇴일) 중 늦은 날로부터 ${AccountService.ptRecordRetentionYears}년이 지나면 자동으로 파기됩니다.',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary, height: 1.5),
+              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
             ),
           ),
         ],
@@ -174,12 +173,13 @@ class _RetentionNotice extends StatelessWidget {
   }
 }
 
-class _WithdrawnMemberCard extends StatelessWidget {
+/// 탈퇴 회원 한 줄: 탈퇴일 제목 + 키/값 요약 + 화살표 (읽기 전용 상세로 이동).
+class _WithdrawnMemberRow extends StatelessWidget {
   final WithdrawnMemberSummary member;
   final String trainerLabel;
   final VoidCallback onTap;
 
-  const _WithdrawnMemberCard({
+  const _WithdrawnMemberRow({
     required this.member,
     required this.trainerLabel,
     required this.onTap,
@@ -189,40 +189,40 @@ class _WithdrawnMemberCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final contract = member.latestContract;
     final extra = member.contracts.length > 1 ? ' 외 ${member.contracts.length - 1}건' : '';
-    return AppCard(
-      onTap: onTap,
-      hasShadow: true,
-      hasBorder: false,
-      padding: const EdgeInsets.all(AppSpacing.base),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          child: Row(
             children: [
               Expanded(
-                child: Text(
-                  '${_formatDate(member.withdrawnAt)} 탈퇴',
-                  style: AppTextStyles.label.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${_formatDate(member.withdrawnAt)} 탈퇴', style: AppTextStyles.bodyLg),
+                    const SizedBox(height: AppSpacing.xs),
+                    _InfoLine(
+                      label: '계약 기간',
+                      value: '${_formatDate(contract.startDate)} ~ ${_formatDate(contract.endDate)}$extra',
+                    ),
+                    _InfoLine(
+                      label: 'PT 횟수',
+                      value: '${contract.remainingSessions ?? '-'} / ${contract.totalSessions ?? '-'}회 남음',
+                    ),
+                    _InfoLine(label: '담당 트레이너', value: trainerLabel),
+                    _InfoLine(label: '파기 예정', value: _formatDate(member.expireAt)),
+                  ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+              const SizedBox(width: AppSpacing.sm),
+              const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
             ],
           ),
-          const Gap(AppSpacing.sm),
-          _InfoLine(
-            label: '계약 기간',
-            value: '${_formatDate(contract.startDate)} ~ ${_formatDate(contract.endDate)}$extra',
-          ),
-          _InfoLine(
-            label: 'PT 횟수',
-            value: '${contract.remainingSessions ?? '-'} / ${contract.totalSessions ?? '-'}회 남음',
-          ),
-          _InfoLine(label: '담당 트레이너', value: trainerLabel),
-          _InfoLine(label: '파기 예정', value: _formatDate(member.expireAt)),
-        ],
+        ),
       ),
     );
   }
@@ -237,22 +237,13 @@ class _InfoLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      padding: const EdgeInsets.only(top: AppSpacing.xxs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 84,
-            child: Text(
-              label,
-              style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
-            ),
-          ),
+          SizedBox(width: 84, child: Text(label, style: AppTextStyles.bodySm)),
           Expanded(
-            child: Text(
-              value,
-              style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
-            ),
+            child: Text(value, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
           ),
         ],
       ),
@@ -325,22 +316,20 @@ class _AdminWithdrawnMemberDetailScreenState extends State<AdminWithdrawnMemberD
     final logs = _ofKind(RetainedPtRecordKind.ptInfoLog);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, 0,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
               child: AppScreenHeader(
                 title: '${_formatDate(widget.member.withdrawnAt)} 탈퇴 회원',
                 subtitle: '${_formatDate(widget.member.expireAt)} 파기 예정',
                 onBack: () => Navigator.of(context).pop(),
               ),
             ),
-            const Gap(AppSpacing.md),
+            const AppRowDivider(),
             Expanded(
               child: AppAsyncBody(
                 isLoading: _isLoading,
@@ -348,7 +337,7 @@ class _AdminWithdrawnMemberDetailScreenState extends State<AdminWithdrawnMemberD
                 isEmpty: _records.isEmpty,
                 onRefresh: _load,
                 empty: const AppEmptyState(
-                  icon: Icons.inventory_2_outlined,
+                  icon: AppIcons.archive,
                   message: '보관된 기록이 없습니다. 보관 기간이 지나 파기되었을 수 있습니다.',
                 ),
                 children: [
@@ -377,12 +366,7 @@ class _AdminWithdrawnMemberDetailScreenState extends State<AdminWithdrawnMemberD
                           lines: [
                             '${s.durationMinutes ?? '-'}분 · ${_trainerName(s)}',
                           ],
-                          badge: s.sessionStatus == null
-                              ? null
-                              : StatusBadge(
-                                  label: s.sessionStatus!.label,
-                                  color: _statusColor(s.sessionStatus!),
-                                ),
+                          badge: s.sessionStatus == null ? null : _statusBadge(s.sessionStatus!),
                         ),
                     ],
                   ),
@@ -418,14 +402,15 @@ class _AdminWithdrawnMemberDetailScreenState extends State<AdminWithdrawnMemberD
     return ' · 총 $prev → $next회';
   }
 
-  static Color _statusColor(PtSessionStatus status) {
+  /// 완료 = 흰 채움, 예정 = 외곽선, 취소 = 흐린 글자 (색이 아니라 모양으로 구분).
+  static StatusBadge _statusBadge(PtSessionStatus status) {
     switch (status) {
       case PtSessionStatus.completed:
-        return AppColors.workout;
+        return StatusBadge(label: status.label, strong: true);
       case PtSessionStatus.scheduled:
-        return AppColors.brand;
+        return StatusBadge(label: status.label);
       case PtSessionStatus.cancelled:
-        return AppColors.textTertiary;
+        return StatusBadge(label: status.label, color: AppColors.mute);
     }
   }
 }
@@ -439,34 +424,25 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppSectionHeader(title: '$title $count'),
-          const Gap(AppSpacing.sm),
-          if (children.isEmpty)
-            Text(
-              '기록 없음',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
-            )
-          else
-            AppCard(
-              hasShadow: true,
-              hasBorder: false,
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  for (var i = 0; i < children.length; i++) ...[
-                    if (i > 0) const Divider(height: 1, thickness: 0.5, color: AppColors.border),
-                    children[i],
-                  ],
-                ],
-              ),
-            ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppMonthHeader(
+          label: title,
+          count: '$count',
+          padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
+        ),
+        if (children.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Text('기록 없음', style: AppTextStyles.bodySm),
+          )
+        else
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const AppRowDivider(),
+            children[i],
+          ],
+      ],
     );
   }
 }
@@ -481,7 +457,7 @@ class _RecordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -489,24 +465,12 @@ class _RecordTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: AppTextStyles.label.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                for (final line in lines) ...[
-                  const Gap(2),
-                  Text(
-                    line,
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary),
-                  ),
-                ],
+                Text(title, style: AppTextStyles.bodyMd),
+                for (final line in lines) Text(line, style: AppTextStyles.bodySm),
               ],
             ),
           ),
-          if (badge != null) badge!,
+          if (badge != null) ...[const SizedBox(width: AppSpacing.sm), badge!],
         ],
       ),
     );

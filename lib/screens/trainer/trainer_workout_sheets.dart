@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/exercise_data.dart';
 import '../../models/custom_exercise.dart';
 import '../../models/workout.dart';
 import '../../services/exercise_service.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_bottom_sheet.dart';
+import '../../widgets/app_tag.dart';
+import '../../widgets/app_text_field.dart';
+import '../../widgets/orb_loader.dart';
 import 'trainer_workout_models.dart';
 
 // ─────────────────────────────────────────────
 // Exercise Picker Sheet
+// showAppBottomSheet(child: TrainerExercisePickerSheet(...))로 연다.
 // ─────────────────────────────────────────────
 
 class TrainerExercisePickerSheet extends StatefulWidget {
@@ -125,252 +132,133 @@ class _TrainerExercisePickerSheetState
   @override
   Widget build(BuildContext context) {
     final items = _items;
-    return FractionallySizedBox(
-      heightFactor: 0.5,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xs),
-          ),
-          border: Border(top: BorderSide(color: AppColors.border)),
+    final listHeight = MediaQuery.sizeOf(context).height * 0.42;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppBottomSheetHeader(
+          title: '운동 추가',
+          subtitle: '목록에서 고르거나 이름을 직접 입력하세요.',
         ),
-        child: SafeArea(
-          top: false,
-          child: Column(
+        AppTextField(
+          label: '',
+          hint: '운동명 검색 또는 직접 입력',
+          controller: _searchController,
+          prefix: const Icon(AppIcons.search),
+          textInputAction: TextInputAction.search,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
             children: [
-              const Gap(AppSpacing.sm),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
+              AppChip(
+                label: '전체',
+                selected: _selectedCategory == null,
+                onTap: () => setState(() => _selectedCategory = null),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.lg,
-                  AppSpacing.screenH,
-                  AppSpacing.md,
+              for (final c in WorkoutCategory.values) ...[
+                const SizedBox(width: AppSpacing.sm),
+                AppChip(
+                  label: c.label,
+                  selected: _selectedCategory == c,
+                  onTap: () => setState(() => _selectedCategory = c),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('운동 추가', style: AppTextStyles.h3),
-                    const Gap(AppSpacing.md),
-                    TextField(
-                      controller: _searchController,
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                      cursorColor: AppColors.brand,
-                      decoration: InputDecoration(
-                        hintText: '운동명 검색 또는 직접 입력',
-                        prefixIcon: const Icon(
-                          Icons.search_rounded,
-                          color: AppColors.textSecondary,
-                        ),
-                        filled: true,
-                        fillColor: AppColors.bg,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.itemV,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.xs),
-                          borderSide: const BorderSide(
-                            color: AppColors.border,
-                            width: 0.5,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.xs),
-                          borderSide: const BorderSide(
-                            color: AppColors.border,
-                            width: 0.5,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.xs),
-                          borderSide: const BorderSide(
-                            color: AppColors.brand,
-                            width: 1,
-                          ),
-                        ),
-                        hintStyle: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ),
-                    const Gap(AppSpacing.sm),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _PickerChip(
-                            label: '전체',
-                            selected: _selectedCategory == null,
-                            onTap: () =>
-                                setState(() => _selectedCategory = null),
-                          ),
-                          ...WorkoutCategory.values.map(
-                            (c) => _PickerChip(
-                              label: c.label,
-                              selected: _selectedCategory == c,
-                              onTap: () =>
-                                  setState(() => _selectedCategory = c),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_canAddCustom)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    0,
-                    AppSpacing.screenH,
-                    AppSpacing.sm,
-                  ),
-                  child: GestureDetector(
-                    onTap: _addingCustom ? null : _addCustom,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.itemV,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.brand,
-                        borderRadius: BorderRadius.circular(AppRadius.xs),
-                      ),
-                      child: Text(
-                        _addingCustom
-                            ? '추가 중...'
-                            : '"${_searchController.text.trim()}" 새 운동으로 추가',
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          color: AppColors.textOnAccent,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    0,
-                    AppSpacing.screenH,
-                    AppSpacing.xl,
-                  ),
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const Gap(AppSpacing.sm),
-                  itemBuilder: (_, index) {
-                    final item = items[index];
-                    final previous = widget.previousStatsByName[item.name];
-                    return GestureDetector(
-                      onTap: () => Navigator.of(context).pop(item),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.itemV,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.bg,
-                          borderRadius: BorderRadius.circular(AppRadius.xs),
-                          border: Border.all(
-                            color: AppColors.border,
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.name,
-                                    style: AppTextStyles.bodyLarge.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const Gap(4),
-                                  Text(
-                                    item.custom
-                                        ? '${item.category.label} · 직접 추가'
-                                        : item.category.label,
-                                    style: AppTextStyles.caption,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (previous != null)
-                              Text(
-                                '지난 ${trainerFormatWeight(previous.maxWeight)}kg',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.brand,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              ],
             ],
           ),
         ),
-      ),
+        if (_canAddCustom)
+          _addingCustom
+              ? SizedBox(
+                  height: 52,
+                  child: Row(
+                    children: [
+                      const OrbLoader.inline(semanticLabel: '새 운동 추가 중'),
+                      const SizedBox(width: AppSpacing.base),
+                      Text('추가 중', style: AppTextStyles.bodyMd),
+                    ],
+                  ),
+                )
+              : AppSheetAction(
+                  icon: AppIcons.add,
+                  label: '"${_searchController.text.trim()}" 새 운동으로 추가',
+                  onTap: _addCustom,
+                ),
+        const SizedBox(height: AppSpacing.sm),
+        const AppRowDivider(),
+        SizedBox(
+          height: listHeight,
+          child: items.isEmpty
+              ? Center(
+                  child: Text(
+                    '검색 결과가 없습니다.',
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                  ),
+                )
+              : ListView.separated(
+                  padding: EdgeInsets.zero,
+                  itemCount: items.length,
+                  separatorBuilder: (_, _) => const AppRowDivider(),
+                  itemBuilder: (_, index) {
+                    final item = items[index];
+                    return _PickerRow(
+                      item: item,
+                      previous: widget.previousStatsByName[item.name],
+                      onTap: () => Navigator.of(context).pop(item),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
 
-class _PickerChip extends StatelessWidget {
-  final String label;
-  final bool selected;
+class _PickerRow extends StatelessWidget {
+  final TrainerPickedExercise item;
+  final TrainerPreviousStats? previous;
   final VoidCallback onTap;
 
-  const _PickerChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  const _PickerRow({required this.item, required this.previous, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        margin: const EdgeInsets.only(right: AppSpacing.xs),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.brand : AppColors.bg,
-          borderRadius: BorderRadius.circular(AppRadius.full),
-          border: Border.all(
-            color: selected ? AppColors.brand : AppColors.border,
-            width: 0.5,
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.label.copyWith(
-            color: selected
-                ? AppColors.textOnAccent
-                : AppColors.textSecondary,
-            fontWeight: FontWeight.w700,
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.name, style: AppTextStyles.bodyMd, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(
+                        item.custom ? '${item.category.label} · 직접 추가' : item.category.label,
+                        style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                      ),
+                    ],
+                  ),
+                ),
+                if (previous != null) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    '지난 ${trainerFormatWeight(previous!.maxWeight)}kg',
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -380,6 +268,7 @@ class _PickerChip extends StatelessWidget {
 
 // ─────────────────────────────────────────────
 // Exercise Menu Sheet
+// showAppBottomSheet<TrainerMenuAction>(child: TrainerExerciseMenuSheet(...))로 연다.
 // ─────────────────────────────────────────────
 
 class TrainerExerciseMenuSheet extends StatelessWidget {
@@ -392,138 +281,31 @@ class TrainerExerciseMenuSheet extends StatelessWidget {
     final nextUnit =
         exercise.unit == TrainerWeightUnit.kg ? 'lbs' : 'kg';
 
-    return FractionallySizedBox(
-      heightFactor: 0.4,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadius.xs),
-          ),
-          border: Border(top: BorderSide(color: AppColors.border)),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppBottomSheetHeader(
+          title: exercise.name,
+          subtitle: '${exercise.category.label} · 현재 단위 ${exercise.unit.label}',
         ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenH,
-              AppSpacing.sm,
-              AppSpacing.screenH,
-              AppSpacing.xl,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                    ),
-                  ),
-                ),
-                const Gap(AppSpacing.lg),
-                Text(
-                  exercise.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.h3,
-                ),
-                const Gap(AppSpacing.xxs),
-                Text(
-                  '${exercise.category.label} · 현재 단위 ${exercise.unit.label}',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const Gap(AppSpacing.lg),
-                _MenuTile(
-                  icon: Icons.swap_horiz_rounded,
-                  title: '무게 단위 변경',
-                  subtitle: '${exercise.unit.label} → $nextUnit',
-                  onTap: () => Navigator.of(context).pop(
-                    const TrainerMenuAction(
-                      type: TrainerMenuActionType.toggleUnit,
-                    ),
-                  ),
-                ),
-                const Gap(AppSpacing.sm),
-                _MenuTile(
-                  icon: Icons.delete_outline_rounded,
-                  title: '운동 삭제',
-                  subtitle: '이 운동을 기록에서 제거합니다',
-                  danger: true,
-                  onTap: () => Navigator.of(context).pop(
-                    const TrainerMenuAction(
-                      type: TrainerMenuActionType.delete,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+        AppSheetAction(
+          icon: PhosphorIconsLight.arrowsLeftRight,
+          label: '무게 단위 변경 (${exercise.unit.label} → $nextUnit)',
+          onTap: () => Navigator.of(context).pop(
+            const TrainerMenuAction(type: TrainerMenuActionType.toggleUnit),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _MenuTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool danger;
-  final VoidCallback onTap;
-
-  const _MenuTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = danger ? AppColors.destructive : AppColors.textPrimary;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.itemV,
+        const AppRowDivider(),
+        AppSheetAction(
+          icon: AppIcons.trash,
+          label: '운동 삭제',
+          destructive: true,
+          onTap: () => Navigator.of(context).pop(
+            const TrainerMenuAction(type: TrainerMenuActionType.delete),
+          ),
         ),
-        decoration: BoxDecoration(
-          color: AppColors.bg,
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          border: Border.all(color: AppColors.border, width: 0.5),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const Gap(AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const Gap(4),
-                  Text(subtitle, style: AppTextStyles.caption),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

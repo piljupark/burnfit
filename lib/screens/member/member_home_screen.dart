@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:iconsax/iconsax.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../services/fcm_service.dart';
 import '../../services/notification_target.dart';
 import '../../widgets/app_nav_bar.dart';
@@ -27,26 +27,10 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
   static const _ptTab = 2;
 
   static const _navItems = [
-    AppNavItem(
-      label: '홈',
-      icon: Iconsax.home,
-      activeIcon: Iconsax.home,
-    ),
-    AppNavItem(
-      label: '운동',
-      icon: Iconsax.activity,
-      activeIcon: Iconsax.activity,
-    ),
-    AppNavItem(
-      label: 'PT',
-      icon: Iconsax.calendar_1,
-      activeIcon: Iconsax.calendar_1,
-    ),
-    AppNavItem(
-      label: '마이',
-      icon: Iconsax.user,
-      activeIcon: Iconsax.user,
-    ),
+    AppNavItem(label: '홈', icon: AppIcons.home, activeIcon: AppIcons.homeFill),
+    AppNavItem(label: '운동', icon: AppIcons.workout, activeIcon: AppIcons.workoutFill),
+    AppNavItem(label: 'PT', icon: AppIcons.calendar, activeIcon: AppIcons.calendarFill),
+    AppNavItem(label: '마이', icon: AppIcons.profile, activeIcon: AppIcons.profileFill),
   ];
 
   late final List<Widget> _pages;
@@ -96,7 +80,7 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: Stack(
         children: [
           Positioned.fill(

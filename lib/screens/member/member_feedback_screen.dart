@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_logger.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/feedback.dart' as fb;
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_avatar.dart';
+import '../../widgets/app_hero.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
+import '../../widgets/app_tag.dart';
+import '../../widgets/orb_loader.dart';
 
 class MemberFeedbackScreen extends StatefulWidget {
   const MemberFeedbackScreen({super.key});
@@ -25,6 +30,9 @@ class _MemberFeedbackScreenState extends State<MemberFeedbackScreen> {
   List<fb.Feedback> _feedbacks = [];
   int _unreadCount = 0;
   bool _isLoading = false;
+
+  /// 이번에 화면을 열 때 안 읽음이었던 피드백. 읽음 처리 뒤에도 이 화면에서는 NEW로 강조한다.
+  Set<String> _newIds = {};
 
   @override
   void initState() {
@@ -51,6 +59,7 @@ class _MemberFeedbackScreenState extends State<MemberFeedbackScreen> {
       setState(() {
         _feedbacks = feedbacks;
         _unreadCount = unreadIds.length;
+        _newIds = unreadIds.toSet();
       });
       try {
         await FirestoreService.markFeedbacksRead(
@@ -86,189 +95,165 @@ class _MemberFeedbackScreenState extends State<MemberFeedbackScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final newCount = _newIds.isNotEmpty ? _newIds.length : _unreadCount;
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          color: AppColors.brand,
-          backgroundColor: AppColors.card,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.md,
-                    AppSpacing.screenH,
-                    0,
-                  ),
-                  child: AppScreenHeader(
-                    title: '트레이너 피드백',
-                    onBack: () => Navigator.of(context).pop(),
-                    trailing: _unreadCount > 0
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.brand,
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.full,
-                              ),
-                            ),
-                            child: Text(
-                              '새 $_unreadCount',
-                              style: AppTextStyles.captionSmall.copyWith(
-                                color: AppColors.textOnAccent,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          )
-                        : null,
-                  ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+              child: AppScreenHeader(
+                title: '트레이너 피드백',
+                onBack: () => Navigator.of(context).pop(),
+                trailing: newCount > 0
+                    ? Semantics(
+                        label: '새 피드백 $newCount개',
+                        excludeSemantics: true,
+                        child: AppTag('NEW $newCount', strong: true),
+                      )
+                    : null,
+              ),
+            ),
+            const AppRowDivider(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                color: AppColors.ink,
+                backgroundColor: AppColors.canvasCard,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    if (_isLoading)
+                      const SliverFillRemaining(
+                        child: AppLoadingView(),
+                      )
+                    else if (_feedbacks.isEmpty)
+                      const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: AppEmptyState(
+                          icon: AppIcons.feedback,
+                          message: '등록된 피드백이 없습니다',
+                          description: '트레이너가 운동·식단 기록에 남긴 코멘트가 여기에 모입니다.',
+                        ),
+                      )
+                    else ...[
+                      SliverToBoxAdapter(
+                        child: AppMonthHeader(label: 'FEEDBACK', count: '${_feedbacks.length}'),
+                      ),
+                      SliverList.separated(
+                        itemCount: _feedbacks.length,
+                        separatorBuilder: (_, _) => const AppRowDivider(indent: AppSpacing.screenH),
+                        itemBuilder: (context, index) {
+                          final item = _feedbacks[index];
+                          return _FeedbackRow(
+                            feedback: item,
+                            isNew: _newIds.contains(item.id) || !item.isRead,
+                          );
+                        },
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl3)),
+                    ],
+                  ],
                 ),
               ),
-              if (_isLoading)
-                const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_feedbacks.isEmpty)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screenH,
-                    ),
-                    child: AppEmptyState(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      message: '등록된 피드백이 없습니다.',
-                    ),
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-                  sliver: SliverList.separated(
-                    itemCount: _feedbacks.length,
-                    separatorBuilder: (_, __) => const Gap(12),
-                    itemBuilder: (context, index) {
-                      return _FeedbackCard(feedback: _feedbacks[index]);
-                    },
-                  ),
-                ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _FeedbackCard extends StatelessWidget {
+/// 피드백 한 줄: 안 읽음 점 + 아바타 + 트레이너 이름·시각 + 본문 + 대상 태그.
+/// 안 읽음은 색이 아니라 모양(채운 점 + NEW 흰 태그)으로 표시한다.
+class _FeedbackRow extends StatelessWidget {
   final fb.Feedback feedback;
+  final bool isNew;
 
-  const _FeedbackCard({required this.feedback});
+  const _FeedbackRow({required this.feedback, required this.isNew});
 
   @override
   Widget build(BuildContext context) {
-    final initial = feedback.trainerName.trim().isNotEmpty
-        ? feedback.trainerName.trim()[0]
-        : 'T';
+    final name = feedback.trainerName.trim();
+    final displayName = name.isEmpty ? '트레이너' : '$name 트레이너';
+    final targetDate = DateTime.tryParse(feedback.targetDate ?? '');
+    final time = DateFormat('MM.dd HH:mm').format(feedback.createdAt);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: IntrinsicHeight(
+    return Semantics(
+      container: true,
+      label: '${isNew ? '새 피드백, ' : ''}$displayName, '
+          '${DateFormat('M월 d일 a h시 mm분', 'ko').format(feedback.createdAt)}, '
+          '${feedback.targetType.label} 피드백',
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.base, AppSpacing.screenH, AppSpacing.base),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 3,
-              color: AppColors.trainer,
+            // 안 읽음 점 자리 (읽었으면 비워 둔다)
+            SizedBox(
+              width: AppSpacing.sm,
+              height: 36,
+              child: Center(
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isNew ? AppColors.ink : Colors.transparent,
+                  ),
+                ),
+              ),
             ),
+            const SizedBox(width: AppSpacing.xxs),
+            AppAvatar(name: name.isEmpty ? '트레이너' : name, seed: feedback.trainerId, size: 36),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 16, 18, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        if (!feedback.isRead) ...[
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.brand,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const Gap(8),
-                        ],
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppColors.trainer.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: ExcludeSemantics(
                           child: Text(
-                            initial,
-                            style: AppTextStyles.label.copyWith(
-                              color: AppColors.trainer,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            displayName,
+                            style: AppTextStyles.bodyLg,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Gap(10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                feedback.trainerName,
-                                style: AppTextStyles.label.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const Gap(2),
-                              Text(
-                                DateFormat('M월 d일', 'ko').format(feedback.createdAt),
-                                style: AppTextStyles.captionSmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      ),
+                      if (isNew) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        const ExcludeSemantics(child: AppTag('NEW', strong: true)),
+                      ],
+                      const Spacer(),
+                      const SizedBox(width: AppSpacing.sm),
+                      ExcludeSemantics(child: Text(time, style: AppTextStyles.counter)),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    feedback.content,
+                    style: AppTextStyles.bodyMd.copyWith(
+                      color: isNew ? AppColors.ink : AppColors.body,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  ExcludeSemantics(
+                    child: Row(
+                      children: [
+                        AppTag(feedback.targetType.label),
+                        if (targetDate != null) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(DateFormat('MM.dd').format(targetDate), style: AppTextStyles.counter),
+                        ],
                       ],
                     ),
-                    const Gap(12),
-                    Text(
-                      feedback.content,
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textNeutral,
-                        height: 1.5,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],

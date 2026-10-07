@@ -100,7 +100,7 @@ class FcmService {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(title),
               if (body.isNotEmpty) ...[const SizedBox(height: 2), Text(body)],
             ],
           ),

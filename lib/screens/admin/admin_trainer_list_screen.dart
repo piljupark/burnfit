@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_async_body.dart';
+import '../../widgets/app_avatar.dart';
+import '../../widgets/app_bottom_sheet.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
+import '../../widgets/app_tag.dart';
+import '../../widgets/app_text_field.dart';
 
 class AdminTrainerListScreen extends StatefulWidget {
   const AdminTrainerListScreen({super.key});
@@ -82,11 +91,9 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
         trainer.uid,
       );
       if (!mounted) return;
-      await showModalBottomSheet<void>(
+      await showAppBottomSheet<void>(
         context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => _TrainerDetailSheet(trainer: trainer, members: members),
+        child: _TrainerDetailSheet(trainer: trainer, members: members),
       );
     } catch (e) {
       if (!mounted) return;
@@ -96,167 +103,66 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
+
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
+        bottom: false,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 헤더
+            // 탭으로 열리면 AppHero, 메뉴에서 밀어 열리면 뒤로 버튼 앱바.
+            if (canPop) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                child: AppScreenHeader(
+                  title: '트레이너 관리',
+                  subtitle: '${_trainers.length}명',
+                  onBack: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const AppRowDivider(),
+            ] else
+              AppHero(eyebrow: '${_trainers.length} TRAINERS', title: '트레이너'),
+            // 검색
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
-                AppSpacing.lg,
+                AppSpacing.base,
                 AppSpacing.screenH,
-                0,
+                AppSpacing.base,
               ),
-              child: AppScreenHeader(
-                title: '트레이너 관리',
-                subtitle: '${_trainers.length}명',
-                onBack: Navigator.of(context).canPop()
-                    ? () => Navigator.of(context).pop()
-                    : null,
+              child: AppTextField(
+                label: '',
+                hint: '이름 또는 이메일 검색',
+                controller: _searchController,
+                prefix: const Icon(AppIcons.search),
+                textInputAction: TextInputAction.search,
               ),
             ),
-            // 검색바
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.md,
-                AppSpacing.screenH,
-                0,
-              ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
+            const AppRowDivider(),
+            // 목록
+            Expanded(
+              child: AppAsyncBody(
+                isLoading: _isLoading,
+                errorMessage: _errorMessage,
+                isEmpty: _filtered.isEmpty,
+                onRefresh: _load,
+                empty: AppEmptyState(
+                  icon: AppIcons.trainers,
+                  message: _trainers.isEmpty ? '등록된 트레이너가 없습니다.' : '검색 결과가 없습니다.',
                 ),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                  border: Border.all(color: AppColors.border, width: 0.5),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.search_rounded,
-                      size: 18,
-                      color: AppColors.textDisabled,
-                    ),
-                    const Gap(AppSpacing.sm),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        style: AppTextStyles.body,
-                        decoration: InputDecoration.collapsed(
-                          hintText: '이름 또는 이메일 검색',
-                          hintStyle: AppTextStyles.body.copyWith(
-                            color: AppColors.textDisabled,
-                          ),
-                        ),
-                      ),
+                children: [
+                  for (int i = 0; i < _filtered.length; i++) ...[
+                    if (i > 0) const AppRowDivider(),
+                    _TrainerListItem(
+                      trainer: _filtered[i],
+                      onTap: () => _showTrainerDetail(_filtered[i]),
                     ),
                   ],
-                ),
+                ],
               ),
-            ),
-            const Gap(AppSpacing.sm),
-            // 바디
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.brand,
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      color: AppColors.brand,
-                      backgroundColor: AppColors.card,
-                      child: _errorMessage != null
-                          ? ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              children: [
-                                const SizedBox(height: 120),
-                                AppErrorCard(
-                                  message: _errorMessage!,
-                                  onRetry: _load,
-                                ),
-                              ],
-                            )
-                          : _trainers.isEmpty
-                          ? ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.only(top: AppSpacing.xl),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.screenH,
-                                  ),
-                                  child: AppEmptyState(
-                                    icon: Icons.fitness_center_outlined,
-                                    message: '등록된 트레이너가 없습니다.',
-                                  ),
-                                ),
-                              ],
-                            )
-                          : _filtered.isEmpty
-                          ? ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.only(top: AppSpacing.xl),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.screenH,
-                                  ),
-                                  child: AppEmptyState(
-                                    icon: Icons.search_off_rounded,
-                                    message: '검색 결과가 없습니다.',
-                                  ),
-                                ),
-                              ],
-                            )
-                          : ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.screenH,
-                                0,
-                                AppSpacing.screenH,
-                                AppSpacing.xl2,
-                              ),
-                              children: [
-                                // 전체 리스트를 하나의 흰 카드로 감싸기
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.card,
-                                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                                    border: Border.all(
-                                      color: AppColors.border,
-                                      width: 0.5,
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                                    child: Column(
-                                      children: [
-                                        for (int i = 0; i < _filtered.length; i++) ...[
-                                          _TrainerListItem(
-                                            trainer: _filtered[i],
-                                            onTap: () => _showTrainerDetail(_filtered[i]),
-                                          ),
-                                          if (i < _filtered.length - 1)
-                                            const Divider(
-                                              height: 1,
-                                              color: AppColors.border,
-                                            ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
             ),
           ],
         ),
@@ -267,77 +173,46 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
 
 // ── _TrainerListItem ──────────────────────────────────────────────────────────
 
+/// 트레이너 한 줄: 아바타 + 이름 + 이메일 + (승인 대기면 PENDING 태그) + 화살표.
 class _TrainerListItem extends StatelessWidget {
   final AppUser trainer;
   final VoidCallback onTap;
 
-  const _TrainerListItem({
-    required this.trainer,
-    required this.onTap,
-  });
+  const _TrainerListItem({required this.trainer, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final initial = trainer.name.isNotEmpty ? trainer.name[0] : '?';
-
-    return InkWell(
-      onTap: onTap,
-      splashColor: AppColors.trainer.withValues(alpha: 0.05),
-      highlightColor: Colors.transparent,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.base,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            // 48x48 원형 아바타
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.trainer.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                initial,
-                style: AppTextStyles.headline.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.trainer,
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Row(
+              children: [
+                AppAvatar(name: trainer.name, seed: trainer.uid),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(trainer.name, style: AppTextStyles.bodyLg, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(trainer.email, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-            const Gap(AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 이름 (headline)
-                  Text(
-                    trainer.name,
-                    style: AppTextStyles.headline,
-                  ),
-                  const Gap(3),
-                  // 이메일 (caption, textSecondary)
-                  Text(
-                    trainer.email,
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                if (!trainer.isApproved) ...[
+                  const AppTag('PENDING'),
+                  const SizedBox(width: AppSpacing.sm),
                 ],
-              ),
+                const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+              ],
             ),
-            // 우측 화살표
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: AppColors.textTertiary,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -346,6 +221,7 @@ class _TrainerListItem extends StatelessWidget {
 
 // ── _TrainerDetailSheet ───────────────────────────────────────────────────────
 
+/// 트레이너 상세 시트: 프로필 머리 + 키/값 줄 + 배정 회원 목록 (읽기 전용).
 class _TrainerDetailSheet extends StatelessWidget {
   final AppUser trainer;
   final List<AppUser> members;
@@ -354,186 +230,78 @@ class _TrainerDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
-    final initial = trainer.name.isNotEmpty ? trainer.name[0] : '?';
+    final created = trainer.createdAt;
+    final createdLabel =
+        '${created.year}.${created.month.toString().padLeft(2, '0')}.${created.day.toString().padLeft(2, '0')}';
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomPadding),
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.86,
-        ),
-        decoration: const BoxDecoration(
-          color: AppColors.bg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 핸들
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.sm),
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(AppRadius.full),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 프로필 머리
+        Row(
+          children: [
+            AppAvatar(name: trainer.name, seed: trainer.uid, size: 56),
+            const SizedBox(width: AppSpacing.base),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(trainer.name, style: AppTextStyles.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      const AppTag('TRAINER'),
+                    ],
                   ),
-                ),
-              ),
-              // 트레이너 프로필 헤더
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.md,
-                  AppSpacing.screenH,
-                  AppSpacing.sm,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppColors.trainer.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        initial,
-                        style: AppTextStyles.headline.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.trainer,
-                        ),
-                      ),
-                    ),
-                    const Gap(AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            trainer.name,
-                            style: AppTextStyles.headline,
-                          ),
-                          const Gap(2),
-                          Text(
-                            trainer.email,
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close_rounded),
-                      color: AppColors.textSecondary,
-                      tooltip: '닫기',
-                    ),
-                  ],
-                ),
-              ),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.sm,
-                    AppSpacing.screenH,
-                    AppSpacing.xl2,
+                  Text(
+                    trainer.email,
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  children: [
-                    // KPI 타일 행
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _TrainerMetricTile(
-                            label: '배정 회원',
-                            value: '${members.length}',
-                            suffix: '명',
-                          ),
-                        ),
-                        const Gap(AppSpacing.sm),
-                        Expanded(
-                          child: _TrainerMetricTile(
-                            label: '상태',
-                            value: trainer.isApproved ? '승인' : '대기',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Gap(AppSpacing.sm),
-                    // 기본 정보 카드
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.xs),
-                        border: Border.all(color: AppColors.border, width: 0.5),
-                      ),
-                      child: Column(
-                        children: [
-                          _TrainerInfoRow(
-                            label: '센터',
-                            value: trainer.centerName,
-                          ),
-                          const Divider(height: 1, color: AppColors.border),
-                          _TrainerInfoRow(
-                            label: '등록일',
-                            value:
-                                '${trainer.createdAt.year}.${trainer.createdAt.month.toString().padLeft(2, '0')}.${trainer.createdAt.day.toString().padLeft(2, '0')}',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Gap(AppSpacing.lg),
-                    Text(
-                      '배정 회원',
-                      style: AppTextStyles.h3,
-                    ),
-                    const Gap(AppSpacing.sm),
-                    if (members.isEmpty)
-                      AppEmptyState(
-                        icon: Icons.people_outline_rounded,
-                        message: '배정된 회원이 없습니다.',
-                      )
-                    else
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          borderRadius: BorderRadius.circular(AppRadius.xs),
-                          border: Border.all(
-                            color: AppColors.border,
-                            width: 0.5,
-                          ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(AppRadius.xs),
-                          child: Column(
-                            children: [
-                              for (int i = 0; i < members.length; i++) ...[
-                                _MemberRowItem(member: members[i]),
-                                if (i < members.length - 1)
-                                  const Divider(
-                                    height: 1,
-                                    color: AppColors.border,
-                                  ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Transform.translate(
+              offset: const Offset(12, 0),
+              child: AppIconButton(
+                icon: AppIcons.close,
+                label: '닫기',
+                color: AppColors.body,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ],
         ),
-      ),
+        const SizedBox(height: AppSpacing.base),
+        const AppRowDivider(),
+        _SheetInfoRow(label: '배정 회원', value: '${members.length}명'),
+        const AppRowDivider(),
+        _SheetInfoRow(label: '상태', value: trainer.isApproved ? '승인' : '승인 대기'),
+        const AppRowDivider(),
+        _SheetInfoRow(label: '센터', value: trainer.centerName),
+        const AppRowDivider(),
+        _SheetInfoRow(label: '등록일', value: createdLabel),
+        const AppRowDivider(),
+        // 배정 회원
+        AppMonthHeader(
+          label: '배정 회원',
+          count: '${members.length}',
+          padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
+        ),
+        if (members.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Text('배정된 회원이 없습니다.', style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
+          )
+        else
+          for (int i = 0; i < members.length; i++) ...[
+            if (i > 0) const AppRowDivider(),
+            _MemberRowItem(member: members[i]),
+          ],
+      ],
     );
   }
 }
@@ -547,146 +315,58 @@ class _MemberRowItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = member.name.isNotEmpty ? member.name[0] : '?';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.sm + 2,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.brand.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              initial,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.brand,
-                fontWeight: FontWeight.w700,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 56),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            AppAvatar(name: member.name, seed: member.uid, size: 32),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(member.name, style: AppTextStyles.bodyMd, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    member.email,
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
-          ),
-          const Gap(AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  member.name,
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Gap(2),
-                Text(
-                  member.email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// ── _TrainerMetricTile ────────────────────────────────────────────────────────
+// ── _SheetInfoRow ─────────────────────────────────────────────────────────────
 
-class _TrainerMetricTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final String? suffix;
-
-  const _TrainerMetricTile({
-    required this.label,
-    required this.value,
-    this.suffix,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const Gap(AppSpacing.xs),
-          RichText(
-            text: TextSpan(
-              style: AppTextStyles.h3.copyWith(
-                color: AppColors.textPrimary,
-              ),
-              children: [
-                TextSpan(text: value),
-                if (suffix != null)
-                  TextSpan(
-                    text: suffix,
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── _TrainerInfoRow ───────────────────────────────────────────────────────────
-
-class _TrainerInfoRow extends StatelessWidget {
+/// 시트 안 키/값 줄 (높이 52). 카드 면 위이므로 라벨은 body 색.
+class _SheetInfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _TrainerInfoRow({required this.label, required this.value});
+  const _SheetInfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.sm + 2,
-      ),
+    return SizedBox(
+      height: 52,
       child: Row(
         children: [
-          SizedBox(
-            width: 56,
-            child: Text(
-              label,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
+          SizedBox(width: 72, child: Text(label, style: AppTextStyles.bodySm.copyWith(color: AppColors.body))),
           Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              style: AppTextStyles.bodyMd,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

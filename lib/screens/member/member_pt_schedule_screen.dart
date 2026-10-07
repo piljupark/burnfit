@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -11,9 +10,12 @@ import '../../models/pt_info.dart';
 import '../../models/pt_session.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
-import '../../widgets/app_card.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_hero.dart';
 import '../../widgets/app_screen_header.dart';
-import '../../widgets/app_section.dart';
+import '../../widgets/app_tag.dart';
+import '../../widgets/orb_loader.dart';
+import '../../widgets/app_progress_bar.dart';
 
 class MemberPtScheduleScreen extends StatefulWidget {
   final bool showBackButton;
@@ -100,62 +102,95 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final trainerName = context.watch<UserProvider>().user?.trainerName;
+    final remaining = _ptInfo?.remainingSessions;
+    final upcoming = _upcoming;
+    final past = _past;
+
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
           onRefresh: _load,
-          color: AppColors.brand,
-          backgroundColor: AppColors.card,
+          color: AppColors.ink,
+          backgroundColor: AppColors.canvasCard,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, 0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (widget.showBackButton)
-                        AppScreenHeader(
+                child: widget.showBackButton
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                        child: AppScreenHeader(
                           title: 'PT 일정',
                           onBack: () => Navigator.of(context).pop(),
-                        )
-                      else
-                        Text('PT 일정', style: AppTextStyles.h1),
-                      const Gap(16),
-                      _PtSummaryCard(info: _ptInfo),
-                      const Gap(20),
-                      if (_isLoading)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 48),
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (_errorMessage != null)
-                        AppErrorCard(message: _errorMessage!, onRetry: _load)
-                      else ...[
-                        _SessionSection(
-                          title: '예정된 일정',
-                          sessions: _upcoming,
-                          emptyText: '예정된 PT 일정이 없습니다.',
-                          isPast: false,
                         ),
-                        const Gap(20),
-                        _SessionSection(
-                          title: '지난 일정',
-                          sessions: _past,
-                          emptyText: '지난 PT 일정이 없습니다.',
-                          isPast: true,
-                        ),
-                      ],
-                      const Gap(120),
-                    ],
+                      )
+                    : AppHero(
+                        eyebrow: remaining == null
+                            ? 'BURNFIT · PT'
+                            : 'BURNFIT · PT $remaining / ${_ptInfo!.totalSessions}',
+                        title: 'PT 일정',
+                      ),
+              ),
+              if (widget.showBackButton)
+                const SliverToBoxAdapter(child: AppRowDivider()),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.xl,
+                    AppSpacing.screenH,
+                    0,
                   ),
+                  child: _RemainingCard(info: _ptInfo, trainerName: trainerName),
                 ),
               ),
+              if (_isLoading)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: AppSpacing.xl3),
+                    child: Center(child: OrbLoader(semanticLabel: 'PT 일정 불러오는 중')),
+                  ),
+                )
+              else if (_errorMessage != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.xl,
+                      AppSpacing.screenH,
+                      0,
+                    ),
+                    child: AppErrorCard(message: _errorMessage!, onRetry: _load),
+                  ),
+                )
+              else ...[
+                SliverToBoxAdapter(
+                  child: AppMonthHeader(label: 'UPCOMING', count: '${upcoming.length}'),
+                ),
+                if (upcoming.isEmpty)
+                  const SliverToBoxAdapter(child: _EmptyLine('예정된 PT 일정이 없습니다.'))
+                else
+                  SliverList.separated(
+                    itemCount: upcoming.length,
+                    separatorBuilder: (_, _) => const AppRowDivider(indent: AppSpacing.screenH),
+                    itemBuilder: (_, i) => _SessionRow(session: upcoming[i], isPast: false),
+                  ),
+                SliverToBoxAdapter(
+                  child: AppMonthHeader(label: 'PAST', count: '${past.length}'),
+                ),
+                if (past.isEmpty)
+                  const SliverToBoxAdapter(child: _EmptyLine('지난 PT 일정이 없습니다.'))
+                else
+                  SliverList.separated(
+                    itemCount: past.length,
+                    separatorBuilder: (_, _) => const AppRowDivider(indent: AppSpacing.screenH),
+                    itemBuilder: (_, i) => _SessionRow(session: past[i], isPast: true),
+                  ),
+              ],
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
             ],
           ),
         ),
@@ -164,209 +199,70 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
   }
 }
 
-class _PtSummaryCard extends StatelessWidget {
+/// 잔여 횟수 카드: 모노 머리말 + 큰 숫자 + 2px 진행 막대 + 트레이너·갱신일 + D-N.
+class _RemainingCard extends StatelessWidget {
   final PtInfo? info;
+  final String? trainerName;
 
-  const _PtSummaryCard({required this.info});
+  const _RemainingCard({required this.info, required this.trainerName});
 
   @override
   Widget build(BuildContext context) {
     final renewalDate = info?.renewalDate;
     final remaining = info?.remainingSessions ?? 0;
+    final total = info?.totalSessions ?? 0;
+    final ratio = total > 0 ? (remaining / total).clamp(0.0, 1.0) : 0.0;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'PT 잔여 횟수',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-                const Gap(4),
-                Text(
-                  '$remaining회',
-                  style: AppTextStyles.numberLarge.copyWith(
-                    color: AppColors.trainer,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '갱신일',
-                style: AppTextStyles.captionSmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-              const Gap(2),
-              Text(
-                renewalDate == null
-                    ? '-'
-                    : DateFormat('M월 d일', 'ko').format(renewalDate),
-                style: AppTextStyles.label.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SessionSection extends StatelessWidget {
-  final String title;
-  final List<PtSession> sessions;
-  final String emptyText;
-  final bool isPast;
-
-  const _SessionSection({
-    required this.title,
-    required this.sessions,
-    required this.emptyText,
-    required this.isPast,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSectionHeader(title: title),
-        if (sessions.isEmpty)
-          AppCard(
-            hasBorder: false,
-            hasShadow: true,
-            padding: const EdgeInsets.all(AppSpacing.screenH),
-            child: Text(
-              emptyText,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          )
-        else
-          Column(
-            children: [
-              for (final session in sessions) ...[
-                _SessionCard(session: session, isPast: isPast),
-                const Gap(12),
-              ],
-            ],
-          ),
-      ],
-    );
-  }
-}
-
-class _SessionCard extends StatelessWidget {
-  final PtSession session;
-  final bool isPast;
-
-  const _SessionCard({required this.session, required this.isPast});
-
-  Color _statusColor() {
-    switch (session.status) {
-      case PtSessionStatus.scheduled:
-        return AppColors.brand;
-      case PtSessionStatus.completed:
-        return AppColors.workout;
-      case PtSessionStatus.cancelled:
-        return AppColors.destructive;
+    String? dDay;
+    if (renewalDate != null) {
+      final today = DateUtils.dateOnly(DateTime.now());
+      final days = DateUtils.dateOnly(renewalDate).difference(today).inDays;
+      dDay = days == 0 ? 'D-DAY' : (days > 0 ? 'D-$days' : 'D+${-days}');
     }
-  }
 
-  String _statusLabel() {
-    switch (session.status) {
-      case PtSessionStatus.scheduled:
-        return '예정';
-      case PtSessionStatus.completed:
-        return '완료';
-      case PtSessionStatus.cancelled:
-        return '취소';
-    }
-  }
+    final metaParts = [
+      if ((trainerName ?? '').trim().isNotEmpty) '${trainerName!.trim()} 트레이너',
+      '갱신일 ${renewalDate == null ? '-' : DateFormat('M월 d일', 'ko').format(renewalDate)}',
+    ];
 
-  @override
-  Widget build(BuildContext context) {
-    final dateLabel = DateFormat('M월 d일(E)', 'ko').format(session.scheduledAt);
-    final timeLabel = DateFormat('a h:mm', 'ko').format(session.scheduledAt);
-    final trainerInitial = session.trainerName.trim().isNotEmpty
-        ? session.trainerName.trim()[0]
-        : 'T';
-
-    return Opacity(
-      opacity: isPast ? 0.72 : 1,
-      child: AppCard(
-        hasBorder: false,
-        hasShadow: true,
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Row(
+    return Semantics(
+      container: true,
+      label: 'PT 잔여 $remaining회, 전체 $total회',
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.base),
+        decoration: BoxDecoration(
+          color: AppColors.canvasCard,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: AppColors.hairline),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.trainer.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                trainerInitial,
-                style: AppTextStyles.label.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: AppColors.trainer,
-                ),
-              ),
+            Row(
+              children: [
+                Expanded(child: Text('REMAINING', style: AppTextStyles.eyebrow.copyWith(color: AppColors.body))),
+                if (dDay != null) AppTag(dDay),
+              ],
             ),
-            const Gap(AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: AppSpacing.md),
+            ExcludeSemantics(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(
-                    dateLabel,
-                    style: AppTextStyles.label.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const Gap(2),
-                  Text(
-                    '$timeLabel · ${session.trainerName} 트레이너',
-                    style: AppTextStyles.captionSmall.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
+                  Text('$remaining', style: AppTextStyles.displayLg),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text('/ $total회 남음', style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
                 ],
               ),
             ),
-            _StatusBadge(label: _statusLabel(), color: _statusColor()),
+            const SizedBox(height: AppSpacing.md),
+            AppProgressBar(value: ratio, semanticLabel: 'PT 잔여 비율'),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              metaParts.join(' · '),
+              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+            ),
           ],
         ),
       ),
@@ -374,28 +270,104 @@ class _SessionCard extends StatelessWidget {
   }
 }
 
-class _StatusBadge extends StatelessWidget {
-  final String label;
-  final Color color;
+/// 일정 한 줄: 모노 날짜 칸(10.09 / THU) + 제목 + 시간 메타 + 상태 태그.
+class _SessionRow extends StatelessWidget {
+  final PtSession session;
+  final bool isPast;
 
-  const _StatusBadge({required this.label, required this.color});
+  const _SessionRow({required this.session, required this.isPast});
+
+  static const _weekdayEn = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.caption.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
+    final start = session.scheduledAt;
+    final end = start.add(Duration(minutes: session.durationMinutes));
+    final cancelled = session.status == PtSessionStatus.cancelled;
+    final completed = session.status == PtSessionStatus.completed;
+    final timeFmt = DateFormat('HH:mm');
+    final trainer = session.trainerName.trim();
+
+    final meta = cancelled
+        ? '취소됨'
+        : [
+            '${timeFmt.format(start)} – ${timeFmt.format(end)}',
+            if (trainer.isNotEmpty) trainer,
+          ].join(' · ');
+
+    final Widget tag;
+    if (!isPast) {
+      final days = DateUtils.dateOnly(start).difference(DateUtils.dateOnly(DateTime.now())).inDays;
+      tag = AppTag(days <= 0 ? 'D-DAY' : 'D-$days');
+    } else if (completed) {
+      tag = const AppTag('DONE', strong: true);
+    } else if (cancelled) {
+      tag = const AppTag('CANCELED', muted: true);
+    } else {
+      tag = const AppTag('기록 전', muted: true);
+    }
+
+    final semanticDate = DateFormat('M월 d일 E요일 a h시 mm분', 'ko').format(start);
+
+    return Semantics(
+      container: true,
+      label: '$semanticDate PT 세션',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+        child: Row(
+          children: [
+            ExcludeSemantics(
+              child: SizedBox(
+                width: 48,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      DateFormat('MM.dd').format(start),
+                      style: AppTextStyles.eyebrow.copyWith(
+                        color: cancelled ? AppColors.mute : AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(_weekdayEn[start.weekday - 1], style: AppTextStyles.counter),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'PT 세션',
+                    style: AppTextStyles.bodyLg.copyWith(
+                      color: cancelled ? AppColors.mute : AppColors.ink,
+                    ),
+                  ),
+                  Text(meta, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            tag,
+          ],
         ),
       ),
     );
   }
 }
 
+class _EmptyLine extends StatelessWidget {
+  final String text;
+
+  const _EmptyLine(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+      child: Text(text, style: AppTextStyles.bodySm),
+    );
+  }
+}

@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/pt_info.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_async_body.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/app_filter_tabs.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
+import '../../widgets/app_tag.dart';
+import '../../widgets/app_text_field.dart';
 import 'admin_member_detail_screen.dart';
+import 'admin_requests_screen.dart';
 
 enum _MemberFilter { all, unassigned, lowPt, expiring }
 
@@ -122,218 +132,127 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
     return _members.where((m) => _matchesFilterFor(filter, m)).length;
   }
 
+  Future<void> _openDetail(AppUser m) async {
+    final updated = await Navigator.of(context).push<AppUser>(
+      MaterialPageRoute(builder: (_) => AdminMemberDetailScreen(member: m)),
+    );
+    if (updated == null || !mounted) return;
+    setState(() {
+      final idx = _members.indexWhere((item) => item.uid == updated.uid);
+      if (idx != -1) {
+        _members[idx] = updated;
+      }
+    });
+    _filter();
+  }
+
+  void _openRequests() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AdminRequestsScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
+    final requestsButton = AppIconButton(
+      icon: AppIcons.userPlus,
+      label: '가입 신청',
+      onPressed: _openRequests,
+    );
+
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
+        bottom: false,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 헤더
+            // 탭으로 열리면 AppHero, 메뉴에서 밀어 열리면 뒤로 버튼 앱바.
+            if (canPop) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                child: AppScreenHeader(
+                  title: '회원 관리',
+                  subtitle: '${_members.length}명',
+                  onBack: () => Navigator.of(context).pop(),
+                  trailing: Transform.translate(offset: const Offset(12, 0), child: requestsButton),
+                ),
+              ),
+              const AppRowDivider(),
+            ] else
+              AppHero(
+                eyebrow: '${_members.length} MEMBERS',
+                title: '회원',
+                actions: [requestsButton],
+              ),
+            // 검색
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
-                AppSpacing.lg,
+                AppSpacing.base,
                 AppSpacing.screenH,
                 0,
               ),
-              child: AppScreenHeader(
-                title: '회원 관리',
-                subtitle: '${_members.length}명',
-                onBack: Navigator.of(context).canPop()
-                    ? () => Navigator.of(context).pop()
-                    : null,
+              child: AppTextField(
+                label: '',
+                hint: '이름 또는 이메일 검색',
+                controller: _searchController,
+                prefix: const Icon(AppIcons.search),
+                textInputAction: TextInputAction.search,
               ),
             ),
-            // 검색바
+            // 필터 칩
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.md,
-                AppSpacing.screenH,
-                0,
-              ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                  border: Border.all(color: AppColors.border, width: 0.5),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.search_rounded,
-                      size: 18,
-                      color: AppColors.textDisabled,
-                    ),
-                    const Gap(AppSpacing.sm),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        style: AppTextStyles.body,
-                        decoration: InputDecoration.collapsed(
-                          hintText: '이름 또는 이메일 검색',
-                          hintStyle: AppTextStyles.body.copyWith(
-                            color: AppColors.textDisabled,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: AppScrollableChips(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                labels: [
+                  '전체 ${_members.length}',
+                  '미배정 ${_filterCount(_MemberFilter.unassigned)}',
+                  '잔여부족 ${_filterCount(_MemberFilter.lowPt)}',
+                  '만료예정 ${_filterCount(_MemberFilter.expiring)}',
+                ],
+                selectedIndex: _selectedFilter.index,
+                onSelected: _changeFilter,
               ),
             ),
-            // 필터 탭
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.sm,
-                AppSpacing.screenH,
-                0,
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: AppFilterTabs(
-                  tabs: [
-                    '전체 ${_members.length}',
-                    '미배정 ${_filterCount(_MemberFilter.unassigned)}',
-                    '잔여부족 ${_filterCount(_MemberFilter.lowPt)}',
-                    '만료예정 ${_filterCount(_MemberFilter.expiring)}',
-                  ],
-                  selectedIndex: _selectedFilter.index,
-                  onChanged: _changeFilter,
-                  icons: const [
-                    Icons.people_outline_rounded,
-                    Icons.person_off_outlined,
-                    Icons.warning_amber_rounded,
-                    Icons.event_busy_outlined,
-                  ],
-                ),
-              ),
-            ),
-            const Gap(AppSpacing.sm),
-            // 리스트
+            const SizedBox(height: AppSpacing.sm),
+            const AppRowDivider(),
+            // 목록
             Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.brand,
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      color: AppColors.brand,
-                      backgroundColor: AppColors.card,
-                      child: _errorMessage != null
-                          ? ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              children: [
-                                const SizedBox(height: 120),
-                                AppErrorCard(
-                                  message: _errorMessage!,
-                                  onRetry: _load,
-                                ),
-                              ],
-                            )
-                          : _members.isEmpty
-                          ? Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(AppSpacing.screenH),
-                                child: AppEmptyState(
-                                  icon: Icons.people_outline_rounded,
-                                  message: '등록된 회원이 없습니다.',
-                                ),
-                              ),
-                            )
-                          : _filtered.isEmpty
-                          ? Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(AppSpacing.screenH),
-                                child: AppEmptyState(
-                                  icon: Icons.search_off_rounded,
-                                  message: '검색 결과가 없습니다.',
-                                ),
-                              ),
-                            )
-                          : ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.screenH,
-                                0,
-                                AppSpacing.screenH,
-                                AppSpacing.xl2,
-                              ),
-                              children: [
-                                // 전체 리스트를 하나의 흰 카드로 감싸기
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.card,
-                                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                                    border: Border.all(
-                                      color: AppColors.border,
-                                      width: 0.5,
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                                    child: Column(
-                                      children: [
-                                        for (int i = 0; i < _filtered.length; i++) ...[
-                                          _MemberListItem(
-                                            member: _filtered[i],
-                                            ptInfo: _ptInfoByMember[_filtered[i].uid],
-                                            onTap: () async {
-                                              final m = _filtered[i];
-                                              final updated =
-                                                  await Navigator.of(context).push<AppUser>(
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      AdminMemberDetailScreen(member: m),
-                                                ),
-                                              );
-                                              if (updated == null || !context.mounted) {
-                                                return;
-                                              }
-                                              setState(() {
-                                                final idx = _members.indexWhere(
-                                                  (item) => item.uid == updated.uid,
-                                                );
-                                                if (idx != -1) {
-                                                  _members[idx] = updated;
-                                                }
-                                              });
-                                              _filter();
-                                            },
-                                          ),
-                                          if (i < _filtered.length - 1)
-                                            const Divider(
-                                              height: 1,
-                                              color: AppColors.border,
-                                            ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+              child: AppAsyncBody(
+                isLoading: _isLoading,
+                errorMessage: _errorMessage,
+                isEmpty: _filtered.isEmpty,
+                onRefresh: _load,
+                empty: AppEmptyState(
+                  icon: AppIcons.members,
+                  message: _members.isEmpty ? '등록된 회원이 없습니다.' : '검색 결과가 없습니다.',
+                ),
+                children: [
+                  for (int i = 0; i < _filtered.length; i++) ...[
+                    if (i > 0) const AppRowDivider(),
+                    _MemberListItem(
+                      member: _filtered[i],
+                      ptInfo: _ptInfoByMember[_filtered[i].uid],
+                      onTap: () => _openDetail(_filtered[i]),
                     ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
-
 }
 
 // ── _MemberListItem ───────────────────────────────────────────────────────────
 
+/// 회원 한 줄: 아바타 + 이름 + (트레이너 · PT 잔여/전체) + 오른쪽 상태 태그.
+/// 태그: 만료 = EXPIRED(흐림, 이름도 흐림) · 미배정 = NONE · 14일 이내 = D-n(흰 채움) · 그 외 D-n(외곽선).
 class _MemberListItem extends StatelessWidget {
   final AppUser member;
   final PtInfo? ptInfo;
@@ -345,104 +264,70 @@ class _MemberListItem extends StatelessWidget {
     required this.onTap,
   });
 
-  String _expiryLabel(PtInfo info) {
-    final endDate = info.endDate;
-    if (endDate == null) return '';
+  int? get _daysLeft {
+    final endDate = ptInfo?.endDate;
+    if (endDate == null) return null;
     final today = DateTime.now();
     final day = DateTime(today.year, today.month, today.day);
-    final diff = endDate.difference(day).inDays;
-    if (diff < 0) return ' · 만료';
-    if (diff <= 14) return ' · D-$diff';
-    return '';
+    return endDate.difference(day).inDays;
   }
 
-  Color _ptInfoTone(PtInfo info) {
-    final label = _expiryLabel(info);
-    if (label.contains('만료')) return AppColors.destructive;
-    if (info.remainingSessions > 0 && info.remainingSessions <= 3) {
-      return AppColors.diet;
-    }
-    if (label.isNotEmpty) return AppColors.diet;
-    return AppColors.textSecondary;
-  }
+  bool get _unassigned => member.trainerId == null || member.trainerId!.isEmpty;
 
   @override
   Widget build(BuildContext context) {
-    final initial = member.name.isNotEmpty ? member.name[0] : '?';
+    final days = _daysLeft;
+    final expired = days != null && days < 0;
+    final info = ptInfo;
 
-    return InkWell(
-      onTap: onTap,
-      splashColor: AppColors.brand.withValues(alpha: 0.04),
-      highlightColor: Colors.transparent,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.base,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            // 48x48 원형 아바타
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.brand.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                initial,
-                style: AppTextStyles.headline.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.brand,
-                ),
-              ),
-            ),
-            const Gap(AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 이름 (headline)
-                  Text(
-                    member.name,
-                    style: AppTextStyles.headline,
-                  ),
-                  const Gap(3),
-                  // 부가정보 (caption, textSecondary)
-                  Text(
-                    member.trainerName != null
-                        ? '담당: ${member.trainerName}'
-                        : '트레이너 미배정',
-                    style: AppTextStyles.caption.copyWith(
-                      color: member.trainerName != null
-                          ? AppColors.textSecondary
-                          : AppColors.diet,
-                      fontWeight: member.trainerName != null
-                          ? FontWeight.w400
-                          : FontWeight.w600,
-                    ),
-                  ),
-                  if (ptInfo != null) ...[
-                    const Gap(2),
-                    Text(
-                      'PT ${ptInfo!.remainingSessions}/${ptInfo!.totalSessions}회${_expiryLabel(ptInfo!)}',
-                      style: AppTextStyles.caption.copyWith(
-                        color: _ptInfoTone(ptInfo!),
-                        fontWeight: FontWeight.w500,
+    final meta = [
+      member.trainerName ?? '트레이너 미배정',
+      if (expired)
+        '만료 ${DateFormat('M월 d일').format(info!.endDate!)}'
+      else if (info != null)
+        'PT ${info.remainingSessions}/${info.totalSessions}',
+    ].join(' · ');
+
+    final Widget? tag = expired
+        ? const AppTag('EXPIRED', muted: true)
+        : _unassigned
+            ? const AppTag('NONE')
+            : days != null
+                ? AppTag('D-$days', strong: days <= 14)
+                : null;
+
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Row(
+              children: [
+                AppAvatar(name: member.name, seed: member.uid),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        member.name,
+                        style: AppTextStyles.bodyLg.copyWith(color: expired ? AppColors.mute : AppColors.ink),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                ],
-              ),
+                      Text(meta, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                if (tag != null) ...[const SizedBox(width: AppSpacing.sm), tag],
+              ],
             ),
-            // 우측 화살표
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: AppColors.textTertiary,
-            ),
-          ],
+          ),
         ),
       ),
     );

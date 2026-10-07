@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
+import '../../core/app_text_styles.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
@@ -79,10 +79,29 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     }
   }
 
+  Widget _numberField(String label, String unit, TextEditingController controller) {
+    return AppTextField(
+      label: label,
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+      ],
+      textInputAction: TextInputAction.next,
+      suffix: Padding(
+        padding: const EdgeInsets.only(right: AppSpacing.base),
+        child: Center(
+          widthFactor: 1,
+          child: Text(unit, style: AppTextStyles.counter),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const AppBottomSheetHeader(
           title: '신체 정보 수정',
@@ -90,68 +109,20 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
         ),
         Row(
           children: [
-            Expanded(
-              child: AppTextField(
-                label: '키 (cm)',
-                controller: _heightCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                ],
-                textInputAction: TextInputAction.next,
-              ),
-            ),
-            const Gap(AppSpacing.sm),
-            Expanded(
-              child: AppTextField(
-                label: '체중 (kg)',
-                controller: _weightCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                ],
-                textInputAction: TextInputAction.next,
-              ),
-            ),
+            Expanded(child: _numberField('키', 'CM', _heightCtrl)),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(child: _numberField('체중', 'KG', _weightCtrl)),
           ],
         ),
-        const Gap(AppSpacing.sm),
+        const SizedBox(height: AppSpacing.base),
         Row(
           children: [
-            Expanded(
-              child: AppTextField(
-                label: '골격근량 (kg)',
-                controller: _muscleCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                ],
-                textInputAction: TextInputAction.next,
-              ),
-            ),
-            const Gap(AppSpacing.sm),
-            Expanded(
-              child: AppTextField(
-                label: '체지방량 (kg)',
-                controller: _bodyFatCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-                ],
-                textInputAction: TextInputAction.next,
-              ),
-            ),
+            Expanded(child: _numberField('골격근량', 'KG', _muscleCtrl)),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(child: _numberField('체지방량', 'KG', _bodyFatCtrl)),
           ],
         ),
-        const Gap(AppSpacing.sm),
+        const SizedBox(height: AppSpacing.base),
         AppTextField(
           label: '목표',
           hint: '예: 체지방 감량, 근육량 증가',
@@ -159,7 +130,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           maxLines: 3,
           textInputAction: TextInputAction.done,
         ),
-        const Gap(AppSpacing.lg),
+        const SizedBox(height: AppSpacing.xl),
         AppButton(
           label: '저장',
           onPressed: _save,

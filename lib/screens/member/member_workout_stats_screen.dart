@@ -1,19 +1,25 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/workout.dart';
 import '../../models/workout_stats.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_filter_tabs.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
+import '../../widgets/orb_loader.dart';
+import '../../widgets/app_progress_bar.dart';
 
 class MemberWorkoutStatsScreen extends StatefulWidget {
   const MemberWorkoutStatsScreen({super.key});
@@ -89,270 +95,118 @@ class _MemberWorkoutStatsScreenState extends State<MemberWorkoutStatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: CustomScrollView(
+    final Widget body;
+    if (_loading) {
+      body = const AppLoadingView();
+    } else if (_stats == null || _stats!.isEmpty) {
+      body = ListView(
         physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.screenH,
-                  AppSpacing.screenH,
-                  0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AppScreenHeader(
-                      title: '운동 통계',
-                      subtitle: '나의 운동 현황을 한눈에.',
-                      onBack: () => Navigator.of(context).pop(),
-                    ),
-                    const Gap(20),
-                    _PeriodTab(
-                      period: _period,
-                      onChanged: (p) {
-                        setState(() => _period = p);
-                        _load();
-                      },
-                    ),
-                    const Gap(20),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          if (_loading)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.brand,
-                  strokeWidth: 2,
-                ),
-              ),
-            )
-          else if (_stats == null || _stats!.isEmpty)
-            SliverFillRemaining(
-              child: _errorMessage != null
-                  ? AppErrorCard(message: _errorMessage!, onRetry: _load)
-                  : const AppEmptyState(
-                      icon: Icons.bar_chart_rounded,
-                      message: '아직 운동 기록이 없어요\n운동을 기록하면 여기서 통계를 확인할 수 있어요.',
-                    ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH, 0, AppSpacing.screenH, 120,
-              ),
-              sliver: SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    _SummaryRow(stats: _stats!),
-                    const Gap(16),
-                    _InsightGrid(stats: _stats!),
-                    const Gap(16),
-                    _VolumeBarChart(stats: _stats!, period: _period),
-                    const Gap(16),
-                    _CategoryDonutChart(stats: _stats!),
-                    const Gap(16),
-                    _CategoryDetailList(stats: _stats!),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── 기간 탭 ───────────────────────────────────────────────────────────────────
-
-class _PeriodTab extends StatelessWidget {
-  final _Period period;
-  final ValueChanged<_Period> onChanged;
-
-  const _PeriodTab({required this.period, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Row(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
         children: [
-          _Tab(
-            label: '이번 주',
-            selected: period == _Period.weekly,
-            onTap: () => onChanged(_Period.weekly),
-          ),
-          _Tab(
-            label: '이번 달',
-            selected: period == _Period.monthly,
-            onTap: () => onChanged(_Period.monthly),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Tab extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _Tab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.brand : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: AppTextStyles.label.copyWith(
-              color: selected
-                  ? AppColors.textOnAccent
-                  : AppColors.textSecondary,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          if (_errorMessage != null) ...[
+            const SizedBox(height: AppSpacing.xl3),
+            AppErrorCard(message: _errorMessage!, onRetry: _load),
+          ] else
+            const AppEmptyState(
+              icon: AppIcons.chartBar,
+              message: '아직 운동 기록이 없어요',
+              description: '운동을 기록하면 여기서 통계를 확인할 수 있어요.',
             ),
-          ),
+        ],
+      );
+    } else {
+      final stats = _stats!;
+      body = ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 120),
+        children: [
+          _SummaryStrip(stats: stats),
+          _InsightGrid(stats: stats),
+          AppMonthHeader(label: '일별 볼륨', count: 'KG'),
+          _VolumeBarChart(stats: stats, period: _period),
+          AppMonthHeader(label: '부위별 세트', count: '${stats.totalSets}'),
+          _CategoryBreakdown(stats: stats),
+        ],
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+              child: AppScreenHeader(
+                title: '운동 통계',
+                subtitle: '나의 운동 현황을 한눈에',
+                onBack: () => Navigator.of(context).pop(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.sm),
+              child: AppFilterTabs(
+                tabs: const ['이번 주', '이번 달'],
+                selectedIndex: _period == _Period.weekly ? 0 : 1,
+                onChanged: (index) {
+                  final next = index == 0 ? _Period.weekly : _Period.monthly;
+                  if (next == _period) return;
+                  setState(() => _period = next);
+                  _load();
+                },
+              ),
+            ),
+            const AppRowDivider(),
+            Expanded(child: body),
+          ],
         ),
       ),
     );
   }
 }
 
-// ── 요약 카드 행 ──────────────────────────────────────────────────────────────
+String _volumeText(double value) {
+  if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}t';
+  return '${value.toStringAsFixed(0)}kg';
+}
 
-class _SummaryRow extends StatelessWidget {
+/// 축 라벨용 짧은 숫자 (모노): 1200 → 1.2K
+String _compactNumber(double value) {
+  if (value >= 1000) {
+    final k = value / 1000;
+    return '${k >= 10 ? k.toStringAsFixed(0) : k.toStringAsFixed(1)}K';
+  }
+  return value.toStringAsFixed(0);
+}
+
+const _weekdayCodes = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+// ── 요약 숫자 줄 ─────────────────────────────────────────────────────────────
+
+class _SummaryStrip extends StatelessWidget {
   final WorkoutStats stats;
 
-  const _SummaryRow({required this.stats});
+  const _SummaryStrip({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    final volStr = stats.totalVolume >= 1000
-        ? '${(stats.totalVolume / 1000).toStringAsFixed(1)}t'
-        : '${stats.totalVolume.toStringAsFixed(0)}kg';
+    final volume = _volumeText(stats.totalVolume);
+    final volumeValue = volume.replaceAll(RegExp(r'[a-z]+$'), '');
+    final volumeUnit = volume.substring(volumeValue.length);
 
-    return Row(
-      children: [
-        Expanded(
-          child: _MetricCard(
-            label: '운동 일수',
-            value: '${stats.totalWorkoutDays}',
-            suffix: '일',
-          ),
-        ),
-        const Gap(10),
-        Expanded(
-          child: _MetricCard(label: '총 볼륨', value: volStr, suffix: null),
-        ),
-        const Gap(10),
-        Expanded(
-          child: _MetricCard(
-            label: '총 세트',
-            value: '${stats.totalSets}',
-            suffix: '세트',
-          ),
-        ),
+    return AppStatStrip(
+      cells: [
+        AppKpiCard(framed: false, label: '운동 일수', value: '${stats.totalWorkoutDays}', unit: '일'),
+        AppKpiCard(framed: false, label: '총 볼륨', value: volumeValue, unit: volumeUnit),
+        AppKpiCard(framed: false, label: '총 세트', value: '${stats.totalSets}', unit: '세트'),
       ],
     );
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final String? suffix;
-
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.suffix,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const Gap(AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                value,
-                style: AppTextStyles.numberLarge.copyWith(
-                  color: AppColors.textPrimary,
-                  fontSize: 28,
-                ),
-              ),
-              if (suffix != null) ...[
-                const Gap(3),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 3),
-                  child: Text(
-                    suffix!,
-                    style: AppTextStyles.label.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── 인사이트 카드 ────────────────────────────────────────────────────────────
+// ── 보조 숫자 격자 ───────────────────────────────────────────────────────────
 
 class _InsightGrid extends StatelessWidget {
   final WorkoutStats stats;
@@ -362,140 +216,35 @@ class _InsightGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bestDay = stats.bestVolumeDay;
-    final bestDate = bestDay == null
-        ? '-'
-        : DateFormat('M/d', 'ko').format(DateTime.parse(bestDay.date));
-    final bestVolume = bestDay == null ? '-' : _volumeText(bestDay.volume);
+    final bestDate = bestDay == null ? null : DateFormat('MM.dd').format(DateTime.parse(bestDay.date));
 
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _InsightCard(
-                icon: Icons.local_fire_department_rounded,
-                label: '최근 연속',
-                value: '${stats.activeStreakDays}',
-                suffix: '일',
-              ),
-            ),
-            const Gap(10),
-            Expanded(
-              child: _InsightCard(
-                icon: Icons.fitness_center_rounded,
-                label: '운동 횟수',
-                value: '${stats.totalSessions}',
-                suffix: '회',
-              ),
-            ),
-          ],
+    return AppStatGrid(
+      cells: [
+        AppKpiCard(framed: false, valueSize: 20, label: '최근 연속', value: '${stats.activeStreakDays}', unit: '일'),
+        AppKpiCard(framed: false, valueSize: 20, label: '운동 횟수', value: '${stats.totalSessions}', unit: '회'),
+        AppKpiCard(
+          framed: false,
+          valueSize: 20,
+          label: '회당 평균',
+          value: _volumeText(stats.avgVolumePerSession),
+          unit: '',
         ),
-        const Gap(10),
-        Row(
-          children: [
-            Expanded(
-              child: _InsightCard(
-                icon: Icons.trending_up_rounded,
-                label: '회당 평균',
-                value: _volumeText(stats.avgVolumePerSession),
-                suffix: null,
-              ),
-            ),
-            const Gap(10),
-            Expanded(
-              child: _InsightCard(
-                icon: Icons.emoji_events_rounded,
-                label: '최고 볼륨일',
-                value: bestVolume,
-                suffix: bestDate == '-' ? null : ' · $bestDate',
-              ),
-            ),
-          ],
+        AppKpiCard(
+          framed: false,
+          valueSize: 20,
+          label: '최고 볼륨일',
+          value: bestDay == null ? '-' : _volumeText(bestDay.volume),
+          unit: '',
+          trend: bestDate,
         ),
       ],
     );
   }
-
-  String _volumeText(double value) {
-    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}t';
-    return '${value.toStringAsFixed(0)}kg';
-  }
 }
 
-class _InsightCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final String? suffix;
+// ── 일별 볼륨 막대 ───────────────────────────────────────────────────────────
 
-  const _InsightCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.suffix,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 96,
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.workout.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.xs),
-            ),
-            child: Icon(icon, color: AppColors.workout, size: 20),
-          ),
-          const Gap(AppSpacing.md),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: AppTextStyles.captionSmall.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const Gap(4),
-                Text(
-                  suffix == null ? value : '$value$suffix',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.h3.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── 볼륨 바 차트 ──────────────────────────────────────────────────────────────
-
+/// 막대 = canvasMid 트랙 위 ink 채움, 격자 hairline, 축 라벨 모노 counter.
 class _VolumeBarChart extends StatelessWidget {
   final WorkoutStats stats;
   final _Period period;
@@ -505,117 +254,108 @@ class _VolumeBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = stats.dailyVolumes;
-    final maxY = days.isEmpty
-        ? 100.0
-        : days.map((d) => d.volume).reduce((a, b) => a > b ? a : b) * 1.25;
+    final peak = days.isEmpty ? 0.0 : days.map((d) => d.volume).reduce((a, b) => a > b ? a : b);
+    final maxY = peak <= 0 ? 100.0 : peak * 1.25;
+    final barWidth = period == _Period.weekly ? 16.0 : 6.0;
+    final axisStyle = AppTextStyles.counter.copyWith(fontSize: 10);
 
-    final groups = days.asMap().entries.map((e) {
-      final i = e.key;
-      final d = e.value;
-      return BarChartGroupData(
-        x: i,
-        barRods: [
-          BarChartRodData(
-            toY: d.volume,
-            color: AppColors.brand,
-            width: period == _Period.weekly ? 28 : 10,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-          ),
-        ],
-      );
-    }).toList();
+    final groups = [
+      for (var i = 0; i < days.length; i++)
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: days[i].volume,
+              color: AppColors.ink,
+              width: barWidth,
+              borderRadius: BorderRadius.circular(barWidth / 2),
+              backDrawRodData: BackgroundBarChartRodData(
+                show: true,
+                toY: maxY,
+                color: AppColors.canvasMid,
+              ),
+            ),
+          ],
+        ),
+    ];
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
+    final summary = days.isEmpty
+        ? '기록 없음'
+        : '${days.length}일 기록, 최고 ${_volumeText(peak)}';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.base),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '일별 볼륨',
-            style: AppTextStyles.label.copyWith(
-              color: AppColors.textPrimary,
-            ),
-          ),
-          Text(
-            '무게 × 반복 횟수 합계 (kg)',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const Gap(20),
-          SizedBox(
-            height: 180,
-            child: BarChart(
-              BarChartData(
-                maxY: maxY,
-                minY: 0,
-                barGroups: groups,
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (_) => const FlLine(
-                    color: AppColors.border,
-                    strokeWidth: 1,
+          Text('무게 × 반복 횟수 합계', style: AppTextStyles.bodySm),
+          const SizedBox(height: AppSpacing.base),
+          Semantics(
+            label: '일별 볼륨 막대 차트: $summary',
+            child: SizedBox(
+              height: 180,
+              child: BarChart(
+                BarChartData(
+                  maxY: maxY,
+                  minY: 0,
+                  barGroups: groups,
+                  alignment: BarChartAlignment.spaceAround,
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: maxY / 4,
+                    getDrawingHorizontalLine: (_) => const FlLine(color: AppColors.hairline, strokeWidth: 1),
                   ),
-                ),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 36,
+                        interval: maxY / 4,
+                        getTitlesWidget: (value, meta) {
+                          if (value == meta.max || value == 0) return const SizedBox.shrink();
+                          return Text(_compactNumber(value), style: axisStyle);
+                        },
+                      ),
+                    ),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 24,
+                        getTitlesWidget: (value, meta) {
+                          final idx = value.toInt();
+                          if (idx < 0 || idx >= days.length) return const SizedBox.shrink();
+                          final date = DateTime.parse(days[idx].date);
+                          if (period == _Period.monthly && days.length > 8 && date.day != 1 && date.day % 5 != 0) {
+                            return const SizedBox.shrink();
+                          }
+                          final label = period == _Period.weekly
+                              ? _weekdayCodes[(date.weekday - 1) % 7]
+                              : date.day.toString().padLeft(2, '0');
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(label, style: axisStyle),
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final idx = value.toInt();
-                        if (idx < 0 || idx >= days.length) {
-                          return const SizedBox.shrink();
-                        }
-                        final date = DateTime.parse(days[idx].date);
-                        final label = period == _Period.weekly
-                            ? _weekdayLabel(date.weekday)
-                            : '${date.day}';
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            label,
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textSecondary,
-                              fontSize: 10,
-                            ),
-                          ),
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (_) => AppColors.canvasCard,
+                      tooltipBorder: const BorderSide(color: AppColors.hairline),
+                      tooltipRoundedRadius: AppRadius.card,
+                      getTooltipItem: (group, _, rod, __) {
+                        final date = DateTime.parse(days[group.x].date);
+                        return BarTooltipItem(
+                          '${DateFormat('MM.dd').format(date)}  ${_compactNumber(rod.toY)} KG',
+                          AppTextStyles.counter.copyWith(color: AppColors.ink),
                         );
                       },
                     ),
-                  ),
-                ),
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (_) => AppColors.card,
-                    getTooltipItem: (group, _, rod, __) {
-                      final vol = rod.toY;
-                      final label = vol >= 1000
-                          ? '${(vol / 1000).toStringAsFixed(1)}t'
-                          : '${vol.toStringAsFixed(0)}kg';
-                      return BarTooltipItem(
-                        label,
-                        AppTextStyles.label.copyWith(
-                          color: AppColors.brand,
-                          fontSize: 12,
-                        ),
-                      );
-                    },
                   ),
                 ),
               ),
@@ -625,99 +365,60 @@ class _VolumeBarChart extends StatelessWidget {
       ),
     );
   }
-
-  String _weekdayLabel(int weekday) {
-    const labels = ['월', '화', '수', '목', '금', '토', '일'];
-    return labels[(weekday - 1) % 7];
-  }
 }
 
-// ── 카테고리 도넛 차트 ────────────────────────────────────────────────────────
+// ── 부위별 세트: 도넛 + 줄 목록 ─────────────────────────────────────────────
 
-class _CategoryDonutChart extends StatefulWidget {
+/// 도넛 조각은 chartSeries 색, 각 줄에 같은 색 표시 + 이름 + 세트 수 + 비율 + 4px 막대를 함께 둔다
+/// (색만으로 구분하지 않는다). 조각을 누르면 가운데에 부위·비율이 나온다.
+class _CategoryBreakdown extends StatefulWidget {
   final WorkoutStats stats;
 
-  const _CategoryDonutChart({required this.stats});
+  const _CategoryBreakdown({required this.stats});
 
   @override
-  State<_CategoryDonutChart> createState() => _CategoryDonutChartState();
+  State<_CategoryBreakdown> createState() => _CategoryBreakdownState();
 }
 
-class _CategoryDonutChartState extends State<_CategoryDonutChart> {
+class _CategoryBreakdownState extends State<_CategoryBreakdown> {
   int? _touchedIndex;
 
-  static const List<Color> _palette = [
-    Color(0xFFFAFF69), // primary (yellow)
-    Color(0xFF3B82F6), // blue
-    Color(0xFF22C55E), // green
-    Color(0xFFEF4444), // red
-    Color(0xFFA855F7), // purple
-    Color(0xFFF97316), // orange
-    Color(0xFF14B8A6), // teal
-  ];
+  Color _colorAt(int i) => AppColors.chartSeries[i % AppColors.chartSeries.length];
 
   @override
   Widget build(BuildContext context) {
-    final catMap = widget.stats.categorySetCounts;
-    if (catMap.isEmpty) return const SizedBox.shrink();
+    final entries = widget.stats.categorySetCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final total = entries.fold<int>(0, (sum, e) => sum + e.value);
+    if (entries.isEmpty || total == 0) return const SizedBox.shrink();
 
-    final entries = catMap.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final total = entries.fold(0, (sum, e) => sum + e.value);
+    final touched = _touchedIndex != null && _touchedIndex! >= 0 && _touchedIndex! < entries.length
+        ? entries[_touchedIndex!]
+        : null;
 
-    final sections = entries.asMap().entries.map((e) {
-      final i = e.key;
-      final count = e.value.value;
-      final isTouched = _touchedIndex == i;
-      final pct = total > 0 ? count / total * 100 : 0.0;
-
-      return PieChartSectionData(
-        value: count.toDouble(),
-        color: _palette[i % _palette.length],
-        radius: isTouched ? 64 : 56,
-        title: isTouched ? '${pct.toStringAsFixed(0)}%' : '',
-        titleStyle: AppTextStyles.label.copyWith(
-          color: AppColors.textOnAccent,
-          fontSize: 11,
+    final sections = [
+      for (var i = 0; i < entries.length; i++)
+        PieChartSectionData(
+          value: entries[i].value.toDouble(),
+          color: _colorAt(i),
+          radius: _touchedIndex == i ? 22 : 16,
+          title: '',
         ),
-        borderSide: isTouched
-            ? const BorderSide(color: AppColors.textPrimary, width: 1.5)
-            : BorderSide.none,
-      );
-    }).toList();
+    ];
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '부위별 세트 분포',
-            style: AppTextStyles.label.copyWith(
-              color: AppColors.textPrimary,
-            ),
-          ),
-          Text(
-            '탭해서 비율을 확인하세요',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const Gap(20),
-          Row(
-            children: [
-              SizedBox(
-                height: 160,
-                width: 160,
-                child: PieChart(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          label: '부위별 세트 분포: ${entries.map((e) => '${e.key.label} ${(e.value / total * 100).toStringAsFixed(0)}%').join(', ')}',
+          child: SizedBox(
+            height: 180,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                PieChart(
                   PieChartData(
                     sections: sections,
-                    centerSpaceRadius: 44,
+                    centerSpaceRadius: 64,
                     sectionsSpace: 2,
                     pieTouchData: PieTouchData(
                       touchCallback: (event, response) {
@@ -728,116 +429,55 @@ class _CategoryDonutChartState extends State<_CategoryDonutChart> {
                             _touchedIndex = null;
                             return;
                           }
-                          _touchedIndex =
-                              response.touchedSection!.touchedSectionIndex;
+                          _touchedIndex = response.touchedSection!.touchedSectionIndex;
                         });
                       },
                     ),
                   ),
                 ),
-              ),
-              const Gap(20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: entries.asMap().entries.map((e) {
-                    final i = e.key;
-                    final cat = e.value.key;
-                    final count = e.value.value;
-                    final pct = total > 0 ? count / total * 100 : 0.0;
-                    final color = _palette[i % _palette.length];
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const Gap(8),
-                          Expanded(
-                            child: Text(
-                              cat.label,
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '${pct.toStringAsFixed(0)}%',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                IgnorePointer(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: touched == null
+                        ? [
+                            Text('$total', style: AppTextStyles.displayMd),
+                            Text('SETS', style: AppTextStyles.counter),
+                          ]
+                        : [
+                            Text('${(touched.value / total * 100).toStringAsFixed(0)}%', style: AppTextStyles.displayMd),
+                            Text(touched.key.label, style: AppTextStyles.bodySm),
+                          ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.base),
+        const AppRowDivider(),
+        for (var i = 0; i < entries.length; i++) ...[
+          if (i > 0) const AppRowDivider(indent: AppSpacing.screenH),
+          _CategoryRow(
+            color: _colorAt(i),
+            category: entries[i].key,
+            count: entries[i].value,
+            percent: entries[i].value / total,
           ),
         ],
-      ),
+        const AppRowDivider(),
+      ],
     );
   }
 }
 
-class _CategoryDetailList extends StatelessWidget {
-  final WorkoutStats stats;
-
-  const _CategoryDetailList({required this.stats});
-
-  @override
-  Widget build(BuildContext context) {
-    final entries = stats.categorySetCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final totalSets = stats.totalSets;
-    if (entries.isEmpty || totalSets == 0) return const SizedBox.shrink();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '부위별 세트 상세',
-            style: AppTextStyles.label.copyWith(
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const Gap(14),
-          for (final entry in entries) ...[
-            _CategoryProgressRow(
-              category: entry.key,
-              count: entry.value,
-              percent: entry.value / totalSets,
-            ),
-            const Gap(12),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _CategoryProgressRow extends StatelessWidget {
+class _CategoryRow extends StatelessWidget {
+  final Color color;
   final WorkoutCategory category;
   final int count;
   final double percent;
 
-  const _CategoryProgressRow({
+  const _CategoryRow({
+    required this.color,
     required this.category,
     required this.count,
     required this.percent,
@@ -845,53 +485,34 @@ class _CategoryProgressRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _colorFor(category);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    final pct = (percent * 100).toStringAsFixed(0);
+    return Semantics(
+      label: '${category.label} $count세트, $pct퍼센트',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                category.label,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
+            Row(
+              children: [
+                // 도넛 조각과 같은 색 표시 (차트 범례)
+                Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: Text(category.label, style: AppTextStyles.bodyMd)),
+                Text('$count세트', style: AppTextStyles.bodySm),
+                const SizedBox(width: AppSpacing.sm),
+                SizedBox(
+                  width: 40,
+                  child: Text('$pct%', textAlign: TextAlign.end, style: AppTextStyles.counter.copyWith(color: AppColors.body)),
                 ),
-              ),
+              ],
             ),
-            Text(
-              '$count세트 · ${(percent * 100).toStringAsFixed(0)}%',
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppProgressBar(value: percent, height: 4),
           ],
         ),
-        const Gap(6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            minHeight: 7,
-            value: percent.clamp(0.0, 1.0),
-            color: color,
-            backgroundColor: AppColors.bg,
-          ),
-        ),
-      ],
+      ),
     );
   }
-
-  Color _colorFor(WorkoutCategory category) {
-    return switch (category) {
-      WorkoutCategory.shoulder => const Color(0xFFA855F7),
-      WorkoutCategory.chest => AppColors.categoryUpper,
-      WorkoutCategory.back => AppColors.categoryLower,
-      WorkoutCategory.lower => AppColors.categoryCore,
-      WorkoutCategory.arms => const Color(0xFFF97316),
-      WorkoutCategory.abs => const Color(0xFF14B8A6),
-      WorkoutCategory.cardio => AppColors.categoryCardio,
-    };
-  }
 }
-

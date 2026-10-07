@@ -2,21 +2,26 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_logger.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
 import '../../models/meal.dart';
 import '../../services/meal_service.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_tag.dart';
 import '../../widgets/app_text_field.dart';
 
+/// 식단 기록 입력 화면 (하위 화면으로 push).
+/// 끼니 칩 → 사진 3열 격자 → 메모·칼로리 → 아래 고정 주 행동 하나.
 class MealInputSheet extends StatefulWidget {
   final String centerId;
   final String memberId;
@@ -133,297 +138,216 @@ class _MealInputSheetState extends State<MealInputSheet> {
     }
   }
 
+  void _removeImage(int i) => setState(() {
+    _images.removeAt(i);
+    _imageBytes.removeAt(i);
+  });
+
+  String get _dateLabel {
+    final date = DateTime.tryParse(widget.selectedDate);
+    return date == null ? widget.selectedDate : DateFormat('MM.dd').format(date);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppScreenHeader(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+              child: AppScreenHeader(
                 title: '식단 기록',
                 onBack: () => Navigator.of(context).pop(false),
+                trailing: Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.sm),
+                  child: Text(_dateLabel, style: AppTextStyles.eyebrow),
+                ),
               ),
-              const Gap(20),
-              Row(
-                children: MealType.values.map((type) {
-                  final selected = _mealType == type;
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        right: type != MealType.values.last ? 8 : 0,
-                      ),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _mealType = type),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? AppColors.diet
-                                : AppColors.card,
-                            borderRadius: BorderRadius.circular(AppRadius.xs),
-                            boxShadow: selected
-                                ? null
-                                : const [
-                                    BoxShadow(
-                                      color: Color(0x0F000000),
-                                      blurRadius: 3,
-                                      offset: Offset(0, 1),
-                                    ),
-                                  ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            type.label,
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: selected
-                                  ? AppColors.textOnAccent
-                                  : AppColors.textNeutral,
-                              fontWeight: selected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                            ),
-                          ),
+            ),
+            const Divider(height: 1, thickness: 1, color: AppColors.hairline),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xl,
+                  AppSpacing.screenH,
+                  AppSpacing.xl,
+                ),
+                children: [
+                  Text('끼니', style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    children: [
+                      for (final type in MealType.values)
+                        AppChip(
+                          label: type.label,
+                          selected: _mealType == type,
+                          onTap: () => setState(() => _mealType = type),
                         ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  Row(
+                    children: [
+                      Text('사진', style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        '${_images.length} / ${AppConstants.imageMaxCount}',
+                        style: AppTextStyles.counter,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _PhotoGrid(
+                    images: _images,
+                    imageBytes: _imageBytes,
+                    canAdd: _images.length < AppConstants.imageMaxCount,
+                    onAdd: _pickImages,
+                    onRemove: _removeImage,
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  AppTextField(
+                    label: '메모',
+                    hint: '먹은 음식을 기록해보세요',
+                    controller: _descController,
+                    maxLines: 4,
+                    textInputAction: TextInputAction.newline,
+                  ),
+                  const SizedBox(height: AppSpacing.base),
+                  AppTextField(
+                    label: '칼로리',
+                    hint: '선택 입력',
+                    controller: _caloriesController,
+                    keyboardType: TextInputType.number,
+                    suffix: Padding(
+                      padding: const EdgeInsets.only(right: AppSpacing.base),
+                      child: Center(
+                        widthFactor: 1,
+                        child: Text('KCAL', style: AppTextStyles.counter),
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-              const Gap(20),
-              GestureDetector(
-                onTap: _pickImages,
-                child: _images.isEmpty
-                    ? Container(
-                        height: 160,
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          borderRadius: BorderRadius.circular(AppRadius.xs),
-                          border: Border.all(
-                            color: AppColors.border,
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.add_photo_alternate_outlined,
-                              size: 24,
-                              color: AppColors.textTertiary,
-                            ),
-                            const Gap(AppSpacing.xxs),
-                            Text(
-                              '식단 사진 추가',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textTertiary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : SizedBox(
-                        height: 160,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _images.length < AppConstants.imageMaxCount
-                              ? _images.length + 1
-                              : _images.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: AppSpacing.xs),
-                          itemBuilder: (_, i) {
-                            if (i == _images.length) {
-                              return GestureDetector(
-                                onTap: _pickImages,
-                                child: Container(
-                                  width: 120,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.card,
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadius.xs,
-                                    ),
-                                    border: Border.all(
-                                      color: AppColors.border,
-                                      width: 0.5,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.add_rounded,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              );
-                            }
-                            return Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadius.xs,
-                                  ),
-                                  child: kIsWeb
-                                      ? Image.memory(
-                                          _imageBytes[i],
-                                          width: 160,
-                                          height: 160,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : Image.file(
-                                          File(_images[i].path),
-                                          width: 160,
-                                          height: 160,
-                                          fit: BoxFit.cover,
-                                        ),
-                                ),
-                                Positioned(
-                                  top: 8,
-                                  right: 8,
-                                  child: GestureDetector(
-                                    onTap: () => setState(() {
-                                      _images.removeAt(i);
-                                      _imageBytes.removeAt(i);
-                                    }),
-                                    child: Container(
-                                      width: 24,
-                                      height: 24,
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.textOnAccent,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.close_rounded,
-                                        size: 14,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-              ),
-              const Gap(20),
-              Text(
-                '메모',
-                style: AppTextStyles.label.copyWith(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                ),
-              ),
-              const Gap(12),
-              _MealMemoField(controller: _descController),
-              const Gap(AppSpacing.sm),
-              AppTextField(
-                label: '칼로리',
-                hint: '선택 입력',
-                controller: _caloriesController,
-                keyboardType: TextInputType.number,
-                suffix: Padding(
-                  padding: const EdgeInsets.only(right: 14),
-                  child: Center(
-                    widthFactor: 1,
-                    child: Text('kcal', style: AppTextStyles.caption),
+                    textInputAction: TextInputAction.done,
                   ),
-                ),
-                textInputAction: TextInputAction.done,
+                ],
               ),
-              const Gap(24),
-              GestureDetector(
-                onTap: _isSaving ? null : _save,
-                child: Container(
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: _isSaving
-                        ? AppColors.diet.withValues(alpha: 0.45)
-                        : AppColors.diet,
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                  ),
-                  alignment: Alignment.center,
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.textOnAccent,
-                          ),
-                        )
-                      : Text(
-                          '기록 저장',
-                          style: AppTextStyles.button.copyWith(
-                            color: AppColors.textOnAccent,
-                          ),
-                        ),
-                ),
+            ),
+            Container(
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.hairline)),
               ),
-            ],
-          ),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.md,
+                AppSpacing.screenH,
+                AppSpacing.md,
+              ),
+              child: AppButton(
+                label: '기록 저장',
+                size: AppButtonSize.lg,
+                fullWidth: true,
+                isLoading: _isSaving,
+                onPressed: _isSaving ? null : _save,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _MealMemoField extends StatelessWidget {
-  final TextEditingController controller;
+/// 사진 3열 격자 (간격 2, 반경 0). 마지막 칸은 추가 칸.
+class _PhotoGrid extends StatelessWidget {
+  final List<XFile> images;
+  final List<Uint8List> imageBytes;
+  final bool canAdd;
+  final VoidCallback onAdd;
+  final ValueChanged<int> onRemove;
 
-  const _MealMemoField({required this.controller});
+  const _PhotoGrid({
+    required this.images,
+    required this.imageBytes,
+    required this.canAdd,
+    required this.onAdd,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: TextInputType.multiline,
-      textInputAction: TextInputAction.newline,
-      maxLines: 4,
-      style: AppTextStyles.body.copyWith(
-        color: AppColors.textPrimary,
-        fontSize: 15,
-        fontWeight: FontWeight.w400,
+    final count = images.length + (canAdd ? 1 : 0);
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: count,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: AppSpacing.xxs,
+        crossAxisSpacing: AppSpacing.xxs,
       ),
-      cursorColor: AppColors.brand,
-      decoration: InputDecoration(
-        labelText: '메모',
-        hintText: '먹은 음식을 기록해보세요',
-        filled: true,
-        fillColor: AppColors.card,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.md,
-        ),
-        border: OutlineInputBorder(
-          borderSide: const BorderSide(
-            color: AppColors.border,
-            width: 0.5,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(
-            color: AppColors.border,
-            width: 0.5,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(
-            color: AppColors.brand,
-            width: 1,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-        ),
-        labelStyle: AppTextStyles.bodySmall.copyWith(
-          color: AppColors.textSecondary,
-        ),
-        hintStyle: AppTextStyles.bodySmall.copyWith(
-          color: AppColors.textTertiary,
-        ),
-      ),
+      itemBuilder: (_, i) {
+        if (i == images.length) {
+          return Semantics(
+            button: true,
+            label: '식단 사진 추가',
+            excludeSemantics: true,
+            child: Material(
+              color: AppColors.canvasSoft,
+              shape: const RoundedRectangleBorder(
+                side: BorderSide(color: AppColors.hairline),
+              ),
+              child: InkWell(
+                onTap: onAdd,
+                highlightColor: AppColors.canvasMid,
+                splashFactory: NoSplash.splashFactory,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(AppIcons.camera, size: AppSize.icon, color: AppColors.body),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text('사진 추가', style: AppTextStyles.bodySm),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Semantics(
+              image: true,
+              label: '식단 사진 ${i + 1}',
+              child: kIsWeb
+                  ? Image.memory(imageBytes[i], fit: BoxFit.cover)
+                  : Image.file(File(images[i].path), fit: BoxFit.cover),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // 사진 위 아이콘 대비용 scrim 원
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: const BoxDecoration(color: AppColors.scrim, shape: BoxShape.circle),
+                  ),
+                  AppIconButton(
+                    icon: AppIcons.close,
+                    label: '사진 ${i + 1} 삭제',
+                    onPressed: () => onRemove(i),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:uuid/uuid.dart';
 import '../core/app_colors.dart';
+import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_feedback.dart';
 import '../core/app_text_styles.dart';
@@ -10,8 +10,10 @@ import '../services/cardio_service.dart';
 import '../services/firestore_service.dart';
 import '../services/meal_service.dart';
 import '../services/workout_service.dart';
+import 'app_action_row.dart';
 import 'app_bottom_sheet.dart';
 import 'app_button.dart';
+import 'app_tag.dart';
 import 'app_text_field.dart';
 
 class FeedbackSheet extends StatefulWidget {
@@ -213,67 +215,69 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
     }
   }
 
+  /// 대상 종류의 영문 모노 표기 (MEAL · 10.07).
+  String get _monoMeta {
+    final type = widget.targetType.name.toUpperCase();
+    final date = DateTime.tryParse(widget.targetDate ?? '');
+    if (date == null) return type;
+    return '$type · ${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final maxHeight = MediaQuery.of(context).size.height * 0.78;
+    final isEditing = widget.existing != null;
 
     return Form(
       key: _formKey,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight),
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppBottomSheetHeader(title: isEditing ? '피드백 수정' : '피드백 작성'),
+          // 대상: 회원 · 종류 + 모노 메타, 아래 hairline
+          Text('${widget.memberName} · ${widget.targetType.label}', style: AppTextStyles.bodyLg),
+          const SizedBox(height: AppSpacing.xs),
+          Text(_monoMeta, style: AppTextStyles.counter.copyWith(color: AppColors.body)),
+          const SizedBox(height: AppSpacing.md),
+          const AppRowDivider(),
+          const SizedBox(height: AppSpacing.base),
+          // 빠른 템플릿
+          Text('TEMPLATE', style: AppTextStyles.eyebrow),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.sm,
             children: [
-              AppBottomSheetHeader(
-                title: widget.existing != null ? '피드백 수정' : '피드백 작성',
-                subtitle: '${widget.memberName} · ${widget.targetType.label}',
-              ),
-              Text(
-                '빠른 템플릿',
-                style: AppTextStyles.label.copyWith(
-                  color: AppColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+              for (final template in _templates)
+                AppChip(
+                  label: template.label,
+                  selected: false,
+                  icon: AppIcons.add,
+                  onTap: () => _applyTemplate(template.content),
                 ),
-              ),
-              const Gap(AppSpacing.xs),
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  for (final template in _templates)
-                    _TemplateChip(
-                      label: template.label,
-                      onTap: () => _applyTemplate(template.content),
-                    ),
-                ],
-              ),
-              const Gap(AppSpacing.md),
-              AppTextField(
-                label: '피드백 내용',
-                hint: '내용을 입력하세요.',
-                controller: _controller,
-                keyboardType: TextInputType.multiline,
-                maxLines: 5,
-                textInputAction: TextInputAction.newline,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return '내용을 입력해주세요.';
-                  return null;
-                },
-              ),
-              const Gap(AppSpacing.lg),
-              AppButton(
-                label: widget.existing != null ? '수정' : '작성',
-                onPressed: _submit,
-                isLoading: _isLoading,
-                fullWidth: true,
-              ),
             ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.base),
+          AppTextField(
+            label: 'FEEDBACK',
+            hint: '내용을 입력하세요.',
+            controller: _controller,
+            keyboardType: TextInputType.multiline,
+            maxLines: 5,
+            textInputAction: TextInputAction.newline,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return '내용을 입력해주세요.';
+              return null;
+            },
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(
+            label: isEditing ? '피드백 수정' : '피드백 남기기',
+            onPressed: _submit,
+            isLoading: _isLoading,
+            fullWidth: true,
+            size: AppButtonSize.lg,
+          ),
+        ],
       ),
     );
   }
@@ -284,37 +288,4 @@ class _FeedbackTemplate {
   final String content;
 
   const _FeedbackTemplate(this.label, this.content);
-}
-
-class _TemplateChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _TemplateChip({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.brand.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(AppRadius.full),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          child: Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.brand,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
