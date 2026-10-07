@@ -13,6 +13,7 @@ import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
+import '../../widgets/delete_account_sheet.dart';
 import 'trainer_calendar_screen.dart';
 import 'trainer_schedule_screen.dart';
 
@@ -176,6 +177,8 @@ class _TrainerProfileTab extends StatelessWidget {
                         },
                       ),
                     ),
+                    const Gap(AppSpacing.lg),
+                    const DeleteAccountLink(),
                   ],
                 ),
               ),

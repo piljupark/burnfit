@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../core/app_logger.dart';
 import '../models/user.dart';
+import '../services/account_service.dart';
 import '../services/auth_service.dart';
 import '../services/fcm_service.dart';
 import '../services/firestore_service.dart';
@@ -56,6 +57,15 @@ class UserProvider extends ChangeNotifier {
     FcmService.clearPendingTarget();
     if (uid != null) await FcmService.removeToken(uid);
     await AuthService.signOut();
+    _user = null;
+    notifyListeners();
+  }
+
+  /// 계정을 탈퇴한다. 실패하면 예외를 그대로 던지고 로그인 상태는 유지된다.
+  Future<void> deleteAccount(String password) async {
+    final uid = _user?.uid ?? AuthService.currentUser?.uid;
+    if (uid == null) throw StateError('로그인 상태가 아닙니다.');
+    await AccountService.deleteMyAccount(uid: uid, password: password);
     _user = null;
     notifyListeners();
   }

@@ -400,6 +400,19 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                               ),
                             ),
                           ),
+                          const AppRowDivider(),
+                          AppActionRow(
+                            icon: Icons.inventory_2_outlined,
+                            label: '탈퇴 회원 PT 이력',
+                            subtitle:
+                                '분쟁 대응용 · ${AccountService.ptRecordRetentionYears}년 보관 후 파기',
+                            iconColor: AppColors.textSecondary,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const AdminWithdrawnMembersScreen(),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),

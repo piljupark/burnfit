@@ -5,7 +5,9 @@ const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { getStorage } = require('firebase-admin/storage');
 const adminSetup = require('./admin_setup');
+const accountDeletion = require('./account_deletion');
 
 initializeApp();
 
@@ -170,11 +172,13 @@ exports.onFeedbackCreated = onDocumentCreated(
       general: '전체',
     };
     const targetLabel = targetLabels[feedback.targetType] ?? '기록';
+    const content = typeof feedback.content === 'string' ? feedback.content : '';
+    const preview = content.length > 40 ? `${content.slice(0, 40)}...` : content;
 
     await sendNotification(
       target,
-      `${feedback.trainerName} 트레이너가 피드백을 남겼습니다`,
-      `${targetLabel} 기록에 새 피드백: ${feedback.content.slice(0, 40)}${feedback.content.length > 40 ? '...' : ''}`,
+      `${feedback.trainerName ?? ''} 트레이너가 피드백을 남겼습니다`,
+      `${targetLabel} 기록에 새 피드백: ${preview}`,
       { type: 'feedback_created', feedbackId: event.params.feedbackId },
     );
   },
@@ -312,3 +316,76 @@ exports.registerCenterAdmin = onCall(
     return { uid: authUser.uid, centerId: centerRef.id };
   },
 );
+
+// ─────────────────────────────────────────────
+// 6. 회원 탈퇴 (callable)
+//    본인만, 방금 다시 로그인한 상태에서만 실행된다.
+//    데이터 → 사용자 문서 → 인증 계정 순으로 지워서, 중간에 실패해도 다시 실행하면 이어진다.
+// ─────────────────────────────────────────────
+
+const DELETION_PAGE_SIZE = 300;
+const DELETION_MAX_PAGES = 200;
+
+// 쿼리 결과가 빌 때까지 한 페이지씩 처리한다.
+// 지우거나, 갱신으로 조건에서 빠지는 문서에만 써야 한다 (계획의 updates가 모두 그렇다).
+async function drainQuery(query, applyToRef) {
+  let total = 0;
+  for (let page = 0; page < DELETION_MAX_PAGES; page += 1) {
+    const snap = await query.limit(DELETION_PAGE_SIZE).select().get();
+    if (snap.empty) return total;
+    const writer = db.bulkWriter();
+    snap.docs.forEach((doc) => applyToRef(writer, doc.ref));
+    await writer.close();
+    total += snap.size;
+  }
+  throw new Error(`drainQuery: ${DELETION_MAX_PAGES} 페이지를 넘었습니다`);
+}
+
+async function executeDeletionPlan(plan, uid) {
+  for (const { collection, where, data } of plan.updates) {
+    let query = db.collection(collection);
+    for (const [field, op, value] of where) query = query.where(field, op, value);
+    const payload = { ...data, updatedAt: FieldValue.serverTimestamp() };
+    await drainQuery(query, (writer, ref) => writer.update(ref, payload));
+  }
+  for (const { collection, field } of plan.deletes) {
+    await drainQuery(
+      db.collection(collection).where(field, '==', uid),
+      (writer, ref) => writer.delete(ref),
+    );
+  }
+  for (const prefix of plan.storagePrefixes) {
+    await getStorage().bucket().deleteFiles({ prefix });
+  }
+}
+
+exports.deleteMyAccount = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw userFacingError('unauthenticated', '로그인이 필요합니다.');
+  if (!accountDeletion.isRecentLogin(request.auth.token?.auth_time, Date.now())) {
+    throw userFacingError('failed-precondition', '보안을 위해 비밀번호를 다시 입력해주세요.');
+  }
+
+  const userRef = db.collection('users').doc(uid);
+  const user = (await userRef.get()).data();
+
+  let plan;
+  try {
+    plan = accountDeletion.buildDeletionPlan(user, uid);
+  } catch (e) {
+    if (e instanceof accountDeletion.DeletionRefused) throw userFacingError(e.code, e.message);
+    throw e;
+  }
+
+  try {
+    await executeDeletionPlan(plan, uid);
+    await userRef.delete();
+    await getAuth().deleteUser(uid);
+  } catch (e) {
+    console.error('[deleteMyAccount] 실패:', uid, e?.code ?? e?.message);
+    throw userFacingError('internal', '탈퇴 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+  }
+
+  console.log('[deleteMyAccount] 완료:', uid, user?.role ?? 'unknown');
+  return { deleted: true };
+});

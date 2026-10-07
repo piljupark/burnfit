@@ -17,6 +17,7 @@ import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_section.dart';
+import '../../widgets/delete_account_sheet.dart';
 import 'edit_profile_sheet.dart';
 import 'member_pt_workout_screen.dart';
 import 'member_share_settings_screen.dart';

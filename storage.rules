@@ -21,15 +21,19 @@ service firebase.storage {
       return signedIn() && currentUser().centerId == centerId;
     }
 
-    function isCenterAdmin(centerId) {
+    // firestore.rules와 같이, 역할 권한은 승인된 계정에만 준다.
+    function hasApprovedRole(role) {
       return signedIn() &&
-        currentUser().role == 'admin' &&
-        sameCenter(centerId);
+        currentUser().role == role &&
+        currentUser().status == 'approved';
+    }
+
+    function isCenterAdmin(centerId) {
+      return hasApprovedRole('admin') && sameCenter(centerId);
     }
 
     function isAssignedTrainer(memberId) {
-      return signedIn() &&
-        currentUser().role == 'trainer' &&
+      return hasApprovedRole('trainer') &&
         userDoc(memberId).data.trainerId == request.auth.uid &&
         userDoc(memberId).data.centerId == currentUser().centerId;
     }
@@ -55,6 +59,7 @@ service firebase.storage {
         sharesMeal(memberId);
 
       allow create: if isOwner(memberId) &&
+        hasApprovedRole('member') &&
         sameCenter(centerId) &&
         isImageUpload();
 

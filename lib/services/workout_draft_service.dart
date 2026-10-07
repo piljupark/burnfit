@@ -15,6 +15,16 @@ class WorkoutDraftService {
     return 'workout_draft_${memberId}_${workoutType}_$workoutDate';
   }
 
+  /// 이 기기에 남은 해당 사용자의 임시 저장 운동을 모두 지운다 (탈퇴 시).
+  static Future<void> clearAllFor(String memberId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final prefix = 'workout_draft_${memberId}_';
+    final keys = prefs.getKeys().where((key) => key.startsWith(prefix)).toList();
+    for (final key in keys) {
+      await prefs.remove(key);
+    }
+  }
+
   static Future<void> saveDraft({
     required String memberId,
     required String workoutDate,

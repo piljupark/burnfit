@@ -147,6 +147,19 @@ class FcmService {
     }
   }
 
+  /// 이 기기의 알림 연결만 끊는다 (사용자 문서는 건드리지 않음).
+  /// 탈퇴처럼 사용자 문서가 이미 없을 때 쓴다.
+  static Future<void> detachDevice() async {
+    clearPendingTarget();
+    await _tokenRefreshSub?.cancel();
+    _tokenRefreshSub = null;
+    try {
+      await _messaging.deleteToken();
+    } catch (e) {
+      AppLogger.debug('[FCM] 기기 토큰 삭제 실패: $e');
+    }
+  }
+
   // ── FCM 토큰 삭제 (로그아웃 시) ──
 
   static Future<void> removeToken(String uid) async {
