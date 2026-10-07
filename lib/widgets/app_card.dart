@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+
 import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 
 enum AppCardVariant { standard, tinted, outlined }
 
+/// 카드: canvasCard 면 + 1px hairline, 반경 8. 그림자는 쓰지 않는다.
+/// - [AppCardVariant.outlined]: 캔버스 위 외곽선만 (면 없음)
+/// - [AppCardVariant.tinted]: canvasSoft 면 (중첩·강조)
+///
+/// [hasShadow]는 기존 호출부 호환용이며 무시된다.
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -19,57 +25,37 @@ class AppCard extends StatelessWidget {
     this.padding,
     this.onTap,
     this.color,
-    this.hasBorder = false,
-    this.hasShadow = true,
+    this.hasBorder = true,
+    this.hasShadow = false,
     this.variant = AppCardVariant.standard,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bg = color ?? switch (variant) {
-      AppCardVariant.standard => AppColors.card,
-      AppCardVariant.tinted => AppColors.bg,
-      AppCardVariant.outlined => AppColors.card,
-    };
-
-    final shadow = hasShadow && variant == AppCardVariant.standard
-        ? const [
-            BoxShadow(
-              color: Color(0x08000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ]
-        : null;
-
-    final border = (hasBorder || variant == AppCardVariant.outlined)
-        ? Border.all(color: AppColors.border, width: 0.75)
-        : null;
-
-    final decoration = BoxDecoration(
-      color: bg,
-      borderRadius: BorderRadius.circular(AppRadius.xs),
-      border: border,
-      boxShadow: shadow,
-    );
-
-    final content = Container(
-      width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(AppSpacing.lg),
-      decoration: decoration,
-      child: child,
-    );
-
-    if (onTap == null) return content;
-
+    final bg = color ??
+        switch (variant) {
+          AppCardVariant.standard => AppColors.canvasCard,
+          AppCardVariant.tinted => AppColors.canvasSoft,
+          AppCardVariant.outlined => Colors.transparent,
+        };
+    final radius = BorderRadius.circular(AppRadius.card);
     return Material(
-      color: Colors.transparent,
+      color: bg,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: hasBorder || variant == AppCardVariant.outlined
+            ? const BorderSide(color: AppColors.hairline)
+            : BorderSide.none,
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        splashColor: AppColors.brand.withValues(alpha: 0.04),
-        highlightColor: AppColors.brand.withValues(alpha: 0.02),
-        child: content,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: Padding(
+          padding: padding ?? const EdgeInsets.all(AppSpacing.base),
+          child: child,
+        ),
       ),
     );
   }

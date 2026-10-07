@@ -1,95 +1,70 @@
 import 'package:flutter/material.dart';
+
 import '../core/app_colors.dart';
+import '../core/app_spacing.dart';
+import '../core/app_text_styles.dart';
 
-
+/// 하단 탭 항목. [icon]은 Phosphor Light, [activeIcon]은 같은 아이콘의 Fill.
 class AppNavItem {
   final String label;
   final IconData icon;
   final IconData activeIcon;
 
-  const AppNavItem({
-    required this.label,
-    required this.icon,
-    required this.activeIcon,
-  });
+  const AppNavItem({required this.label, required this.icon, required this.activeIcon});
 }
 
+/// 하단 탭: canvas 바탕 + 위 hairline. 선택은 색이 아니라 모양(Fill)으로 바꾸고 글자도 ink로.
 class AppNavBar extends StatelessWidget {
   final int currentIndex;
   final void Function(int) onTap;
   final List<AppNavItem> items;
 
-  const AppNavBar({
-    super.key,
-    required this.currentIndex,
-    required this.onTap,
-    required this.items,
-  });
+  const AppNavBar({super.key, required this.currentIndex, required this.onTap, required this.items});
 
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
-
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-        border: Border.all(
-          color: const Color(0xFFEEEEEE),
-          width: 1,
-        ),
+      decoration: const BoxDecoration(
+        color: AppColors.canvas,
+        border: Border(top: BorderSide(color: AppColors.hairline)),
       ),
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottom),
-        child: SizedBox(
-          height: 70,
-          child: Row(
-            children: List.generate(items.length, (i) {
-              final active = i == currentIndex;
-              final item = items[i];
-              return Expanded(
+      padding: EdgeInsets.only(bottom: bottom),
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          children: List.generate(items.length, (i) {
+            final active = i == currentIndex;
+            final item = items[i];
+            final color = active ? AppColors.ink : AppColors.mute;
+            return Expanded(
+              child: Semantics(
+                button: true,
+                selected: active,
+                label: item.label,
+                excludeSemantics: true,
                 child: GestureDetector(
                   onTap: () => onTap(i),
                   behavior: HitTestBehavior.opaque,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 150),
-                        child: Icon(
-                          active ? item.activeIcon : item.icon,
-                          key: ValueKey(active),
-                          size: 27,
-                          color: active ? const Color(0xFF111111) : const Color(0xFFBBBBBB),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 150),
-                        style: TextStyle(
-                          fontFamily: 'WantedSans',
-                          fontSize: 10,
-                          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                          color: active ? const Color(0xFF111111) : const Color(0xFFBBBBBB),
-                          height: 1.0,
-                        ),
-                        child: Text(item.label),
-                      ),
+                      Icon(active ? item.activeIcon : item.icon, size: AppSize.iconNav, color: color),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(item.label, style: AppTextStyles.badge.copyWith(color: color, fontWeight: FontWeight.w400)),
                     ],
                   ),
                 ),
-              );
-            }),
-          ),
+              ),
+            );
+          }),
         ),
       ),
     );
   }
 }
 
+/// 기존 호출부 호환용 (쓰지 않음).
 class AppFloatingPlusButton extends StatelessWidget {
   final VoidCallback onTap;
   const AppFloatingPlusButton({super.key, required this.onTap});

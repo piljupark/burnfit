@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:iconsax/iconsax.dart';
 import 'package:provider/provider.dart';
 
-import '../core/app_colors.dart';
+import '../core/app_icons.dart';
 import '../screens/common/notifications_screen.dart';
 import '../services/notification_service.dart';
 import '../services/user_provider.dart';
+import 'app_icon_button.dart';
 
 /// 홈 상단 알림 버튼. 안 읽은 알림이 있으면 점을 표시하고, 누르면 알림함을 연다.
 class NotificationBellButton extends StatefulWidget {
@@ -36,39 +36,12 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
       stream: _unreadCount,
       builder: (context, snapshot) {
         final unread = snapshot.data ?? 0;
-        return Semantics(
-          button: true,
+        return AppIconButton(
+          icon: AppIcons.bell,
           label: unread > 0 ? '알림, 새 알림 $unread개' : '알림',
-          excludeSemantics: true,
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-            ),
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              // 24px 아이콘 + 여백 = 44px 터치 영역
-              padding: const EdgeInsets.all(10),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Iconsax.notification, size: 24, color: AppColors.textPrimary),
-                  if (unread > 0)
-                    Positioned(
-                      right: 1,
-                      top: 1,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: AppColors.destructive,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.bg, width: 1.5),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+          showDot: unread > 0,
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
           ),
         );
       },

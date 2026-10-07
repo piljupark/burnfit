@@ -101,7 +101,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('회원 탈퇴', style: AppTextStyles.h3),
+          Text('회원 탈퇴', style: AppTextStyles.title),
           const Gap(AppSpacing.xs),
           Text(
             isTrainer ? '탈퇴하면 계정이 삭제되고 다음과 같이 처리됩니다.' : '탈퇴하면 아래 정보가 모두 삭제됩니다.',
@@ -130,10 +130,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
           const Gap(AppSpacing.xs),
           Text(
             '삭제된 정보는 복구할 수 없습니다.',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.destructive,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.danger),
           ),
           const Gap(AppSpacing.lg),
           AppTextField(
@@ -166,7 +163,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
               Expanded(
                 child: AppButton(
                   label: '취소',
-                  variant: AppButtonVariant.secondary,
+                  variant: AppButtonVariant.ghost,
                   onPressed: _isDeleting ? null : () => Navigator.of(context).pop(false),
                   fullWidth: true,
                   size: AppButtonSize.lg,

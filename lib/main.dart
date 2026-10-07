@@ -55,7 +55,8 @@ class PtSolutionApp extends StatelessWidget {
       child: MaterialApp(
         title: 'PT Solution',
         scaffoldMessengerKey: scaffoldMessengerKey,
-        theme: AppTheme.light,
+        theme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,

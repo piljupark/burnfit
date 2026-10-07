@@ -83,7 +83,7 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('비밀번호 재설정', style: AppTextStyles.h3),
+          Text('비밀번호 재설정', style: AppTextStyles.title),
           const Gap(AppSpacing.xs),
           Text(
             '가입한 이메일로 비밀번호 재설정 링크를 보내드려요.',

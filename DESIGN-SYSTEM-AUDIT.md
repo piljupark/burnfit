@@ -1,3 +1,5 @@
+> ⚠️ 이 문서는 이전(Toss 기준 라이트 테마) 디자인 시스템 기록입니다. 현재 기준은 `docs/design-system.md`(Galloway 다크)입니다.
+
 # Design System Audit — BurnFit
 
 > 작성일: 2026-09-07  

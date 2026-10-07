@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/app_feedback.dart';
 import '../core/app_spacing.dart';
+import 'orb_loader.dart';
 
 /// 목록 화면 본문의 공통 상태 처리: 로딩 → 오류 → 빈 상태 → 내용.
 /// 모든 상태에서 당겨서 새로고침이 된다.
@@ -14,6 +15,9 @@ class AppAsyncBody extends StatelessWidget {
   final Widget empty;
   final List<Widget> children;
 
+  /// 목록 여백. 화면 폭 hairline 목록은 EdgeInsets.zero를 준다.
+  final EdgeInsetsGeometry padding;
+
   const AppAsyncBody({
     super.key,
     required this.isLoading,
@@ -22,20 +26,14 @@ class AppAsyncBody extends StatelessWidget {
     required this.onRefresh,
     required this.empty,
     required this.children,
+    this.padding = const EdgeInsets.fromLTRB(AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.xl2),
   });
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.brand));
+      return const AppLoadingView();
     }
-
-    const padding = EdgeInsets.fromLTRB(
-      AppSpacing.screenH,
-      0,
-      AppSpacing.screenH,
-      AppSpacing.xl2,
-    );
 
     final List<Widget> content;
     if (errorMessage != null) {

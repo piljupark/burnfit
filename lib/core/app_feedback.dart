@@ -5,8 +5,11 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import '../widgets/app_button.dart';
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_spacing.dart';
+import 'app_text_styles.dart';
 
 class AppFeedback {
   AppFeedback._();
@@ -61,23 +64,40 @@ class AppFeedback {
     return '처리 중 오류가 발생했습니다. 다시 시도해주세요.';
   }
 
+  /// 오류 토스트: 카드 면 pill + 경고 아이콘. 빨간 바탕은 쓰지 않는다.
   static void showErrorSnackBar(BuildContext context, Object error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(errorMessage(error)),
-        backgroundColor: AppColors.destructive,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    _showToast(context, errorMessage(error), icon: AppIcons.warning);
+  }
+
+  /// 입력 확인·안내처럼 오류 객체가 없는 경고 문구 토스트.
+  static void showWarning(BuildContext context, String message) {
+    _showToast(context, message, icon: AppIcons.warning);
   }
 
   static void showSuccessSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
+    _showToast(context, message);
+  }
+
+  static void _showToast(BuildContext context, String message, {IconData? icon}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: AppSize.icon, color: AppColors.body),
+                const SizedBox(width: AppSpacing.md),
+              ],
+              Expanded(child: Text(message, style: AppTextStyles.buttonLabel)),
+            ],
+          ),
+        ),
+      );
   }
 }
 
+/// 오류 안내: 카드 + 경고 아이콘 + 문구 + 외곽선 "다시 시도".
 class AppErrorCard extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -86,59 +106,25 @@ class AppErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.xs),
-            border: Border.all(color: AppColors.border, width: 0.5),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.wifi_off_rounded,
-                color: AppColors.textDisabled,
-                size: 28,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 14),
-              GestureDetector(
-                onTap: onRetry,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.brand,
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                  ),
-                  child: const Text(
-                    '다시 시도',
-                    style: TextStyle(
-                      color: AppColors.textOnAccent,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.base),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        decoration: BoxDecoration(
+          color: AppColors.canvasCard,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: AppColors.hairline),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(AppIcons.warning, color: AppColors.body, size: 28),
+            const SizedBox(height: AppSpacing.md),
+            Text(message, textAlign: TextAlign.center, style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
+            const SizedBox(height: AppSpacing.base),
+            AppButton(label: '다시 시도', variant: AppButtonVariant.secondary, onPressed: onRetry),
+          ],
         ),
       ),
     );

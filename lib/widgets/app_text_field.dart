@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../core/app_colors.dart';
+import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+import 'app_tag.dart';
 
+/// 입력창: canvasSoft 면 + hairline, 반경 8, 높이 48. 포커스는 흰 테두리, 오류는 danger.
+///
+/// 라벨은 입력창 위에 둔다. 영문 라벨(EMAIL 등)은 모노 대문자, 한글 라벨은 sans 13.
+/// [fillColor]·[showEnabledBorder]·[labelAbove]는 기존 호출부 호환용이다
+/// (라벨은 항상 위, 테두리는 항상 hairline).
 class AppTextField extends StatefulWidget {
   final String label;
   final String? hint;
@@ -25,6 +33,8 @@ class AppTextField extends StatefulWidget {
   final Color? fillColor;
   final bool showEnabledBorder;
   final bool labelAbove;
+  final String? helper;
+  final VoidCallback? onTap;
 
   const AppTextField({
     super.key,
@@ -46,8 +56,10 @@ class AppTextField extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     this.fillColor,
-    this.showEnabledBorder = false,
-    this.labelAbove = false,
+    this.showEnabledBorder = true,
+    this.labelAbove = true,
+    this.helper,
+    this.onTap,
   });
 
   @override
@@ -55,141 +67,77 @@ class AppTextField extends StatefulWidget {
 }
 
 class _AppTextFieldState extends State<AppTextField> {
-  bool _obscure = true;
-  bool _focused = false;
-  late FocusNode _node;
-
-  @override
-  void initState() {
-    super.initState();
-    _obscure = widget.obscureText;
-    _node = widget.focusNode ?? FocusNode();
-    _node.addListener(() {
-      if (mounted) setState(() => _focused = _node.hasFocus);
-    });
-  }
-
-  @override
-  void dispose() {
-    if (widget.focusNode == null) _node.dispose();
-    super.dispose();
-  }
+  late bool _obscure = widget.obscureText;
 
   @override
   Widget build(BuildContext context) {
-    final effectiveKeyboardType =
-        widget.maxLines > 1 && widget.keyboardType == TextInputType.text
-        ? TextInputType.multiline
-        : widget.keyboardType;
-    final radius = BorderRadius.circular(AppRadius.xs);
+    final multiline = widget.maxLines > 1 && !widget.obscureText;
+    final keyboardType =
+        multiline && widget.keyboardType == TextInputType.text ? TextInputType.multiline : widget.keyboardType;
 
     final field = TextFormField(
       controller: widget.controller,
       validator: widget.validator,
-      keyboardType: effectiveKeyboardType,
-      obscureText: widget.obscureText ? _obscure : false,
+      keyboardType: keyboardType,
+      obscureText: widget.obscureText && _obscure,
       readOnly: widget.readOnly,
+      onTap: widget.onTap,
       maxLines: widget.obscureText ? 1 : widget.maxLines,
       maxLength: widget.maxLength,
       inputFormatters: widget.inputFormatters,
       onChanged: widget.onChanged,
       onFieldSubmitted: widget.onSubmitted,
       textInputAction: widget.textInputAction,
-      focusNode: _node,
+      focusNode: widget.focusNode,
       autofocus: widget.autofocus,
-      style: AppTextStyles.body.copyWith(
-        color: AppColors.textPrimary,
-        fontWeight: FontWeight.w400,
-      ),
-      cursorColor: AppColors.brand,
+      style: AppTextStyles.bodyMd,
+      cursorColor: AppColors.ink,
       decoration: InputDecoration(
-        labelText: widget.labelAbove ? null : widget.label,
         hintText: widget.hint,
-        filled: true,
-        fillColor: widget.fillColor ?? (_focused ? AppColors.card : AppColors.bg),
-        prefixIcon: widget.prefix != null
-            ? Padding(
-                padding: const EdgeInsets.only(left: 12, right: 4),
-                child: widget.prefix,
-              )
-            : null,
+        counterText: '',
+        prefixIcon: widget.prefix == null
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.base, right: AppSpacing.sm),
+                child: IconTheme(
+                  data: const IconThemeData(color: AppColors.mute, size: AppSize.icon),
+                  child: widget.prefix!,
+                ),
+              ),
         prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         suffixIcon: widget.obscureText
             ? IconButton(
-                icon: Icon(
-                  _obscure
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  size: 20,
-                  color: AppColors.textSecondary,
-                ),
+                tooltip: _obscure ? '비밀번호 보기' : '비밀번호 숨기기',
+                icon: Icon(_obscure ? AppIcons.eye : AppIcons.eyeSlash, size: AppSize.icon, color: AppColors.body),
                 onPressed: () => setState(() => _obscure = !_obscure),
               )
             : widget.suffix,
-        counterText: '',
         contentPadding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: widget.maxLines > 1 ? AppSpacing.base : AppSpacing.itemV,
-        ),
-        border: OutlineInputBorder(
-          borderSide: BorderSide.none,
-          borderRadius: radius,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderSide: widget.showEnabledBorder
-              ? const BorderSide(color: AppColors.border, width: 1)
-              : BorderSide.none,
-          borderRadius: radius,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(
-            color: AppColors.brand,
-            width: 1.5,
-          ),
-          borderRadius: radius,
-        ),
-        errorBorder: OutlineInputBorder(
-          borderSide: const BorderSide(
-            color: AppColors.destructive,
-            width: 1,
-          ),
-          borderRadius: radius,
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderSide: const BorderSide(
-            color: AppColors.destructive,
-            width: 1.5,
-          ),
-          borderRadius: radius,
-        ),
-        labelStyle: AppTextStyles.bodySmall.copyWith(
-          color: _focused
-              ? AppColors.brand
-              : AppColors.textSecondary,
-        ),
-        hintStyle: AppTextStyles.bodySmall.copyWith(
-          color: AppColors.textTertiary,
-        ),
-        errorStyle: AppTextStyles.captionSmall.copyWith(
-          color: AppColors.destructive,
+          horizontal: AppSpacing.base,
+          vertical: multiline ? AppSpacing.md : 13,
         ),
       ),
     );
 
-    if (!widget.labelAbove) return field;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          widget.label,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
+        if (widget.label.isNotEmpty) ...[
+          Text(
+            monoCase(widget.label),
+            style: monoOrSans(
+              widget.label,
+              mono: AppTextStyles.eyebrow,
+              sans: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.sm),
+        ],
         field,
+        if (widget.helper != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(widget.helper!, style: AppTextStyles.bodySm),
+        ],
       ],
     );
   }

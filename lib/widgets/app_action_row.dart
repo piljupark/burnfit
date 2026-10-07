@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
+
 import '../core/app_colors.dart';
+import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+import 'app_tag.dart';
 
+/// 메뉴·목록 한 줄: 아이콘 상자 + 라벨(17) + 보조 줄 + 오른쪽(배지·화살표).
+/// 파괴적 행([isDestructive])은 맨 아래, 라벨과 아이콘 모두 danger.
+/// [iconColor]·[badgeColor]는 기존 호출부 호환용이며 색으로 구분하지 않는다.
 class AppActionRow extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -13,6 +18,8 @@ class AppActionRow extends StatelessWidget {
   final Color? badgeColor;
   final bool isDestructive;
   final Color? iconColor;
+  final Widget? trailing;
+  final bool showChevron;
 
   const AppActionRow({
     super.key,
@@ -24,90 +31,45 @@ class AppActionRow extends StatelessWidget {
     this.badgeColor,
     this.isDestructive = false,
     this.iconColor,
+    this.trailing,
+    this.showChevron = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? AppColors.destructive : AppColors.textPrimary;
-    final iColor = iconColor ?? (isDestructive ? AppColors.destructive : AppColors.brand);
-    final bColor = badgeColor ?? AppColors.brand;
-
-    return Material(
-      color: Colors.transparent,
+    final fg = isDestructive ? AppColors.danger : AppColors.ink;
+    return Semantics(
+      button: true,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        splashColor: AppColors.brand.withValues(alpha: 0.04),
-        highlightColor: Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.base,
-            vertical: AppSpacing.md + 2,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: iColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                ),
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: iColor,
-                ),
-              ),
-              const Gap(AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: color,
-                        fontSize: 15,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const Gap(AppSpacing.xxs),
-                      Text(
-                        subtitle!,
-                        style: AppTextStyles.caption.copyWith(
-                          color: badge != null
-                              ? bColor.withValues(alpha: 0.8)
-                              : AppColors.textTertiary,
-                        ),
-                      ),
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.sm),
+            child: Row(
+              children: [
+                if (isDestructive)
+                  SizedBox(width: 40, child: Icon(icon, size: AppSize.icon, color: fg))
+                else
+                  _IconTile(icon: icon),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: (isDestructive ? AppTextStyles.bodyMd : AppTextStyles.bodyLg).copyWith(color: fg)),
+                      if (subtitle != null) Text(subtitle!, style: AppTextStyles.bodySm),
                     ],
-                  ],
-                ),
-              ),
-              if (badge != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: bColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.full),
                   ),
-                  child: Text(
-                    badge!,
-                    style: AppTextStyles.captionSmall.copyWith(
-                      color: bColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                )
-              else if (!isDestructive)
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: AppColors.textDisabled,
                 ),
-            ],
+                if (badge != null) ...[AppTag(badge!, strong: true), const SizedBox(width: AppSpacing.sm)],
+                ?trailing,
+                if (showChevron && !isDestructive && trailing == null)
+                  const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+              ],
+            ),
           ),
         ),
       ),
@@ -115,18 +77,32 @@ class AppActionRow extends StatelessWidget {
   }
 }
 
-class AppRowDivider extends StatelessWidget {
-  const AppRowDivider({super.key});
+class _IconTile extends StatelessWidget {
+  final IconData icon;
+
+  const _IconTile({required this.icon});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: AppSpacing.base + 40 + AppSpacing.md),
-      child: Divider(
-        height: 0.5,
-        thickness: 0.5,
-        color: AppColors.border,
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: AppColors.canvasSoft,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.hairline),
       ),
+      child: Icon(icon, size: AppSize.icon, color: AppColors.ink),
     );
   }
+}
+
+/// 목록 구분선 (1px hairline, 화면 폭).
+class AppRowDivider extends StatelessWidget {
+  final double indent;
+
+  const AppRowDivider({super.key, this.indent = 0});
+
+  @override
+  Widget build(BuildContext context) => Divider(height: 1, thickness: 1, indent: indent, color: AppColors.hairline);
 }

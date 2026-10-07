@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
+
 import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+import 'app_button.dart';
+import 'app_tag.dart';
 
+/// 섹션 머리말 (패딩 없는 버전 — 이미 여백이 있는 열 안에서 쓴다).
+/// 라벨 + hairline + (선택) 오른쪽 글자 행동. 화면 폭 머리말은 AppMonthHeader.
 class AppSectionHeader extends StatelessWidget {
   final String title;
   final String? trailing;
   final VoidCallback? onTrailingTap;
-  // API 호환성 유지 — 시각적으로 사용하지 않음
+  final String? count;
+
+  /// 기존 호출부 호환용 — 색으로 구분하지 않으므로 무시된다.
   final Color? accentColor;
 
   const AppSectionHeader({
@@ -17,33 +23,36 @@ class AppSectionHeader extends StatelessWidget {
     this.trailing,
     this.onTrailingTap,
     this.accentColor,
+    this.count,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(
-          child: Text(
+        Text(
+          monoCase(title),
+          style: monoOrSans(
             title,
-            style: AppTextStyles.h3.copyWith(
-              color: AppColors.textPrimary,
-            ),
+            mono: AppTextStyles.eyebrow.copyWith(color: AppColors.ink),
+            sans: AppTextStyles.bodySm.copyWith(color: AppColors.ink),
           ),
         ),
+        if (count != null) ...[
+          const SizedBox(width: AppSpacing.sm),
+          Text(monoCase(count!), style: AppTextStyles.eyebrow),
+        ],
+        const SizedBox(width: AppSpacing.sm),
+        const Expanded(child: Divider(height: 1, color: AppColors.hairline)),
         if (trailing != null)
-          GestureDetector(
-            onTap: onTrailingTap,
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.base),
-              child: Text(
-                trailing!,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.brand,
-                  fontWeight: FontWeight.w500,
-                ),
+          Semantics(
+            button: true,
+            child: GestureDetector(
+              onTap: onTrailingTap,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.md, 0, AppSpacing.md),
+                child: Text(trailing!, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
               ),
             ),
           ),
@@ -52,9 +61,12 @@ class AppSectionHeader extends StatelessWidget {
   }
 }
 
+/// 빈 상태: 사진 타일과 pill을 본뜬 단색 도형 + 한 줄 제목 + (선택) 주 행동 하나.
+/// 아이콘·캐릭터 그림은 쓰지 않는다. [icon]은 기존 호출부 호환용이며 그리지 않는다.
 class AppEmptyState extends StatelessWidget {
   final IconData icon;
   final String message;
+  final String? description;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -62,61 +74,65 @@ class AppEmptyState extends StatelessWidget {
     super.key,
     required this.icon,
     required this.message,
+    this.description,
     this.actionLabel,
     this.onAction,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xl,
-        vertical: AppSpacing.xl3,
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.xl3),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.bg,
-              borderRadius: BorderRadius.circular(AppRadius.xs),
+          const _EmptyArt(),
+          const SizedBox(height: AppSpacing.xl),
+          Text(message, style: AppTextStyles.title, textAlign: TextAlign.center),
+          if (description != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 260),
+              child: Text(description!, style: AppTextStyles.bodySm, textAlign: TextAlign.center),
             ),
-            child: Icon(icon, size: 26, color: AppColors.textDisabled),
-          ),
-          const Gap(AppSpacing.base),
-          Text(
-            message,
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.textTertiary,
-            ),
-            textAlign: TextAlign.center,
-          ),
+          ],
           if (actionLabel != null && onAction != null) ...[
-            const Gap(AppSpacing.lg),
-            GestureDetector(
-              onTap: onAction,
+            const SizedBox(height: AppSpacing.xl),
+            AppButton(label: actionLabel!, onPressed: onAction),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyArt extends StatelessWidget {
+  const _EmptyArt();
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: 120,
+        height: 72,
+        child: Stack(
+          children: [
+            Positioned(left: 0, top: 12, child: Container(width: 56, height: 56, color: AppColors.accentBreeze)),
+            Positioned(left: 58, top: 12, child: Container(width: 56, height: 56, color: AppColors.canvasMid)),
+            Positioned(
+              left: 28,
+              top: 0,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.sm,
-                ),
+                width: 64,
+                height: 28,
                 decoration: BoxDecoration(
-                  color: AppColors.brand.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                ),
-                child: Text(
-                  actionLabel!,
-                  style: AppTextStyles.label.copyWith(
-                    color: AppColors.brand,
-                  ),
+                  color: AppColors.accentSunset,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }

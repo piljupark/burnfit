@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
+
 import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+import 'orb_loader.dart';
 
-enum AppButtonVariant { primary, secondary, ghost, danger }
+/// 버튼 모양은 pill 하나뿐.
+/// - [primary]: 흰 채움. 화면당 하나의 주 행동에만.
+/// - [secondary]: 흰 외곽선(기본 모양). 대부분의 행동.
+/// - [ghost]: 테두리 없음. 취소·보조 행동.
+/// - [danger]: 외곽선 + 빨간 글자. 되돌릴 수 없는 행동에만.
+/// - [dangerText]: 테두리 없는 빨간 글자.
+enum AppButtonVariant { primary, secondary, ghost, danger, dangerText }
 
+/// sm 32 · md 40 · lg 52(폼 대표 버튼). 시각 높이와 별개로 터치 영역은 44 이상.
 enum AppButtonSize { sm, md, lg }
 
-class AppButton extends StatefulWidget {
+class AppButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final AppButtonVariant variant;
@@ -28,155 +37,88 @@ class AppButton extends StatefulWidget {
   });
 
   @override
-  State<AppButton> createState() => _AppButtonState();
-}
-
-class _AppButtonState extends State<AppButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 80),
-      reverseDuration: const Duration(milliseconds: 200),
-      lowerBound: 0.0,
-      upperBound: 1.0,
-      value: 0,
-    );
-    _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  void _onTapDown(_) => _ctrl.forward();
-  void _onTapUp(_) => _ctrl.reverse();
-  void _onTapCancel() => _ctrl.reverse();
-
-  @override
   Widget build(BuildContext context) {
-    final disabled = widget.onPressed == null || widget.isLoading;
-
-    final height = switch (widget.size) {
-      AppButtonSize.sm => 40.0,
-      AppButtonSize.md => 52.0,
-      AppButtonSize.lg => 56.0,
+    final disabled = onPressed == null || isLoading;
+    final height = switch (size) {
+      AppButtonSize.sm => AppSize.buttonHeightSm,
+      AppButtonSize.md => AppSize.buttonHeight,
+      AppButtonSize.lg => AppSize.buttonHeightLg,
+    };
+    final hPad = switch (size) {
+      AppButtonSize.sm => AppSpacing.md,
+      AppButtonSize.md => AppSpacing.base,
+      AppButtonSize.lg => AppSpacing.xl,
+    };
+    final fontSize = switch (size) {
+      AppButtonSize.sm => 13.0,
+      AppButtonSize.md => 14.0,
+      AppButtonSize.lg => 15.0,
+    };
+    final isPrimary = variant == AppButtonVariant.primary;
+    final fg = switch (variant) {
+      AppButtonVariant.primary => AppColors.onPrimary,
+      AppButtonVariant.danger || AppButtonVariant.dangerText => AppColors.danger,
+      _ => AppColors.ink,
+    };
+    final borderColor = switch (variant) {
+      AppButtonVariant.primary => AppColors.primary,
+      AppButtonVariant.secondary || AppButtonVariant.danger => AppColors.outline,
+      _ => Colors.transparent,
     };
 
-    final hPad = switch (widget.size) {
-      AppButtonSize.sm => 16.0,
-      AppButtonSize.md => 24.0,
-      AppButtonSize.lg => 28.0,
-    };
+    final content = Row(
+      mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (isLoading) ...[
+          OrbLoader.inline(color: fg),
+          const SizedBox(width: AppSpacing.sm),
+        ] else if (icon != null) ...[
+          IconTheme(data: IconThemeData(color: fg, size: 18), child: icon!),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.buttonLabel.copyWith(color: fg, fontSize: fontSize),
+          ),
+        ),
+      ],
+    );
 
-    // Toss 스타일: sm은 sm 반경, md/lg는 lg 반경
-    final radius = switch (widget.size) {
-      AppButtonSize.sm => AppRadius.xs,
-      AppButtonSize.md => AppRadius.xs,
-      AppButtonSize.lg => AppRadius.xs,
-    };
-
-    final bg = switch (widget.variant) {
-      AppButtonVariant.primary =>
-        disabled
-            ? AppColors.brand.withValues(alpha: 0.35)
-            : AppColors.brand,
-      AppButtonVariant.secondary =>
-        disabled
-            ? AppColors.bg
-            : AppColors.bg,
-      AppButtonVariant.ghost => Colors.transparent,
-      AppButtonVariant.danger =>
-        disabled
-            ? AppColors.destructive.withValues(alpha: 0.4)
-            : AppColors.destructive,
-    };
-
-    final fg = switch (widget.variant) {
-      AppButtonVariant.primary =>
-        disabled ? AppColors.textDisabled : AppColors.textOnAccent,
-      AppButtonVariant.secondary =>
-        disabled ? AppColors.textDisabled : AppColors.textPrimary,
-      AppButtonVariant.ghost =>
-        disabled ? AppColors.textDisabled : AppColors.brand,
-      AppButtonVariant.danger => AppColors.textOnAccent,
-    };
-
-    final border = switch (widget.variant) {
-      AppButtonVariant.secondary => Border.all(
-        color: AppColors.border,
-        width: 1.0,
-      ),
-      _ => null,
-    };
-
-    final content = widget.isLoading
-        ? SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: fg),
-          )
-        : Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (widget.icon != null) ...[
-                IconTheme(
-                  data: IconThemeData(color: fg, size: 18),
-                  child: widget.icon!,
-                ),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                widget.label,
-                style: AppTextStyles.button.copyWith(
-                  color: fg,
-                  fontSize: switch (widget.size) {
-                    AppButtonSize.sm => 14.0,
-                    AppButtonSize.md => 16.0,
-                    AppButtonSize.lg => 16.0,
-                  },
+    return Semantics(
+      button: true,
+      enabled: !disabled,
+      child: Opacity(
+        opacity: disabled && !isLoading ? 0.4 : 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppSize.touchMin),
+          child: Center(
+            heightFactor: 1,
+            child: SizedBox(
+              height: height,
+              width: fullWidth ? double.infinity : null,
+              child: Material(
+                color: isPrimary ? AppColors.primary : Colors.transparent,
+                shape: StadiumBorder(side: BorderSide(color: borderColor)),
+                child: InkWell(
+                  customBorder: const StadiumBorder(),
+                  onTap: disabled ? null : onPressed,
+                  // 눌림: 외곽선은 canvasSoft, primary는 body
+                  highlightColor: isPrimary ? AppColors.body : AppColors.canvasSoft,
+                  splashFactory: NoSplash.splashFactory,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: hPad),
+                    child: content,
+                  ),
                 ),
               ),
-            ],
-          );
-
-    Widget button = GestureDetector(
-      onTap: disabled ? null : widget.onPressed,
-      onTapDown: disabled ? null : _onTapDown,
-      onTapUp: disabled ? null : _onTapUp,
-      onTapCancel: disabled ? null : _onTapCancel,
-      child: AnimatedBuilder(
-        animation: _scale,
-        builder: (_, child) => Transform.scale(
-          scale: _scale.value,
-          child: child,
-        ),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          height: height,
-          padding: EdgeInsets.symmetric(horizontal: hPad),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(radius),
-            border: border,
+            ),
           ),
-          alignment: Alignment.center,
-          child: content,
         ),
       ),
     );
-
-    if (widget.fullWidth) return SizedBox(width: double.infinity, child: button);
-    return button;
   }
 }

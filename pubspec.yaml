@@ -42,7 +42,8 @@ dependencies:
   # iOS Liquid Glass
   cupertino_liquid_glass: ^0.6.0
 
-  # Icons
+  # Icons (Phosphor Light/Fill — Galloway 디자인 시스템)
+  phosphor_icons: ^3.0.1
   iconsax: ^0.0.8
 
 
@@ -77,3 +78,8 @@ flutter:
           weight: 800
         - asset: assets/fonts/WantedSans-Black.otf
           weight: 900
+    # 영문·숫자 머리말, 카운터 전용 (한글에는 쓰지 않는다). OFL: assets/fonts/LICENSE-GeistMono.txt
+    - family: GeistMono
+      fonts:
+        - asset: assets/fonts/GeistMono-Regular.ttf
+          weight: 400
