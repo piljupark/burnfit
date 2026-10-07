@@ -262,7 +262,8 @@ exports.registerCenterAdmin = onCall(
       .doc(adminSetup.throttleKey(request.rawRequest?.ip));
     await assertNotThrottled(throttleRef);
 
-    if (!adminSetup.setupCodeMatches(input.setupCode, ADMIN_SETUP_CODE.value())) {
+    // 비밀값 저장 시 끝에 줄바꿈이 섞여도 맞도록 앞뒤 공백을 지우고 비교한다.
+    if (!adminSetup.setupCodeMatches(input.setupCode, ADMIN_SETUP_CODE.value().trim())) {
       await recordFailure(throttleRef);
       throw userFacingError('permission-denied', '설정 코드가 올바르지 않습니다.');
     }
