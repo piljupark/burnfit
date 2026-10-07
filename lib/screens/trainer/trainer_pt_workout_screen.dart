@@ -67,12 +67,9 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 
   bool _loading = false;
   bool _saving = false;
-  bool _sessionStarted = false;
   String? _errorMessage;
 
-  DateTime _startedAt = DateTime.now();
-  int _elapsedSeconds = 0;
-  Timer? _elapsedTimer;
+  // 운동 시간은 기록하지 않는다 (회원 운동일지와 같은 기준). 세션 시각·길이는 예약 정보로 보여준다.
 
   String get _workoutDate =>
       DateFormat('yyyy-MM-dd').format(widget.session.scheduledAt);
@@ -80,18 +77,11 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
   @override
   void initState() {
     super.initState();
-    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted || !_sessionStarted) return;
-      setState(() {
-        _elapsedSeconds = DateTime.now().difference(_startedAt).inSeconds;
-      });
-    });
     _load();
   }
 
   @override
   void dispose() {
-    _elapsedTimer?.cancel();
     _noteController.dispose();
     for (final e in _exercises) {
       e.dispose();
@@ -249,12 +239,6 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     setState(() {
       final set = _exercises[exerciseIndex].sets[setIndex];
       set.done = !set.done;
-      if (set.done && !_sessionStarted) {
-        _sessionStarted = true;
-        _startedAt = DateTime.now().subtract(
-          Duration(seconds: _elapsedSeconds),
-        );
-      }
     });
   }
 
@@ -297,9 +281,6 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     _noteController.clear();
     _editingWorkoutId = null;
     _focusedIndex = 0;
-    _startedAt = DateTime.now();
-    _elapsedSeconds = 0;
-    _sessionStarted = false;
   }
 
   // ── Save / Edit / Delete ──
@@ -337,7 +318,6 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
           workoutDate: _workoutDate,
           category: _exercises.first.category,
           exercises: exercises,
-          durationSeconds: _elapsedSeconds,
           note: _noteController.text.trim().isEmpty
               ? null
               : _noteController.text.trim(),
@@ -357,7 +337,6 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
           workoutId: _editingWorkoutId!,
           category: _exercises.first.category,
           exercises: exercises,
-          durationSeconds: _elapsedSeconds,
           note: _noteController.text.trim().isEmpty
               ? null
               : _noteController.text.trim(),
@@ -393,11 +372,6 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       _focusedIndex = 0;
       _defaultCategory = workout.category;
       _noteController.text = workout.note ?? '';
-      _elapsedSeconds = workout.durationSeconds;
-      _sessionStarted = false;
-      _startedAt = DateTime.now().subtract(
-        Duration(seconds: workout.durationSeconds),
-      );
 
       for (final exercise in workout.exercises) {
         _exercises.add(
@@ -494,20 +468,10 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 
   // ── Build ──
 
-  void _startSession() {
-    if (_sessionStarted) return;
-    setState(() {
-      _sessionStarted = true;
-      _startedAt = DateTime.now().subtract(
-        Duration(seconds: _elapsedSeconds),
-      );
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final editing = _editingWorkoutId != null;
-    final canSave = (_sessionStarted || editing) && _hasContent;
+    final canSave = _hasContent;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -539,9 +503,8 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
             _BottomBar(
               saving: _saving,
               editing: editing,
-              sessionStarted: _sessionStarted,
+              canSave: canSave,
               onAddExercise: _showExercisePicker,
-              onStart: _startSession,
               onSave: _saveWorkout,
             ),
           ],
@@ -572,8 +535,6 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
         _MemberRow(
           member: widget.member,
           subtitle: subtitle,
-          elapsed: trainerFormatDuration(_elapsedSeconds),
-          running: _sessionStarted,
           editing: editing,
         ),
         if (_exercises.isNotEmpty || editing)
@@ -583,7 +544,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
               AppKpiCard(
                 framed: false,
                 valueSize: 20,
-                label: _isCardioSession ? '총 시간' : '총 볼륨',
+                label: _isCardioSession ? '유산소' : '총 볼륨',
                 value: _isCardioSession
                     ? '$_cardioMinutes'
                     : NumberFormat('#,##0').format(_sessionVolume.round()),
@@ -682,15 +643,11 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 class _MemberRow extends StatelessWidget {
   final AppUser member;
   final String subtitle;
-  final String elapsed;
-  final bool running;
   final bool editing;
 
   const _MemberRow({
     required this.member,
     required this.subtitle,
-    required this.elapsed,
-    required this.running,
     required this.editing,
   });
 
@@ -727,41 +684,25 @@ class _MemberRow extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
-          Semantics(
-            label: running ? '운동 시간 $elapsed' : '운동 시간 $elapsed, 시작 전',
-            excludeSemantics: true,
-            child: Text(
-              elapsed,
-              style: AppTextStyles.eyebrow.copyWith(
-                fontSize: 20,
-                height: 28 / 20,
-                letterSpacing: 20 * 0.04,
-                color: running ? AppColors.ink : AppColors.mute,
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 }
 
-/// 아래 고정 행동: 외곽선 '운동 추가' + 주 행동(세션 시작 / 기록 저장 / 수정 저장).
+/// 아래 고정 행동: 외곽선 '운동 추가' + 주 행동(기록 저장 / 수정 저장).
 class _BottomBar extends StatelessWidget {
   final bool saving;
   final bool editing;
-  final bool sessionStarted;
+  final bool canSave;
   final VoidCallback onAddExercise;
-  final VoidCallback onStart;
   final VoidCallback onSave;
 
   const _BottomBar({
     required this.saving,
     required this.editing,
-    required this.sessionStarted,
+    required this.canSave,
     required this.onAddExercise,
-    required this.onStart,
     required this.onSave,
   });
 
@@ -769,21 +710,10 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
 
-    final primaryTitle = saving
-        ? '저장 중'
-        : editing
-        ? '수정 저장'
-        : sessionStarted
-        ? '기록 저장'
-        : '세션 시작';
-
-    final primaryTap = saving
-        ? null
-        : editing
-        ? onSave
-        : sessionStarted
-        ? onSave
-        : onStart;
+    // 시작 단계 없이 바로 저장한다. 저장하면 예약된 PT가 완료 처리된다 (기존과 같음).
+    final primaryTitle = saving ? '저장 중' : editing ? '수정 저장' : '기록 저장';
+    // 운동 내용이 없으면 저장할 것이 없으므로 비활성.
+    final VoidCallback? primaryTap = saving || !canSave ? null : onSave;
 
     return Container(
       padding: EdgeInsets.fromLTRB(

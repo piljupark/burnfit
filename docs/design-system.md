@@ -67,7 +67,7 @@
 
 - **탭 화면**: `SafeArea` → `AppHero` → 화면 폭 목록(`AppActionRow`/행 + `AppRowDivider`) → `AppNavBar`. 머리말은 앱 이름·숫자 요약만 (`BURNFIT · PT 12 / 30`).
 - **하위 화면**: `AppScreenHeader(onBack:, divider: true)` → 내용. 주 행동은 아래 고정 pill 하나.
-- **캘린더**: 요일 머리 `bodySm mute`, 날짜 셀 44px. 선택일 = 흰 원 + `onPrimary` 숫자, 오늘 = 외곽선 원, 미래 = `body` 색. 표시: PT = 채운 5px 점, 개인운동 = 외곽선 5px 점. 범례를 함께 둔다.
+- **캘린더**: 요일 머리 `bodySm mute`, 월요일 시작, 날짜 셀 44px. 선택일 = 흰 원 + `onPrimary` 숫자, 오늘 = 외곽선 원, 미래 = `body` 색. 날짜 아래 표시는 `widgets/calendar_marks.dart`만 쓴다: PT 완료 ● / PT 예약 ○ / 개인운동 ▬ (`buildCalendarMarks`가 회원·트레이너 공통 규칙으로 계산). 범례(`CalendarLegend`)를 함께 둔다.
 - **세트 입력**: 줄 높이 48, 세트 번호 모노, 값 상자 `canvasSoft` 36 높이, 완료 = 흰 채운 원 + 굵은 체크(`AppIcons.checkBold`), 미완료 = 외곽선 원, 진행 중 줄 = 흰 테두리.
 - **사진**: 3열 격자, 간격 2, 반경 0. 사진 위 배지는 `scrim` pill.
 - **차트**: 선 1.5px `ink`(여러 계열은 `chartSeries`), 격자 `hairline`, 축 라벨 `counter`. 막대는 4px pill 트랙(`canvasMid`) + `ink` 채움.

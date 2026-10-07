@@ -14,16 +14,6 @@ const double trainerCellGap = 8;
 // Helpers
 // ─────────────────────────────────────────────
 
-String trainerFormatDuration(int seconds) {
-  final h = seconds ~/ 3600;
-  final m = (seconds % 3600) ~/ 60;
-  final s = seconds % 60;
-  if (h > 0) {
-    return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-  return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-}
-
 String trainerFormatWeight(double value) {
   if (value == value.roundToDouble()) return value.toStringAsFixed(0);
   return value.toStringAsFixed(1);

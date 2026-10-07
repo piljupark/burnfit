@@ -68,18 +68,21 @@ class WorkoutService {
     required WorkoutCategory category,
     required List<Exercise> exercises,
     String? note,
-    int durationSeconds = 0,
+    int? durationSeconds,
   }) async {
     ServiceValidator.requireText(workoutId, '운동 ID');
     _validateExercises(exercises);
-    ServiceValidator.requireNonNegativeInt(durationSeconds, '운동 시간');
+    if (durationSeconds != null) {
+      ServiceValidator.requireNonNegativeInt(durationSeconds, '운동 시간');
+    }
 
     await _db.collection('workouts').doc(workoutId).update({
       'category': category.name,
       'exercises': exercises.map((e) => e.toMap()).toList(),
       'note': note,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
-      'durationSeconds': durationSeconds,
+      // 운동 시간은 더 이상 입력받지 않는다. 넘기지 않으면 기존 기록의 값을 그대로 둔다.
+      'durationSeconds': ?durationSeconds,
     });
   }
 

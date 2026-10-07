@@ -56,6 +56,8 @@ void main() {
 
   Future<void> back(WidgetTester tester) async {
     final navigator = tester.state<NavigatorState>(find.byType(Navigator).last);
+    // 열린 화면이 없으면(탭이 빗나간 경우) 첫 화면을 닫지 않는다.
+    if (!navigator.canPop()) return;
     navigator.pop();
     await wait(tester, 1200);
   }

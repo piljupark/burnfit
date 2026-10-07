@@ -30,7 +30,6 @@ class TrainerSavedWorkoutCard extends StatelessWidget {
     final summary = [
       if (!_isCardio) '총 볼륨 ${workout.totalVolume.toStringAsFixed(0)}kg',
       '${workout.totalSets}세트',
-      trainerFormatDuration(workout.durationSeconds),
     ].join(' · ');
 
     return Container(

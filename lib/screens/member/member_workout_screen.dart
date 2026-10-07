@@ -68,11 +68,9 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
   bool _loading = false;
   bool _saving = false;
   bool _restoredDraft = false;
-  bool _workoutStarted = false;
 
-  DateTime _startedAt = DateTime.now();
-  int _elapsedSeconds = 0;
-  Timer? _elapsedTimer;
+  // 운동 시간은 기록하지 않는다 (피드백: 운동일지에 전체 운동 시간은 필요 없음).
+  // 유산소 세트의 '시간'은 운동 내용이므로 세트 값으로 그대로 입력한다.
   Timer? _draftTimer;
 
   @override
@@ -80,21 +78,11 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     super.initState();
 
     _noteController.addListener(_queueDraftSave);
-
-    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted || !_workoutStarted) return;
-
-      setState(() {
-        _elapsedSeconds = DateTime.now().difference(_startedAt).inSeconds;
-      });
-    });
-
     _load();
   }
 
   @override
   void dispose() {
-    _elapsedTimer?.cancel();
     _draftTimer?.cancel();
     _noteController.dispose();
 
@@ -257,14 +245,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     _editingWorkoutId = draft['editingWorkoutId'] as String?;
     _noteController.text = draft['note'] as String? ?? '';
 
-    final elapsed = draft['elapsedSeconds'];
-    if (elapsed is int) {
-      _elapsedSeconds = elapsed;
-      _startedAt = DateTime.now().subtract(Duration(seconds: elapsed));
-    }
-
-    _workoutStarted = draft['workoutStarted'] as bool? ?? false;
-
     final rawExercises = draft['exercises'];
     if (rawExercises is List) {
       for (final item in rawExercises) {
@@ -311,9 +291,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
         'editingWorkoutId': _editingWorkoutId,
         'defaultCategory': _defaultCategory.name,
         'note': _noteController.text.trim(),
-        'elapsedSeconds': _elapsedSeconds,
         'exercises': _sessionExercises.map((e) => e.toMap()).toList(),
-        'workoutStarted': _workoutStarted,
       },
     );
   }
@@ -354,8 +332,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
       _selectedDate = DateFormat('yyyy-MM-dd').format(picked);
       _restoredDraft = false;
       _editingWorkoutId = null;
-      _startedAt = DateTime.now();
-      _elapsedSeconds = 0;
     });
 
     await _load();
@@ -506,13 +482,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     setState(() {
       final set = _sessionExercises[exerciseIndex].sets[setIndex];
       set.done = !set.done;
-
-      if (set.done && !_workoutStarted) {
-        _workoutStarted = true;
-        _startedAt = DateTime.now().subtract(
-          Duration(seconds: _elapsedSeconds),
-        );
-      }
     });
 
     _queueDraftSave();
@@ -529,21 +498,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     if (!disposeOnly) {
       _noteController.clear();
       _editingWorkoutId = null;
-      _startedAt = DateTime.now();
-      _elapsedSeconds = 0;
-      _workoutStarted = false;
     }
-  }
-
-  void _startWorkout() {
-    if (_workoutStarted) return;
-
-    setState(() {
-      _workoutStarted = true;
-      _startedAt = DateTime.now().subtract(Duration(seconds: _elapsedSeconds));
-    });
-
-    _queueDraftSave();
   }
 
   Future<void> _completeWorkout() async {
@@ -586,7 +541,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
           workoutDate: _selectedDate,
           category: _sessionExercises.first.category,
           exercises: exercises,
-          durationSeconds: _elapsedSeconds,
           note: _noteController.text.trim().isEmpty
               ? null
               : _noteController.text.trim(),
@@ -596,7 +550,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
           workoutId: _editingWorkoutId!,
           category: _sessionExercises.first.category,
           exercises: exercises,
-          durationSeconds: _elapsedSeconds,
           note: _noteController.text.trim().isEmpty
               ? null
               : _noteController.text.trim(),
@@ -645,13 +598,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
       _editingWorkoutId = workout.id;
       _defaultCategory = workout.category;
       _noteController.text = workout.note ?? '';
-      _startedAt = DateTime.now();
-      _elapsedSeconds = 0;
-      _elapsedSeconds = workout.durationSeconds;
-      _workoutStarted = false;
-      _startedAt = DateTime.now().subtract(
-        Duration(seconds: workout.durationSeconds),
-      );
 
       for (final exercise in workout.exercises) {
         _sessionExercises.add(
@@ -777,10 +723,8 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     final prefix = widget.workoutType == WorkoutType.pt ? 'PT · ' : '';
     final status = _editingWorkoutId != null
         ? 'EDITING'
-        : _workoutStarted
-        ? 'IN PROGRESS'
         : _sessionExercises.isNotEmpty
-        ? 'READY'
+        ? 'IN PROGRESS'
         : null;
     return status == null ? '$prefix$day' : '$prefix$day · $status';
   }
@@ -856,13 +800,6 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                               AppKpiCard(
                                 framed: false,
                                 valueSize: 20,
-                                label: '총 시간',
-                                value: formatDuration(_elapsedSeconds),
-                                unit: '',
-                              ),
-                              AppKpiCard(
-                                framed: false,
-                                valueSize: 20,
                                 label: _isCardioSession ? '유산소' : '총 볼륨',
                                 value: _isCardioSession
                                     ? '$_sessionCardioMinutes'
@@ -875,6 +812,13 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                                 label: '완료세트',
                                 value: '$_completedSetCount/$_totalSetCount',
                                 unit: '',
+                              ),
+                              AppKpiCard(
+                                framed: false,
+                                valueSize: 20,
+                                label: '운동',
+                                value: '${_sessionExercises.length}',
+                                unit: '종목',
                               ),
                             ],
                           ),
@@ -950,9 +894,8 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
             child: _WorkoutBottomBar(
               saving: _saving,
               editing: _editingWorkoutId != null,
-              workoutStarted: _workoutStarted,
+              hasContent: _sessionExercises.isNotEmpty,
               onAddExercise: _showExercisePicker,
-              onStart: _startWorkout,
               onComplete: _completeWorkout,
             ),
           ),
@@ -966,17 +909,15 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 class _WorkoutBottomBar extends StatelessWidget {
   final bool saving;
   final bool editing;
-  final bool workoutStarted;
+  final bool hasContent;
   final VoidCallback onAddExercise;
-  final VoidCallback onStart;
   final VoidCallback onComplete;
 
   const _WorkoutBottomBar({
     required this.saving,
     required this.editing,
-    required this.workoutStarted,
+    required this.hasContent,
     required this.onAddExercise,
-    required this.onStart,
     required this.onComplete,
   });
 
@@ -984,21 +925,10 @@ class _WorkoutBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
 
-    final primaryTitle = saving
-        ? '저장 중'
-        : editing
-        ? '수정 저장'
-        : workoutStarted
-        ? '운동 완료'
-        : '운동 시작';
-
-    final primaryTap = saving
-        ? null
-        : editing
-        ? onComplete
-        : workoutStarted
-        ? onComplete
-        : onStart;
+    // 시작 단계 없이 바로 저장한다 (운동 시간은 기록하지 않음).
+    final primaryTitle = saving ? '저장 중' : editing ? '수정 저장' : '기록 저장';
+    // 운동을 하나도 추가하지 않았으면 저장할 것이 없으므로 비활성.
+    final VoidCallback? primaryTap = saving || !hasContent ? null : onComplete;
 
     return Container(
       padding: EdgeInsets.fromLTRB(

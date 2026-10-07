@@ -23,6 +23,7 @@ import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_tag.dart';
+import '../../widgets/calendar_marks.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/orb_loader.dart';
 import 'trainer_pt_workout_screen.dart';
@@ -378,12 +379,7 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
               ),
               _WeekStrip(
                 selectedDay: _selectedDay,
-                hasPt: (day) =>
-                    _sessions.any((s) => isSameDay(s.scheduledAt, day) && s.status != PtSessionStatus.cancelled) ||
-                    _workouts.any((w) => w.workoutType == WorkoutType.pt && w.workoutDate == _dateKey(day)),
-                hasPersonal: (day) => _workouts.any(
-                  (w) => w.workoutType == WorkoutType.personal && w.workoutDate == _dateKey(day),
-                ),
+                marks: buildCalendarMarks(sessions: _sessions, workouts: _workouts),
                 onSelect: _selectDay,
                 onPrevWeek: () => _moveWeek(-1),
                 onNextWeek: () => _moveWeek(1),
@@ -404,8 +400,6 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
   }
 }
 
-String _dateKey(DateTime day) => DateFormat('yyyy-MM-dd').format(day);
-
 /// ISO 8601 주차 (월요일 시작).
 int _isoWeek(DateTime date) {
   final day = DateTime.utc(date.year, date.month, date.day);
@@ -415,21 +409,19 @@ int _isoWeek(DateTime date) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 주간 줄: 선택일 = 흰 원, 오늘 = 외곽선 원, PT = 채운 점, 개인운동 = 외곽선 점
+// 주간 줄: 선택일 = 흰 원, 오늘 = 외곽선 원, 아래 표시 = CalendarMarkRow
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _WeekStrip extends StatelessWidget {
   final DateTime selectedDay;
-  final bool Function(DateTime) hasPt;
-  final bool Function(DateTime) hasPersonal;
+  final Map<String, Set<CalendarMark>> marks;
   final ValueChanged<DateTime> onSelect;
   final VoidCallback onPrevWeek;
   final VoidCallback onNextWeek;
 
   const _WeekStrip({
     required this.selectedDay,
-    required this.hasPt,
-    required this.hasPersonal,
+    required this.marks,
     required this.onSelect,
     required this.onPrevWeek,
     required this.onNextWeek,
@@ -463,8 +455,8 @@ class _WeekStrip extends StatelessWidget {
                       weekdayLabel: weekdayLabels[i],
                       isSelected: isSameDay(DateTime(monday.year, monday.month, monday.day + i), selectedDay),
                       isToday: isSameDay(DateTime(monday.year, monday.month, monday.day + i), now),
-                      hasPt: hasPt(DateTime(monday.year, monday.month, monday.day + i)),
-                      hasPersonal: hasPersonal(DateTime(monday.year, monday.month, monday.day + i)),
+                      marks: marks[DateFormat('yyyy-MM-dd').format(DateTime(monday.year, monday.month, monday.day + i))] ??
+                          const <CalendarMark>{},
                       onTap: onSelect,
                     ),
                   ),
@@ -473,7 +465,7 @@ class _WeekStrip extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          const _Legend(),
+          const CalendarLegend(alignment: MainAxisAlignment.center),
         ],
       ),
     );
@@ -485,8 +477,7 @@ class _WeekDayCell extends StatelessWidget {
   final String weekdayLabel;
   final bool isSelected;
   final bool isToday;
-  final bool hasPt;
-  final bool hasPersonal;
+  final Set<CalendarMark> marks;
   final ValueChanged<DateTime> onTap;
 
   const _WeekDayCell({
@@ -494,8 +485,7 @@ class _WeekDayCell extends StatelessWidget {
     required this.weekdayLabel,
     required this.isSelected,
     required this.isToday,
-    required this.hasPt,
-    required this.hasPersonal,
+    required this.marks,
     required this.onTap,
   });
 
@@ -504,8 +494,7 @@ class _WeekDayCell extends StatelessWidget {
     final semantic = [
       '${day.month}월 ${day.day}일 $weekdayLabel요일',
       if (isToday) '오늘',
-      if (hasPt) 'PT 있음',
-      if (hasPersonal) '개인운동 있음',
+      if (marks.isNotEmpty) calendarMarksSemantics(marks),
     ].join(', ');
 
     return Semantics(
@@ -538,61 +527,10 @@ class _WeekDayCell extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
-            SizedBox(
-              height: 4,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (hasPt) const _Dot(filled: true, size: 4),
-                  if (hasPt && hasPersonal) const SizedBox(width: 3),
-                  if (hasPersonal) const _Dot(filled: false, size: 4),
-                ],
-              ),
-            ),
+            CalendarMarkRow(marks),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Dot extends StatelessWidget {
-  final bool filled;
-  final double size;
-
-  const _Dot({required this.filled, this.size = 5});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: filled ? AppColors.ink : Colors.transparent,
-        border: filled ? null : Border.all(color: AppColors.ink),
-      ),
-    );
-  }
-}
-
-class _Legend extends StatelessWidget {
-  const _Legend();
-
-  @override
-  Widget build(BuildContext context) {
-    final caption = AppTextStyles.bodySm.copyWith(fontSize: 12, height: 16 / 12);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const _Dot(filled: true),
-        const SizedBox(width: 6),
-        Text('PT 예약·운동', style: caption),
-        const SizedBox(width: AppSpacing.base),
-        const _Dot(filled: false),
-        const SizedBox(width: 6),
-        Text('개인운동', style: caption),
-      ],
     );
   }
 }

@@ -19,6 +19,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_tag.dart';
+import '../../widgets/calendar_marks.dart';
 import '../../widgets/notification_bell_button.dart';
 import '../../widgets/orb_loader.dart';
 import 'trainer_member_detail_screen.dart';
@@ -135,22 +136,6 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
       ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
   }
 
-  Map<String, int> get _personalCountByDay {
-    final map = <String, int>{};
-    for (final w in _workouts.where((w) => w.workoutType == WorkoutType.personal)) {
-      map[w.workoutDate] = (map[w.workoutDate] ?? 0) + 1;
-    }
-    return map;
-  }
-
-  Map<String, int> get _ptCountByDay {
-    final map = <String, int>{};
-    for (final s in _ptSessions) {
-      final key = _key(s.scheduledAt);
-      map[key] = (map[key] ?? 0) + 1;
-    }
-    return map;
-  }
 
   Future<void> _openPt(PtSession session) async {
     final member = _members.where((m) => m.uid == session.memberId).firstOrNull;
@@ -205,12 +190,14 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
                 child: _TrainerCalendarGrid(
                   focusedMonth: _focusedMonth,
                   selectedDay: _selectedDay,
-                  personalCountByDay: _personalCountByDay,
-                  ptCountByDay: _ptCountByDay,
+                  marks: buildCalendarMarks(sessions: _ptSessions, workouts: _workouts),
                   onSelect: (day) => setState(() => _selectedDay = day),
                 ),
               ),
-              const _CalendarLegend(),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
+                child: CalendarLegend(alignment: MainAxisAlignment.start),
+              ),
               AppMonthHeader(
                 label: DateFormat('MM.dd EEE', 'en_US').format(_selectedDay),
                 count: 'PT ${ptSessions.length} · SELF ${workouts.length}',
@@ -302,15 +289,13 @@ class _MonthNav extends StatelessWidget {
 class _TrainerCalendarGrid extends StatelessWidget {
   final DateTime focusedMonth;
   final DateTime selectedDay;
-  final Map<String, int> personalCountByDay;
-  final Map<String, int> ptCountByDay;
+  final Map<String, Set<CalendarMark>> marks;
   final ValueChanged<DateTime> onSelect;
 
   const _TrainerCalendarGrid({
     required this.focusedMonth,
     required this.selectedDay,
-    required this.personalCountByDay,
-    required this.ptCountByDay,
+    required this.marks,
     required this.onSelect,
   });
 
@@ -363,14 +348,12 @@ class _TrainerCalendarGrid extends StatelessWidget {
             final isToday = _sameDate(day, today);
             final isSelected = _sameDate(day, selectedDay);
             final isFuture = day.isAfter(today);
-            final personalCount = personalCountByDay[key] ?? 0;
-            final ptCount = ptCountByDay[key] ?? 0;
+            final dayMarks = marks[key] ?? const <CalendarMark>{};
 
             final semantic = [
               '${focusedMonth.month}월 $dayNumber일',
               if (isToday) '오늘',
-              if (ptCount > 0) 'PT $ptCount건',
-              if (personalCount > 0) '개인운동 $personalCount건',
+              if (dayMarks.isNotEmpty) calendarMarksSemantics(dayMarks),
             ].join(', ');
 
             return Semantics(
@@ -407,17 +390,7 @@ class _TrainerCalendarGrid extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 3),
-                    SizedBox(
-                      height: 5,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (ptCount > 0) const _Dot(filled: true),
-                          if (ptCount > 0 && personalCount > 0) const SizedBox(width: 3),
-                          if (personalCount > 0) const _Dot(filled: false),
-                        ],
-                      ),
-                    ),
+                    CalendarMarkRow(dayMarks),
                   ],
                 ),
               ),
@@ -425,47 +398,6 @@ class _TrainerCalendarGrid extends StatelessWidget {
           },
         ),
       ],
-    );
-  }
-}
-
-class _Dot extends StatelessWidget {
-  final bool filled;
-
-  const _Dot({required this.filled});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 5,
-      height: 5,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: filled ? AppColors.ink : Colors.transparent,
-        border: filled ? null : Border.all(color: AppColors.ink),
-      ),
-    );
-  }
-}
-
-class _CalendarLegend extends StatelessWidget {
-  const _CalendarLegend();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
-      child: Row(
-        children: [
-          const _Dot(filled: true),
-          const SizedBox(width: 6),
-          Text('PT', style: AppTextStyles.counter),
-          const SizedBox(width: AppSpacing.base),
-          const _Dot(filled: false),
-          const SizedBox(width: 6),
-          Text('개인운동', style: AppTextStyles.bodySm.copyWith(fontSize: 12, height: 16 / 12)),
-        ],
-      ),
     );
   }
 }
@@ -514,11 +446,9 @@ class _WorkoutRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final minutes = workout.durationSeconds ~/ 60;
     final detail = [
       '개인운동',
       workout.category.label,
-      if (minutes > 0) '$minutes분',
       '${workout.totalSets}세트',
       '볼륨 ${NumberFormat('#,###').format(workout.totalVolume.round())}kg',
     ].join(' · ');

@@ -68,18 +68,6 @@ String formatWeight(double value) {
   return value.toStringAsFixed(1);
 }
 
-String formatDuration(int seconds) {
-  final h = seconds ~/ 3600;
-  final m = (seconds % 3600) ~/ 60;
-  final s = seconds % 60;
-
-  if (h > 0) {
-    return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-
-  return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-}
-
 String inferExerciseCategoryLabel(
   String exerciseName,
   WorkoutCategory fallback,

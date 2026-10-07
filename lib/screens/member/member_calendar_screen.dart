@@ -20,6 +20,7 @@ import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_box.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_tag.dart';
+import '../../widgets/calendar_marks.dart';
 import '../../widgets/notification_bell_button.dart';
 import '../../widgets/orb_loader.dart';
 
@@ -38,7 +39,11 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime _selectedDay = DateTime.now();
   List<Workout> _workouts = [];
+  /// 예약 상태 세션 (선택한 날 목록의 'PT 예약' 줄).
   List<PtSession> _ptSessions = [];
+
+  /// 취소를 뺀 모든 세션 (캘린더 표시: 완료 = PT 완료, 예약 = PT 예약).
+  List<PtSession> _activePtSessions = [];
   List<Meal> _meals = [];
   List<fb.Feedback> _feedbacks = [];
   int _unreadFeedbackCount = 0;
@@ -114,9 +119,11 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
               targetDate.compareTo(startKey) >= 0 &&
               targetDate.compareTo(endKey) <= 0;
         }).toList();
-        _ptSessions = (results[3] as List<PtSession>)
-            .where((item) => item.status == PtSessionStatus.scheduled)
-            .toList();
+        final sessions = results[3] as List<PtSession>;
+        _activePtSessions =
+            sessions.where((item) => item.status != PtSessionStatus.cancelled).toList();
+        _ptSessions =
+            sessions.where((item) => item.status == PtSessionStatus.scheduled).toList();
         _errorMessage = null;
       });
     } catch (e) {
@@ -211,11 +218,13 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
               _CalendarGrid(
                 focusedMonth: _focusedMonth,
                 selectedDay: _selectedDay,
-                workouts: _workouts,
-                ptReservations: _ptSessions,
+                marks: buildCalendarMarks(sessions: _activePtSessions, workouts: _workouts),
                 onSelect: (day) => setState(() => _selectedDay = day),
               ),
-              const _CalendarLegend(),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
+                child: CalendarLegend(),
+              ),
               AppMonthHeader(
                 label: _dayLabel(_selectedDay),
                 count: _isLoading || _errorMessage != null
@@ -293,15 +302,13 @@ class _MonthHeader extends StatelessWidget {
 class _CalendarGrid extends StatelessWidget {
   final DateTime focusedMonth;
   final DateTime selectedDay;
-  final List<Workout> workouts;
-  final List<PtSession> ptReservations;
+  final Map<String, Set<CalendarMark>> marks;
   final ValueChanged<DateTime> onSelect;
 
   const _CalendarGrid({
     required this.focusedMonth,
     required this.selectedDay,
-    required this.workouts,
-    required this.ptReservations,
+    required this.marks,
     required this.onSelect,
   });
 
@@ -316,17 +323,6 @@ class _CalendarGrid extends StatelessWidget {
     final leading = firstDay.weekday - 1;
     final cells = leading + lastDay.day;
     final totalCells = (cells / 7).ceil() * 7;
-    final personalWorkoutDays = workouts
-        .where((item) => item.workoutType == WorkoutType.personal)
-        .map((item) => item.workoutDate)
-        .toSet();
-    final ptWorkoutDays = workouts
-        .where((item) => item.workoutType == WorkoutType.pt)
-        .map((item) => item.workoutDate)
-        .toSet();
-    final ptScheduledDays = ptReservations
-        .map((item) => _key(item.scheduledAt))
-        .toSet();
     final now = DateTime.now();
     final todayBase = DateTime(now.year, now.month, now.day);
 
@@ -365,14 +361,12 @@ class _CalendarGrid extends StatelessWidget {
 
               final day = DateTime(focusedMonth.year, focusedMonth.month, dayNumber);
               final key = _key(day);
-              final hasPtDone = ptWorkoutDays.contains(key);
               return _DayCell(
                 day: day,
                 isToday: _sameDate(day, todayBase),
                 isSelected: _sameDate(day, selectedDay),
                 isFuture: day.isAfter(todayBase),
-                hasPt: hasPtDone || ptScheduledDays.contains(key),
-                hasPersonal: personalWorkoutDays.contains(key),
+                marks: marks[key] ?? const {},
                 onTap: () => onSelect(day),
               );
             },
@@ -384,14 +378,13 @@ class _CalendarGrid extends StatelessWidget {
 }
 
 /// 날짜 칸 (44 높이): 선택 = 흰 원 + onPrimary 숫자, 오늘 = 외곽선 원, 미래 = body 색.
-/// 아래 표시: PT = 채운 5px 점, 개인운동 = 외곽선 5px 점.
+/// 아래 표시: CalendarMarkRow (PT 완료 ● · PT 예약 ○ · 개인운동 ▬).
 class _DayCell extends StatelessWidget {
   final DateTime day;
   final bool isToday;
   final bool isSelected;
   final bool isFuture;
-  final bool hasPt;
-  final bool hasPersonal;
+  final Set<CalendarMark> marks;
   final VoidCallback onTap;
 
   const _DayCell({
@@ -399,8 +392,7 @@ class _DayCell extends StatelessWidget {
     required this.isToday,
     required this.isSelected,
     required this.isFuture,
-    required this.hasPt,
-    required this.hasPersonal,
+    required this.marks,
     required this.onTap,
   });
 
@@ -409,8 +401,7 @@ class _DayCell extends StatelessWidget {
     final semantic = [
       DateFormat('M월 d일', 'ko').format(day),
       if (isToday) '오늘',
-      if (hasPt) 'PT',
-      if (hasPersonal) '개인운동',
+      if (marks.isNotEmpty) calendarMarksSemantics(marks),
     ].join(', ');
     final numberColor = isSelected
         ? AppColors.onPrimary
@@ -444,66 +435,9 @@ class _DayCell extends StatelessWidget {
               ),
             ),
             const Gap(3),
-            SizedBox(
-              height: 5,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (hasPt) const _Dot(filled: true),
-                  if (hasPt && hasPersonal) const Gap(3),
-                  if (hasPersonal) const _Dot(filled: false),
-                ],
-              ),
-            ),
+            CalendarMarkRow(marks),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Dot extends StatelessWidget {
-  final bool filled;
-
-  const _Dot({required this.filled});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 5,
-      height: 5,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: filled ? AppColors.ink : Colors.transparent,
-        border: filled ? null : Border.all(color: AppColors.ink),
-      ),
-    );
-  }
-}
-
-/// 범례: PT(채운 점) · 개인운동(외곽선 점)
-class _CalendarLegend extends StatelessWidget {
-  const _CalendarLegend();
-
-  @override
-  Widget build(BuildContext context) {
-    Widget item(bool filled, String label) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _Dot(filled: filled),
-            const Gap(6),
-            Text(label, style: AppTextStyles.bodySm.copyWith(fontSize: 12, height: 16 / 12)),
-          ],
-        );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          item(true, 'PT'),
-          const Gap(AppSpacing.base),
-          item(false, '개인운동'),
-        ],
       ),
     );
   }
@@ -551,12 +485,10 @@ class _DayRecords extends StatelessWidget {
   }
 
   Widget _workoutRow(Workout workout) {
-    final minutes = workout.durationSeconds ~/ 60;
     final detail = [
       workout.category.label,
       '${workout.totalSets}세트',
       '${workout.totalVolume.toStringAsFixed(0)}kg',
-      if (minutes > 0) '$minutes분',
     ].join(' · ');
     final isPt = workout.workoutType == WorkoutType.pt;
     return _RecordRow(
