@@ -12,8 +12,8 @@ class AdminSetupService {
   /// 서버 검증 기준과 같다 (functions/admin_setup.js `LIMITS.passwordMin`).
   static const int passwordMinLength = 8;
 
-  static final HttpsCallable _registerCenterAdmin =
-      FirebaseFunctions.instance.httpsCallable('registerCenterAdmin');
+  static final HttpsCallable _registerCenterAdmin = FirebaseFunctions.instance
+      .httpsCallable('registerCenterAdmin');
 
   /// 관리자 계정과 센터를 만든 뒤 그 계정으로 로그인한다.
   ///

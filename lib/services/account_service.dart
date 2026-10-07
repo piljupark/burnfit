@@ -15,8 +15,8 @@ class AccountService {
   /// (functions/account_deletion.js `RETENTION_YEARS`).
   static const int ptRecordRetentionYears = 3;
 
-  static final HttpsCallable _deleteMyAccount =
-      FirebaseFunctions.instance.httpsCallable('deleteMyAccount');
+  static final HttpsCallable _deleteMyAccount = FirebaseFunctions.instance
+      .httpsCallable('deleteMyAccount');
 
   /// 비밀번호로 본인 확인 → 서버에서 계정·기록 삭제 → 이 기기 정리 → 로그아웃.
   ///

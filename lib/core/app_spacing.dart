@@ -41,6 +41,12 @@ class AppSize {
   AppSize._();
 
   static const double touchMin = 44;
+
+  /// 목록 한 줄 최소 높이 (AppActionRow와 같은 규칙: 56 + 위아래 8 여백, 두 줄이면 내용만큼 늘어남).
+  static const double listRow = 56;
+
+  /// 스크롤 목록 맨 아래 여백: 하단 탭(84)에 마지막 줄이 가리지 않게.
+  static const double navClearance = 120;
   static const double buttonHeight = 40;
   static const double buttonHeightSm = 32;
   static const double buttonHeightLg = 52;

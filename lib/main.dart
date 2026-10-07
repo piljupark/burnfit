@@ -10,6 +10,8 @@ import 'package:provider/provider.dart';
 
 import 'core/app_logger.dart';
 import 'core/app_theme.dart';
+import 'services/theme_controller.dart';
+import 'widgets/app_toast.dart';
 import 'core/constants.dart';
 import 'firebase_options.dart';
 import 'services/fcm_service.dart';
@@ -22,12 +24,13 @@ import 'screens/splash_screen.dart';
 import 'screens/trainer/trainer_home_screen.dart';
 import 'services/user_provider.dart';
 
-final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
-
 /// 개발용: `--dart-define=USE_FIREBASE_EMULATOR=true`로 빌드하면 로컬 Firebase 에뮬레이터에 붙는다.
 /// 정식 빌드에는 이 값이 없으므로 항상 실제 프로젝트를 쓴다.
 const bool useFirebaseEmulator = bool.fromEnvironment('USE_FIREBASE_EMULATOR');
-const String _emulatorHost = String.fromEnvironment('FIREBASE_EMULATOR_HOST', defaultValue: '127.0.0.1');
+const String _emulatorHost = String.fromEnvironment(
+  'FIREBASE_EMULATOR_HOST',
+  defaultValue: '127.0.0.1',
+);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,11 +59,13 @@ Future<void> bootstrapApp({bool withMessaging = true}) async {
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
+  await ThemeController.instance.load();
+
   await initializeDateFormatting('ko_KR', null);
   AppLogger.debug('[Main] 로케일 초기화 완료: ${stopwatch.elapsedMilliseconds}ms');
 
   if (withMessaging) {
-    await FcmService.initialize(messengerKey: scaffoldMessengerKey);
+    await FcmService.initialize();
     AppLogger.debug('[Main] FCM 초기화 완료: ${stopwatch.elapsedMilliseconds}ms');
   }
   stopwatch.stop();
@@ -72,32 +77,39 @@ class PtSolutionApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => UserProvider())],
-      child: MaterialApp(
-        title: 'PT Solution',
-        scaffoldMessengerKey: scaffoldMessengerKey,
-        theme: AppTheme.dark,
-        themeMode: ThemeMode.dark,
-        debugShowCheckedModeBanner: false,
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [Locale('ko', 'KR'), Locale('en', 'US')],
-        locale: const Locale('ko', 'KR'),
-        initialRoute: AppRoutes.splash,
-        routes: {
-          AppRoutes.splash: (_) => const SplashScreen(),
-          AppRoutes.memberLogin: (_) => const LoginScreen(),
-          AppRoutes.pendingApproval: (_) => const PendingApprovalScreen(),
-          AppRoutes.onboardingBasic: (_) => const OnboardingBasicScreen(),
-          AppRoutes.onboardingBody: (_) => const OnboardingBodyScreen(),
-          AppRoutes.memberHome: (_) => const MemberHomeScreen(),
-          AppRoutes.trainerHome: (_) => const TrainerHomeScreen(),
-          AppRoutes.adminHome: (_) => const AdminHomeScreen(),
-        },
-      ),
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider.value(value: ThemeController.instance),
+      ],
+      builder: (context, _) {
+        // 테마 선택을 구독해 MaterialApp의 ThemeData를 새 팔레트로 다시 만든다.
+        // (key를 바꾸지 않으므로 화면 스택·상태는 그대로다)
+        context.watch<ThemeController>();
+        return MaterialApp(
+          title: 'PT Solution',
+          navigatorKey: appNavigatorKey,
+          theme: AppTheme.current,
+          debugShowCheckedModeBanner: false,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('ko', 'KR'), Locale('en', 'US')],
+          locale: const Locale('ko', 'KR'),
+          initialRoute: AppRoutes.splash,
+          routes: {
+            AppRoutes.splash: (_) => const SplashScreen(),
+            AppRoutes.memberLogin: (_) => const LoginScreen(),
+            AppRoutes.pendingApproval: (_) => const PendingApprovalScreen(),
+            AppRoutes.onboardingBasic: (_) => const OnboardingBasicScreen(),
+            AppRoutes.onboardingBody: (_) => const OnboardingBodyScreen(),
+            AppRoutes.memberHome: (_) => const MemberHomeScreen(),
+            AppRoutes.trainerHome: (_) => const TrainerHomeScreen(),
+            AppRoutes.adminHome: (_) => const AdminHomeScreen(),
+          },
+        );
+      },
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/pt_info.dart';
@@ -16,6 +17,7 @@ import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/orb_loader.dart';
 import '../../widgets/app_progress_bar.dart';
+import 'member_pt_workout_screen.dart';
 
 class MemberPtScheduleScreen extends StatefulWidget {
   final bool showBackButton;
@@ -77,15 +79,17 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
     }
   }
 
+  /// '예정' = 아직 진행 중이거나 다가올 예약 세션 (끝나기 전까지). 그 밖은 모두 '지난 일정'.
+  /// 같은 세션이 두 목록에 동시에 나오지 않도록 한 기준으로 나눈다.
+  bool _isUpcoming(PtSession item, DateTime now) =>
+      item.status == PtSessionStatus.scheduled &&
+      item.scheduledAt
+          .add(Duration(minutes: item.durationMinutes))
+          .isAfter(now);
+
   List<PtSession> get _upcoming {
-    final now = DateTime.now().subtract(const Duration(minutes: 1));
-    return _sessions
-        .where(
-          (item) =>
-              item.status == PtSessionStatus.scheduled &&
-              item.scheduledAt.isAfter(now),
-        )
-        .toList();
+    final now = DateTime.now();
+    return _sessions.where((item) => _isUpcoming(item, now)).toList();
   }
 
   List<PtSession> get _past {
@@ -93,8 +97,10 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
     return _sessions
         .where(
           (item) =>
-              item.status == PtSessionStatus.completed ||
-              item.scheduledAt.isBefore(now),
+              !_isUpcoming(item, now) &&
+              // 취소된 일정은 날짜가 지난 것만 기록으로 남긴다.
+              (item.status != PtSessionStatus.cancelled ||
+                  item.scheduledAt.isBefore(now)),
         )
         .toList()
       ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
@@ -119,16 +125,11 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
             slivers: [
               SliverToBoxAdapter(
                 child: widget.showBackButton
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-                        child: AppScreenHeader(
-                          title: 'PT 일정',
-                          onBack: () => Navigator.of(context).pop(),
-                        ),
-                      )
-                    : AppHero(
+                    ? AppScreenHeader(
                         title: 'PT 일정',
-                      ),
+                        onBack: () => Navigator.of(context).pop(),
+                      )
+                    : AppHero(title: 'PT 일정'),
               ),
               if (widget.showBackButton)
                 const SliverToBoxAdapter(child: AppRowDivider()),
@@ -140,14 +141,41 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                     AppSpacing.screenH,
                     0,
                   ),
-                  child: _RemainingCard(info: _ptInfo, trainerName: trainerName),
+                  child: _RemainingCard(
+                    info: _ptInfo,
+                    trainerName: trainerName,
+                  ),
+                ),
+              ),
+              // 트레이너가 남긴 PT 운동 기록 (세트·무게·메모)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.md),
+                  child: Column(
+                    children: [
+                      const AppRowDivider(),
+                      AppActionRow(
+                        icon: AppIcons.workout,
+                        label: 'PT 운동 기록',
+                        subtitle: '트레이너가 남긴 세트·무게·메모',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const MemberPtWorkoutScreen(),
+                          ),
+                        ),
+                      ),
+                      const AppRowDivider(),
+                    ],
+                  ),
                 ),
               ),
               if (_isLoading)
                 const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: AppSpacing.xl3),
-                    child: Center(child: OrbLoader(semanticLabel: 'PT 일정 불러오는 중')),
+                    child: Center(
+                      child: OrbLoader(semanticLabel: 'PT 일정 불러오는 중'),
+                    ),
                   ),
                 )
               else if (_errorMessage != null)
@@ -159,31 +187,46 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                       AppSpacing.screenH,
                       0,
                     ),
-                    child: AppErrorCard(message: _errorMessage!, onRetry: _load),
+                    child: AppErrorCard(
+                      message: _errorMessage!,
+                      onRetry: _load,
+                    ),
                   ),
                 )
               else ...[
                 SliverToBoxAdapter(
-                  child: AppMonthHeader(label: '예정', count: '${upcoming.length}'),
+                  child: AppMonthHeader(
+                    label: '예정',
+                    count: '${upcoming.length}',
+                  ),
                 ),
                 if (upcoming.isEmpty)
-                  const SliverToBoxAdapter(child: _EmptyLine('예정된 PT 일정이 없습니다.'))
+                  const SliverToBoxAdapter(
+                    child: _EmptyLine('예정된 PT 일정이 없습니다.'),
+                  )
                 else
                   SliverList.separated(
                     itemCount: upcoming.length,
-                    separatorBuilder: (_, _) => const AppRowDivider(indent: AppSpacing.screenH),
-                    itemBuilder: (_, i) => _SessionRow(session: upcoming[i], isPast: false),
+                    separatorBuilder: (_, _) =>
+                        const AppRowDivider(indent: AppSpacing.screenH),
+                    itemBuilder: (_, i) =>
+                        _SessionRow(session: upcoming[i], isPast: false),
                   ),
                 SliverToBoxAdapter(
-                  child: AppMonthHeader(label: '지난 일정', count: '${past.length}'),
+                  child: AppMonthHeader(
+                    label: '지난 일정',
+                    count: '${past.length}',
+                  ),
                 ),
                 if (past.isEmpty)
                   const SliverToBoxAdapter(child: _EmptyLine('지난 PT 일정이 없습니다.'))
                 else
                   SliverList.separated(
                     itemCount: past.length,
-                    separatorBuilder: (_, _) => const AppRowDivider(indent: AppSpacing.screenH),
-                    itemBuilder: (_, i) => _SessionRow(session: past[i], isPast: true),
+                    separatorBuilder: (_, _) =>
+                        const AppRowDivider(indent: AppSpacing.screenH),
+                    itemBuilder: (_, i) =>
+                        _SessionRow(session: past[i], isPast: true),
                   ),
               ],
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
@@ -236,7 +279,12 @@ class _RemainingCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text('남은 횟수', style: AppTextStyles.bodySm.copyWith(color: AppColors.body))),
+                Expanded(
+                  child: Text(
+                    '남은 횟수',
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                  ),
+                ),
                 if (dDay != null) AppTag(dDay),
               ],
             ),
@@ -248,7 +296,10 @@ class _RemainingCard extends StatelessWidget {
                 children: [
                   Text('$remaining', style: AppTextStyles.displayLg),
                   const SizedBox(width: AppSpacing.sm),
-                  Text('/ $total회 남음', style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
+                  Text(
+                    '/ $total회 남음',
+                    style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+                  ),
                 ],
               ),
             ),
@@ -293,7 +344,9 @@ class _SessionRow extends StatelessWidget {
 
     final Widget tag;
     if (!isPast) {
-      final days = DateUtils.dateOnly(start).difference(DateUtils.dateOnly(DateTime.now())).inDays;
+      final days = DateUtils.dateOnly(
+        start,
+      ).difference(DateUtils.dateOnly(DateTime.now())).inDays;
       tag = AppTag(days <= 0 ? '오늘' : 'D-$days');
     } else if (completed) {
       tag = const AppTag('완료', strong: true);
@@ -309,7 +362,10 @@ class _SessionRow extends StatelessWidget {
       container: true,
       label: '$semanticDate PT 세션',
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenH,
+          vertical: AppSpacing.md,
+        ),
         child: Row(
           children: [
             ExcludeSemantics(
@@ -325,7 +381,10 @@ class _SessionRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(_weekdayKo[start.weekday - 1], style: AppTextStyles.counter),
+                    Text(
+                      _weekdayKo[start.weekday - 1],
+                      style: AppTextStyles.counter,
+                    ),
                   ],
                 ),
               ),
@@ -341,7 +400,12 @@ class _SessionRow extends StatelessWidget {
                       color: cancelled ? AppColors.mute : AppColors.ink,
                     ),
                   ),
-                  Text(meta, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    meta,
+                    style: AppTextStyles.bodySm,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -362,7 +426,10 @@ class _EmptyLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenH,
+        vertical: AppSpacing.md,
+      ),
       child: Text(text, style: AppTextStyles.bodySm),
     );
   }

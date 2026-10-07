@@ -9,7 +9,6 @@ import '../../core/validators.dart';
 import '../../models/user.dart';
 import '../../services/admin_setup_service.dart';
 import '../../services/user_provider.dart';
-import '../../widgets/app_action_row.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
@@ -71,10 +70,9 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
         _returnToLogin('가입이 완료되었습니다. 로그인해주세요.');
         return;
       }
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        AppRoutes.adminHome,
-        (_) => false,
-      );
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AppRoutes.adminHome, (_) => false);
     } on AdminRegisteredButSignInFailed {
       if (!mounted) return;
       _returnToLogin('가입이 완료되었습니다. 로그인해주세요.');
@@ -101,14 +99,10 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '관리자 등록',
-                onBack: () => Navigator.of(context).pop(),
-              ),
+            AppScreenHeader(
+              title: '관리자 등록',
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(
@@ -191,7 +185,7 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                 AppSpacing.screenH,
                 AppSpacing.base,
               ),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.hairline)),
               ),
               child: AppButton(

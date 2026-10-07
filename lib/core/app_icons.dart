@@ -41,6 +41,7 @@ class AppIcons {
   static const IconData undo = PhosphorIconsLight.arrowCounterClockwise;
   static const IconData check = PhosphorIconsLight.check;
   static const IconData checkBold = PhosphorIconsBold.check;
+  static const IconData theme = PhosphorIconsLight.circleHalf;
   static const IconData checkCircle = PhosphorIconsLight.checkCircle;
   static const IconData checkCircleFill = PhosphorIconsFill.checkCircle;
   static const IconData circle = PhosphorIconsLight.circle;

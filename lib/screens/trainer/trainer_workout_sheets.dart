@@ -222,7 +222,11 @@ class _PickerRow extends StatelessWidget {
   final TrainerPreviousStats? previous;
   final VoidCallback onTap;
 
-  const _PickerRow({required this.item, required this.previous, required this.onTap});
+  const _PickerRow({
+    required this.item,
+    required this.previous,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +237,7 @@ class _PickerRow extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 56),
+          constraints: const BoxConstraints(minHeight: AppSize.listRow),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Row(
@@ -242,10 +246,19 @@ class _PickerRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(item.name, style: AppTextStyles.bodyMd, maxLines: 1, overflow: TextOverflow.ellipsis),
                       Text(
-                        item.custom ? '${item.category.label} · 직접 추가' : item.category.label,
-                        style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                        item.name,
+                        style: AppTextStyles.bodyMd,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        item.custom
+                            ? '${item.category.label} · 직접 추가'
+                            : item.category.label,
+                        style: AppTextStyles.bodySm.copyWith(
+                          color: AppColors.body,
+                        ),
                       ),
                     ],
                   ),
@@ -278,8 +291,7 @@ class TrainerExerciseMenuSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nextUnit =
-        exercise.unit == TrainerWeightUnit.kg ? 'lbs' : 'kg';
+    final nextUnit = exercise.unit == TrainerWeightUnit.kg ? 'lbs' : 'kg';
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -301,9 +313,9 @@ class TrainerExerciseMenuSheet extends StatelessWidget {
           icon: AppIcons.trash,
           label: '운동 삭제',
           destructive: true,
-          onTap: () => Navigator.of(context).pop(
-            const TrainerMenuAction(type: TrainerMenuActionType.delete),
-          ),
+          onTap: () => Navigator.of(
+            context,
+          ).pop(const TrainerMenuAction(type: TrainerMenuActionType.delete)),
         ),
       ],
     );

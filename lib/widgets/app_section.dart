@@ -43,7 +43,7 @@ class AppSectionHeader extends StatelessWidget {
           Text(monoCase(count!), style: AppTextStyles.eyebrow),
         ],
         const SizedBox(width: AppSpacing.sm),
-        const Expanded(child: Divider(height: 1, color: AppColors.hairline)),
+        Expanded(child: Divider(height: 1, color: AppColors.hairline)),
         if (trailing != null)
           Semantics(
             button: true,
@@ -51,8 +51,16 @@ class AppSectionHeader extends StatelessWidget {
               onTap: onTrailingTap,
               behavior: HitTestBehavior.opaque,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.md, 0, AppSpacing.md),
-                child: Text(trailing!, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  0,
+                  AppSpacing.md,
+                ),
+                child: Text(
+                  trailing!,
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                ),
               ),
             ),
           ),
@@ -82,18 +90,29 @@ class AppEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.xl3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl,
+        vertical: AppSpacing.xl3,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const _EmptyArt(),
           const SizedBox(height: AppSpacing.xl),
-          Text(message, style: AppTextStyles.title, textAlign: TextAlign.center),
+          Text(
+            message,
+            style: AppTextStyles.title,
+            textAlign: TextAlign.center,
+          ),
           if (description != null) ...[
             const SizedBox(height: AppSpacing.sm),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 260),
-              child: Text(description!, style: AppTextStyles.bodySm, textAlign: TextAlign.center),
+              child: Text(
+                description!,
+                style: AppTextStyles.bodySm,
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
           if (actionLabel != null && onAction != null) ...[
@@ -117,8 +136,24 @@ class _EmptyArt extends StatelessWidget {
         height: 72,
         child: Stack(
           children: [
-            Positioned(left: 0, top: 12, child: Container(width: 56, height: 56, color: AppColors.accentBreeze)),
-            Positioned(left: 58, top: 12, child: Container(width: 56, height: 56, color: AppColors.canvasMid)),
+            Positioned(
+              left: 0,
+              top: 12,
+              child: Container(
+                width: 56,
+                height: 56,
+                color: AppColors.accentBreeze,
+              ),
+            ),
+            Positioned(
+              left: 58,
+              top: 12,
+              child: Container(
+                width: 56,
+                height: 56,
+                color: AppColors.canvasMid,
+              ),
+            ),
             Positioned(
               left: 28,
               top: 0,
@@ -134,6 +169,26 @@ class _EmptyArt extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 목록 자리의 짧은 빈 상태 한 줄 ("이 날의 기록이 없습니다"). 그림이 필요한 큰 빈 화면은 [AppEmptyState].
+/// [inset]이 true면 화면 좌우 여백(16)을 스스로 둔다 (시트 안처럼 이미 여백이 있으면 false).
+class AppEmptyLine extends StatelessWidget {
+  final String message;
+  final bool inset;
+
+  const AppEmptyLine(this.message, {super.key, this.inset = true});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: inset ? AppSpacing.screenH : 0,
+        vertical: AppSpacing.xl,
+      ),
+      child: Text(message, style: AppTextStyles.bodySm),
     );
   }
 }

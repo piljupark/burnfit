@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../core/app_logger.dart';
 import '../core/service_validator.dart';
 import '../models/user.dart';
@@ -176,69 +177,70 @@ class FirestoreService {
     return PtInfo.fromMap(snap.docs.first.data() as Map<String, dynamic>);
   }
 
+  /// 관리자 PT권 등록·수정 + 변경 기록 (한 트랜잭션).
+  ///
+  /// 수정은 바뀔 수 있는 운영 필드만 update 한다 (회원 이름 등 다른 필드는 건드리지 않는다).
+  /// [previousInfo]는 화면을 열 때 읽은 값이다. 그 사이 트레이너의 PT 완료로 잔여가 바뀌었으면
+  /// 덮어쓰지 않고 다시 확인하라고 알린다 (차감이 되돌려지는 것 방지).
   static Future<void> savePtInfo(
     PtInfo info, {
     String? changedById,
     String? changedByName,
     String? note,
     PtInfo? previousInfo,
-    bool fetchPreviousInfo = true,
   }) async {
     _validatePtInfo(info);
+    if (info.remainingSessions > info.totalSessions) {
+      throw ArgumentError('잔여 횟수는 전체 횟수보다 많을 수 없습니다.');
+    }
+    final start = info.startDate;
+    final end = info.endDate;
+    if (start != null && end != null && end.isBefore(start)) {
+      throw ArgumentError('종료일이 시작일보다 앞설 수 없습니다.');
+    }
     final ptInfoRef = _db.collection('pt_infos').doc(info.id);
     final logRef = _db.collection('pt_info_logs').doc();
 
-    if (!fetchPreviousInfo || previousInfo != null) {
-      final batch = _db.batch();
-      batch.set(ptInfoRef, info.toMap());
-      batch.set(
-        logRef,
-        _buildPtInfoLog(
-          id: logRef.id,
-          info: info,
-          previous: previousInfo,
-          type: previousInfo == null
-              ? PtInfoLogType.created
-              : PtInfoLogType.updated,
-          changedById: changedById,
-          changedByName: changedByName,
-          note: note,
-        ).toMap(),
-      );
-      await batch.commit();
-      return;
-    }
-
     await _db.runTransaction((transaction) async {
       final snap = await transaction.get(ptInfoRef);
-      final previous = snap.exists ? PtInfo.fromMap(snap.data()!) : null;
-      transaction.set(ptInfoRef, info.toMap());
+      final current = snap.exists ? PtInfo.fromMap(snap.data()!) : null;
+      if (current != null &&
+          previousInfo != null &&
+          current.remainingSessions != previousInfo.remainingSessions) {
+        throw ArgumentError(
+          '그 사이 PT 잔여 횟수가 ${current.remainingSessions}회로 바뀌었습니다. 화면을 다시 열어 확인해주세요.',
+        );
+      }
+      if (current == null) {
+        transaction.set(ptInfoRef, info.toMap());
+      } else {
+        final map = info.toMap();
+        transaction.update(ptInfoRef, {
+          for (final key in const [
+            'trainerId',
+            'startDate',
+            'endDate',
+            'totalSessions',
+            'remainingSessions',
+            'renewalDate',
+          ])
+            key: map[key],
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
       transaction.set(
         logRef,
         _buildPtInfoLog(
           id: logRef.id,
           info: info,
-          previous: previous,
-          type: previous == null
-              ? PtInfoLogType.created
-              : PtInfoLogType.updated,
+          previous: current,
+          type: current == null ? PtInfoLogType.created : PtInfoLogType.updated,
           changedById: changedById,
           changedByName: changedByName,
           note: note,
         ).toMap(),
       );
     });
-  }
-
-  static Future<void> updatePtInfo(String id, Map<String, dynamic> data) async {
-    ServiceValidator.requireText(id, 'PT 정보 ID');
-    if (data.isEmpty) {
-      throw ArgumentError('수정할 PT권 정보가 없습니다.');
-    }
-    _validatePtInfoUpdate(data);
-
-    final payload = {...data, 'updatedAt': FieldValue.serverTimestamp()};
-    await _db.collection('pt_infos').doc(id).update(payload);
   }
 
   static Future<List<PtInfo>> getPtInfosByCenter(String centerId) async {
@@ -259,6 +261,19 @@ class FirestoreService {
     ServiceValidator.requireText(feedback.memberId, '회원 ID');
     ServiceValidator.requireText(feedback.content, '피드백 내용');
     await _db.collection('feedbacks').doc(feedback.id).set(feedback.toMap());
+  }
+
+  /// 피드백 내용만 고친다 (규칙: content·updatedAt만 허용 — 문서 전체를 다시 쓰면 거부된다).
+  static Future<void> updateFeedbackContent(
+    String feedbackId,
+    String content,
+  ) async {
+    ServiceValidator.requireText(feedbackId, '피드백 ID');
+    ServiceValidator.requireText(content, '피드백 내용');
+    await _db.collection('feedbacks').doc(feedbackId).update({
+      'content': content,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   static Future<List<fb.Feedback>> getFeedbacksForMember(
@@ -399,6 +414,8 @@ class FirestoreService {
     await _requireRemainingPtSession(
       centerId: session.centerId,
       memberId: session.memberId,
+      trainerId: session.trainerId,
+      scheduledAt: session.scheduledAt,
     );
     await _db.collection('pt_sessions').doc(session.id).set(session.toMap());
   }
@@ -512,114 +529,20 @@ class FirestoreService {
         .toList();
   }
 
+  /// PT 세션 상태 변경 (완료 · 완료 취소 · 예약 취소).
+  /// 잔여 횟수 차감·복구와 변경 기록은 서버 함수(setPtSessionStatus)가 한 트랜잭션으로 처리한다.
+  /// 이미 그 상태면 아무 일도 없으므로 다시 불러도 안전하다.
   static Future<void> updatePtSessionStatus(
     String sessionId,
     PtSessionStatus status,
   ) async {
-    final sessionRef = _db.collection('pt_sessions').doc(sessionId);
-    final sessionSnap = await sessionRef.get();
-    if (!sessionSnap.exists) return;
-
-    final currentSession = PtSession.fromMap(sessionSnap.data()!);
-    final ptInfoQuery = await _db
-        .collection('pt_infos')
-        .where('centerId', isEqualTo: currentSession.centerId)
-        .where('memberId', isEqualTo: currentSession.memberId)
-        .limit(1)
-        .get();
-    final ptInfoRef = ptInfoQuery.docs.isEmpty
-        ? null
-        : ptInfoQuery.docs.first.reference;
-
-    await _db.runTransaction((transaction) async {
-      final freshSessionSnap = await transaction.get(sessionRef);
-      if (!freshSessionSnap.exists) return;
-
-      final session = PtSession.fromMap(freshSessionSnap.data()!);
-      if (session.status == status) return;
-
-      final shouldDecreaseRemaining =
-          session.status != PtSessionStatus.completed &&
-          status == PtSessionStatus.completed;
-      final shouldRestoreRemaining =
-          session.status == PtSessionStatus.completed &&
-          status != PtSessionStatus.completed;
-
-      if (!shouldDecreaseRemaining && !shouldRestoreRemaining) {
-        transaction.update(sessionRef, {
+    ServiceValidator.requireText(sessionId, 'PT 세션 ID');
+    await FirebaseFunctions.instance
+        .httpsCallable('setPtSessionStatus')
+        .call<Map<String, dynamic>>({
+          'sessionId': sessionId,
           'status': status.name,
-          'updatedAt': FieldValue.serverTimestamp(),
         });
-        return;
-      }
-      if (ptInfoRef == null) {
-        if (shouldDecreaseRemaining) {
-          throw ArgumentError('등록된 PT권이 없어 완료 처리할 수 없습니다.');
-        }
-        transaction.update(sessionRef, {
-          'status': status.name,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-        return;
-      }
-
-      final ptInfoSnap = await transaction.get(ptInfoRef);
-      if (!ptInfoSnap.exists) {
-        if (shouldDecreaseRemaining) {
-          throw ArgumentError('등록된 PT권이 없어 완료 처리할 수 없습니다.');
-        }
-        transaction.update(sessionRef, {
-          'status': status.name,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-        return;
-      }
-
-      final ptInfo = PtInfo.fromMap(ptInfoSnap.data()!);
-      if (shouldDecreaseRemaining && ptInfo.remainingSessions <= 0) {
-        throw ArgumentError('잔여 PT 횟수가 없어 완료 처리할 수 없습니다.');
-      }
-      final nextRemaining = shouldDecreaseRemaining
-          ? (ptInfo.remainingSessions - 1).clamp(0, ptInfo.totalSessions)
-          : (ptInfo.remainingSessions + 1).clamp(0, ptInfo.totalSessions);
-
-      transaction.update(sessionRef, {
-        'status': status.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      transaction.update(ptInfoRef, {
-        'remainingSessions': nextRemaining,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      final logRef = _db.collection('pt_info_logs').doc();
-      transaction.set(
-        logRef,
-        _buildPtInfoLog(
-          id: logRef.id,
-          info: PtInfo(
-            id: ptInfo.id,
-            centerId: ptInfo.centerId,
-            memberId: ptInfo.memberId,
-            memberName: ptInfo.memberName,
-            trainerId: ptInfo.trainerId,
-            startDate: ptInfo.startDate,
-            endDate: ptInfo.endDate,
-            totalSessions: ptInfo.totalSessions,
-            remainingSessions: nextRemaining,
-            renewalDate: ptInfo.renewalDate,
-            createdAt: ptInfo.createdAt,
-            updatedAt: DateTime.now(),
-          ),
-          previous: ptInfo,
-          type: shouldDecreaseRemaining
-              ? PtInfoLogType.sessionCompleted
-              : PtInfoLogType.sessionReopened,
-          changedById: session.trainerId,
-          changedByName: session.trainerName,
-          ptSessionId: session.id,
-        ).toMap(),
-      );
-    });
   }
 
   // ---------- Inbodies ----------
@@ -675,38 +598,62 @@ class FirestoreService {
 
   // ---------- Admin helpers ----------
 
-  static Future<void> assignTrainer(
-    String memberId,
-    String trainerId,
-    String trainerName,
-  ) async {
+  /// 회원 담당 트레이너 배정·변경: 회원 문서, PT권, 앞으로의 예약 일정을 한 번에 바꾼다.
+  /// 조회에 centerId를 넣어야 관리자 읽기 규칙(isCenterAdmin)이 조회를 허용한다.
+  static Future<void> assignTrainer({
+    required String centerId,
+    required String memberId,
+    required String trainerId,
+    required String trainerName,
+  }) async {
+    ServiceValidator.requireText(centerId, '센터 ID');
     ServiceValidator.requireText(memberId, '회원 ID');
     ServiceValidator.requireText(trainerId, '트레이너 ID');
     ServiceValidator.requireText(trainerName, '트레이너 이름');
 
     final memberRef = _db.collection('users').doc(memberId);
-    final ptInfoSnap = await _db
-        .collection('pt_infos')
-        .where('memberId', isEqualTo: memberId)
-        .get();
-    final sessionSnap = await _db
-        .collection('pt_sessions')
-        .where('memberId', isEqualTo: memberId)
-        .where('status', isEqualTo: PtSessionStatus.scheduled.name)
-        .get();
+    final results = await Future.wait([
+      _db
+          .collection('pt_infos')
+          .where('centerId', isEqualTo: centerId)
+          .where('memberId', isEqualTo: memberId)
+          .get(),
+      _db
+          .collection('pt_sessions')
+          .where('centerId', isEqualTo: centerId)
+          .where('memberId', isEqualTo: memberId)
+          .where('status', isEqualTo: PtSessionStatus.scheduled.name)
+          .get(),
+    ]);
+    final ptInfoRefs = results[0].docs.map((d) => d.reference).toList();
+    final sessionRefs = results[1].docs.map((d) => d.reference).toList();
 
-    await _commitInChunks(
-      [memberRef, ...sessionSnap.docs.map((doc) => doc.reference)],
-      {
-        'trainerId': trainerId,
-        'trainerName': trainerName,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-    );
-    await _commitInChunks(
-      ptInfoSnap.docs.map((doc) => doc.reference).toList(),
-      {'trainerId': trainerId, 'updatedAt': FieldValue.serverTimestamp()},
-    );
+    final assigned = {
+      'trainerId': trainerId,
+      'trainerName': trainerName,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    // 일반적으로 한 배치(500건) 안에 들어가므로 중간에 일부만 바뀌는 일이 없다.
+    if (1 + ptInfoRefs.length + sessionRefs.length <= 450) {
+      final batch = _db.batch();
+      batch.update(memberRef, assigned);
+      for (final ref in sessionRefs) {
+        batch.update(ref, assigned);
+      }
+      for (final ref in ptInfoRefs) {
+        batch.update(ref, {
+          'trainerId': trainerId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+      return;
+    }
+    await _commitInChunks([memberRef, ...sessionRefs], assigned);
+    await _commitInChunks(ptInfoRefs, {
+      'trainerId': trainerId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   // ---------- Admin Dashboard ----------
@@ -732,26 +679,21 @@ class FirestoreService {
           .where('role', isEqualTo: 'trainer')
           .where('status', isEqualTo: 'approved')
           .get(),
+      // 이번 달 세션 전체 (완료율·예정 수는 이 범위에서만 센다)
       _db
           .collection('pt_sessions')
           .where('centerId', isEqualTo: centerId)
-          .where('status', isEqualTo: 'completed')
           .where(
             'scheduledAt',
             isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart),
           )
           .where('scheduledAt', isLessThan: Timestamp.fromDate(monthEnd))
           .get(),
-      _db
-          .collection('pt_sessions')
-          .where('centerId', isEqualTo: centerId)
-          .where('status', isEqualTo: 'scheduled')
-          .where('scheduledAt', isGreaterThanOrEqualTo: Timestamp.fromDate(now))
-          .get(),
+      // 잔여 3회 이하 (0회 포함 — 갱신이 가장 급한 회원)
       _db
           .collection('pt_infos')
           .where('centerId', isEqualTo: centerId)
-          .where('remainingSessions', isGreaterThan: 0)
+          .where('remainingSessions', isGreaterThanOrEqualTo: 0)
           .where('remainingSessions', isLessThanOrEqualTo: 3)
           .get(),
       _db
@@ -780,19 +722,25 @@ class FirestoreService {
     final memberCount = results[0].docs.length;
     final trainerCount = results[1].docs.length;
 
-    final completedSessions = results[2].docs
+    final monthSessions = results[2].docs
         .map((d) => PtSession.fromMap(d.data()))
         .toList();
-
-    final upcomingSessions = results[3].docs
-        .map((d) => PtSession.fromMap(d.data()))
+    final completedSessions = monthSessions
+        .where((s) => s.status == PtSessionStatus.completed)
+        .toList();
+    final monthScheduled = monthSessions
+        .where((s) => s.status == PtSessionStatus.scheduled)
+        .toList();
+    // 이번 달 중 아직 다가오지 않은 예약 (홈의 '예정 세션')
+    final upcomingSessions = monthScheduled
+        .where((s) => !s.scheduledAt.isBefore(now))
         .toList();
 
     final lowPtInfos =
-        results[4].docs.map((d) => PtInfo.fromMap(d.data())).toList()
+        results[3].docs.map((d) => PtInfo.fromMap(d.data())).toList()
           ..sort((a, b) => a.remainingSessions.compareTo(b.remainingSessions));
 
-    final todaySessions = results[5].docs
+    final todaySessions = results[4].docs
         .map((d) => PtSession.fromMap(d.data()))
         .toList();
     final todayScheduledSessions = todaySessions
@@ -803,7 +751,7 @@ class FirestoreService {
         .length;
 
     final expiringPtInfos =
-        results[6].docs.map((d) => PtInfo.fromMap(d.data())).toList()
+        results[5].docs.map((d) => PtInfo.fromMap(d.data())).toList()
           ..sort((a, b) {
             final aEnd = a.endDate ?? expiryLimit;
             final bEnd = b.endDate ?? expiryLimit;
@@ -821,8 +769,9 @@ class FirestoreService {
     }
     final trainerStats = trainerMap.values.toList()
       ..sort((a, b) => b.completedCount.compareTo(a.completedCount));
+    // 완료율 = 이번 달 완료 / (이번 달 완료 + 이번 달 예약). 취소는 빼고, 다음 달 예약은 넣지 않는다.
     final monthlyScheduledTotal =
-        completedSessions.length + upcomingSessions.length;
+        completedSessions.length + monthScheduled.length;
     final monthlyCompletionRate = monthlyScheduledTotal == 0
         ? 0.0
         : completedSessions.length / monthlyScheduledTotal;
@@ -886,16 +835,44 @@ class FirestoreService {
     }
   }
 
+  /// 새 예약 전 확인: PT권이 있고, 만료 전이며, 이미 잡힌 예약을 빼고도 잔여가 남아야 한다
+  /// (잔여 1회에 예약 5개를 잡아 두고 완료 때 막히는 일을 막는다).
   static Future<void> _requireRemainingPtSession({
     required String centerId,
     required String memberId,
+    required String trainerId,
+    required DateTime scheduledAt,
   }) async {
     final ptInfo = await getPtInfo(memberId, centerId: centerId);
     if (ptInfo == null) {
       throw ArgumentError('등록된 PT권이 없어 일정을 생성할 수 없습니다.');
     }
-    if (ptInfo.remainingSessions <= 0) {
-      throw ArgumentError('잔여 PT 횟수가 없어 일정을 생성할 수 없습니다.');
+    final end = ptInfo.endDate;
+    if (end != null &&
+        DateTime(
+          scheduledAt.year,
+          scheduledAt.month,
+          scheduledAt.day,
+        ).isAfter(DateTime(end.year, end.month, end.day))) {
+      throw ArgumentError(
+        'PT권 종료일(${end.year}.${end.month}.${end.day}) 이후로는 예약할 수 없습니다.',
+      );
+    }
+    final booked = await _db
+        .collection('pt_sessions')
+        .where('centerId', isEqualTo: centerId)
+        .where('trainerId', isEqualTo: trainerId)
+        .where('memberId', isEqualTo: memberId)
+        .where('status', isEqualTo: PtSessionStatus.scheduled.name)
+        .count()
+        .get();
+    final available = ptInfo.remainingSessions - (booked.count ?? 0);
+    if (available <= 0) {
+      throw ArgumentError(
+        ptInfo.remainingSessions <= 0
+            ? '잔여 PT 횟수가 없어 일정을 생성할 수 없습니다.'
+            : '잔여 ${ptInfo.remainingSessions}회가 모두 예약돼 있어 더 잡을 수 없습니다.',
+      );
     }
   }
 
@@ -910,21 +887,6 @@ class FirestoreService {
         batch.update(ref, data);
       }
       await batch.commit();
-    }
-  }
-
-  static void _validatePtInfoUpdate(Map<String, dynamic> data) {
-    final total = data['totalSessions'];
-    final remaining = data['remainingSessions'];
-
-    if (total is int) {
-      ServiceValidator.requireNonNegativeInt(total, '전체 PT 횟수');
-    }
-    if (remaining is int) {
-      ServiceValidator.requireNonNegativeInt(remaining, '잔여 PT 횟수');
-    }
-    if (total is int && remaining is int && remaining > total) {
-      throw ArgumentError('잔여 PT 횟수는 전체 PT 횟수보다 클 수 없습니다.');
     }
   }
 

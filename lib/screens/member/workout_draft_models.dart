@@ -187,13 +187,12 @@ class WorkoutExerciseDraft {
       final rawWeight = set.weight;
       final reps = set.reps;
 
-      if (rawWeight == null || rawWeight <= 0 || reps == null || reps <= 0) {
-        continue;
-      }
+      // 무게가 비었거나 0이면 맨몸 운동(푸시업·턱걸이 등)으로 보고 0kg으로 남긴다. 횟수는 필수.
+      if (reps == null || reps <= 0) continue;
+      if (rawWeight != null && rawWeight < 0) continue;
 
-      final weightInKg = unit == WeightUnit.kg
-          ? rawWeight
-          : rawWeight / 2.2046226218;
+      final weight = rawWeight ?? 0;
+      final weightInKg = unit == WeightUnit.kg ? weight : weight / 2.2046226218;
 
       validSets.add(ExerciseSet(weight: weightInKg, reps: reps));
     }

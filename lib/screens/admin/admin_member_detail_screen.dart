@@ -15,7 +15,6 @@ import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_avatar.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_hero.dart';
@@ -89,15 +88,19 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
   Future<void> _assignTrainer() async {
     final trainer = await showAppBottomSheet<AppUser>(
       context: context,
-      child: _TrainerPickerSheet(trainers: _trainers, currentTrainerId: _member.trainerId),
+      child: _TrainerPickerSheet(
+        trainers: _trainers,
+        currentTrainerId: _member.trainerId,
+      ),
     );
     if (trainer == null) return;
 
     try {
       await FirestoreService.assignTrainer(
-        _member.uid,
-        trainer.uid,
-        trainer.name,
+        centerId: _member.centerId,
+        memberId: _member.uid,
+        trainerId: trainer.uid,
+        trainerName: trainer.name,
       );
       if (!mounted) return;
       setState(() {
@@ -153,14 +156,10 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '회원 상세',
-                onBack: () => Navigator.of(context).pop(_member),
-              ),
+            AppScreenHeader(
+              title: '회원 상세',
+              onBack: () => Navigator.of(context).pop(_member),
             ),
-            const AppRowDivider(),
             Expanded(
               child: _isLoading
                   ? const AppLoadingView()
@@ -181,7 +180,6 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                             name: m.name,
                             subtitle: m.email,
                             roleLabel: '회원',
-                            seed: m.uid,
                           ),
                         ),
 
@@ -194,7 +192,9 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                           value: m.trainerName ?? '미배정',
                           muted: m.trainerName == null,
                           trailing: AppButton(
-                            label: m.trainerName != null ? '트레이너 변경' : '트레이너 배정',
+                            label: m.trainerName != null
+                                ? '트레이너 변경'
+                                : '트레이너 배정',
                             variant: AppButtonVariant.secondary,
                             size: AppButtonSize.sm,
                             onPressed: _assignTrainer,
@@ -232,7 +232,10 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                           const AppRowDivider(indent: AppSpacing.screenH),
                           _KeyValueRow(label: '종료일', value: _fmt(pt.endDate)),
                           const AppRowDivider(indent: AppSpacing.screenH),
-                          _KeyValueRow(label: '갱신일', value: _fmt(pt.renewalDate)),
+                          _KeyValueRow(
+                            label: '갱신일',
+                            value: _fmt(pt.renewalDate),
+                          ),
                         ] else
                           const _MutedLine('PT 정보가 없습니다.'),
 
@@ -250,7 +253,8 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
                           const _MutedLine('변경 이력이 없습니다.')
                         else
                           for (int i = 0; i < _ptInfoLogs.length; i++) ...[
-                            if (i > 0) const AppRowDivider(indent: AppSpacing.screenH),
+                            if (i > 0)
+                              const AppRowDivider(indent: AppSpacing.screenH),
                             _PtInfoLogRow(log: _ptInfoLogs[i]),
                           ],
                       ],
@@ -272,26 +276,42 @@ class _KeyValueRow extends StatelessWidget {
   final bool muted;
   final Widget? trailing;
 
-  const _KeyValueRow({required this.label, required this.value, this.muted = false, this.trailing});
+  const _KeyValueRow({
+    required this.label,
+    required this.value,
+    this.muted = false,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 52),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.xs),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenH,
+          vertical: AppSpacing.xs,
+        ),
         child: Row(
           children: [
-            SizedBox(width: 72, child: Text(label, style: AppTextStyles.bodySm)),
+            SizedBox(
+              width: 72,
+              child: Text(label, style: AppTextStyles.bodySm),
+            ),
             Expanded(
               child: Text(
                 value,
-                style: AppTextStyles.bodyMd.copyWith(color: muted ? AppColors.mute : AppColors.ink),
+                style: AppTextStyles.bodyMd.copyWith(
+                  color: muted ? AppColors.mute : AppColors.ink,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (trailing != null) ...[const SizedBox(width: AppSpacing.sm), trailing!],
+            if (trailing != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              trailing!,
+            ],
           ],
         ),
       ),
@@ -307,7 +327,10 @@ class _MutedLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenH,
+        vertical: AppSpacing.md,
+      ),
       child: Text(text, style: AppTextStyles.bodySm),
     );
   }
@@ -358,7 +381,11 @@ class _TrainerOption extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _TrainerOption({required this.trainer, required this.selected, required this.onTap});
+  const _TrainerOption({
+    required this.trainer,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -373,12 +400,16 @@ class _TrainerOption extends StatelessWidget {
           height: 56,
           child: Row(
             children: [
-              AppAvatar(name: trainer.name, seed: trainer.uid, size: 32),
-              const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: Text(trainer.name, style: AppTextStyles.bodyMd, maxLines: 1, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  trainer.name,
+                  style: AppTextStyles.bodyMd,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              if (selected) const Icon(AppIcons.check, size: AppSize.icon, color: AppColors.ink),
+              if (selected)
+                Icon(AppIcons.check, size: AppSize.icon, color: AppColors.ink),
             ],
           ),
         ),
@@ -399,14 +430,19 @@ class _PtInfoLogRow extends StatelessWidget {
     final date = DateFormat('MM.dd HH:mm').format(log.createdAt);
     final totalDiff = _signed(log.totalDiff);
     final remainingDiff = _signed(log.remainingDiff);
-    final actor = log.changedByName?.trim().isNotEmpty == true ? log.changedByName! : '시스템';
+    final actor = log.changedByName?.trim().isNotEmpty == true
+        ? log.changedByName!
+        : '시스템';
     final detail = [
       if (totalDiff != '0') '전체 $totalDiff',
       if (remainingDiff != '0') '잔여 $remainingDiff',
     ].join(' · ');
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenH,
+        vertical: AppSpacing.md,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -415,7 +451,10 @@ class _PtInfoLogRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(log.type.label, style: AppTextStyles.bodyMd),
-                Text(detail.isEmpty ? actor : '$detail · $actor', style: AppTextStyles.bodySm),
+                Text(
+                  detail.isEmpty ? actor : '$detail · $actor',
+                  style: AppTextStyles.bodySm,
+                ),
                 if (log.note != null && log.note!.trim().isNotEmpty)
                   Text(
                     log.note!,
@@ -492,28 +531,31 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: 'PT 변경 이력',
-                subtitle: widget.member.name,
-                onBack: () => Navigator.of(context).pop(),
-              ),
+            AppScreenHeader(
+              title: 'PT 변경 이력',
+              subtitle: widget.member.name,
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: _isLoading
                   ? const AppLoadingView()
                   : _errorMessage != null
                   ? AppErrorCard(message: _errorMessage!, onRetry: _load)
                   : _logs.isEmpty
-                  ? const AppEmptyState(icon: AppIcons.clipboard, message: '변경 이력이 없습니다.')
+                  ? const AppEmptyState(
+                      icon: AppIcons.clipboard,
+                      message: '변경 이력이 없습니다.',
+                    )
                   : ListView(
                       padding: const EdgeInsets.only(bottom: AppSpacing.xl),
                       children: [
-                        AppMonthHeader(label: '변경 이력', count: '${_logs.length}'),
+                        AppMonthHeader(
+                          label: '변경 이력',
+                          count: '${_logs.length}',
+                        ),
                         for (int i = 0; i < _logs.length; i++) ...[
-                          if (i > 0) const AppRowDivider(indent: AppSpacing.screenH),
+                          if (i > 0)
+                            const AppRowDivider(indent: AppSpacing.screenH),
                           _PtInfoLogRow(log: _logs[i]),
                         ],
                       ],
@@ -588,11 +630,16 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
     DateTime? current,
     void Function(DateTime) onPicked,
   ) async {
+    // 범위는 오늘 기준 ±10년 (저장된 날짜가 범위 밖이어도 열리도록 그 날짜를 포함한다).
+    final now = DateTime.now();
+    final initial = current ?? now;
+    final first = DateTime(now.year - 10);
+    final last = DateTime(now.year + 10, 12, 31);
     final picked = await showDatePicker(
       context: context,
-      initialDate: current ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
+      initialDate: initial,
+      firstDate: initial.isBefore(first) ? initial : first,
+      lastDate: initial.isAfter(last) ? initial : last,
     );
     if (picked != null) onPicked(picked);
   }
@@ -600,8 +647,16 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
   Future<void> _save() async {
     if (_isSaving) return;
 
-    final total = int.tryParse(_totalController.text) ?? 0;
-    final remaining = int.tryParse(_remainingController.text) ?? 0;
+    final total = int.tryParse(_totalController.text.trim());
+    final remaining = int.tryParse(_remainingController.text.trim());
+    if (total == null || remaining == null || total < 0 || remaining < 0) {
+      AppFeedback.showWarning(context, '전체·잔여 횟수를 0 이상의 숫자로 입력해주세요.');
+      return;
+    }
+    if (remaining > total) {
+      AppFeedback.showWarning(context, '잔여 횟수는 전체 횟수보다 많을 수 없습니다.');
+      return;
+    }
     final note = _noteController.text.trim();
 
     if (_isEditing && note.isEmpty) {
@@ -634,7 +689,6 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
         changedByName: widget.changedByName,
         note: note.isEmpty ? null : note,
         previousInfo: widget.existing,
-        fetchPreviousInfo: false,
       );
       if (!mounted) return;
       Navigator.of(context).pop(info);
@@ -660,19 +714,28 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
         _DateRow(
           label: '시작일',
           value: _startDate,
-          onTap: () => _pickDate(context, _startDate, (d) => setState(() => _startDate = d)),
+          onTap: () => _pickDate(
+            context,
+            _startDate,
+            (d) => setState(() => _startDate = d),
+          ),
         ),
         const AppRowDivider(),
         _DateRow(
           label: '종료일',
           value: _endDate,
-          onTap: () => _pickDate(context, _endDate, (d) => setState(() => _endDate = d)),
+          onTap: () =>
+              _pickDate(context, _endDate, (d) => setState(() => _endDate = d)),
         ),
         const AppRowDivider(),
         _DateRow(
           label: '갱신일',
           value: _renewalDate,
-          onTap: () => _pickDate(context, _renewalDate, (d) => setState(() => _renewalDate = d)),
+          onTap: () => _pickDate(
+            context,
+            _renewalDate,
+            (d) => setState(() => _renewalDate = d),
+          ),
         ),
         const AppRowDivider(),
         const SizedBox(height: AppSpacing.base),
@@ -735,7 +798,11 @@ class _DateRow extends StatelessWidget {
   final DateTime? value;
   final VoidCallback onTap;
 
-  const _DateRow({required this.label, required this.value, required this.onTap});
+  const _DateRow({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -753,15 +820,24 @@ class _DateRow extends StatelessWidget {
             children: [
               SizedBox(
                 width: 72,
-                child: Text(label, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                child: Text(
+                  label,
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                ),
               ),
               Expanded(
                 child: Text(
                   value == null ? '선택' : _fmt(value),
-                  style: AppTextStyles.bodyMd.copyWith(color: value == null ? AppColors.body : AppColors.ink),
+                  style: AppTextStyles.bodyMd.copyWith(
+                    color: value == null ? AppColors.body : AppColors.ink,
+                  ),
                 ),
               ),
-              const Icon(AppIcons.calendar, size: AppSize.icon, color: AppColors.body),
+              Icon(
+                AppIcons.calendar,
+                size: AppSize.icon,
+                color: AppColors.body,
+              ),
             ],
           ),
         ),

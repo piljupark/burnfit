@@ -56,18 +56,29 @@ class _FoodListScreenState extends State<FoodListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(title: widget.title, onBack: () => Navigator.of(context).pop()),
+            AppScreenHeader(
+              title: widget.title,
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: ListView(
-                padding: EdgeInsets.only(bottom: AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom),
+                padding: EdgeInsets.only(
+                  bottom: AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom,
+                ),
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, 0),
-                    child: Text(widget.description, style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.base,
+                      AppSpacing.screenH,
+                      0,
+                    ),
+                    child: Text(
+                      widget.description,
+                      style: AppTextStyles.bodyMd.copyWith(
+                        color: AppColors.body,
+                      ),
+                    ),
                   ),
                   if (_tags.isNotEmpty)
                     AppScrollableChips(
@@ -84,10 +95,20 @@ class _FoodListScreenState extends State<FoodListScreen> {
                   const AppRowDivider(),
                   ExcludeSemantics(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, 44, AppSpacing.sm),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.screenH,
+                        AppSpacing.sm,
+                        44,
+                        AppSpacing.sm,
+                      ),
                       child: Row(
                         children: [
-                          Expanded(child: Text('음식 · 1회 분량', style: AppTextStyles.captionSmall)),
+                          Expanded(
+                            child: Text(
+                              '음식 · 1회 분량',
+                              style: AppTextStyles.captionSmall,
+                            ),
+                          ),
                           Text('단백질 · 열량', style: AppTextStyles.captionSmall),
                         ],
                       ),
@@ -96,13 +117,25 @@ class _FoodListScreenState extends State<FoodListScreen> {
                   for (final food in foods) ...[
                     _FoodRow(
                       food: food,
-                      onTap: () => showFoodDetailSheet(context, food, addAction: widget.addAction),
+                      onTap: () => showFoodDetailSheet(
+                        context,
+                        food,
+                        addAction: widget.addAction,
+                      ),
                     ),
                     const AppRowDivider(),
                   ],
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, 0),
-                    child: Text('참고용 대략값이에요. 조리법·제품에 따라 달라져요.', style: AppTextStyles.captionSmall),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.md,
+                      AppSpacing.screenH,
+                      0,
+                    ),
+                    child: Text(
+                      '참고용 대략값이에요. 조리법·제품에 따라 달라져요.',
+                      style: AppTextStyles.captionSmall,
+                    ),
                   ),
                 ],
               ),
@@ -127,14 +160,18 @@ class _FoodRow extends StatelessWidget {
     final tags = food.tags.map((t) => t.label).join(', ');
     return Semantics(
       button: true,
-      label: '${food.name} ${food.serving}, 단백질 $protein그램, ${food.kcal}킬로칼로리${tags.isEmpty ? '' : ', $tags'}',
+      label:
+          '${food.name} ${food.serving}, 단백질 $protein그램, ${food.kcal}킬로칼로리${tags.isEmpty ? '' : ', $tags'}',
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.screenH,
+            vertical: AppSpacing.md,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -159,13 +196,19 @@ class _FoodRow extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('${protein}g', style: AppTextStyles.counter.copyWith(fontSize: 13, color: AppColors.ink)),
+                  Text(
+                    '${protein}g',
+                    style: AppTextStyles.counter.copyWith(
+                      fontSize: 13,
+                      color: AppColors.ink,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text('${food.kcal}kcal', style: AppTextStyles.counter),
                 ],
               ),
               const SizedBox(width: AppSpacing.sm),
-              const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+              Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
             ],
           ),
         ),

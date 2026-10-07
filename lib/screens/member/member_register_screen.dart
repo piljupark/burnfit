@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
@@ -10,9 +9,8 @@ import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
 import '../../core/validators.dart';
 import '../../models/center.dart' as center_model;
-import '../../models/join_request.dart';
 import '../../models/user.dart';
-import '../../services/auth_service.dart';
+import '../../services/registration_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
@@ -76,42 +74,19 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
     }
     setState(() => _isLoading = true);
     try {
-      final cred = await AuthService.signUp(
-        email: _emailController.text.trim(),
+      final user = await RegistrationService.register(
+        email: _emailController.text,
         password: _passwordController.text,
-      );
-      const uuid = Uuid();
-      final now = DateTime.now();
-      final user = AppUser(
-        uid: cred.user!.uid,
-        email: _emailController.text.trim(),
-        name: _nameController.text.trim(),
+        name: _nameController.text,
         role: UserRole.member,
-        status: UserStatus.pending,
-        centerId: _selectedCenter!.id,
-        centerName: _selectedCenter!.name,
-        createdAt: now,
-        updatedAt: now,
+        center: _selectedCenter!,
       );
-      final request = JoinRequest(
-        id: uuid.v4(),
-        userId: user.uid,
-        userName: user.name,
-        userEmail: user.email,
-        centerId: _selectedCenter!.id,
-        centerName: _selectedCenter!.name,
-        role: 'member',
-        status: JoinRequestStatus.pending,
-        createdAt: now,
-      );
-      await FirestoreService.saveUser(user);
-      await FirestoreService.createJoinRequest(request);
       if (!mounted) return;
       context.read<UserProvider>().setUser(user);
       Navigator.of(context).pushReplacementNamed(AppRoutes.pendingApproval);
-    } on Exception {
+    } catch (e) {
       if (!mounted) return;
-      _showError('가입 중 오류가 발생했습니다. 다시 시도해주세요.');
+      AppFeedback.showErrorSnackBar(context, e);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -129,14 +104,10 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '회원가입',
-                onBack: () => Navigator.of(context).pop(),
-              ),
+            AppScreenHeader(
+              title: '회원가입',
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(
@@ -189,7 +160,9 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                         suffix: _isSearching
                             ? const Padding(
                                 padding: EdgeInsets.only(right: AppSpacing.md),
-                                child: OrbLoader.inline(semanticLabel: '센터 검색 중'),
+                                child: OrbLoader.inline(
+                                  semanticLabel: '센터 검색 중',
+                                ),
                               )
                             : null,
                       ),
@@ -200,7 +173,8 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                           onClear: () => setState(() => _selectedCenter = null),
                         ),
                       ],
-                      if (_searchResults.isNotEmpty && _selectedCenter == null) ...[
+                      if (_searchResults.isNotEmpty &&
+                          _selectedCenter == null) ...[
                         const Gap(AppSpacing.sm),
                         _CenterSearchResults(
                           results: _searchResults,
@@ -224,7 +198,7 @@ class _MemberRegisterScreenState extends State<MemberRegisterScreen> {
                 AppSpacing.screenH,
                 AppSpacing.base,
               ),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.hairline)),
               ),
               child: AppButton(
@@ -260,7 +234,7 @@ class _SelectedCenter extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(AppIcons.checkCircle, size: AppSize.icon, color: AppColors.ink),
+          Icon(AppIcons.checkCircle, size: AppSize.icon, color: AppColors.ink),
           const Gap(AppSpacing.sm),
           Expanded(
             child: Text(
@@ -302,7 +276,7 @@ class _CenterSearchResults extends StatelessWidget {
               highlightColor: AppColors.canvasSoft,
               splashFactory: NoSplash.splashFactory,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 56),
+                constraints: const BoxConstraints(minHeight: AppSize.listRow),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   child: Row(
@@ -317,7 +291,11 @@ class _CenterSearchResults extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+                      Icon(
+                        AppIcons.forward,
+                        size: AppSize.icon,
+                        color: AppColors.mute,
+                      ),
                     ],
                   ),
                 ),

@@ -13,24 +13,32 @@ import '../core/app_text_styles.dart';
 /// - 기기 설정에서 움직임 줄이기를 켜면 정지한 구체를 그린다.
 class OrbLoader extends StatefulWidget {
   final double size;
-  final Color color;
+  final Color? color;
   final String? semanticLabel;
 
-  const OrbLoader({super.key, this.size = AppSize.orbLoader, this.color = AppColors.ink, this.semanticLabel});
+  const OrbLoader({
+    super.key,
+    this.size = AppSize.orbLoader,
+    this.color,
+    this.semanticLabel,
+  });
 
-  const OrbLoader.screen({super.key, this.color = AppColors.ink, this.semanticLabel = '불러오는 중'})
-      : size = AppSize.orbLoader;
+  const OrbLoader.screen({super.key, this.color, this.semanticLabel = '불러오는 중'})
+    : size = AppSize.orbLoader;
 
-  const OrbLoader.inline({super.key, this.color = AppColors.ink, this.semanticLabel = '처리 중'})
-      : size = AppSize.orbInline;
+  const OrbLoader.inline({super.key, this.color, this.semanticLabel = '처리 중'})
+    : size = AppSize.orbInline;
 
   @override
   State<OrbLoader> createState() => _OrbLoaderState();
 }
 
-class _OrbLoaderState extends State<OrbLoader> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-      AnimationController(vsync: this, duration: const Duration(seconds: 6));
+class _OrbLoaderState extends State<OrbLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 6),
+  );
 
   @override
   void didChangeDependencies() {
@@ -61,7 +69,7 @@ class _OrbLoaderState extends State<OrbLoader> with SingleTickerProviderStateMix
             builder: (context, _) => CustomPaint(
               painter: _OrbPainter(
                 angle: _controller.value * 2 * math.pi,
-                color: widget.color,
+                color: widget.color ?? AppColors.ink,
                 dense: widget.size >= 40,
               ),
             ),
@@ -120,7 +128,8 @@ class _OrbPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_OrbPainter old) => old.angle != angle || old.color != color;
+  bool shouldRepaint(_OrbPainter old) =>
+      old.angle != angle || old.color != color;
 }
 
 /// 화면 가운데 로딩 (선택적으로 모노 캡션).

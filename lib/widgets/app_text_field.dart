@@ -72,8 +72,9 @@ class _AppTextFieldState extends State<AppTextField> {
   @override
   Widget build(BuildContext context) {
     final multiline = widget.maxLines > 1 && !widget.obscureText;
-    final keyboardType =
-        multiline && widget.keyboardType == TextInputType.text ? TextInputType.multiline : widget.keyboardType;
+    final keyboardType = multiline && widget.keyboardType == TextInputType.text
+        ? TextInputType.multiline
+        : widget.keyboardType;
 
     final field = TextFormField(
       controller: widget.controller,
@@ -98,9 +99,15 @@ class _AppTextFieldState extends State<AppTextField> {
         prefixIcon: widget.prefix == null
             ? null
             : Padding(
-                padding: const EdgeInsets.only(left: AppSpacing.base, right: AppSpacing.sm),
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.base,
+                  right: AppSpacing.sm,
+                ),
                 child: IconTheme(
-                  data: const IconThemeData(color: AppColors.mute, size: AppSize.icon),
+                  data: IconThemeData(
+                    color: AppColors.mute,
+                    size: AppSize.icon,
+                  ),
                   child: widget.prefix!,
                 ),
               ),
@@ -108,7 +115,11 @@ class _AppTextFieldState extends State<AppTextField> {
         suffixIcon: widget.obscureText
             ? IconButton(
                 tooltip: _obscure ? '비밀번호 보기' : '비밀번호 숨기기',
-                icon: Icon(_obscure ? AppIcons.eye : AppIcons.eyeSlash, size: AppSize.icon, color: AppColors.body),
+                icon: Icon(
+                  _obscure ? AppIcons.eye : AppIcons.eyeSlash,
+                  size: AppSize.icon,
+                  color: AppColors.body,
+                ),
                 onPressed: () => setState(() => _obscure = !_obscure),
               )
             : widget.suffix,

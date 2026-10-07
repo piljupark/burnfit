@@ -22,7 +22,10 @@ void main() {
   });
 
   test('알 수 없는 종류나 빠진 값이 있어도 읽는다', () {
-    final item = AppNotification.fromMap('n2', {'type': 'new_type', 'readAt': 'broken'});
+    final item = AppNotification.fromMap('n2', {
+      'type': 'new_type',
+      'readAt': 'broken',
+    });
     expect(item.target, isNull);
     expect(item.title, '');
     expect(item.createdAt, isNull);
@@ -31,7 +34,9 @@ void main() {
 
   test('보관 기간 안내가 서버 값과 같다 (functions/notifications.js)', () {
     final source = File('functions/notifications.js').readAsStringSync();
-    final match = RegExp(r'const INBOX_RETENTION_DAYS = (\d+);').firstMatch(source);
+    final match = RegExp(
+      r'const INBOX_RETENTION_DAYS = (\d+);',
+    ).firstMatch(source);
     expect(match, isNotNull);
     expect(NotificationService.retentionDays, int.parse(match!.group(1)!));
   });

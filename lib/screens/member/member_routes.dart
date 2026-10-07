@@ -15,8 +15,8 @@ class MemberRoutes {
   }
 
   static Future<void> openFeedback(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MemberFeedbackScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MemberFeedbackScreen()));
   }
 }

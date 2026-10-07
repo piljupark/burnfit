@@ -12,25 +12,35 @@ class AppTextStyles {
   static const String sans = 'WantedSans';
   static const String mono = 'GeistMono';
 
-  static TextStyle _sans(double size, double lineHeight, {Color color = AppColors.ink, FontWeight weight = FontWeight.w400}) {
+  static TextStyle _sans(
+    double size,
+    double lineHeight, {
+    Color? color,
+    FontWeight weight = FontWeight.w400,
+  }) {
     return TextStyle(
       fontFamily: sans,
       fontSize: size,
       height: lineHeight / size,
       fontWeight: weight,
       letterSpacing: size * -0.019,
-      color: color,
+      color: color ?? AppColors.ink,
     );
   }
 
-  static TextStyle _mono(double size, double lineHeight, double trackingEm, {Color color = AppColors.mute}) {
+  static TextStyle _mono(
+    double size,
+    double lineHeight,
+    double trackingEm, {
+    Color? color,
+  }) {
     return TextStyle(
       fontFamily: mono,
       fontSize: size,
       height: lineHeight / size,
       fontWeight: FontWeight.w400,
       letterSpacing: size * trackingEm,
-      color: color,
+      color: color ?? AppColors.mute,
     );
   }
 
@@ -83,7 +93,8 @@ class AppTextStyles {
   static TextStyle get label => bodyMd;
   static TextStyle get labelSmall => _sans(12, 16, color: AppColors.body);
   static TextStyle get overline => _sans(12, 16, color: AppColors.mute);
-  static TextStyle get button => buttonLabel.copyWith(color: AppColors.onPrimary);
+  static TextStyle get button =>
+      buttonLabel.copyWith(color: AppColors.onPrimary);
   static TextStyle get stat => _sans(40, 44);
   static TextStyle get numberLarge => displayMd;
   static TextStyle get numberMedium => title;

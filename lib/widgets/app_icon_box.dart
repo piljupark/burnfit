@@ -7,10 +7,10 @@ import '../core/app_spacing.dart';
 /// [color]는 기존 호출부 호환용 — 아이콘에 색을 입히지 않는다.
 class AppIconBox extends StatelessWidget {
   final IconData icon;
-  final Color color;
+  final Color? color;
   final double size;
 
-  const AppIconBox({super.key, required this.icon, this.color = AppColors.ink, this.size = 40});
+  const AppIconBox({super.key, required this.icon, this.color, this.size = 40});
 
   @override
   Widget build(BuildContext context) {

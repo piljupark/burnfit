@@ -32,7 +32,8 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = color ??
+    final bg =
+        color ??
         switch (variant) {
           AppCardVariant.standard => AppColors.canvasCard,
           AppCardVariant.tinted => AppColors.canvasSoft,
@@ -44,7 +45,7 @@ class AppCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: radius,
         side: hasBorder || variant == AppCardVariant.outlined
-            ? const BorderSide(color: AppColors.hairline)
+            ? BorderSide(color: AppColors.hairline)
             : BorderSide.none,
       ),
       clipBehavior: Clip.antiAlias,

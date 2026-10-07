@@ -45,21 +45,46 @@ class FoodGuideData {
       title: '운동 1–2시간 전',
       icon: PhosphorIconsLight.lightning,
       description: '소화가 잘 되는 탄수화물 위주로 먹고, 기름진 음식은 피하세요.',
-      foodIds: ['banana', 'sweet_potato', 'whole_wheat_bread', 'peanut_butter', 'oatmeal', 'greek_yogurt', 'bagel'],
+      foodIds: [
+        'banana',
+        'sweet_potato',
+        'whole_wheat_bread',
+        'peanut_butter',
+        'oatmeal',
+        'greek_yogurt',
+        'bagel',
+      ],
     ),
     FoodSituation(
       id: 'post_workout',
       title: '운동 직후',
       icon: AppIcons.workout,
       description: '운동 후 1–2시간 안에 단백질과 탄수화물을 함께 먹으면 회복에 좋아요.',
-      foodIds: ['chicken_breast', 'brown_rice', 'milk', 'protein_drink', 'egg', 'banana', 'tuna_can', 'white_rice'],
+      foodIds: [
+        'chicken_breast',
+        'brown_rice',
+        'milk',
+        'protein_drink',
+        'egg',
+        'banana',
+        'tuna_can',
+        'white_rice',
+      ],
     ),
     FoodSituation(
       id: 'late_night',
       title: '저녁 · 야식이 당길 때',
       icon: PhosphorIconsLight.moon,
       description: '단백질이 많고 가벼운 음식으로, 양은 손바닥 하나만큼만 드세요.',
-      foodIds: ['greek_yogurt', 'egg', 'tofu', 'soy_milk', 'cherry_tomato', 'cucumber', 'cheese'],
+      foodIds: [
+        'greek_yogurt',
+        'egg',
+        'tofu',
+        'soy_milk',
+        'cherry_tomato',
+        'cucumber',
+        'cheese',
+      ],
     ),
     FoodSituation(
       id: 'convenience',
@@ -719,7 +744,7 @@ class FoodGuideData {
 
   /// 상황·짝 음식 목록의 id를 음식으로 바꾼다 (없는 id는 건너뛴다).
   static List<FoodItem> resolve(List<String> ids) => [
-        for (final id in ids)
-          if (_byId[id] case final food?) food,
-      ];
+    for (final id in ids)
+      if (_byId[id] case final food?) food,
+  ];
 }

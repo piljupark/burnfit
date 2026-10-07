@@ -20,10 +20,15 @@ class TrainerInbodyInputSheet extends StatefulWidget {
   final AppUser member;
   final AppUser trainer;
 
-  const TrainerInbodyInputSheet({super.key, required this.member, required this.trainer});
+  const TrainerInbodyInputSheet({
+    super.key,
+    required this.member,
+    required this.trainer,
+  });
 
   @override
-  State<TrainerInbodyInputSheet> createState() => _TrainerInbodyInputSheetState();
+  State<TrainerInbodyInputSheet> createState() =>
+      _TrainerInbodyInputSheetState();
 }
 
 class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
@@ -128,7 +133,9 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
   @override
   Widget build(BuildContext context) {
     final numberType = const TextInputType.numberWithOptions(decimal: true);
-    final numberFormatters = [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))];
+    final numberFormatters = [
+      FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+    ];
 
     return Form(
       key: _formKey,
@@ -136,7 +143,10 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          AppBottomSheetHeader(title: 'InBody 입력', subtitle: '${widget.member.name} 회원의 측정 기록'),
+          AppBottomSheetHeader(
+            title: 'InBody 입력',
+            subtitle: '${widget.member.name} 회원의 측정 기록',
+          ),
           const _SheetSection(label: '날짜', first: true),
           AppTextField(
             label: '측정일',
@@ -149,7 +159,9 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
               onPressed: _pickDate,
               color: AppColors.body,
             ),
-            validator: (v) => DateTime.tryParse(v?.trim() ?? '') == null ? '측정일을 선택해주세요.' : null,
+            validator: (v) => DateTime.tryParse(v?.trim() ?? '') == null
+                ? '측정일을 선택해주세요.'
+                : null,
           ),
           const _SheetSection(label: '체성분'),
           Row(
@@ -242,7 +254,13 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
             textInputAction: TextInputAction.done,
           ),
           const SizedBox(height: AppSpacing.xl),
-          AppButton(label: '저장', onPressed: _save, isLoading: _isSaving, fullWidth: true, size: AppButtonSize.lg),
+          AppButton(
+            label: '저장',
+            onPressed: _save,
+            isLoading: _isSaving,
+            fullWidth: true,
+            size: AppButtonSize.lg,
+          ),
         ],
       ),
     );
@@ -260,7 +278,10 @@ class _SheetSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppMonthHeader(
       label: label,
-      padding: EdgeInsets.only(top: first ? 0 : AppSpacing.xl, bottom: AppSpacing.md),
+      padding: EdgeInsets.only(
+        top: first ? 0 : AppSpacing.xl,
+        bottom: AppSpacing.md,
+      ),
     );
   }
 }

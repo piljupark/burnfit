@@ -18,11 +18,16 @@ void main() {
   testWidgets('가이드 → 영양소 목록 → 필터 → 상세 시트 → 추가 버튼이 고른 음식을 넘긴다', (tester) async {
     _tallPhone(tester);
     FoodItem? added;
-    await tester.pumpWidget(MaterialApp(
-      home: NutritionGuideScreen(
-        addAction: FoodAddAction(label: '오늘 식단에 추가', onAdd: (food) async => added = food),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NutritionGuideScreen(
+          addAction: FoodAddAction(
+            label: '오늘 식단에 추가',
+            onAdd: (food) async => added = food,
+          ),
+        ),
       ),
-    ));
+    );
 
     expect(find.text('운동 직후'), findsOneWidget);
     await tester.tap(find.text('단백질'));
@@ -68,17 +73,19 @@ void main() {
 
   testWidgets('식단 입력 화면은 넘겨받은 끼니·메모·칼로리로 미리 채워진다', (tester) async {
     _tallPhone(tester);
-    await tester.pumpWidget(const MaterialApp(
-      home: MealInputSheet(
-        centerId: 'c1',
-        memberId: 'm1',
-        memberName: '회원',
-        selectedDate: '2026-10-07',
-        initialMealType: MealType.dinner,
-        initialDescription: '닭가슴살 100g',
-        initialCalories: 109,
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MealInputSheet(
+          centerId: 'c1',
+          memberId: 'm1',
+          memberName: '회원',
+          selectedDate: '2026-10-07',
+          initialMealType: MealType.dinner,
+          initialDescription: '닭가슴살 100g',
+          initialCalories: 109,
+        ),
       ),
-    ));
+    );
     expect(find.text('닭가슴살 100g'), findsOneWidget);
     expect(find.text('109'), findsOneWidget);
     final dinner = tester.widget<AppChip>(find.widgetWithText(AppChip, '저녁'));

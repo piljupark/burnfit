@@ -5,11 +5,11 @@ enum NutrientCategory { protein, carb, fat, vegFruit }
 
 extension NutrientCategoryLabel on NutrientCategory {
   String get label => switch (this) {
-        NutrientCategory.protein => '단백질',
-        NutrientCategory.carb => '탄수화물',
-        NutrientCategory.fat => '지방',
-        NutrientCategory.vegFruit => '채소 · 과일',
-      };
+    NutrientCategory.protein => '단백질',
+    NutrientCategory.carb => '탄수화물',
+    NutrientCategory.fat => '지방',
+    NutrientCategory.vegFruit => '채소 · 과일',
+  };
 }
 
 /// 목록 필터 칩에 쓰는 음식 특성.
@@ -17,10 +17,10 @@ enum FoodTag { convenience, noCook, plant }
 
 extension FoodTagLabel on FoodTag {
   String get label => switch (this) {
-        FoodTag.convenience => '편의점',
-        FoodTag.noCook => '조리 없이',
-        FoodTag.plant => '식물성',
-      };
+    FoodTag.convenience => '편의점',
+    FoodTag.noCook => '조리 없이',
+    FoodTag.plant => '식물성',
+  };
 }
 
 /// 추천 음식 한 가지. 수치는 1회 분량 기준 대략값이다.
@@ -98,5 +98,7 @@ class FoodSituation {
 /// 그램 표시: 정수면 소수점 없이, 아니면 한 자리 (23 → '23', 1.2 → '1.2').
 String formatGrams(double grams) {
   final rounded = (grams * 10).round() / 10;
-  return rounded == rounded.roundToDouble() ? rounded.toInt().toString() : rounded.toStringAsFixed(1);
+  return rounded == rounded.roundToDouble()
+      ? rounded.toInt().toString()
+      : rounded.toStringAsFixed(1);
 }

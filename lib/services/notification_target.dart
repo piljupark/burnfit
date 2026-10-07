@@ -6,7 +6,10 @@ enum NotificationTarget {
   feedback,
 
   /// PT 일정 (회원: PT 탭, 트레이너: 일정 탭)
-  ptSchedule;
+  ptSchedule,
+
+  /// 홈 첫 탭 (가입 승인, 새 담당 회원 배정)
+  home;
 
   static NotificationTarget? fromData(Map<String, dynamic> data) {
     switch (data['type']) {
@@ -16,7 +19,11 @@ enum NotificationTarget {
       case 'pt_session_updated':
       case 'pt_session_cancelled':
       case 'pt_remaining_warning':
+      case 'trainer_assigned':
         return NotificationTarget.ptSchedule;
+      case 'account_approved':
+      case 'member_assigned':
+        return NotificationTarget.home;
       default:
         return null;
     }

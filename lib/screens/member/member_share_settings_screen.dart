@@ -64,8 +64,14 @@ class _MemberShareSettingsScreenState extends State<MemberShareSettingsScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<UserProvider>().user;
     final trainerName = user?.trainerName?.trim();
-    final trainerLabel = (trainerName?.isNotEmpty ?? false) ? '$trainerName 트레이너' : '담당 트레이너';
-    final sharedCount = [_settings.workout, _settings.meal, _settings.body].where((v) => v).length;
+    final trainerLabel = (trainerName?.isNotEmpty ?? false)
+        ? '$trainerName 트레이너'
+        : '담당 트레이너';
+    final sharedCount = [
+      _settings.workout,
+      _settings.meal,
+      _settings.body,
+    ].where((v) => v).length;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -73,15 +79,13 @@ class _MemberShareSettingsScreenState extends State<MemberShareSettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '기록 공유 설정',
-                onBack: () => Navigator.of(context).pop(),
-                trailing: _saving ? const OrbLoader.inline(semanticLabel: '저장 중') : null,
-              ),
+            AppScreenHeader(
+              title: '기록 공유 설정',
+              onBack: () => Navigator.of(context).pop(),
+              trailing: _saving
+                  ? const OrbLoader.inline(semanticLabel: '저장 중')
+                  : null,
             ),
-            const AppRowDivider(),
             Expanded(
               child: ListView(
                 children: [
@@ -94,7 +98,9 @@ class _MemberShareSettingsScreenState extends State<MemberShareSettingsScreen> {
                     ),
                     child: Text(
                       '$trainerLabel에게 공유되는 항목을 설정하세요. 끄면 트레이너가 해당 기록을 볼 수 없습니다.',
-                      style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+                      style: AppTextStyles.bodyMd.copyWith(
+                        color: AppColors.body,
+                      ),
                     ),
                   ),
                   AppMonthHeader(label: '공유 중', count: '$sharedCount / 3'),
@@ -162,7 +168,7 @@ class _ShareRow extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 64),
+          constraints: const BoxConstraints(minHeight: AppSize.listRow),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.screenH,

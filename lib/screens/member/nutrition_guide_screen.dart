@@ -19,10 +19,20 @@ class NutritionGuideScreen extends StatelessWidget {
 
   const NutritionGuideScreen({super.key, this.addAction});
 
-  void _openList(BuildContext context, {required String title, required String description, required List<FoodItem> foods}) {
+  void _openList(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required List<FoodItem> foods,
+  }) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => FoodListScreen(title: title, description: description, foods: foods, addAction: addAction),
+        builder: (_) => FoodListScreen(
+          title: title,
+          description: description,
+          foods: foods,
+          addAction: addAction,
+        ),
       ),
     );
   }
@@ -37,33 +47,46 @@ class NutritionGuideScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(title: '영양 가이드', onBack: () => Navigator.of(context).pop()),
+            AppScreenHeader(
+              title: '영양 가이드',
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: ListView(
-                padding: EdgeInsets.only(bottom: AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom),
+                padding: EdgeInsets.only(
+                  bottom: AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom,
+                ),
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, 0),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.base,
+                      AppSpacing.screenH,
+                      0,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '부족한 게 있을 때 무엇을 먹으면 좋을지 가볍게 참고하세요.',
-                          style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+                          style: AppTextStyles.bodyMd.copyWith(
+                            color: AppColors.body,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  AppMonthHeader(label: '이럴 땐 이렇게', count: '${FoodGuideData.situations.length}'),
+                  AppMonthHeader(
+                    label: '이럴 땐 이렇게',
+                    count: '${FoodGuideData.situations.length}',
+                  ),
                   for (final s in FoodGuideData.situations) ...[
                     AppActionRow(
                       icon: s.icon,
                       label: s.title,
-                      subtitle: FoodGuideData.resolve(s.foodIds).take(3).map((f) => f.name).join(' · '),
+                      subtitle: FoodGuideData.resolve(
+                        s.foodIds,
+                      ).take(3).map((f) => f.name).join(' · '),
                       onTap: () => _openList(
                         context,
                         title: s.title,
@@ -75,7 +98,9 @@ class NutritionGuideScreen extends StatelessWidget {
                   ],
                   const AppMonthHeader(label: '영양소별로 찾기'),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.screenH,
+                    ),
                     child: Column(
                       children: [
                         for (var i = 0; i < categories.length; i += 2) ...[
@@ -85,16 +110,21 @@ class NutritionGuideScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 for (var j = i; j < i + 2; j++) ...[
-                                  if (j > i) const SizedBox(width: AppSpacing.sm),
+                                  if (j > i)
+                                    const SizedBox(width: AppSpacing.sm),
                                   Expanded(
                                     child: j < categories.length
                                         ? _CategoryTile(
                                             info: categories[j],
                                             onTap: () => _openList(
                                               context,
-                                              title: categories[j].category.label,
-                                              description: categories[j].description,
-                                              foods: FoodGuideData.byCategory(categories[j].category),
+                                              title:
+                                                  categories[j].category.label,
+                                              description:
+                                                  categories[j].description,
+                                              foods: FoodGuideData.byCategory(
+                                                categories[j].category,
+                                              ),
                                             ),
                                           )
                                         : const SizedBox.shrink(),
@@ -108,8 +138,16 @@ class NutritionGuideScreen extends StatelessWidget {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, 0),
-                    child: Text('참고용 대략값이에요. 조리법·제품에 따라 달라져요.', style: AppTextStyles.captionSmall),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.base,
+                      AppSpacing.screenH,
+                      0,
+                    ),
+                    child: Text(
+                      '참고용 대략값이에요. 조리법·제품에 따라 달라져요.',
+                      style: AppTextStyles.captionSmall,
+                    ),
                   ),
                 ],
               ),
@@ -144,7 +182,10 @@ class _CategoryTile extends StatelessWidget {
             Icon(info.icon, size: AppSize.icon, color: AppColors.ink),
             const SizedBox(height: AppSpacing.sm),
             Text(name, style: AppTextStyles.bodyLg),
-            Text(info.tagline, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+            Text(
+              info.tagline,
+              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text('음식 $count개', style: AppTextStyles.captionSmall),
           ],

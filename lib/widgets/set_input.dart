@@ -48,9 +48,20 @@ class SetDoneButton extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: done ? AppColors.primary : Colors.transparent,
-                border: done ? null : Border.all(color: current ? AppColors.ink : AppColors.outline, width: 1.5),
+                border: done
+                    ? null
+                    : Border.all(
+                        color: current ? AppColors.ink : AppColors.outline,
+                        width: 1.5,
+                      ),
               ),
-              child: done ? const Icon(AppIcons.checkBold, size: AppSize.iconSm, color: AppColors.onPrimary) : null,
+              child: done
+                  ? Icon(
+                      AppIcons.checkBold,
+                      size: AppSize.iconSm,
+                      color: AppColors.onPrimary,
+                    )
+                  : null,
             ),
           ),
         ),
@@ -64,7 +75,7 @@ class SetValueField extends StatelessWidget {
   final TextEditingController controller;
   final bool decimal;
   final bool highlighted;
-  final Color textColor;
+  final Color? textColor;
   final String semanticLabel;
   final VoidCallback onChanged;
 
@@ -75,7 +86,7 @@ class SetValueField extends StatelessWidget {
     required this.highlighted,
     required this.semanticLabel,
     required this.onChanged,
-    this.textColor = AppColors.ink,
+    this.textColor,
   });
 
   @override
@@ -89,18 +100,25 @@ class SetValueField extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.canvasSoft,
           borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: highlighted ? AppColors.ink : AppColors.hairline),
+          border: Border.all(
+            color: highlighted ? AppColors.ink : AppColors.hairline,
+          ),
         ),
         child: TextField(
           controller: controller,
           keyboardType: TextInputType.numberWithOptions(decimal: decimal),
           inputFormatters: [
-            FilteringTextInputFormatter.allow(decimal ? RegExp(r'^\d*\.?\d*') : RegExp(r'\d*')),
+            FilteringTextInputFormatter.allow(
+              decimal ? RegExp(r'^\d*\.?\d*') : RegExp(r'\d*'),
+            ),
           ],
           onChanged: (_) => onChanged(),
           textAlign: TextAlign.center,
           textAlignVertical: TextAlignVertical.center,
-          style: AppTextStyles.bodyMd.copyWith(color: textColor, height: 1.0),
+          style: AppTextStyles.bodyMd.copyWith(
+            color: textColor ?? AppColors.ink,
+            height: 1.0,
+          ),
           cursorColor: AppColors.ink,
           cursorHeight: 18,
           decoration: const InputDecoration(

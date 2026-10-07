@@ -59,7 +59,7 @@ class _AppBottomSheetFrame extends StatelessWidget {
       child: Container(
         height: fixed ? media.size.height * heightFactor! : null,
         constraints: BoxConstraints(maxHeight: media.size.height * 0.92),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.canvasCard,
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppRadius.card),
@@ -147,12 +147,15 @@ class AppBottomSheetHeader extends StatelessWidget {
   }
 }
 
-/// 시트 안 행동 목록 한 줄 (높이 52, 아이콘 + 라벨). 파괴적 행은 맨 아래, danger.
+/// 시트 안 행동 목록 한 줄 (높이 52, 아이콘 + 라벨 + 선택 값). 파괴적 행은 맨 아래, danger.
 class AppSheetAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final bool destructive;
+
+  /// 오른쪽 보조 값 (예: 지금 설정 '90초').
+  final String? value;
 
   const AppSheetAction({
     super.key,
@@ -160,6 +163,7 @@ class AppSheetAction extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.destructive = false,
+    this.value,
   });
 
   @override
@@ -177,7 +181,17 @@ class AppSheetAction extends StatelessWidget {
             children: [
               Icon(icon, size: AppSize.icon, color: fg),
               const SizedBox(width: AppSpacing.base),
-              Text(label, style: AppTextStyles.bodyMd.copyWith(color: fg)),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTextStyles.bodyMd.copyWith(color: fg),
+                ),
+              ),
+              if (value != null)
+                Text(
+                  value!,
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                ),
             ],
           ),
         ),

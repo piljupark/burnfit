@@ -52,8 +52,12 @@ class MealInputSheet extends StatefulWidget {
 
 class _MealInputSheetState extends State<MealInputSheet> {
   late MealType _mealType = widget.initialMealType ?? MealType.lunch;
-  late final _descController = TextEditingController(text: widget.initialDescription);
-  late final _caloriesController = TextEditingController(text: widget.initialCalories?.toString());
+  late final _descController = TextEditingController(
+    text: widget.initialDescription,
+  );
+  late final _caloriesController = TextEditingController(
+    text: widget.initialCalories?.toString(),
+  );
   final List<XFile> _images = [];
   final List<Uint8List> _imageBytes = [];
   bool _isSaving = false;
@@ -67,9 +71,10 @@ class _MealInputSheetState extends State<MealInputSheet> {
 
   Future<void> _pickImages() async {
     if (_images.length >= AppConstants.imageMaxCount) {
-      ScaffoldMessenger.of(
+      AppFeedback.showWarning(
         context,
-      ).showSnackBar(const SnackBar(content: Text('이미지는 최대 5장까지 추가할 수 있습니다.')));
+        '이미지는 최대 ${AppConstants.imageMaxCount}장까지 추가할 수 있습니다.',
+      );
       return;
     }
     try {
@@ -82,12 +87,9 @@ class _MealInputSheetState extends State<MealInputSheet> {
         final bytes = await file.length();
         if (bytes > AppConstants.imageMaxBytes) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${AppConstants.imageMaxMegabytes}MB 이하의 이미지만 업로드 가능합니다.',
-              ),
-            ),
+          AppFeedback.showWarning(
+            context,
+            '${AppConstants.imageMaxMegabytes}MB 이하의 이미지만 업로드 가능합니다.',
           );
           continue;
         }
@@ -106,6 +108,17 @@ class _MealInputSheetState extends State<MealInputSheet> {
 
   Future<void> _save() async {
     if (_isSaving) return;
+    final calories = _caloriesController.text.trim();
+    if (_images.isEmpty &&
+        _descController.text.trim().isEmpty &&
+        calories.isEmpty) {
+      AppFeedback.showWarning(context, '사진, 메모, 칼로리 중 하나는 입력해주세요.');
+      return;
+    }
+    if (calories.isNotEmpty && (int.tryParse(calories) ?? -1) < 0) {
+      AppFeedback.showWarning(context, '칼로리는 0 이상의 숫자로 입력해주세요.');
+      return;
+    }
     setState(() => _isSaving = true);
     var urls = <String>[];
     try {
@@ -151,11 +164,6 @@ class _MealInputSheetState extends State<MealInputSheet> {
     _imageBytes.removeAt(i);
   });
 
-  String get _dateLabel {
-    final date = DateTime.tryParse(widget.selectedDate);
-    return date == null ? widget.selectedDate : DateFormat('MM.dd').format(date);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -164,18 +172,10 @@ class _MealInputSheetState extends State<MealInputSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '식단 기록',
-                onBack: () => Navigator.of(context).pop(false),
-                trailing: Padding(
-                  padding: const EdgeInsets.only(left: AppSpacing.sm),
-                  child: Text(_dateLabel, style: AppTextStyles.eyebrow),
-                ),
-              ),
+            AppScreenHeader(
+              title: '식단 기록',
+              onBack: () => Navigator.of(context).pop(false),
             ),
-            const Divider(height: 1, thickness: 1, color: AppColors.hairline),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
@@ -185,7 +185,10 @@ class _MealInputSheetState extends State<MealInputSheet> {
                   AppSpacing.xl,
                 ),
                 children: [
-                  Text('끼니', style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                  Text(
+                    '끼니',
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Wrap(
                     spacing: AppSpacing.sm,
@@ -201,7 +204,12 @@ class _MealInputSheetState extends State<MealInputSheet> {
                   const SizedBox(height: AppSpacing.xl),
                   Row(
                     children: [
-                      Text('사진', style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                      Text(
+                        '사진',
+                        style: AppTextStyles.bodySm.copyWith(
+                          color: AppColors.body,
+                        ),
+                      ),
                       const SizedBox(width: AppSpacing.sm),
                       Text(
                         '${_images.length} / ${AppConstants.imageMaxCount}',
@@ -244,7 +252,7 @@ class _MealInputSheetState extends State<MealInputSheet> {
               ),
             ),
             Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.hairline)),
               ),
               padding: const EdgeInsets.fromLTRB(
@@ -304,7 +312,7 @@ class _PhotoGrid extends StatelessWidget {
             excludeSemantics: true,
             child: Material(
               color: AppColors.canvasSoft,
-              shape: const RoundedRectangleBorder(
+              shape: RoundedRectangleBorder(
                 side: BorderSide(color: AppColors.hairline),
               ),
               child: InkWell(
@@ -314,7 +322,11 @@ class _PhotoGrid extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(AppIcons.camera, size: AppSize.icon, color: AppColors.body),
+                    Icon(
+                      AppIcons.camera,
+                      size: AppSize.icon,
+                      color: AppColors.body,
+                    ),
                     const SizedBox(height: AppSpacing.xs),
                     Text('사진 추가', style: AppTextStyles.bodySm),
                   ],
@@ -343,7 +355,10 @@ class _PhotoGrid extends StatelessWidget {
                   Container(
                     width: 28,
                     height: 28,
-                    decoration: const BoxDecoration(color: AppColors.scrim, shape: BoxShape.circle),
+                    decoration: const BoxDecoration(
+                      color: AppColors.scrim,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   AppIconButton(
                     icon: AppIcons.close,

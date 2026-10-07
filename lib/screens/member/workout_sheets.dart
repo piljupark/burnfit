@@ -11,6 +11,7 @@ import '../../models/custom_exercise.dart';
 import '../../models/workout.dart';
 import '../../services/exercise_service.dart';
 import '../../widgets/app_bottom_sheet.dart';
+import '../../widgets/app_action_row.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_filter_tabs.dart';
 import '../../widgets/app_text_field.dart';
@@ -188,14 +189,14 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
             ),
           ),
         const SizedBox(height: AppSpacing.sm),
-        const Divider(height: 1, color: AppColors.hairline),
+        const AppRowDivider(),
         Expanded(
           child: ListView.separated(
             padding: EdgeInsets.only(
               bottom: AppSpacing.xl + MediaQuery.of(context).padding.bottom,
             ),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(
+            separatorBuilder: (_, __) => Divider(
               height: 1,
               color: AppColors.hairline,
               indent: AppSpacing.xl,
@@ -238,7 +239,7 @@ class _PickerRow extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 56),
+          constraints: const BoxConstraints(minHeight: AppSize.listRow),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.xl,
@@ -300,7 +301,7 @@ class ExerciseMenuSheet extends StatelessWidget {
           title: exercise.name,
           subtitle: '${exercise.category.label} · 현재 단위 ${exercise.unit.label}',
         ),
-        _MenuRow(
+        AppSheetAction(
           icon: PhosphorIconsLight.arrowsLeftRight,
           label: '무게 단위 변경',
           value: '${exercise.unit.label} → $nextUnit',
@@ -310,8 +311,8 @@ class ExerciseMenuSheet extends StatelessWidget {
             );
           },
         ),
-        const Divider(height: 1, color: AppColors.hairline),
-        _MenuRow(
+        const AppRowDivider(),
+        AppSheetAction(
           icon: AppIcons.timer,
           label: '휴식 타이머',
           value: '${exercise.restSeconds}초',
@@ -331,8 +332,8 @@ class ExerciseMenuSheet extends StatelessWidget {
             );
           },
         ),
-        const Divider(height: 1, color: AppColors.hairline),
-        _MenuRow(
+        const AppRowDivider(),
+        AppSheetAction(
           icon: AppIcons.trash,
           label: '운동 삭제',
           value: null,
@@ -349,54 +350,6 @@ class ExerciseMenuSheet extends StatelessWidget {
 }
 
 /// 시트 행동 줄 (높이 52): 아이콘 + 라벨 + 오른쪽 현재 값. 파괴적 행은 danger 글자.
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String? value;
-  final bool destructive;
-  final VoidCallback onTap;
-
-  const _MenuRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.onTap,
-    this.destructive = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = destructive ? AppColors.danger : AppColors.ink;
-    return Semantics(
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        highlightColor: AppColors.canvasSoft,
-        splashFactory: NoSplash.splashFactory,
-        child: SizedBox(
-          height: 52,
-          child: Row(
-            children: [
-              Icon(icon, size: AppSize.icon, color: fg),
-              const SizedBox(width: AppSpacing.base),
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTextStyles.bodyMd.copyWith(color: fg),
-                ),
-              ),
-              if (value != null)
-                Text(
-                  value!,
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class RestTimerSheet extends StatelessWidget {
   final int initialSeconds;

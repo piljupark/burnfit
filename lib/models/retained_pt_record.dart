@@ -127,7 +127,10 @@ class WithdrawnMemberSummary {
   final String memberAlias;
   final List<RetainedPtRecord> contracts;
 
-  const WithdrawnMemberSummary({required this.memberAlias, required this.contracts});
+  const WithdrawnMemberSummary({
+    required this.memberAlias,
+    required this.contracts,
+  });
 
   /// 가장 최근 계약 (시작일 기준).
   RetainedPtRecord get latestContract => contracts.first;
@@ -137,26 +140,33 @@ class WithdrawnMemberSummary {
       .whereType<DateTime>()
       .fold<DateTime?>(null, (a, b) => a == null || b.isBefore(a) ? b : a);
 
-  DateTime get expireAt => contracts
-      .map((c) => c.expireAt)
-      .reduce((a, b) => b.isAfter(a) ? b : a);
+  DateTime get expireAt =>
+      contracts.map((c) => c.expireAt).reduce((a, b) => b.isAfter(a) ? b : a);
 
-  Set<String> get trainerIds => contracts.map((c) => c.trainerId).whereType<String>().toSet();
+  Set<String> get trainerIds =>
+      contracts.map((c) => c.trainerId).whereType<String>().toSet();
 
   /// PT 계약 기록을 회원별로 묶고, 최근 탈퇴 순으로 정렬한다.
-  static List<WithdrawnMemberSummary> group(Iterable<RetainedPtRecord> records) {
+  static List<WithdrawnMemberSummary> group(
+    Iterable<RetainedPtRecord> records,
+  ) {
     final byAlias = <String, List<RetainedPtRecord>>{};
     for (final record in records) {
-      if (record.kind != RetainedPtRecordKind.ptInfo || record.memberAlias.isEmpty) continue;
+      if (record.kind != RetainedPtRecordKind.ptInfo ||
+          record.memberAlias.isEmpty) {
+        continue;
+      }
       byAlias.putIfAbsent(record.memberAlias, () => []).add(record);
     }
 
     final summaries = byAlias.entries.map((entry) {
       final contracts = [...entry.value]
         ..sort((a, b) => _compareDesc(a.startDate, b.startDate));
-      return WithdrawnMemberSummary(memberAlias: entry.key, contracts: contracts);
-    }).toList()
-      ..sort((a, b) => _compareDesc(a.withdrawnAt, b.withdrawnAt));
+      return WithdrawnMemberSummary(
+        memberAlias: entry.key,
+        contracts: contracts,
+      );
+    }).toList()..sort((a, b) => _compareDesc(a.withdrawnAt, b.withdrawnAt));
     return summaries;
   }
 

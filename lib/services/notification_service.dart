@@ -30,11 +30,12 @@ class NotificationService {
   }
 
   static Future<List<AppNotification>> getRecent(String uid) async {
-    final snap = await _inbox(uid)
-        .orderBy('createdAt', descending: true)
-        .limit(_pageSize)
-        .get();
-    return snap.docs.map((d) => AppNotification.fromMap(d.id, d.data())).toList();
+    final snap = await _inbox(
+      uid,
+    ).orderBy('createdAt', descending: true).limit(_pageSize).get();
+    return snap.docs
+        .map((d) => AppNotification.fromMap(d.id, d.data()))
+        .toList();
   }
 
   static Future<void> markRead(String uid, Iterable<String> ids) async {
@@ -48,5 +49,6 @@ class NotificationService {
     await batch.commit();
   }
 
-  static Future<void> delete(String uid, String id) => _inbox(uid).doc(id).delete();
+  static Future<void> delete(String uid, String id) =>
+      _inbox(uid).doc(id).delete();
 }

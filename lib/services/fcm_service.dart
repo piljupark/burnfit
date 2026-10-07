@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_logger.dart';
 import '../core/service_validator.dart';
+import '../widgets/app_toast.dart';
 import 'notification_target.dart';
 
 // 백그라운드 메시지 핸들러 — 반드시 top-level 함수여야 함
@@ -21,12 +22,13 @@ class FcmService {
 
   static final _messaging = FirebaseMessaging.instance;
   static final _db = FirebaseFirestore.instance;
-  static GlobalKey<ScaffoldMessengerState>? _messengerKey;
   static StreamSubscription<String>? _tokenRefreshSub;
 
   /// 사용자가 누른 알림이 가리키는 화면. 역할별 홈 화면이 읽고 [takePendingTarget]으로 비운다.
   /// 앱이 꺼진 상태에서 알림으로 열린 경우 로그인·스플래시가 끝날 때까지 여기 보관된다.
-  static final ValueNotifier<NotificationTarget?> pendingTarget = ValueNotifier(null);
+  static final ValueNotifier<NotificationTarget?> pendingTarget = ValueNotifier(
+    null,
+  );
 
   static NotificationTarget? takePendingTarget() {
     final target = pendingTarget.value;
@@ -43,11 +45,7 @@ class FcmService {
 
   // ── 초기화 (앱 시작 시 1회 호출) ──
 
-  static Future<void> initialize({
-    GlobalKey<ScaffoldMessengerState>? messengerKey,
-  }) async {
-    _messengerKey = messengerKey;
-
+  static Future<void> initialize() async {
     // 백그라운드 핸들러 등록
     FirebaseMessaging.onBackgroundMessage(_onBackgroundMessage);
 
@@ -69,8 +67,9 @@ class FcmService {
     }
 
     // 포그라운드 알림 표시 설정 (iOS)
+    // 앱이 켜져 있을 때는 위쪽 토스트(AppToast)로 보여주므로 iOS 시스템 배너는 끈다 (두 번 뜨지 않게).
     await _messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
+      alert: false,
       badge: true,
       sound: true,
     );
@@ -86,32 +85,16 @@ class FcmService {
     final notification = message.notification;
     final title = notification?.title ?? '새 알림';
     final body = notification?.body ?? '';
-    final messenger = _messengerKey?.currentState;
-    if (messenger == null) return;
     final target = NotificationTarget.fromData(message.data);
 
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title),
-              if (body.isNotEmpty) ...[const SizedBox(height: 2), Text(body)],
-            ],
-          ),
-          action: target == null
-              ? null
-              : SnackBarAction(
-                  label: '보기',
-                  onPressed: () => pendingTarget.value = target,
-                ),
-        ),
-      );
+    AppToast.show(
+      null,
+      title: title,
+      message: body.isEmpty ? title : body,
+      duration: const Duration(seconds: 4),
+      actionLabel: target == null ? null : '보기',
+      onAction: target == null ? null : () => pendingTarget.value = target,
+    );
   }
 
   // ── FCM 토큰 저장 ──

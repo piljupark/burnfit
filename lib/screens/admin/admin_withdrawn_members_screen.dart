@@ -25,7 +25,8 @@ import '../../widgets/status_badge.dart';
 final _date = DateFormat('yyyy.MM.dd');
 final _dateTime = DateFormat('yyyy.MM.dd (E) HH:mm', 'ko');
 
-String _formatDate(DateTime? value) => value == null ? '-' : _date.format(value);
+String _formatDate(DateTime? value) =>
+    value == null ? '-' : _date.format(value);
 
 /// 탈퇴 회원 PT 이력 — 환불 등 분쟁 대응용 조회 화면 (읽기 전용).
 ///
@@ -34,10 +35,12 @@ class AdminWithdrawnMembersScreen extends StatefulWidget {
   const AdminWithdrawnMembersScreen({super.key});
 
   @override
-  State<AdminWithdrawnMembersScreen> createState() => _AdminWithdrawnMembersScreenState();
+  State<AdminWithdrawnMembersScreen> createState() =>
+      _AdminWithdrawnMembersScreenState();
 }
 
-class _AdminWithdrawnMembersScreenState extends State<AdminWithdrawnMembersScreen> {
+class _AdminWithdrawnMembersScreenState
+    extends State<AdminWithdrawnMembersScreen> {
   List<WithdrawnMemberSummary> _members = [];
   Map<String, String> _trainerNames = {};
   bool _isLoading = false;
@@ -55,8 +58,12 @@ class _AdminWithdrawnMembersScreenState extends State<AdminWithdrawnMembersScree
     setState(() => _isLoading = true);
     try {
       // 함께 시작하고, 실패하면 원래 오류를 그대로 받는다 (오류 문구 매핑 유지).
-      final membersFuture = RetainedPtRecordService.getWithdrawnMembers(user.centerId);
-      final trainersFuture = FirestoreService.getTrainersByCenter(user.centerId);
+      final membersFuture = RetainedPtRecordService.getWithdrawnMembers(
+        user.centerId,
+      );
+      final trainersFuture = FirestoreService.getTrainersByCenter(
+        user.centerId,
+      );
       await Future.wait([membersFuture, trainersFuture]);
       final members = await membersFuture;
       final trainers = await trainersFuture;
@@ -98,15 +105,11 @@ class _AdminWithdrawnMembersScreenState extends State<AdminWithdrawnMembersScree
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '탈퇴 회원 PT 이력',
-                subtitle: _members.isNotEmpty ? '${_members.length}명' : null,
-                onBack: () => Navigator.of(context).pop(),
-              ),
+            AppScreenHeader(
+              title: '탈퇴 회원 PT 이력',
+              subtitle: _members.isNotEmpty ? '${_members.length}명' : null,
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: AppAsyncBody(
                 isLoading: _isLoading,
@@ -128,7 +131,10 @@ class _AdminWithdrawnMembersScreenState extends State<AdminWithdrawnMembersScree
                   AppMonthHeader(
                     label: '탈퇴 회원',
                     count: '${_members.length}',
-                    padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
+                    padding: const EdgeInsets.only(
+                      top: AppSpacing.xl,
+                      bottom: AppSpacing.sm,
+                    ),
                   ),
                   for (int i = 0; i < _members.length; i++) ...[
                     if (i > 0) const AppRowDivider(),
@@ -158,7 +164,7 @@ class _RetentionNotice extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(AppIcons.info, size: AppSize.icon, color: AppColors.body),
+          Icon(AppIcons.info, size: AppSize.icon, color: AppColors.body),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
@@ -188,7 +194,9 @@ class _WithdrawnMemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final contract = member.latestContract;
-    final extra = member.contracts.length > 1 ? ' 외 ${member.contracts.length - 1}건' : '';
+    final extra = member.contracts.length > 1
+        ? ' 외 ${member.contracts.length - 1}건'
+        : '';
     return Semantics(
       button: true,
       child: InkWell(
@@ -203,23 +211,31 @@ class _WithdrawnMemberRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${_formatDate(member.withdrawnAt)} 탈퇴', style: AppTextStyles.bodyLg),
+                    Text(
+                      '${_formatDate(member.withdrawnAt)} 탈퇴',
+                      style: AppTextStyles.bodyLg,
+                    ),
                     const SizedBox(height: AppSpacing.xs),
                     _InfoLine(
                       label: '계약 기간',
-                      value: '${_formatDate(contract.startDate)} ~ ${_formatDate(contract.endDate)}$extra',
+                      value:
+                          '${_formatDate(contract.startDate)} ~ ${_formatDate(contract.endDate)}$extra',
                     ),
                     _InfoLine(
                       label: 'PT 횟수',
-                      value: '${contract.remainingSessions ?? '-'} / ${contract.totalSessions ?? '-'}회 남음',
+                      value:
+                          '${contract.remainingSessions ?? '-'} / ${contract.totalSessions ?? '-'}회 남음',
                     ),
                     _InfoLine(label: '담당 트레이너', value: trainerLabel),
-                    _InfoLine(label: '파기 예정', value: _formatDate(member.expireAt)),
+                    _InfoLine(
+                      label: '파기 예정',
+                      value: _formatDate(member.expireAt),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+              Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
             ],
           ),
         ),
@@ -243,7 +259,10 @@ class _InfoLine extends StatelessWidget {
         children: [
           SizedBox(width: 84, child: Text(label, style: AppTextStyles.bodySm)),
           Expanded(
-            child: Text(value, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+            child: Text(
+              value,
+              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+            ),
           ),
         ],
       ),
@@ -270,7 +289,8 @@ class AdminWithdrawnMemberDetailScreen extends StatefulWidget {
       _AdminWithdrawnMemberDetailScreenState();
 }
 
-class _AdminWithdrawnMemberDetailScreenState extends State<AdminWithdrawnMemberDetailScreen> {
+class _AdminWithdrawnMemberDetailScreenState
+    extends State<AdminWithdrawnMemberDetailScreen> {
   List<RetainedPtRecord> _records = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -321,15 +341,11 @@ class _AdminWithdrawnMemberDetailScreenState extends State<AdminWithdrawnMemberD
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '${_formatDate(widget.member.withdrawnAt)} 탈퇴 회원',
-                subtitle: '${_formatDate(widget.member.expireAt)} 파기 예정',
-                onBack: () => Navigator.of(context).pop(),
-              ),
+            AppScreenHeader(
+              title: '${_formatDate(widget.member.withdrawnAt)} 탈퇴 회원',
+              subtitle: '${_formatDate(widget.member.expireAt)} 파기 예정',
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: AppAsyncBody(
                 isLoading: _isLoading,
@@ -347,11 +363,13 @@ class _AdminWithdrawnMemberDetailScreenState extends State<AdminWithdrawnMemberD
                     children: [
                       for (final c in contracts)
                         _RecordTile(
-                          title: '${_formatDate(c.startDate)} ~ ${_formatDate(c.endDate)}',
+                          title:
+                              '${_formatDate(c.startDate)} ~ ${_formatDate(c.endDate)}',
                           lines: [
                             '${c.remainingSessions ?? '-'} / ${c.totalSessions ?? '-'}회 남음',
                             '담당 ${_trainerName(c)}',
-                            if (c.renewalDate != null) '갱신일 ${_formatDate(c.renewalDate)}',
+                            if (c.renewalDate != null)
+                              '갱신일 ${_formatDate(c.renewalDate)}',
                           ],
                         ),
                     ],
@@ -362,11 +380,15 @@ class _AdminWithdrawnMemberDetailScreenState extends State<AdminWithdrawnMemberD
                     children: [
                       for (final s in sessions)
                         _RecordTile(
-                          title: s.scheduledAt == null ? '-' : _dateTime.format(s.scheduledAt!),
+                          title: s.scheduledAt == null
+                              ? '-'
+                              : _dateTime.format(s.scheduledAt!),
                           lines: [
                             '${s.durationMinutes ?? '-'}분 · ${_trainerName(s)}',
                           ],
-                          badge: s.sessionStatus == null ? null : _statusBadge(s.sessionStatus!),
+                          badge: s.sessionStatus == null
+                              ? null
+                              : _statusBadge(s.sessionStatus!),
                         ),
                     ],
                   ),
@@ -381,7 +403,8 @@ class _AdminWithdrawnMemberDetailScreenState extends State<AdminWithdrawnMemberD
                             _formatDate(l.createdAt),
                             '잔여 ${l.previousRemainingSessions ?? '-'} → ${l.nextRemainingSessions ?? '-'}회'
                                 '${_totalChange(l)}',
-                            if (l.changedByName != null) '처리 ${l.changedByName}',
+                            if (l.changedByName != null)
+                              '처리 ${l.changedByName}',
                           ],
                         ),
                     ],
@@ -420,7 +443,11 @@ class _Section extends StatelessWidget {
   final int count;
   final List<Widget> children;
 
-  const _Section({required this.title, required this.count, required this.children});
+  const _Section({
+    required this.title,
+    required this.count,
+    required this.children,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -430,7 +457,10 @@ class _Section extends StatelessWidget {
         AppMonthHeader(
           label: title,
           count: '$count',
-          padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
+          padding: const EdgeInsets.only(
+            top: AppSpacing.xl,
+            bottom: AppSpacing.sm,
+          ),
         ),
         if (children.isEmpty)
           Padding(
@@ -466,7 +496,8 @@ class _RecordTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: AppTextStyles.bodyMd),
-                for (final line in lines) Text(line, style: AppTextStyles.bodySm),
+                for (final line in lines)
+                  Text(line, style: AppTextStyles.bodySm),
               ],
             ),
           ),

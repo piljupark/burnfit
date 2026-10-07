@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/app_button.dart';
+import '../widgets/app_toast.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_spacing.dart';
@@ -36,6 +37,14 @@ class AppFeedback {
           return '비밀번호가 올바르지 않습니다.';
         case 'invalid-email':
           return '이메일 형식이 올바르지 않습니다.';
+        case 'email-already-in-use':
+          return '이미 가입된 이메일입니다. 로그인하거나 비밀번호 재설정을 이용해주세요.';
+        case 'weak-password':
+          return '비밀번호가 너무 약합니다. 6자 이상으로 입력해주세요.';
+        case 'user-not-found':
+          return '가입되지 않은 이메일입니다.';
+        case 'user-disabled':
+          return '사용이 중지된 계정입니다. 센터에 문의해주세요.';
         case 'too-many-requests':
           return '시도가 너무 많습니다. 잠시 후 다시 시도해주세요.';
         case 'network-request-failed':
@@ -64,7 +73,7 @@ class AppFeedback {
     return '처리 중 오류가 발생했습니다. 다시 시도해주세요.';
   }
 
-  /// 오류 토스트: 카드 면 pill + 경고 아이콘. 빨간 바탕은 쓰지 않는다.
+  /// 오류 토스트 (화면 위쪽, [AppToast]): 카드 면 pill + 경고 아이콘. 빨간 바탕은 쓰지 않는다.
   static void showErrorSnackBar(BuildContext context, Object error) {
     _showToast(context, errorMessage(error), icon: AppIcons.warning);
   }
@@ -78,22 +87,12 @@ class AppFeedback {
     _showToast(context, message);
   }
 
-  static void _showToast(BuildContext context, String message, {IconData? icon}) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: AppSize.icon, color: AppColors.body),
-                const SizedBox(width: AppSpacing.md),
-              ],
-              Expanded(child: Text(message, style: AppTextStyles.buttonLabel)),
-            ],
-          ),
-        ),
-      );
+  static void _showToast(
+    BuildContext context,
+    String message, {
+    IconData? icon,
+  }) {
+    AppToast.show(context, message: message, icon: icon);
   }
 }
 
@@ -119,11 +118,19 @@ class AppErrorCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(AppIcons.warning, color: AppColors.body, size: 28),
+            Icon(AppIcons.warning, color: AppColors.body, size: 28),
             const SizedBox(height: AppSpacing.md),
-            Text(message, textAlign: TextAlign.center, style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+            ),
             const SizedBox(height: AppSpacing.base),
-            AppButton(label: '다시 시도', variant: AppButtonVariant.secondary, onPressed: onRetry),
+            AppButton(
+              label: '다시 시도',
+              variant: AppButtonVariant.secondary,
+              onPressed: onRetry,
+            ),
           ],
         ),
       ),

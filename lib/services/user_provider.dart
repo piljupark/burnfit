@@ -42,6 +42,20 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  /// 화면 전환 중 조용히 다시 읽는다 (로딩 표시·오류 없이). 담당 트레이너 변경 등을 반영.
+  Future<void> refreshQuietly() async {
+    final uid = _user?.uid;
+    if (uid == null) return;
+    try {
+      final fresh = await FirestoreService.getUser(uid);
+      if (fresh == null || _user?.uid != uid) return;
+      _user = fresh;
+      notifyListeners();
+    } catch (e) {
+      AppLogger.debug('[UserProvider] 조용한 새로고침 실패: $e');
+    }
+  }
+
   void setUser(AppUser user) {
     _user = user;
     notifyListeners();

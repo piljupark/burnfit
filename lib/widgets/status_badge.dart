@@ -11,10 +11,15 @@ import 'app_tag.dart';
 ///   AppColors.mute면 흐린 글자 (취소). 그 밖의 색은 무시한다.
 class StatusBadge extends StatelessWidget {
   final String label;
-  final Color color;
+  final Color? color;
   final bool strong;
 
-  const StatusBadge({super.key, required this.label, this.color = AppColors.body, this.strong = false});
+  const StatusBadge({
+    super.key,
+    required this.label,
+    this.color,
+    this.strong = false,
+  });
 
   /// 승인 상태: 승인 = 흰 채움, 대기 = 외곽선, 거절 = 빨간 글자.
   factory StatusBadge.fromStatus(UserStatus status) {
@@ -24,11 +29,12 @@ class StatusBadge extends StatelessWidget {
       case UserStatus.approved:
         return const StatusBadge(label: '승인', strong: true);
       case UserStatus.rejected:
-        return const StatusBadge(label: '거절', color: AppColors.danger);
+        return StatusBadge(label: '거절', color: AppColors.danger);
     }
   }
 
-  factory StatusBadge.fromString(String label, Color color) => StatusBadge(label: label, color: color);
+  factory StatusBadge.fromString(String label, Color? color) =>
+      StatusBadge(label: label, color: color);
 
   @override
   Widget build(BuildContext context) {

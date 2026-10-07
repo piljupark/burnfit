@@ -7,7 +7,10 @@ void main() {
   group('NotificationTarget.fromData', () {
     test('피드백 알림은 피드백 화면으로 보낸다', () {
       expect(
-        NotificationTarget.fromData({'type': 'feedback_created', 'feedbackId': 'f1'}),
+        NotificationTarget.fromData({
+          'type': 'feedback_created',
+          'feedbackId': 'f1',
+        }),
         NotificationTarget.feedback,
       );
     });
@@ -35,10 +38,9 @@ void main() {
 
     test('서버가 보내는 모든 type을 처리한다 (functions/index.js와 동기화)', () {
       final source = File('functions/index.js').readAsStringSync();
-      final sentTypes = RegExp(r"type: '([a-z_]+)'")
-          .allMatches(source)
-          .map((m) => m.group(1)!)
-          .toSet();
+      final sentTypes = RegExp(
+        r"type: '([a-z_]+)'",
+      ).allMatches(source).map((m) => m.group(1)!).toSet();
 
       expect(sentTypes, isNotEmpty);
       for (final type in sentTypes) {

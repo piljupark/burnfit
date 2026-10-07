@@ -28,32 +28,44 @@ RetainedPtRecord _record(
 void main() {
   group('RetainedPtRecord.fromMap', () {
     test('종류별 필드를 읽는다', () {
-      final session = _record('s1', kind: 'pt_session', data: {
-        'scheduledAt': _ts(2026, 9, 1),
-        'durationMinutes': 50,
-        'status': 'completed',
-        'trainerName': '김트',
-      });
+      final session = _record(
+        's1',
+        kind: 'pt_session',
+        data: {
+          'scheduledAt': _ts(2026, 9, 1),
+          'durationMinutes': 50,
+          'status': 'completed',
+          'trainerName': '김트',
+        },
+      );
       expect(session.kind, RetainedPtRecordKind.ptSession);
       expect(session.sessionStatus, PtSessionStatus.completed);
       expect(session.durationMinutes, 50);
       expect(session.eventDate!.toUtc(), DateTime.utc(2026, 9, 1));
 
-      final log = _record('l1', kind: 'pt_info_log', data: {
-        'type': 'sessionCompleted',
-        'previousRemainingSessions': 13,
-        'nextRemainingSessions': 12,
-      });
+      final log = _record(
+        'l1',
+        kind: 'pt_info_log',
+        data: {
+          'type': 'sessionCompleted',
+          'previousRemainingSessions': 13,
+          'nextRemainingSessions': 12,
+        },
+      );
       expect(log.logType, PtInfoLogType.sessionCompleted);
       expect(log.nextRemainingSessions, 12);
     });
 
     test('형식이 깨진 값은 null로 다루고 화면을 막지 않는다', () {
-      final broken = _record('x', kind: 'something', data: {
-        'startDate': 'not-a-date',
-        'totalSessions': '30',
-        'status': 'weird',
-      });
+      final broken = _record(
+        'x',
+        kind: 'something',
+        data: {
+          'startDate': 'not-a-date',
+          'totalSessions': '30',
+          'status': 'weird',
+        },
+      );
       expect(broken.kind, RetainedPtRecordKind.unknown);
       expect(broken.startDate, isNull);
       expect(broken.totalSessions, isNull);
@@ -64,17 +76,29 @@ void main() {
   group('WithdrawnMemberSummary.group', () {
     test('같은 별칭의 계약을 한 명으로 묶고 최근 탈퇴 순으로 정렬한다', () {
       final records = [
-        _record('a-old', alias: 'withdrawn_a', data: {'startDate': _ts(2025, 1, 1)}, retainedAt: _ts(2026, 3, 1)),
-        _record('a-new', alias: 'withdrawn_a', data: {'startDate': _ts(2026, 1, 1)},
-            retainedAt: _ts(2026, 3, 1), expireAt: _ts(2030, 1, 1)),
+        _record(
+          'a-old',
+          alias: 'withdrawn_a',
+          data: {'startDate': _ts(2025, 1, 1)},
+          retainedAt: _ts(2026, 3, 1),
+        ),
+        _record(
+          'a-new',
+          alias: 'withdrawn_a',
+          data: {'startDate': _ts(2026, 1, 1)},
+          retainedAt: _ts(2026, 3, 1),
+          expireAt: _ts(2030, 1, 1),
+        ),
         _record('b', alias: 'withdrawn_b', retainedAt: _ts(2026, 9, 1)),
         _record('s', alias: 'withdrawn_c', kind: 'pt_session'),
       ];
 
       final members = WithdrawnMemberSummary.group(records);
 
-      expect(members.map((m) => m.memberAlias), ['withdrawn_b', 'withdrawn_a'],
-          reason: '수업 기록만 있는 별칭은 목록에 넣지 않는다');
+      expect(members.map((m) => m.memberAlias), [
+        'withdrawn_b',
+        'withdrawn_a',
+      ], reason: '수업 기록만 있는 별칭은 목록에 넣지 않는다');
       final a = members[1];
       expect(a.contracts.map((c) => c.id), ['a-new', 'a-old']);
       expect(a.latestContract.id, 'a-new');

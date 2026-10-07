@@ -6,7 +6,15 @@ enum UserRole { admin, trainer, member }
 
 enum UserStatus { pending, approved, rejected }
 
-enum Gender { male, female, other }
+enum Gender {
+  male('남성'),
+  female('여성'),
+  other('기타');
+
+  final String label;
+
+  const Gender(this.label);
+}
 
 class ShareSettings {
   final bool workout;

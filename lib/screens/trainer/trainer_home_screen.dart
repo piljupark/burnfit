@@ -12,6 +12,8 @@ import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
+import '../../widgets/theme_setting_row.dart';
+import '../../widgets/password_reset_sheet.dart';
 import '../../widgets/delete_account_sheet.dart';
 import 'trainer_calendar_screen.dart';
 import 'trainer_schedule_screen.dart';
@@ -32,8 +34,16 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
 
   static const _navItems = [
     AppNavItem(label: '홈', icon: AppIcons.home, activeIcon: AppIcons.homeFill),
-    AppNavItem(label: '일정', icon: AppIcons.calendar, activeIcon: AppIcons.calendarFill),
-    AppNavItem(label: '마이', icon: AppIcons.profile, activeIcon: AppIcons.profileFill),
+    AppNavItem(
+      label: '일정',
+      icon: AppIcons.calendar,
+      activeIcon: AppIcons.calendarFill,
+    ),
+    AppNavItem(
+      label: '마이',
+      icon: AppIcons.profile,
+      activeIcon: AppIcons.profileFill,
+    ),
   ];
 
   late final List<Widget> _pages;
@@ -47,7 +57,9 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
       const _TrainerProfileTab(),
     ];
     FcmService.pendingTarget.addListener(_handleNotificationTarget);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _handleNotificationTarget());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _handleNotificationTarget(),
+    );
   }
 
   @override
@@ -63,6 +75,10 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
         Navigator.of(context).popUntil((route) => route.isFirst);
         setState(() => _currentIndex = _scheduleTab);
         _scheduleKey.currentState?.refresh();
+      case NotificationTarget.home:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        setState(() => _currentIndex = 0);
+        _calendarKey.currentState?.refresh();
       // 트레이너에게는 피드백 알림이 오지 않는다.
       case NotificationTarget.feedback:
       case null:
@@ -86,8 +102,10 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
             child: AppNavBar(
               currentIndex: _currentIndex,
               onTap: (i) {
-                if (i == 0 && _currentIndex != 0) {
-                  _calendarKey.currentState?.refresh();
+                // 홈에서 기록한 PT가 일정 탭에, 일정 탭의 예약이 홈에 바로 보이도록 다시 불러온다.
+                if (i != _currentIndex) {
+                  if (i == 0) _calendarKey.currentState?.refresh();
+                  if (i == _scheduleTab) _scheduleKey.currentState?.refresh();
                 }
                 setState(() => _currentIndex = i);
               },
@@ -101,7 +119,7 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 마이 탭: AppHero → 프로필 → hairline 목록 → 로그아웃(danger) → 탈퇴 링크
+// 마이 탭: '나'에 대한 것만 — 프로필 줄 → 계정(비밀번호 재설정 메일 · 로그아웃) → 탈퇴 링크
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TrainerProfileTab extends StatelessWidget {
@@ -117,8 +135,8 @@ class _TrainerProfileTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<UserProvider>().user;
     final subtitle = [
+      '트레이너',
       if ((user?.centerName ?? '').isNotEmpty) user!.centerName,
-      if ((user?.email ?? '').isNotEmpty) user!.email,
     ].join(' · ');
 
     return Scaffold(
@@ -126,23 +144,24 @@ class _TrainerProfileTab extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.only(bottom: 120),
+          padding: const EdgeInsets.only(bottom: AppSize.navClearance),
           children: [
-            const AppHero(title: '마이'),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.xl),
-              child: AppProfileCard(
-                name: user?.name ?? '',
-                subtitle: subtitle,
-                roleLabel: '트레이너',
-                seed: user?.uid,
-              ),
-            ),
+            const AppHero(title: '마이', divider: false),
+            AppProfileRow(name: user?.name ?? '', subtitle: subtitle),
             const AppMonthHeader(label: '계정'),
+            AppActionRow(
+              icon: AppIcons.lock,
+              label: '비밀번호 재설정 메일',
+              onTap: () =>
+                  showPasswordResetSheet(context, initialEmail: user?.email),
+            ),
+            const AppRowDivider(),
+            const ThemeSettingRow(),
+            const AppRowDivider(),
             AppActionRow(
               icon: AppIcons.signOut,
               label: '로그아웃',
-              isDestructive: true,
+              showChevron: false,
               onTap: () => _signOut(context),
             ),
             const AppRowDivider(),

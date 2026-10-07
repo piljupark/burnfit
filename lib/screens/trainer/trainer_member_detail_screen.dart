@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
+import '../../core/birth_date.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
@@ -20,9 +21,9 @@ import '../../services/meal_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_avatar.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_filter_tabs.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
@@ -232,24 +233,11 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
 
   /// '여성 · 28세 · 165cm · email' 형식의 메타 줄.
   String _memberMeta(AppUser m) {
-    final gender = switch (m.gender) {
-      Gender.male => '남성',
-      Gender.female => '여성',
-      Gender.other => null,
-      null => null,
-    };
-    int? age;
-    final birth = m.birthDate?.trim() ?? '';
-    if (birth.length == 8) {
-      final y = int.tryParse(birth.substring(0, 4));
-      final mo = int.tryParse(birth.substring(4, 6));
-      final d = int.tryParse(birth.substring(6, 8));
-      if (y != null && mo != null && d != null) {
-        final now = DateTime.now();
-        age = now.year - y - ((now.month < mo || (now.month == mo && now.day < d)) ? 1 : 0);
-      }
-    }
-    final height = m.profile?.height;
+    // '기타'는 메타 줄에 적지 않는다.
+    final gender = m.gender == Gender.other ? null : m.gender?.label;
+    final age = ageFromBirthDate(m.birthDate);
+    // 신체 정보 공유를 끈 회원은 키도 보여주지 않는다.
+    final height = m.shareSettings.body ? m.profile?.height : null;
     return [
       ?gender,
       if (age != null) '$age세',
@@ -272,40 +260,42 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── 앱바 ─────────────────────────────────────────────────────────
-            Container(
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.hairline)),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '회원 상세',
-                onBack: () => Navigator.of(context).pop(),
-                trailing: Transform.translate(
-                  offset: const Offset(12, 0),
-                  child: AppIconButton(
-                    icon: AppIcons.more,
-                    label: '더보기',
-                    onPressed: _showMoreActions,
-                  ),
-                ),
+            AppScreenHeader(
+              title: '회원 상세',
+              onBack: () => Navigator.of(context).pop(),
+              trailing: AppIconButton(
+                icon: AppIcons.more,
+                label: '더보기',
+                onPressed: _showMoreActions,
               ),
             ),
             // ── 회원 머리 ────────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH, AppSpacing.lg, AppSpacing.screenH, AppSpacing.base,
+                AppSpacing.screenH,
+                AppSpacing.lg,
+                AppSpacing.screenH,
+                AppSpacing.base,
               ),
               child: Row(
                 children: [
-                  AppAvatar(name: m.name, seed: m.uid, size: 56),
-                  const SizedBox(width: AppSpacing.base),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(m.name, style: AppTextStyles.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(
+                          m.name,
+                          style: AppTextStyles.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         if (meta.isNotEmpty)
-                          Text(meta, style: AppTextStyles.bodySm, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(
+                            meta,
+                            style: AppTextStyles.bodySm,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                       ],
                     ),
                   ),
@@ -314,7 +304,12 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
             ),
             // ── 행동 (외곽선 두 개) ──────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                0,
+                AppSpacing.screenH,
+                AppSpacing.md,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -323,7 +318,8 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                       icon: const Icon(AppIcons.feedback),
                       variant: AppButtonVariant.secondary,
                       fullWidth: true,
-                      onPressed: () => _writeFeedback(type: fb.FeedbackTargetType.general),
+                      onPressed: () =>
+                          _writeFeedback(type: fb.FeedbackTargetType.general),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -341,8 +337,10 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
             ),
             // ── 탭 칩 (위아래 hairline) ──────────────────────────────────────
             Container(
-              decoration: const BoxDecoration(
-                border: Border.symmetric(horizontal: BorderSide(color: AppColors.hairline)),
+              decoration: BoxDecoration(
+                border: Border.symmetric(
+                  horizontal: BorderSide(color: AppColors.hairline),
+                ),
               ),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: AnimatedBuilder(
@@ -351,7 +349,9 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                   labels: tabs,
                   selectedIndex: _tabController.index,
                   onSelected: (i) => _tabController.animateTo(i),
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenH,
+                  ),
                 ),
               ),
             ),
@@ -411,7 +411,10 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppBottomSheetHeader(title: m.name, subtitle: m.email.isEmpty ? null : m.email),
+            AppBottomSheetHeader(
+              title: m.name,
+              subtitle: m.email.isEmpty ? null : m.email,
+            ),
             AppSheetAction(
               icon: AppIcons.feedback,
               label: '피드백 작성',
@@ -500,24 +503,11 @@ class _ProfileTabState extends State<_ProfileTab> {
   }
 
   Future<void> _deleteInbody(Inbody item) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('InBody 기록 삭제'),
-        content: Text('${item.measurementDate} 측정 기록 1건을 삭제합니다. 되돌릴 수 없습니다.'),
-        actions: [
-          AppButton(
-            label: '취소',
-            variant: AppButtonVariant.ghost,
-            onPressed: () => Navigator.of(ctx).pop(false),
-          ),
-          AppButton(
-            label: '삭제',
-            variant: AppButtonVariant.danger,
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'InBody 기록 삭제',
+      message: '${item.measurementDate} 측정 기록 1건을 삭제합니다. 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
     );
     if (confirmed != true) return;
 
@@ -539,7 +529,8 @@ class _ProfileTabState extends State<_ProfileTab> {
       ('체중', '${fmt(item.weight)} kg'),
       if (item.muscleMass != null) ('골격근량', '${fmt(item.muscleMass!)} kg'),
       if (item.bodyFat != null) ('체지방량', '${fmt(item.bodyFat!)} kg'),
-      if (item.bodyFatPercent != null) ('체지방률', '${fmt(item.bodyFatPercent!)}%'),
+      if (item.bodyFatPercent != null)
+        ('체지방률', '${fmt(item.bodyFatPercent!)}%'),
       if (item.bmi != null) ('BMI', fmt(item.bmi!)),
       if (item.bmr != null) ('BMR', '${fmt(item.bmr!)} kcal'),
       if (item.visceralFat != null) ('내장지방 레벨', '${item.visceralFat}'),
@@ -551,8 +542,12 @@ class _ProfileTabState extends State<_ProfileTab> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppBottomSheetHeader(title: 'InBody 기록', subtitle: item.measurementDate),
-            for (var i = 0; i < rows.length; i++) _KeyValueRow(label: rows[i].$1, value: rows[i].$2, divider: true),
+            AppBottomSheetHeader(
+              title: 'InBody 기록',
+              subtitle: item.measurementDate,
+            ),
+            for (var i = 0; i < rows.length; i++)
+              _KeyValueRow(label: rows[i].$1, value: rows[i].$2, divider: true),
             const SizedBox(height: AppSpacing.sm),
             AppSheetAction(
               icon: AppIcons.trash,
@@ -603,9 +598,14 @@ class _ProfileTabState extends State<_ProfileTab> {
           Padding(
             padding: const EdgeInsets.all(AppSpacing.screenH),
             child: _PtInfoCard(
-              remaining: '${ptInfo.remainingSessions} / ${ptInfo.totalSessions}회',
-              startDate: ptInfo.startDate != null ? fmt.format(ptInfo.startDate!) : '-',
-              endDate: ptInfo.endDate != null ? fmt.format(ptInfo.endDate!) : '-',
+              remaining:
+                  '${ptInfo.remainingSessions} / ${ptInfo.totalSessions}회',
+              startDate: ptInfo.startDate != null
+                  ? fmt.format(ptInfo.startDate!)
+                  : '-',
+              endDate: ptInfo.endDate != null
+                  ? fmt.format(ptInfo.endDate!)
+                  : '-',
               dDay: _dDayLabel(ptInfo.endDate),
             ),
           ),
@@ -634,7 +634,11 @@ class _ProfileTabState extends State<_ProfileTab> {
   String? _dDayLabel(DateTime? end) {
     if (end == null) return null;
     final now = DateTime.now();
-    final days = DateTime(end.year, end.month, end.day).difference(DateTime(now.year, now.month, now.day)).inDays;
+    final days = DateTime(
+      end.year,
+      end.month,
+      end.day,
+    ).difference(DateTime(now.year, now.month, now.day)).inDays;
     if (days < 0) return '종료';
     if (days == 0) return '오늘';
     return 'D-$days';
@@ -647,12 +651,20 @@ class _PtInfoCard extends StatelessWidget {
   final String endDate;
   final String? dDay;
 
-  const _PtInfoCard({required this.remaining, required this.startDate, required this.endDate, this.dDay});
+  const _PtInfoCard({
+    required this.remaining,
+    required this.startDate,
+    required this.endDate,
+    this.dDay,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.base,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: AppColors.canvasCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
@@ -664,7 +676,12 @@ class _PtInfoCard extends StatelessWidget {
             height: 40,
             child: Row(
               children: [
-                Expanded(child: Text('PT 정보', style: AppTextStyles.bodySm.copyWith(color: AppColors.body))),
+                Expanded(
+                  child: Text(
+                    'PT 정보',
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                  ),
+                ),
                 if (dDay != null) AppTag(dDay!, muted: dDay == '종료'),
               ],
             ),
@@ -684,18 +701,29 @@ class _KeyValueRow extends StatelessWidget {
   final String value;
   final bool divider;
 
-  const _KeyValueRow({required this.label, required this.value, this.divider = false});
+  const _KeyValueRow({
+    required this.label,
+    required this.value,
+    this.divider = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(minHeight: AppSize.touchMin),
       decoration: divider
-          ? const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline)))
+          ? BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.hairline)),
+            )
           : null,
       child: Row(
         children: [
-          Expanded(child: Text(label, style: AppTextStyles.bodyMd.copyWith(color: AppColors.body))),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+            ),
+          ),
           Text(value, style: AppTextStyles.bodyMd),
         ],
       ),
@@ -726,12 +754,19 @@ class _InbodySection extends StatelessWidget {
         AppMonthHeader(
           label: '인바디',
           count: '${items.length}건',
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.sm,
+            AppSpacing.screenH,
+            0,
+          ),
         ),
         if (isLoading)
           const Padding(
             padding: EdgeInsets.all(AppSpacing.xl),
-            child: Center(child: OrbLoader.inline(semanticLabel: 'InBody 기록 불러오는 중')),
+            child: Center(
+              child: OrbLoader.inline(semanticLabel: 'InBody 기록 불러오는 중'),
+            ),
           )
         else if (items.isEmpty)
           AppEmptyState(
@@ -749,8 +784,15 @@ class _InbodySection extends StatelessWidget {
                 highlightColor: AppColors.canvasSoft,
                 splashFactory: NoSplash.splashFactory,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
-                  decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline))),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenH,
+                    vertical: AppSpacing.md,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: AppColors.hairline),
+                    ),
+                  ),
                   child: Row(
                     children: [
                       TrainerDateBlock(date: item.measurementDate),
@@ -759,12 +801,19 @@ class _InbodySection extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${_fmt(item.weight)}kg', style: AppTextStyles.bodyLg),
+                            Text(
+                              '${_fmt(item.weight)}kg',
+                              style: AppTextStyles.bodyLg,
+                            ),
                             Text(
                               [
-                                if (item.muscleMass != null) '골격근 ${_fmt(item.muscleMass!)}',
-                                if (item.bodyFatPercent != null) '체지방률 ${_fmt(item.bodyFatPercent!)}%',
-                                if (item.bodyFatPercent == null && item.bodyFat != null) '체지방 ${_fmt(item.bodyFat!)}kg',
+                                if (item.muscleMass != null)
+                                  '골격근 ${_fmt(item.muscleMass!)}',
+                                if (item.bodyFatPercent != null)
+                                  '체지방률 ${_fmt(item.bodyFatPercent!)}%',
+                                if (item.bodyFatPercent == null &&
+                                    item.bodyFat != null)
+                                  '체지방 ${_fmt(item.bodyFat!)}kg',
                               ].join(' · '),
                               style: AppTextStyles.bodySm,
                               maxLines: 1,
@@ -773,7 +822,11 @@ class _InbodySection extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+                      Icon(
+                        AppIcons.forward,
+                        size: AppSize.icon,
+                        color: AppColors.mute,
+                      ),
                     ],
                   ),
                 ),

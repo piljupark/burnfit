@@ -168,6 +168,17 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
 
     setState(() => _isLoading = true);
     try {
+      final existing = widget.existing;
+      if (existing != null) {
+        await FirestoreService.updateFeedbackContent(
+          existing.id,
+          _controller.text.trim(),
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop(true);
+        return;
+      }
+
       const uuid = Uuid();
       final id = widget.existing?.id ?? uuid.v4();
       final now = DateTime.now();
@@ -233,10 +244,16 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
         children: [
           AppBottomSheetHeader(title: isEditing ? '피드백 수정' : '피드백 작성'),
           // 대상: 회원 · 종류 + 날짜, 아래 hairline
-          Text('${widget.memberName} · ${widget.targetType.label}', style: AppTextStyles.bodyLg),
+          Text(
+            '${widget.memberName} · ${widget.targetType.label}',
+            style: AppTextStyles.bodyLg,
+          ),
           if (_dateMeta != null) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text(_dateMeta!, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+            Text(
+              _dateMeta!,
+              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+            ),
           ],
           const SizedBox(height: AppSpacing.md),
           const AppRowDivider(),

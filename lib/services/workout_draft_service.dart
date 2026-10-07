@@ -19,7 +19,10 @@ class WorkoutDraftService {
   static Future<void> clearAllFor(String memberId) async {
     final prefs = await SharedPreferences.getInstance();
     final prefix = 'workout_draft_${memberId}_';
-    final keys = prefs.getKeys().where((key) => key.startsWith(prefix)).toList();
+    final keys = prefs
+        .getKeys()
+        .where((key) => key.startsWith(prefix))
+        .toList();
     for (final key in keys) {
       await prefs.remove(key);
     }

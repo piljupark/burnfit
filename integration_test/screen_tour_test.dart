@@ -8,15 +8,19 @@
 //     --dart-define=USE_FIREBASE_EMULATOR=true
 // 결과: build/screen_tour/*.png
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoPicker;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:pt_solution_v2/main.dart';
+import 'package:pt_solution_v2/services/theme_controller.dart';
 import 'package:pt_solution_v2/widgets/app_icon_button.dart';
 import 'package:pt_solution_v2/widgets/app_nav_bar.dart';
+import 'package:pt_solution_v2/widgets/app_profile_card.dart';
 import 'package:pt_solution_v2/widgets/notification_bell_button.dart';
 
 const _password = 'password123';
+const _tourTheme = String.fromEnvironment('TOUR_THEME', defaultValue: 'light');
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -45,12 +49,18 @@ void main() {
   }
 
   Future<void> startApp(WidgetTester tester) async {
+    // 앱 Navigator는 전역 키(appNavigatorKey)를 쓰므로, 이전 앱을 완전히 내린 뒤 새로 띄운다
+    // (바로 바꾸면 이전 화면 스택이 새 앱으로 옮겨진다).
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
     await tester.pumpWidget(PtSolutionApp(key: UniqueKey()));
     await wait(tester, 4000);
   }
 
   Future<void> tapNav(WidgetTester tester, String label) async {
-    await tester.tap(find.descendant(of: find.byType(AppNavBar), matching: find.text(label)));
+    await tester.tap(
+      find.descendant(of: find.byType(AppNavBar), matching: find.text(label)),
+    );
     await wait(tester);
   }
 
@@ -68,13 +78,20 @@ void main() {
   testWidgets('screen tour', (tester) async {
     await bootstrapApp(withMessaging: false);
     await FirebaseAuth.instance.signOut();
+    // 기본(라이트)으로 찍는다. --dart-define=TOUR_THEME=dark 이면 전체 투어를 다크로 찍는다.
+    await ThemeController.instance.select(
+      _tourTheme == 'dark' ? AppThemeChoice.dark : AppThemeChoice.light,
+    );
 
     // ── 로그인 ──
     await startApp(tester);
     await shot('00_login');
 
     // ── 회원 ──
-    await FirebaseAuth.instance.signInWithEmailAndPassword(email: 'member@burnfit.test', password: _password);
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: 'member@burnfit.test',
+      password: _password,
+    );
     await startApp(tester);
     await shot('10_member_home');
     // 스크롤하기 전에 위쪽 버튼(알림·바로가기)부터 연다.
@@ -133,10 +150,17 @@ void main() {
       await shot('17_workout_stats');
       await back(tester);
     });
+    await step('profile detail', () async {
+      // 마이 맨 위 프로필 줄 → 프로필 (기본 정보 · 신체 정보 · 인바디 · 목표)
+      await tester.tap(find.byType(AppProfileRow).first);
+      await wait(tester);
+      await shot('16b_profile_detail');
+      await back(tester);
+    });
     await step('feedback', () async {
-      final item = find.text('트레이너 피드백').last;
-      await tester.scrollUntilVisible(item, 200, scrollable: find.byType(Scrollable).last);
-      await tester.tap(item);
+      // 트레이너 피드백은 홈 바로가기에만 있다 (마이에서 뺐음)
+      await tapNav(tester, '홈');
+      await tester.tap(find.text('트레이너 피드백').first);
       await wait(tester);
       await shot('18_feedback');
       await back(tester);
@@ -144,7 +168,10 @@ void main() {
 
     // ── 트레이너 ──
     await FirebaseAuth.instance.signOut();
-    await FirebaseAuth.instance.signInWithEmailAndPassword(email: 'trainer@burnfit.test', password: _password);
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: 'trainer@burnfit.test',
+      password: _password,
+    );
     await startApp(tester);
     await shot('20_trainer_home');
     await step('pt record', () async {
@@ -166,13 +193,18 @@ void main() {
       await shot('22_trainer_schedule');
     });
     await step('reserve sheet', () async {
-      await tester.tap(iconButton((l) => l.contains('예약') || l.contains('추가')).first);
+      await tester.tap(
+        iconButton((l) => l.contains('예약') || l.contains('추가')).first,
+      );
       await wait(tester);
       await shot('23_reserve_sheet');
       // 진행 시간을 90분으로 늘려 11:00 예약과 겹치게 → 경고·저장 비활성 확인
       await tester.tap(find.textContaining('종료').first);
       await wait(tester, 800);
-      await tester.drag(find.byType(CupertinoPicker).first, const Offset(0, -108));
+      await tester.drag(
+        find.byType(CupertinoPicker).first,
+        const Offset(0, -108),
+      );
       await wait(tester, 1200);
       await shot('23b_reserve_conflict');
       await back(tester);
@@ -184,7 +216,10 @@ void main() {
 
     // ── 관리자 ──
     await FirebaseAuth.instance.signOut();
-    await FirebaseAuth.instance.signInWithEmailAndPassword(email: 'admin@burnfit.test', password: _password);
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: 'admin@burnfit.test',
+      password: _password,
+    );
     await startApp(tester);
     await shot('30_admin_home');
     await step('requests', () async {
@@ -207,6 +242,79 @@ void main() {
       await tapNav(tester, '트레이너');
       await shot('34_admin_trainers');
     });
+    await step('trainer sheet', () async {
+      await tester.tap(find.text('김도윤').first);
+      await wait(tester);
+      await shot('35_admin_trainer_sheet');
+      await back(tester);
+    });
+    await step('admin my', () async {
+      await tapNav(tester, '마이');
+      await shot('36_admin_my');
+    });
+
+    // ── 다른 테마 (마이 → 화면 테마에서 바꾼다): 기본이 라이트면 다크로 몇 장 ──
+    await FirebaseAuth.instance.signOut();
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: 'member@burnfit.test',
+      password: _password,
+    );
+    await startApp(tester);
+    await step('theme sheet', () async {
+      await tapNav(tester, '마이');
+      await tester.tap(find.text('화면 테마'));
+      await wait(tester, 1200);
+      final other = _tourTheme == 'dark' ? '라이트' : '다크';
+      await tester.tap(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.text(other),
+        ),
+      );
+      await wait(tester, 1200);
+      await shot('40_alt_theme_sheet');
+      await back(tester);
+      await shot('41_alt_my');
+    });
+    for (final (label, name) in [
+      ('홈', '42_alt_home'),
+      ('운동', '43_alt_workout'),
+      ('PT', '44_alt_pt'),
+    ]) {
+      await step('alt $label', () async {
+        await tapNav(tester, label);
+        await shot(name);
+      });
+    }
+    await step('alt meal log', () async {
+      await tapNav(tester, '홈');
+      await tester.tap(find.text('식단 기록').first);
+      await wait(tester);
+      await shot('45_alt_meal_log');
+      await back(tester);
+    });
+    await FirebaseAuth.instance.signOut();
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: 'trainer@burnfit.test',
+      password: _password,
+    );
+    await startApp(tester);
+    await shot('46_alt_trainer_home');
+    await step('alt schedule', () async {
+      await tapNav(tester, '일정');
+      await shot('47_alt_trainer_schedule');
+      await tester.tap(
+        iconButton((l) => l.contains('예약') || l.contains('추가')).first,
+      );
+      await wait(tester);
+      await shot('48_alt_reserve_sheet');
+      await back(tester);
+    });
+    await FirebaseAuth.instance.signOut();
+    await startApp(tester);
+    await shot('49_alt_login');
+    // 다음 실행을 위해 기본 테마로 되돌린다.
+    await ThemeController.instance.select(ThemeController.defaultChoice);
 
     await FirebaseAuth.instance.signOut();
   });

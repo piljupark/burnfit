@@ -11,6 +11,7 @@ import '../models/user.dart';
 import '../services/account_service.dart';
 import '../services/user_provider.dart';
 import 'app_bottom_sheet.dart';
+import 'app_toast.dart';
 import 'app_button.dart';
 import 'app_text_field.dart';
 import 'password_reset_sheet.dart';
@@ -21,7 +22,6 @@ Future<void> startDeleteAccountFlow(BuildContext context) async {
   final user = context.read<UserProvider>().user;
   if (user == null || user.role == UserRole.admin) return;
 
-  final messenger = ScaffoldMessenger.of(context);
   final navigator = Navigator.of(context);
 
   final deleted = await showAppBottomSheet<bool>(
@@ -32,10 +32,7 @@ Future<void> startDeleteAccountFlow(BuildContext context) async {
   if (deleted != true) return;
 
   navigator.pushNamedAndRemoveUntil(AppRoutes.memberLogin, (_) => false);
-  messenger.showSnackBar(const SnackBar(
-    content: Text('탈퇴가 완료되었습니다. 그동안 이용해주셔서 감사합니다.'),
-    behavior: SnackBarBehavior.floating,
-  ));
+  AppToast.show(null, message: '탈퇴가 완료되었습니다. 그동안 이용해주셔서 감사합니다.');
 }
 
 /// 역할별로 탈퇴하면 무엇이 어떻게 되는지. functions/account_deletion.js의 계획과 맞춘다.
@@ -82,7 +79,9 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
     if (_isDeleting || !_formKey.currentState!.validate()) return;
     setState(() => _isDeleting = true);
     try {
-      await context.read<UserProvider>().deleteAccount(_passwordController.text);
+      await context.read<UserProvider>().deleteAccount(
+        _passwordController.text,
+      );
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
@@ -101,21 +100,30 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('회원 탈퇴', style: AppTextStyles.title),
-          const Gap(AppSpacing.xs),
-          Text(
-            isTrainer ? '탈퇴하면 계정이 삭제되고 다음과 같이 처리됩니다.' : '탈퇴하면 아래 정보가 모두 삭제됩니다.',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+          AppBottomSheetHeader(
+            title: '회원 탈퇴',
+            subtitle: isTrainer
+                ? '탈퇴하면 계정이 삭제되고 다음과 같이 처리됩니다.'
+                : '탈퇴하면 아래 정보가 모두 삭제됩니다.',
           ),
-          const Gap(AppSpacing.md),
           for (final line in _consequencesFor(widget.user.role))
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.xs),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('·  ', style: AppTextStyles.bodySmall),
-                  Expanded(child: Text(line, style: AppTextStyles.bodySmall)),
+                  Text(
+                    '·  ',
+                    style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+                  ),
+                  Expanded(
+                    child: Text(
+                      line,
+                      style: AppTextStyles.bodyMd.copyWith(
+                        color: AppColors.body,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -124,13 +132,13 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
             Text(
               'PT 이용 내역(횟수·기간·수업 일시)은 환불 등 분쟁 대응을 위해 이름 등 회원을 알 수 있는 정보를 지운 뒤 '
               'PT 종료일(또는 탈퇴일) 중 늦은 날로부터 ${AccountService.ptRecordRetentionYears}년간 보관하고 파기합니다.',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary, height: 1.5),
+              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
             ),
           ],
           const Gap(AppSpacing.xs),
           Text(
             '삭제된 정보는 복구할 수 없습니다.',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.danger),
+            style: AppTextStyles.bodyMd.copyWith(color: AppColors.danger),
           ),
           const Gap(AppSpacing.lg),
           AppTextField(
@@ -141,20 +149,19 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
             validator: (v) => (v == null || v.isEmpty) ? '비밀번호를 입력해주세요.' : null,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _delete(),
-            fillColor: AppColors.card,
-            showEnabledBorder: true,
-            labelAbove: true,
           ),
           Align(
             alignment: Alignment.centerRight,
-            child: TextButton(
+            child: AppButton(
+              label: '비밀번호를 잊으셨나요?',
+              variant: AppButtonVariant.ghost,
+              size: AppButtonSize.sm,
               onPressed: _isDeleting
                   ? null
-                  : () => showPasswordResetSheet(context, initialEmail: widget.user.email),
-              child: Text(
-                '비밀번호를 잊으셨나요?',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-              ),
+                  : () => showPasswordResetSheet(
+                      context,
+                      initialEmail: widget.user.email,
+                    ),
             ),
           ),
           const Gap(AppSpacing.sm),
@@ -164,7 +171,9 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
                 child: AppButton(
                   label: '취소',
                   variant: AppButtonVariant.ghost,
-                  onPressed: _isDeleting ? null : () => Navigator.of(context).pop(false),
+                  onPressed: _isDeleting
+                      ? null
+                      : () => Navigator.of(context).pop(false),
                   fullWidth: true,
                   size: AppButtonSize.lg,
                 ),
@@ -199,10 +208,10 @@ class DeleteAccountLink extends StatelessWidget {
         onPressed: () => startDeleteAccountFlow(context),
         child: Text(
           '회원 탈퇴',
-          style: AppTextStyles.caption.copyWith(
-            color: AppColors.textTertiary,
+          // 시안: 탈퇴는 로그아웃 아래 작은 밑줄 글자 (빨강은 확인 시트에서만)
+          style: AppTextStyles.bodySm.copyWith(
             decoration: TextDecoration.underline,
-            decorationColor: AppColors.textTertiary,
+            decorationColor: AppColors.mute,
           ),
         ),
       ),

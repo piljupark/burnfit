@@ -72,7 +72,9 @@ class _MemberPtWorkoutScreenState extends State<MemberPtWorkoutScreen> {
     final groups = <String, List<Workout>>{};
     for (final workout in _workouts) {
       final date = DateTime.tryParse(workout.workoutDate);
-      final key = date == null ? workout.workoutDate : DateFormat('yyyy.MM').format(date);
+      final key = date == null
+          ? workout.workoutDate
+          : DateFormat('yyyy.MM').format(date);
       groups.putIfAbsent(key, () => []).add(workout);
     }
     return groups.entries.toList();
@@ -117,15 +119,13 @@ class _MemberPtWorkoutScreenState extends State<MemberPtWorkoutScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: 'PT 운동 기록',
-                subtitle: _isLoading || _workouts.isEmpty ? null : '최근 3개월 · ${_workouts.length}회',
-                onBack: () => Navigator.of(context).pop(),
-              ),
+            AppScreenHeader(
+              title: 'PT 운동 기록',
+              subtitle: _isLoading || _workouts.isEmpty
+                  ? null
+                  : '최근 3개월 · ${_workouts.length}회',
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: _isLoading
                   ? const AppLoadingView()
@@ -162,7 +162,10 @@ class _PtWorkoutRow extends StatelessWidget {
     return Semantics(
       container: true,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenH,
+          vertical: AppSpacing.md,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -173,11 +176,16 @@ class _PtWorkoutRow extends StatelessWidget {
                 children: [
                   const SizedBox(height: 5),
                   Text(
-                    date == null ? workout.workoutDate : DateFormat('MM.dd').format(date),
+                    date == null
+                        ? workout.workoutDate
+                        : DateFormat('MM.dd').format(date),
                     style: AppTextStyles.eyebrow.copyWith(color: AppColors.ink),
                   ),
                   if (date != null)
-                    Text(DateFormat('E', 'ko').format(date), style: AppTextStyles.counter),
+                    Text(
+                      DateFormat('E', 'ko').format(date),
+                      style: AppTextStyles.counter,
+                    ),
                 ],
               ),
             ),
@@ -197,13 +205,16 @@ class _PtWorkoutRow extends StatelessWidget {
                     '${workout.exercises.length}종목 · ${workout.totalSets}세트 · 총 볼륨 ${volume}kg',
                     style: AppTextStyles.bodySm,
                   ),
-                  if (workout.note != null && workout.note!.trim().isNotEmpty) ...[
+                  if (workout.note != null &&
+                      workout.note!.trim().isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       workout.note!,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+                      style: AppTextStyles.bodyMd.copyWith(
+                        color: AppColors.body,
+                      ),
                     ),
                   ],
                 ],

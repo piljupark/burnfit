@@ -57,12 +57,14 @@ class AppButton extends StatelessWidget {
     final isPrimary = variant == AppButtonVariant.primary;
     final fg = switch (variant) {
       AppButtonVariant.primary => AppColors.onPrimary,
-      AppButtonVariant.danger || AppButtonVariant.dangerText => AppColors.danger,
+      AppButtonVariant.danger ||
+      AppButtonVariant.dangerText => AppColors.danger,
       _ => AppColors.ink,
     };
     final borderColor = switch (variant) {
       AppButtonVariant.primary => AppColors.primary,
-      AppButtonVariant.secondary || AppButtonVariant.danger => AppColors.outline,
+      AppButtonVariant.secondary ||
+      AppButtonVariant.danger => AppColors.outline,
       _ => Colors.transparent,
     };
 
@@ -74,7 +76,10 @@ class AppButton extends StatelessWidget {
           OrbLoader.inline(color: fg),
           const SizedBox(width: AppSpacing.sm),
         ] else if (icon != null) ...[
-          IconTheme(data: IconThemeData(color: fg, size: 18), child: icon!),
+          IconTheme(
+            data: IconThemeData(color: fg, size: 18),
+            child: icon!,
+          ),
           const SizedBox(width: AppSpacing.sm),
         ],
         Flexible(
@@ -82,7 +87,10 @@ class AppButton extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.buttonLabel.copyWith(color: fg, fontSize: fontSize),
+            style: AppTextStyles.buttonLabel.copyWith(
+              color: fg,
+              fontSize: fontSize,
+            ),
           ),
         ),
       ],
@@ -95,8 +103,10 @@ class AppButton extends StatelessWidget {
         opacity: disabled && !isLoading ? 0.4 : 1,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: AppSize.touchMin),
+          // 가로로는 내용 폭만 차지한다 (Align·Row 안에서 의도한 위치에 놓이도록).
           child: Center(
             heightFactor: 1,
+            widthFactor: fullWidth ? null : 1,
             child: SizedBox(
               height: height,
               width: fullWidth ? double.infinity : null,
@@ -107,7 +117,9 @@ class AppButton extends StatelessWidget {
                   customBorder: const StadiumBorder(),
                   onTap: disabled ? null : onPressed,
                   // 눌림: 외곽선은 canvasSoft, primary는 body
-                  highlightColor: isPrimary ? AppColors.body : AppColors.canvasSoft,
+                  highlightColor: isPrimary
+                      ? AppColors.body
+                      : AppColors.canvasSoft,
                   splashFactory: NoSplash.splashFactory,
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: hPad),

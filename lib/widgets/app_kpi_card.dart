@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+
+import 'app_action_row.dart';
 import 'app_tag.dart';
 
 /// 숫자 칸: 라벨(13, mute) + 값(28) + 단위 + (선택) 모노 추세.
@@ -42,7 +44,12 @@ class AppKpiCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: AppTextStyles.bodySm.copyWith(color: framed ? AppColors.body : AppColors.mute)),
+          Text(
+            label,
+            style: AppTextStyles.bodySm.copyWith(
+              color: framed ? AppColors.body : AppColors.mute,
+            ),
+          ),
           const SizedBox(height: AppSpacing.xs),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -53,19 +60,31 @@ class AppKpiCard extends StatelessWidget {
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.displayMd.copyWith(fontSize: valueSize, height: 1.2),
+                  style: AppTextStyles.displayMd.copyWith(
+                    fontSize: valueSize,
+                    height: 1.2,
+                  ),
                 ),
               ),
               if (unit.isNotEmpty) ...[
                 const SizedBox(width: 2),
-                Text(unit, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                Text(
+                  unit,
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                ),
               ],
             ],
           ),
           if (trend != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              monoCase('${trendUp == true ? '+' : trendUp == false ? '−' : ''}${trend!.replaceFirst(RegExp(r'^[+\-−]'), '')}'),
+              monoCase(
+                '${trendUp == true
+                    ? '+'
+                    : trendUp == false
+                    ? '−'
+                    : ''}${trend!.replaceFirst(RegExp(r'^[+\-−]'), '')}',
+              ),
               style: AppTextStyles.counter,
             ),
           ],
@@ -90,15 +109,24 @@ class AppStatStrip extends StatelessWidget {
   final bool bottomBorder;
   final bool topBorder;
 
-  const AppStatStrip({super.key, required this.cells, this.bottomBorder = true, this.topBorder = false});
+  const AppStatStrip({
+    super.key,
+    required this.cells,
+    this.bottomBorder = true,
+    this.topBorder = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          top: topBorder ? const BorderSide(color: AppColors.hairline) : BorderSide.none,
-          bottom: bottomBorder ? const BorderSide(color: AppColors.hairline) : BorderSide.none,
+          top: topBorder
+              ? BorderSide(color: AppColors.hairline)
+              : BorderSide.none,
+          bottom: bottomBorder
+              ? BorderSide(color: AppColors.hairline)
+              : BorderSide.none,
         ),
       ),
       child: IntrinsicHeight(
@@ -106,7 +134,12 @@ class AppStatStrip extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (var i = 0; i < cells.length; i++) ...[
-              if (i > 0) const VerticalDivider(width: 1, thickness: 1, color: AppColors.hairline),
+              if (i > 0)
+                VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: AppColors.hairline,
+                ),
               Expanded(child: cells[i]),
             ],
           ],
@@ -126,14 +159,21 @@ class AppStatGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = <Widget>[];
     for (var i = 0; i < cells.length; i += 2) {
-      if (i > 0) rows.add(const Divider(height: 1, color: AppColors.hairline));
-      rows.add(AppStatStrip(
-        bottomBorder: false,
-        cells: [cells[i], if (i + 1 < cells.length) cells[i + 1] else const SizedBox()],
-      ));
+      if (i > 0) rows.add(const AppRowDivider());
+      rows.add(
+        AppStatStrip(
+          bottomBorder: false,
+          cells: [
+            cells[i],
+            if (i + 1 < cells.length) cells[i + 1] else const SizedBox(),
+          ],
+        ),
+      );
     }
     return Container(
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.hairline)),
+      ),
       child: Column(children: rows),
     );
   }

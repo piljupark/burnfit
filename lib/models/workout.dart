@@ -132,8 +132,11 @@ class Workout {
   });
 
   int get totalSets => exercises.fold(0, (total, e) => total + e.sets.length);
-  double get totalVolume =>
-      exercises.fold(0.0, (total, e) => total + e.totalVolume);
+
+  /// 근력 볼륨 (무게 × 횟수 합). 유산소 기록은 속도·시간을 같은 칸에 담으므로 볼륨에 넣지 않는다.
+  double get totalVolume => category == WorkoutCategory.cardio
+      ? 0
+      : exercises.fold(0.0, (total, e) => total + e.totalVolume);
 
   Map<String, dynamic> toMap() {
     return {

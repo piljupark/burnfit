@@ -29,14 +29,24 @@ class SavedWorkoutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final labels = workout.exercises
-        .map((exercise) => inferExerciseCategoryLabel(exercise.name, workout.category))
+        .map(
+          (exercise) =>
+              inferExerciseCategoryLabel(exercise.name, workout.category),
+        )
         .toSet()
         .toList();
     final volume = NumberFormat('#,###').format(workout.totalVolume.round());
 
     return Container(
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline))),
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.xs, AppSpacing.base),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.hairline)),
+      ),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.xs,
+        AppSpacing.xs,
+        AppSpacing.base,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -49,8 +59,18 @@ class SavedWorkoutCard extends StatelessWidget {
                   children: [for (final label in labels) AppTag(label)],
                 ),
               ),
-              AppIconButton(icon: AppIcons.edit, label: '운동 기록 수정', onPressed: onEdit, color: AppColors.body),
-              AppIconButton(icon: AppIcons.trash, label: '운동 기록 삭제', onPressed: onDelete, color: AppColors.body),
+              AppIconButton(
+                icon: AppIcons.edit,
+                label: '운동 기록 수정',
+                onPressed: onEdit,
+                color: AppColors.body,
+              ),
+              AppIconButton(
+                icon: AppIcons.trash,
+                label: '운동 기록 삭제',
+                onPressed: onDelete,
+                color: AppColors.body,
+              ),
             ],
           ),
           Padding(
@@ -61,11 +81,16 @@ class SavedWorkoutCard extends StatelessWidget {
                 for (final exercise in workout.exercises)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: _SavedExerciseRow(exercise: exercise, isCardio: _isCardio),
+                    child: _SavedExerciseRow(
+                      exercise: exercise,
+                      isCardio: _isCardio,
+                    ),
                   ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  _isCardio ? '${workout.totalSets}세트' : '${volume}kg · ${workout.totalSets}세트',
+                  _isCardio
+                      ? '${workout.totalSets}세트'
+                      : '${volume}kg · ${workout.totalSets}세트',
                   style: AppTextStyles.captionSmall,
                 ),
               ],
@@ -93,9 +118,12 @@ class _SavedExerciseRow extends StatelessWidget {
       final metricSuffix = cardioPrimaryMetricSuffix(exercise.name);
       final primaryMax = exercise.sets.isEmpty
           ? 0.0
-          : exercise.sets.map((set) => set.weight).reduce((a, b) => a > b ? a : b);
+          : exercise.sets
+                .map((set) => set.weight)
+                .reduce((a, b) => a > b ? a : b);
       final minutes = exercise.sets.fold<int>(0, (sum, set) => sum + set.reps);
-      detail = '$metricLabel ${formatMetricValue(primaryMax)}$metricSuffix · $minutes분';
+      detail =
+          '$metricLabel ${formatMetricValue(primaryMax)}$metricSuffix · $minutes분';
     } else {
       detail = '$setCount세트';
     }
@@ -105,7 +133,12 @@ class _SavedExerciseRow extends StatelessWidget {
       textBaseline: TextBaseline.alphabetic,
       children: [
         Expanded(
-          child: Text(exercise.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodyMd),
+          child: Text(
+            exercise.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodyMd,
+          ),
         ),
         const SizedBox(width: AppSpacing.sm),
         Text(detail, style: AppTextStyles.bodySm),

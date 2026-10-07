@@ -16,9 +16,9 @@ import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_avatar.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_section.dart';
@@ -134,8 +134,12 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
   }
 
   void _moveWeek(int delta) => _selectDay(
-        DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day + 7 * delta),
-      );
+    DateTime(
+      _selectedDay.year,
+      _selectedDay.month,
+      _selectedDay.day + 7 * delta,
+    ),
+  );
 
   /// 예약 세션의 수정·취소 시트.
   Future<void> _showSessionActions(PtSession session) async {
@@ -245,26 +249,13 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
   }
 
   Future<void> _cancelSession(PtSession session) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('예약 취소'),
-        content: Text(
+    final confirm = await showAppConfirmDialog(
+      context,
+      title: '예약 취소',
+      message:
           '${session.memberName}님의 ${DateFormat('M월 d일 HH:mm', 'ko').format(session.scheduledAt)} 예약을 취소합니다.',
-        ),
-        actions: [
-          AppButton(
-            label: '닫기',
-            variant: AppButtonVariant.ghost,
-            onPressed: () => Navigator.of(ctx).pop(false),
-          ),
-          AppButton(
-            label: '예약 취소',
-            variant: AppButtonVariant.danger,
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
-      ),
+      confirmLabel: '예약 취소',
+      cancelLabel: '닫기',
     );
     if (confirm != true) return;
 
@@ -354,7 +345,7 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
           backgroundColor: AppColors.canvasCard,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 120),
+            padding: const EdgeInsets.only(bottom: AppSize.navClearance),
             children: [
               AppHero(
                 title: 'PT 일정',
@@ -377,7 +368,10 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
               ),
               _WeekStrip(
                 selectedDay: _selectedDay,
-                marks: buildCalendarMarks(sessions: _sessions, workouts: _workouts),
+                marks: buildCalendarMarks(
+                  sessions: _sessions,
+                  workouts: _workouts,
+                ),
                 onSelect: _selectDay,
                 onPrevWeek: () => _moveWeek(-1),
                 onNextWeek: () => _moveWeek(1),
@@ -386,7 +380,10 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
                 label: DateFormat('M월 d일 (E)', 'ko').format(_selectedDay),
                 count: '${sessions.length}건',
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, AppSpacing.sm,
+                  AppSpacing.screenH,
+                  AppSpacing.base,
+                  AppSpacing.screenH,
+                  AppSpacing.sm,
                 ),
               ),
               ...content,
@@ -420,11 +417,17 @@ class _WeekStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
-    final monday = DateTime(selectedDay.year, selectedDay.month, selectedDay.day - (selectedDay.weekday - 1));
+    final monday = DateTime(
+      selectedDay.year,
+      selectedDay.month,
+      selectedDay.day - (selectedDay.weekday - 1),
+    );
     final now = DateTime.now();
 
     return Container(
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.hairline)),
+      ),
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       child: Column(
         children: [
@@ -437,20 +440,39 @@ class _WeekStrip extends StatelessWidget {
             },
             child: Row(
               children: [
-                AppIconButton(icon: AppIcons.back, label: '이전 주', onPressed: onPrevWeek, color: AppColors.body),
+                AppIconButton(
+                  icon: AppIcons.back,
+                  label: '이전 주',
+                  onPressed: onPrevWeek,
+                  color: AppColors.body,
+                ),
                 for (var i = 0; i < 7; i++)
                   Expanded(
                     child: _WeekDayCell(
                       day: DateTime(monday.year, monday.month, monday.day + i),
                       weekdayLabel: weekdayLabels[i],
-                      isSelected: isSameDay(DateTime(monday.year, monday.month, monday.day + i), selectedDay),
-                      isToday: isSameDay(DateTime(monday.year, monday.month, monday.day + i), now),
-                      marks: marks[DateFormat('yyyy-MM-dd').format(DateTime(monday.year, monday.month, monday.day + i))] ??
+                      isSelected: isSameDay(
+                        DateTime(monday.year, monday.month, monday.day + i),
+                        selectedDay,
+                      ),
+                      isToday: isSameDay(
+                        DateTime(monday.year, monday.month, monday.day + i),
+                        now,
+                      ),
+                      marks:
+                          marks[DateFormat('yyyy-MM-dd').format(
+                            DateTime(monday.year, monday.month, monday.day + i),
+                          )] ??
                           const <CalendarMark>{},
                       onTap: onSelect,
                     ),
                   ),
-                AppIconButton(icon: AppIcons.forward, label: '다음 주', onPressed: onNextWeek, color: AppColors.body),
+                AppIconButton(
+                  icon: AppIcons.forward,
+                  label: '다음 주',
+                  onPressed: onNextWeek,
+                  color: AppColors.body,
+                ),
               ],
             ),
           ),
@@ -498,7 +520,13 @@ class _WeekDayCell extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(weekdayLabel, style: AppTextStyles.bodySm.copyWith(fontSize: 12, height: 16 / 12)),
+            Text(
+              weekdayLabel,
+              style: AppTextStyles.bodySm.copyWith(
+                fontSize: 12,
+                height: 16 / 12,
+              ),
+            ),
             const SizedBox(height: AppSpacing.xs),
             Container(
               width: 36,
@@ -507,7 +535,9 @@ class _WeekDayCell extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSelected ? AppColors.primary : Colors.transparent,
-                border: isToday && !isSelected ? Border.all(color: AppColors.ink) : null,
+                border: isToday && !isSelected
+                    ? Border.all(color: AppColors.ink)
+                    : null,
               ),
               child: Text(
                 '${day.day}',
@@ -547,18 +577,26 @@ class _SessionTimeline extends StatelessWidget {
     final lastHour = sessions.last.scheduledAt.hour;
 
     return Container(
-      decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.hairline))),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.hairline)),
+      ),
       child: Column(
         children: [
           for (var hour = firstHour; hour <= lastHour; hour++)
             _HourRow(
               hour: hour,
               children: [
-                for (final s in sessions.where((s) => s.scheduledAt.hour == hour))
+                for (final s in sessions.where(
+                  (s) => s.scheduledAt.hour == hour,
+                ))
                   _SessionBlock(
                     session: s,
-                    onRecord: s.status == PtSessionStatus.scheduled ? () => onRecord(s) : null,
-                    onManage: s.status == PtSessionStatus.scheduled ? () => onManage(s) : null,
+                    onRecord: s.status == PtSessionStatus.cancelled
+                        ? null
+                        : () => onRecord(s),
+                    onManage: s.status == PtSessionStatus.scheduled
+                        ? () => onManage(s)
+                        : null,
                   ),
               ],
             ),
@@ -577,9 +615,11 @@ class _HourRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 56),
+      constraints: const BoxConstraints(minHeight: AppSize.listRow),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.hairline)),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -589,7 +629,10 @@ class _HourRow extends StatelessWidget {
               padding: const EdgeInsets.only(top: 18),
               child: Text(
                 '${hour.toString().padLeft(2, '0')}:00',
-                style: AppTextStyles.counter.copyWith(fontSize: 12, height: 16 / 12),
+                style: AppTextStyles.counter.copyWith(
+                  fontSize: 12,
+                  height: 16 / 12,
+                ),
               ),
             ),
           ),
@@ -626,10 +669,16 @@ class _SessionBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final isCompleted = session.status == PtSessionStatus.completed;
     final note = session.note;
-    final meta = '${DateFormat('HH:mm').format(session.scheduledAt)} · ${session.durationMinutes}분';
+    final meta =
+        '${DateFormat('HH:mm').format(session.scheduledAt)} · ${session.durationMinutes}분';
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.xs, AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+      ),
       decoration: BoxDecoration(
         color: AppColors.canvasCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
@@ -637,15 +686,21 @@ class _SessionBlock extends StatelessWidget {
       ),
       child: Row(
         children: [
-          AppAvatar(name: session.memberName, seed: session.memberId, size: 32),
-          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(session.memberName, style: AppTextStyles.bodyMd, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  session.memberName,
+                  style: AppTextStyles.bodyMd,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: AppSpacing.xxs),
-                Text(meta, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                Text(
+                  meta,
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                ),
                 if (note != null && note.isNotEmpty)
                   Text(
                     '메모: $note',
@@ -664,7 +719,7 @@ class _SessionBlock extends StatelessWidget {
             ),
           if (onRecord != null)
             AppButton(
-              label: '기록 시작',
+              label: isCompleted ? '기록 보기' : '기록 시작',
               variant: AppButtonVariant.secondary,
               size: AppButtonSize.sm,
               onPressed: onRecord,
@@ -701,19 +756,32 @@ class _WorkoutRow extends StatelessWidget {
     ].join(' · ');
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline))),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenH,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.hairline)),
+      ),
       child: Row(
         children: [
-          AppAvatar(name: workout.memberName, seed: workout.memberId),
-          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(workout.memberName, style: AppTextStyles.bodyLg, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  workout.memberName,
+                  style: AppTextStyles.bodyLg,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: AppSpacing.xxs),
-                Text(detail, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  detail,
+                  style: AppTextStyles.bodySm,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -771,7 +839,9 @@ class _SessionSheetState extends State<_SessionSheet> {
   bool get _isEditing => widget.existing != null;
 
   List<int> get _durationValues {
-    final values = [for (var m = _durationStep; m <= _durationMax; m += _durationStep) m];
+    final values = [
+      for (var m = _durationStep; m <= _durationMax; m += _durationStep) m,
+    ];
     if (!values.contains(_durationMinutes)) {
       values
         ..add(_durationMinutes)
@@ -883,7 +953,12 @@ class _SessionSheetState extends State<_SessionSheet> {
     }
   }
 
-  void _togglePicker({bool member = false, bool date = false, bool time = false, bool duration = false}) {
+  void _togglePicker({
+    bool member = false,
+    bool date = false,
+    bool time = false,
+    bool duration = false,
+  }) {
     setState(() {
       _showMemberPicker = member && !_showMemberPicker;
       _showDatePicker = date && !_showDatePicker;
@@ -913,7 +988,13 @@ class _SessionSheetState extends State<_SessionSheet> {
 
   void _setTime(int hour, int minute) {
     setState(() {
-      _scheduledAt = DateTime(_scheduledAt.year, _scheduledAt.month, _scheduledAt.day, hour, minute);
+      _scheduledAt = DateTime(
+        _scheduledAt.year,
+        _scheduledAt.month,
+        _scheduledAt.day,
+        hour,
+        minute,
+      );
     });
   }
 
@@ -921,8 +1002,9 @@ class _SessionSheetState extends State<_SessionSheet> {
   Widget build(BuildContext context) {
     final conflict = _conflict;
     final endAt = _scheduledAt.add(Duration(minutes: _durationMinutes));
-    final memberName = _isEditing ? widget.existing!.memberName : _selectedMember?.name;
-    final memberSeed = _isEditing ? widget.existing!.memberId : _selectedMember?.uid;
+    final memberName = _isEditing
+        ? widget.existing!.memberName
+        : _selectedMember?.name;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -934,15 +1016,14 @@ class _SessionSheetState extends State<_SessionSheet> {
         const _FieldLabel(label: '회원'),
         _SelectField(
           semanticLabel: '회원 선택',
-          leading: memberName == null ? null : AppAvatar(name: memberName, seed: memberSeed, size: 28),
           value: memberName ?? '회원을 선택하세요',
           isEmpty: memberName == null,
           isActive: _showMemberPicker,
           trailingIcon: _isEditing
               ? null
               : _showMemberPicker
-                  ? AppIcons.chevronUp
-                  : AppIcons.chevronDown,
+              ? AppIcons.chevronUp
+              : AppIcons.chevronDown,
           onTap: _isEditing ? null : () => _togglePicker(member: true),
         ),
         if (!_isEditing && _showMemberPicker)
@@ -974,8 +1055,8 @@ class _SessionSheetState extends State<_SessionSheet> {
                 mode: CupertinoDatePickerMode.date,
                 dateOrder: DatePickerDateOrder.ymd,
                 initialDateTime: _scheduledAt,
-                minimumDate: DateTime(2024),
-                maximumDate: DateTime(2030),
+                minimumDate: DateTime(_scheduledAt.year - 1),
+                maximumDate: DateTime(DateTime.now().year + 2, 12, 31),
                 onDateTimeChanged: (dt) => setState(() {
                   _scheduledAt = DateTime(
                     dt.year,
@@ -1003,7 +1084,9 @@ class _SessionSheetState extends State<_SessionSheet> {
           _PickerContainer(
             child: CupertinoDatePicker(
               mode: CupertinoDatePickerMode.time,
-              initialDateTime: _scheduledAt.copyWith(minute: _scheduledAt.minute - _scheduledAt.minute % 5),
+              initialDateTime: _scheduledAt.copyWith(
+                minute: _scheduledAt.minute - _scheduledAt.minute % 5,
+              ),
               use24hFormat: false,
               minuteInterval: 5,
               onDateTimeChanged: (dt) => _setTime(dt.hour, dt.minute),
@@ -1015,9 +1098,12 @@ class _SessionSheetState extends State<_SessionSheet> {
         const _FieldLabel(label: '진행 시간'),
         _SelectField(
           semanticLabel: '진행 시간 선택',
-          value: '$_durationMinutes분 · ${DateFormat('a h:mm', 'ko').format(endAt)} 종료',
+          value:
+              '$_durationMinutes분 · ${DateFormat('a h:mm', 'ko').format(endAt)} 종료',
           isActive: _showDurationPicker,
-          trailingIcon: _showDurationPicker ? AppIcons.chevronUp : AppIcons.chevronDown,
+          trailingIcon: _showDurationPicker
+              ? AppIcons.chevronUp
+              : AppIcons.chevronDown,
           onTap: () => _togglePicker(duration: true),
         ),
         if (_showDurationPicker)
@@ -1027,7 +1113,8 @@ class _SessionSheetState extends State<_SessionSheet> {
               scrollController: FixedExtentScrollController(
                 initialItem: _durationValues.indexOf(_durationMinutes),
               ),
-              onSelectedItemChanged: (i) => setState(() => _durationMinutes = _durationValues[i]),
+              onSelectedItemChanged: (i) =>
+                  setState(() => _durationMinutes = _durationValues[i]),
               children: [
                 for (final minutes in _durationValues)
                   Center(child: Text('$minutes분', style: AppTextStyles.title)),
@@ -1040,10 +1127,17 @@ class _SessionSheetState extends State<_SessionSheet> {
             liveRegion: true,
             child: Row(
               children: [
-                const Icon(AppIcons.warning, size: AppSize.icon, color: AppColors.body),
+                Icon(
+                  AppIcons.warning,
+                  size: AppSize.icon,
+                  color: AppColors.body,
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Text(_conflictMessage(conflict), style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                  child: Text(
+                    _conflictMessage(conflict),
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                  ),
                 ),
               ],
             ),
@@ -1095,7 +1189,6 @@ class _FieldLabel extends StatelessWidget {
 /// 48 높이 선택 필드: canvasSoft + hairline (열린 상태는 흰 테두리).
 class _SelectField extends StatelessWidget {
   final String semanticLabel;
-  final Widget? leading;
   final String value;
   final bool isEmpty;
   final bool isActive;
@@ -1106,7 +1199,6 @@ class _SelectField extends StatelessWidget {
     required this.semanticLabel,
     required this.value,
     required this.isActive,
-    this.leading,
     this.isEmpty = false,
     this.trailingIcon,
     this.onTap,
@@ -1123,23 +1215,31 @@ class _SelectField extends StatelessWidget {
         color: AppColors.canvasSoft,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          side: BorderSide(color: isActive ? AppColors.ink : AppColors.hairline),
+          side: BorderSide(
+            color: isActive ? AppColors.ink : AppColors.hairline,
+          ),
         ),
         child: InkWell(
           onTap: onTap,
-          customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.card)),
+          customBorder: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+          ),
           splashFactory: NoSplash.splashFactory,
           child: SizedBox(
             height: 48,
             child: Padding(
-              padding: EdgeInsets.only(left: leading == null ? AppSpacing.base : AppSpacing.md, right: AppSpacing.xs),
+              padding: EdgeInsets.only(
+                left: AppSpacing.base,
+                right: AppSpacing.xs,
+              ),
               child: Row(
                 children: [
-                  if (leading != null) ...[leading!, const SizedBox(width: AppSpacing.md)],
                   Expanded(
                     child: Text(
                       value,
-                      style: AppTextStyles.bodyMd.copyWith(color: isEmpty ? AppColors.mute : AppColors.ink),
+                      style: AppTextStyles.bodyMd.copyWith(
+                        color: isEmpty ? AppColors.mute : AppColors.ink,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1148,7 +1248,11 @@ class _SelectField extends StatelessWidget {
                     width: 40,
                     child: trailingIcon == null
                         ? null
-                        : Icon(trailingIcon, size: AppSize.icon, color: AppColors.body),
+                        : Icon(
+                            trailingIcon,
+                            size: AppSize.icon,
+                            color: AppColors.body,
+                          ),
                   ),
                 ],
               ),
@@ -1165,7 +1269,11 @@ class _MemberPickerList extends StatelessWidget {
   final AppUser? selected;
   final ValueChanged<AppUser> onSelect;
 
-  const _MemberPickerList({required this.members, required this.selected, required this.onSelect});
+  const _MemberPickerList({
+    required this.members,
+    required this.selected,
+    required this.onSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1182,7 +1290,10 @@ class _MemberPickerList extends StatelessWidget {
         child: members.isEmpty
             ? Padding(
                 padding: const EdgeInsets.all(AppSpacing.base),
-                child: Text('담당 회원이 없습니다', style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                child: Text(
+                  '담당 회원이 없습니다',
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                ),
               )
             : ListView.separated(
                 shrinkWrap: true,
@@ -1201,15 +1312,25 @@ class _MemberPickerList extends StatelessWidget {
                       child: SizedBox(
                         height: 48,
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                          ),
                           child: Row(
                             children: [
-                              AppAvatar(name: m.name, seed: m.uid, size: 28),
-                              const SizedBox(width: AppSpacing.md),
                               Expanded(
-                                child: Text(m.name, style: AppTextStyles.bodyMd, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                child: Text(
+                                  m.name,
+                                  style: AppTextStyles.bodyMd,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              if (isSelected) const Icon(AppIcons.check, size: AppSize.icon, color: AppColors.ink),
+                              if (isSelected)
+                                Icon(
+                                  AppIcons.check,
+                                  size: AppSize.icon,
+                                  color: AppColors.ink,
+                                ),
                             ],
                           ),
                         ),

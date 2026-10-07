@@ -6,6 +6,7 @@ import '../../core/app_text_styles.dart';
 import '../../core/food_guide_data.dart';
 import '../../models/food_guide.dart';
 import '../../widgets/app_bottom_sheet.dart';
+import '../../widgets/app_action_row.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_progress_bar.dart';
 import '../../widgets/app_tag.dart';
@@ -63,13 +64,17 @@ class _FoodDetail extends StatelessWidget {
     final pairs = FoodGuideData.resolve(food.pairsWith);
     // 막대 길이는 열량 비중 (단백질·탄수화물 4kcal/g, 지방 9kcal/g)
     final energy = food.protein * 4 + food.carbs * 4 + food.fat * 9;
-    double share(double grams, int kcalPerGram) => energy == 0 ? 0 : grams * kcalPerGram / energy;
+    double share(double grams, int kcalPerGram) =>
+        energy == 0 ? 0 : grams * kcalPerGram / energy;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        AppBottomSheetHeader(title: food.name, subtitle: '${food.serving} · ${food.kcal}kcal'),
+        AppBottomSheetHeader(
+          title: food.name,
+          subtitle: '${food.serving} · ${food.kcal}kcal',
+        ),
         if (food.tags.isNotEmpty) ...[
           Wrap(
             spacing: AppSpacing.sm,
@@ -78,29 +83,51 @@ class _FoodDetail extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
         ],
-        _MacroRow(label: '단백질', grams: food.protein, share: share(food.protein, 4)),
-        _MacroRow(label: '탄수화물', grams: food.carbs, share: share(food.carbs, 4)),
+        _MacroRow(
+          label: '단백질',
+          grams: food.protein,
+          share: share(food.protein, 4),
+        ),
+        _MacroRow(
+          label: '탄수화물',
+          grams: food.carbs,
+          share: share(food.carbs, 4),
+        ),
         _MacroRow(label: '지방', grams: food.fat, share: share(food.fat, 9)),
         const SizedBox(height: AppSpacing.base),
-        const Divider(height: 1, thickness: 1, color: AppColors.hairline),
+        const AppRowDivider(),
         if (food.howToEat.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
-          Text('먹는 법', style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+          Text(
+            '먹는 법',
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+          ),
           const SizedBox(height: AppSpacing.sm),
           for (final line in food.howToEat)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              child: Text('· $line', style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
+              child: Text(
+                '· $line',
+                style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+              ),
             ),
         ],
         if (pairs.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
-          Text('같이 먹으면 좋아요', style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+          Text(
+            '같이 먹으면 좋아요',
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+          ),
           const SizedBox(height: AppSpacing.xs),
           Wrap(
             spacing: AppSpacing.sm,
             children: [
-              for (final pair in pairs) AppChip(label: pair.name, selected: false, onTap: () => onOpenPair(pair)),
+              for (final pair in pairs)
+                AppChip(
+                  label: pair.name,
+                  selected: false,
+                  onTap: () => onOpenPair(pair),
+                ),
             ],
           ),
         ],
@@ -129,7 +156,11 @@ class _MacroRow extends StatelessWidget {
   final double grams;
   final double share;
 
-  const _MacroRow({required this.label, required this.grams, required this.share});
+  const _MacroRow({
+    required this.label,
+    required this.grams,
+    required this.share,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -141,14 +172,23 @@ class _MacroRow extends StatelessWidget {
         height: 32,
         child: Row(
           children: [
-            SizedBox(width: 72, child: Text(label, style: AppTextStyles.bodyMd.copyWith(color: AppColors.body))),
+            SizedBox(
+              width: 72,
+              child: Text(
+                label,
+                style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+              ),
+            ),
             Expanded(child: AppProgressBar(value: share, height: 4)),
             SizedBox(
               width: 56,
               child: Text(
                 '${g}g',
                 textAlign: TextAlign.right,
-                style: AppTextStyles.counter.copyWith(fontSize: 13, color: AppColors.ink),
+                style: AppTextStyles.counter.copyWith(
+                  fontSize: 13,
+                  color: AppColors.ink,
+                ),
               ),
             ),
           ],

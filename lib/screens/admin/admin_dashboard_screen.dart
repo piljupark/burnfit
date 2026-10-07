@@ -12,7 +12,6 @@ import '../../models/pt_info.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_avatar.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
@@ -77,14 +76,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '대시보드',
-                onBack: () => Navigator.of(context).pop(),
-              ),
+            AppScreenHeader(
+              title: '대시보드',
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _load,
@@ -94,7 +89,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     if (_loading)
-                      const SliverFillRemaining(hasScrollBody: false, child: AppLoadingView())
+                      const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: AppLoadingView(),
+                      )
                     else if (stats == null)
                       SliverToBoxAdapter(
                         child: Padding(
@@ -108,7 +106,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     else
                       SliverPadding(
                         padding: EdgeInsets.only(
-                          bottom: AppSpacing.xl2 + MediaQuery.of(context).padding.bottom,
+                          bottom:
+                              AppSpacing.xl2 +
+                              MediaQuery.of(context).padding.bottom,
                         ),
                         sliver: SliverList.list(
                           children: [
@@ -138,9 +138,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ),
                             const AppMonthHeader(label: '트레이너', count: '완료 횟수'),
                             _TrainerBars(trainerStats: stats.trainerStats),
-                            AppMonthHeader(label: 'PT 잔여 3회 이하', count: '${stats.lowPtMembers.length}'),
+                            AppMonthHeader(
+                              label: 'PT 잔여 3회 이하',
+                              count: '${stats.lowPtMembers.length}',
+                            ),
                             _LowPtList(members: stats.lowPtMembers),
-                            AppMonthHeader(label: 'PT 만료 14일 이내', count: '${stats.expiringPtMembers.length}'),
+                            AppMonthHeader(
+                              label: 'PT 만료 14일 이내',
+                              count: '${stats.expiringPtMembers.length}',
+                            ),
                             _ExpiringPtList(members: stats.expiringPtMembers),
                           ],
                         ),
@@ -171,7 +177,12 @@ class _CompletionHero extends StatelessWidget {
     final month = DateFormat('yyyy.MM').format(DateTime.now());
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.xl),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.xl,
+        AppSpacing.screenH,
+        AppSpacing.xl,
+      ),
       child: Semantics(
         label: '이번 달 PT 완료율 $percent퍼센트, 완료 ${stats.monthlyCompletedSessions}회',
         excludeSemantics: true,
@@ -217,7 +228,9 @@ class _TrainerBars extends StatelessWidget {
     if (trainerStats.isEmpty) {
       return const _EmptyLine('이번 달 완료된 세션이 없습니다.');
     }
-    final maxCount = trainerStats.map((t) => t.completedCount).fold<int>(0, (a, b) => b > a ? b : a);
+    final maxCount = trainerStats
+        .map((t) => t.completedCount)
+        .fold<int>(0, (a, b) => b > a ? b : a);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
@@ -243,7 +256,9 @@ class _TrainerBars extends StatelessWidget {
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: AppProgressBar(
-                        value: maxCount == 0 ? 0 : stat.completedCount / maxCount,
+                        value: maxCount == 0
+                            ? 0
+                            : stat.completedCount / maxCount,
                         height: 4,
                       ),
                     ),
@@ -253,7 +268,9 @@ class _TrainerBars extends StatelessWidget {
                       child: Text(
                         '${stat.completedCount}',
                         textAlign: TextAlign.right,
-                        style: AppTextStyles.counter.copyWith(color: AppColors.ink),
+                        style: AppTextStyles.counter.copyWith(
+                          color: AppColors.ink,
+                        ),
                       ),
                     ),
                   ],
@@ -282,11 +299,13 @@ class _LowPtList extends StatelessWidget {
           if (i > 0) const AppRowDivider(indent: AppSpacing.screenH),
           _CompactMemberRow(
             name: members[i].memberName,
-            seed: members[i].memberId,
             meta: members[i].endDate == null
                 ? '만료일 없음'
                 : '${DateFormat('M월 d일').format(members[i].endDate!)} 만료',
-            tag: AppTag('${members[i].remainingSessions}회 남음', strong: members[i].remainingSessions <= 1),
+            tag: AppTag(
+              '${members[i].remainingSessions}회 남음',
+              strong: members[i].remainingSessions <= 1,
+            ),
           ),
         ],
       ],
@@ -310,19 +329,20 @@ class _ExpiringPtList extends StatelessWidget {
       children: [
         for (int i = 0; i < members.length; i++) ...[
           if (i > 0) const AppRowDivider(indent: AppSpacing.screenH),
-          Builder(builder: (_) {
-            final info = members[i];
-            final endDate = info.endDate;
-            final dDay = endDate?.difference(today).inDays;
-            return _CompactMemberRow(
-              name: info.memberName,
-              seed: info.memberId,
-              meta: endDate == null
-                  ? '만료일 없음 · 잔여 ${info.remainingSessions}회'
-                  : '${DateFormat('M월 d일').format(endDate)} 만료 · 잔여 ${info.remainingSessions}회',
-              tag: dDay == null ? null : AppTag('D-$dDay', strong: dDay <= 7),
-            );
-          }),
+          Builder(
+            builder: (_) {
+              final info = members[i];
+              final endDate = info.endDate;
+              final dDay = endDate?.difference(today).inDays;
+              return _CompactMemberRow(
+                name: info.memberName,
+                meta: endDate == null
+                    ? '만료일 없음 · 잔여 ${info.remainingSessions}회'
+                    : '${DateFormat('M월 d일').format(endDate)} 만료 · 잔여 ${info.remainingSessions}회',
+                tag: dDay == null ? null : AppTag('D-$dDay', strong: dDay <= 7),
+              );
+            },
+          ),
         ],
       ],
     );
@@ -332,28 +352,38 @@ class _ExpiringPtList extends StatelessWidget {
 /// 대시보드용 짧은 회원 줄: 32 아바타 + 이름 + 보조 줄 + 오른쪽 태그.
 class _CompactMemberRow extends StatelessWidget {
   final String name;
-  final String seed;
   final String meta;
   final Widget? tag;
 
-  const _CompactMemberRow({required this.name, required this.seed, required this.meta, this.tag});
+  const _CompactMemberRow({required this.name, required this.meta, this.tag});
 
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 56),
+      constraints: const BoxConstraints(minHeight: AppSize.listRow),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenH,
+          vertical: AppSpacing.sm,
+        ),
         child: Row(
           children: [
-            AppAvatar(name: name, seed: seed, size: 32),
-            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: AppTextStyles.bodyMd, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(meta, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    name,
+                    style: AppTextStyles.bodyMd,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    meta,
+                    style: AppTextStyles.bodySm,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -373,7 +403,10 @@ class _EmptyLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenH,
+        vertical: AppSpacing.md,
+      ),
       child: Text(text, style: AppTextStyles.bodySm),
     );
   }

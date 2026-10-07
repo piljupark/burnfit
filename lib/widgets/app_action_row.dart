@@ -45,13 +45,19 @@ class AppActionRow extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 56),
+          constraints: const BoxConstraints(minHeight: AppSize.listRow),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.base,
+              vertical: AppSpacing.sm,
+            ),
             child: Row(
               children: [
                 if (isDestructive)
-                  SizedBox(width: 40, child: Icon(icon, size: AppSize.icon, color: fg))
+                  SizedBox(
+                    width: 40,
+                    child: Icon(icon, size: AppSize.icon, color: fg),
+                  )
                 else
                   _IconTile(icon: icon),
                 const SizedBox(width: AppSpacing.md),
@@ -59,15 +65,30 @@ class AppActionRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(label, style: (isDestructive ? AppTextStyles.bodyMd : AppTextStyles.bodyLg).copyWith(color: fg)),
-                      if (subtitle != null) Text(subtitle!, style: AppTextStyles.bodySm),
+                      Text(
+                        label,
+                        style:
+                            (isDestructive
+                                    ? AppTextStyles.bodyMd
+                                    : AppTextStyles.bodyLg)
+                                .copyWith(color: fg),
+                      ),
+                      if (subtitle != null)
+                        Text(subtitle!, style: AppTextStyles.bodySm),
                     ],
                   ),
                 ),
-                if (badge != null) ...[AppTag(badge!, strong: true), const SizedBox(width: AppSpacing.sm)],
+                if (badge != null) ...[
+                  AppTag(badge!, strong: true),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
                 ?trailing,
                 if (showChevron && !isDestructive && trailing == null)
-                  const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+                  Icon(
+                    AppIcons.forward,
+                    size: AppSize.icon,
+                    color: AppColors.mute,
+                  ),
               ],
             ),
           ),
@@ -104,5 +125,10 @@ class AppRowDivider extends StatelessWidget {
   const AppRowDivider({super.key, this.indent = 0});
 
   @override
-  Widget build(BuildContext context) => Divider(height: 1, thickness: 1, indent: indent, color: AppColors.hairline);
+  Widget build(BuildContext context) => Divider(
+    height: 1,
+    thickness: 1,
+    indent: indent,
+    color: AppColors.hairline,
+  );
 }

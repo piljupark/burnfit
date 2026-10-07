@@ -12,8 +12,8 @@ import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_async_body.dart';
-import '../../widgets/app_avatar.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
@@ -79,27 +79,12 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
 
   Future<void> _reject(JoinRequest req) async {
     if (_processingIds.contains(req.id)) return;
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('가입 거절'),
-        content: Text(
+    final confirm = await showAppConfirmDialog(
+      context,
+      title: '가입 거절',
+      message:
           '${req.userName}님의 가입 신청을 거절합니다. 거절된 계정은 로그인할 수 없고, 이 결정은 되돌릴 수 없어요.',
-          style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
-        ),
-        actions: [
-          AppButton(
-            label: '취소',
-            variant: AppButtonVariant.ghost,
-            onPressed: () => Navigator.of(ctx).pop(false),
-          ),
-          AppButton(
-            label: '거절',
-            variant: AppButtonVariant.danger,
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
-      ),
+      confirmLabel: '거절',
     );
     if (confirm != true) return;
 
@@ -126,14 +111,10 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '가입 신청',
-                onBack: () => Navigator.of(context).pop(),
-              ),
+            AppScreenHeader(
+              title: '가입 신청',
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: AppAsyncBody(
                 isLoading: _isLoading,
@@ -148,7 +129,10 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
                   AppMonthHeader(
                     label: '승인 대기',
                     count: '${_requests.length}',
-                    padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
+                    padding: const EdgeInsets.only(
+                      top: AppSpacing.xl,
+                      bottom: AppSpacing.sm,
+                    ),
                   ),
                   for (int i = 0; i < _requests.length; i++) ...[
                     if (i > 0) const AppRowDivider(),
@@ -197,8 +181,6 @@ class _RequestRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              AppAvatar(name: req.userName, seed: req.userId),
-              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

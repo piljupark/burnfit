@@ -1,3 +1,5 @@
+import 'birth_date.dart';
+
 class Validators {
   Validators._();
 
@@ -30,5 +32,51 @@ class Validators {
     final n = double.tryParse(value.trim());
     if (n == null || n <= 0) return '올바른 $fieldName을(를) 입력해주세요.';
     return null;
+  }
+
+  /// 생년월일 8자리(yyyyMMdd). 실제 있는 날짜이고 1900년 이후 · 오늘 이전이어야 한다.
+  static String? birthDate(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.length != 8) return '생년월일을 8자리로 입력해주세요. (예: 19900101)';
+    final date = parseBirthDate(v);
+    if (date == null || date.year < 1900 || date.isAfter(DateTime.now())) {
+      return '올바른 생년월일을 입력해주세요.';
+    }
+    return null;
+  }
+
+  /// 선택 입력 숫자: 비었으면 null, 숫자가 아니거나 범위 밖이면 ArgumentError(안내 문구).
+  static double? optionalNumberInRange(
+    String text,
+    String label, {
+    required double min,
+    required double max,
+  }) {
+    final t = text.trim();
+    if (t.isEmpty) return null;
+    final v = double.tryParse(t);
+    if (v == null) throw ArgumentError('$label을(를) 숫자로 입력해주세요.');
+    if (v < min || v > max) {
+      String fmt(double n) =>
+          n == n.roundToDouble() ? n.toStringAsFixed(0) : '$n';
+      throw ArgumentError('$label은(는) ${fmt(min)}~${fmt(max)} 사이로 입력해주세요.');
+    }
+    return v;
+  }
+
+  /// 신체 정보 입력 → UserProfile 값 (온보딩·신체 정보 수정 공통 범위).
+  static ({double? height, double? weight, double? muscleMass, double? bodyFat})
+  bodyMetrics({
+    required String height,
+    required String weight,
+    required String muscleMass,
+    required String bodyFat,
+  }) {
+    return (
+      height: optionalNumberInRange(height, '키', min: 50, max: 250),
+      weight: optionalNumberInRange(weight, '체중', min: 20, max: 300),
+      muscleMass: optionalNumberInRange(muscleMass, '골격근량', min: 5, max: 100),
+      bodyFat: optionalNumberInRange(bodyFat, '체지방량', min: 1, max: 150),
+    );
   }
 }

@@ -30,7 +30,9 @@ class AppHero extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: divider
-          ? const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline)))
+          ? BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.hairline)),
+            )
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -39,23 +41,47 @@ class AppHero extends StatelessWidget {
             height: AppSize.touchMin,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
-              children: [const SizedBox(width: AppSpacing.xs), ...actions, const SizedBox(width: AppSpacing.xs)],
+              children: [
+                const SizedBox(width: AppSpacing.xs),
+                ...actions,
+                const SizedBox(width: AppSpacing.xs),
+              ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.base),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.xs,
+              AppSpacing.screenH,
+              AppSpacing.base,
+            ),
             child: Row(
               children: [
-                if (leading != null) ...[leading!, const SizedBox(width: AppSpacing.base)],
+                if (leading != null) ...[
+                  leading!,
+                  const SizedBox(width: AppSpacing.base),
+                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (eyebrow != null) ...[
-                        Text(monoCase(eyebrow!), style: monoOrSans(eyebrow!, mono: AppTextStyles.eyebrow, sans: AppTextStyles.bodySm)),
+                        Text(
+                          monoCase(eyebrow!),
+                          style: monoOrSans(
+                            eyebrow!,
+                            mono: AppTextStyles.eyebrow,
+                            sans: AppTextStyles.bodySm,
+                          ),
+                        ),
                         const SizedBox(height: AppSpacing.sm),
                       ],
-                      Text(title, style: AppTextStyles.displayMd, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(
+                        title,
+                        style: AppTextStyles.displayMd,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
@@ -80,7 +106,12 @@ class AppMonthHeader extends StatelessWidget {
     super.key,
     required this.label,
     this.count,
-    this.padding = const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xl, AppSpacing.screenH, AppSpacing.sm),
+    this.padding = const EdgeInsets.fromLTRB(
+      AppSpacing.screenH,
+      AppSpacing.xl,
+      AppSpacing.screenH,
+      AppSpacing.sm,
+    ),
     this.trailing,
   });
 
@@ -98,11 +129,21 @@ class AppMonthHeader extends StatelessWidget {
           Text(monoCase(label), style: labelStyle),
           if (count != null) ...[
             const SizedBox(width: AppSpacing.sm),
-            Text(monoCase(count!), style: monoOrSans(count!, mono: AppTextStyles.eyebrow, sans: AppTextStyles.bodySm)),
+            Text(
+              monoCase(count!),
+              style: monoOrSans(
+                count!,
+                mono: AppTextStyles.eyebrow,
+                sans: AppTextStyles.bodySm,
+              ),
+            ),
           ],
           const SizedBox(width: AppSpacing.sm),
-          const Expanded(child: Divider(height: 1, color: AppColors.hairline)),
-          if (trailing != null) ...[const SizedBox(width: AppSpacing.sm), trailing!],
+          Expanded(child: Divider(height: 1, color: AppColors.hairline)),
+          if (trailing != null) ...[
+            const SizedBox(width: AppSpacing.sm),
+            trailing!,
+          ],
         ],
       ),
     );

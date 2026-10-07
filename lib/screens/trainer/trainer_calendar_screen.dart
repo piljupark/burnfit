@@ -14,7 +14,7 @@ import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_avatar.dart';
+import '../../widgets/app_section.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
@@ -68,7 +68,10 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
       final startKey = _key(start);
       final endKey = _key(end);
 
-      final members = await FirestoreService.getMembersByTrainer(user.centerId, user.uid);
+      final members = await FirestoreService.getMembersByTrainer(
+        user.centerId,
+        user.uid,
+      );
 
       if (!mounted || loadId != _loadId) return;
 
@@ -77,33 +80,43 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
           members.isEmpty
               ? <Future<List<Workout>>>[]
               : members.map(
+                  // 운동 공유를 끈 회원은 규칙이 조회를 막는다 → 그 회원만 빼고 나머지는 보여준다.
                   (m) => WorkoutService.getWorkoutsByDateRange(
                     user.centerId,
                     m.uid,
                     startKey,
                     endKey,
-                  ),
+                  ).catchError((_) => <Workout>[]),
                 ),
         ),
         FirestoreService.getPtSessionsByTrainer(
           user.centerId,
           user.uid,
           from: start,
-          to: DateTime(focusedMonth.year, focusedMonth.month + 1, 0, 23, 59, 59),
+          to: DateTime(
+            focusedMonth.year,
+            focusedMonth.month + 1,
+            0,
+            23,
+            59,
+            59,
+          ),
         ),
       ]).timeout(const Duration(seconds: 15));
 
       if (!mounted || loadId != _loadId) return;
 
-      final allWorkouts =
-          (results[0] as List<List<Workout>>).expand((l) => l).toList();
+      final allWorkouts = (results[0] as List<List<Workout>>)
+          .expand((l) => l)
+          .toList();
       final ptSessions = results[1] as List<PtSession>;
 
       setState(() {
         _members = members;
         _workouts = allWorkouts;
-        _ptSessions =
-            ptSessions.where((s) => s.status != PtSessionStatus.cancelled).toList();
+        _ptSessions = ptSessions
+            .where((s) => s.status != PtSessionStatus.cancelled)
+            .toList();
         _errorMessage = null;
       });
     } catch (e) {
@@ -125,7 +138,9 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
   List<Workout> get _selectedWorkouts {
     final key = _key(_selectedDay);
     return _workouts
-        .where((w) => w.workoutDate == key && w.workoutType == WorkoutType.personal)
+        .where(
+          (w) => w.workoutDate == key && w.workoutType == WorkoutType.personal,
+        )
         .toList();
   }
 
@@ -136,13 +151,13 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
       ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
   }
 
-
   Future<void> _openPt(PtSession session) async {
     final member = _members.where((m) => m.uid == session.memberId).firstOrNull;
     if (member == null) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => TrainerPtWorkoutScreen(session: session, member: member),
+        builder: (_) =>
+            TrainerPtWorkoutScreen(session: session, member: member),
       ),
     );
     _loadMonth();
@@ -150,7 +165,9 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
 
   void _openMember(AppUser member) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => TrainerMemberDetailScreen(member: member)),
+      MaterialPageRoute(
+        builder: (_) => TrainerMemberDetailScreen(member: member),
+      ),
     );
   }
 
@@ -170,7 +187,7 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
           backgroundColor: AppColors.canvasCard,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 120),
+            padding: const EdgeInsets.only(bottom: AppSize.navClearance),
             children: [
               if (widget.showGreeting)
                 AppHero(
@@ -189,19 +206,30 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
                 child: _TrainerCalendarGrid(
                   focusedMonth: _focusedMonth,
                   selectedDay: _selectedDay,
-                  marks: buildCalendarMarks(sessions: _ptSessions, workouts: _workouts),
+                  marks: buildCalendarMarks(
+                    sessions: _ptSessions,
+                    workouts: _workouts,
+                  ),
                   onSelect: (day) => setState(() => _selectedDay = day),
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.sm,
+                  AppSpacing.screenH,
+                  0,
+                ),
                 child: CalendarLegend(alignment: MainAxisAlignment.start),
               ),
               AppMonthHeader(
                 label: DateFormat('M월 d일 (E)', 'ko').format(_selectedDay),
                 count: 'PT ${ptSessions.length} · 개인 ${workouts.length}',
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.base,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
                 ),
               ),
               if (_isLoading)
@@ -212,27 +240,29 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
               else if (_errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.screenH),
-                  child: AppErrorCard(message: _errorMessage!, onRetry: _loadMonth),
+                  child: AppErrorCard(
+                    message: _errorMessage!,
+                    onRetry: _loadMonth,
+                  ),
                 )
               else if (workouts.isEmpty && ptSessions.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl2),
-                  child: Center(child: Text('이 날의 기록이 없습니다', style: AppTextStyles.bodySm)),
-                )
+                const AppEmptyLine('이 날의 기록이 없습니다')
               else ...[
                 for (final session in ptSessions)
                   _PtSessionRow(
                     session: session,
-                    onRecord: session.status == PtSessionStatus.scheduled
-                        ? () => _openPt(session)
-                        : null,
+                    // 완료된 PT도 눌러서 기록을 보고 고친다 (취소된 일정만 막는다).
+                    onRecord: session.status == PtSessionStatus.cancelled
+                        ? null
+                        : () => _openPt(session),
                   ),
                 for (final workout in workouts)
                   _WorkoutRow(
                     workout: workout,
                     onTap: () {
-                      final member =
-                          _members.where((m) => m.uid == workout.memberId).firstOrNull;
+                      final member = _members
+                          .where((m) => m.uid == workout.memberId)
+                          .firstOrNull;
                       if (member != null) _openMember(member);
                     },
                   ),
@@ -254,12 +284,21 @@ class _MonthNav extends StatelessWidget {
   final VoidCallback onPrev;
   final VoidCallback onNext;
 
-  const _MonthNav({required this.month, required this.onPrev, required this.onNext});
+  const _MonthNav({
+    required this.month,
+    required this.onPrev,
+    required this.onNext,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.xs, AppSpacing.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.sm,
+        AppSpacing.xs,
+        AppSpacing.sm,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -268,12 +307,19 @@ class _MonthNav extends StatelessWidget {
               excludeSemantics: true,
               child: Text(
                 DateFormat('yyyy.MM').format(month),
-                style: AppTextStyles.eyebrow.copyWith(color: AppColors.ink, fontSize: 13),
+                style: AppTextStyles.eyebrow.copyWith(
+                  color: AppColors.ink,
+                  fontSize: 13,
+                ),
               ),
             ),
           ),
           AppIconButton(icon: AppIcons.back, label: '이전 달', onPressed: onPrev),
-          AppIconButton(icon: AppIcons.forward, label: '다음 달', onPressed: onNext),
+          AppIconButton(
+            icon: AppIcons.forward,
+            label: '다음 달',
+            onPressed: onNext,
+          ),
         ],
       ),
     );
@@ -320,7 +366,13 @@ class _TrainerCalendarGrid extends StatelessWidget {
               for (final label in weekdayLabels)
                 Expanded(
                   child: Center(
-                    child: Text(label, style: AppTextStyles.bodySm.copyWith(fontSize: 12, height: 16 / 12)),
+                    child: Text(
+                      label,
+                      style: AppTextStyles.bodySm.copyWith(
+                        fontSize: 12,
+                        height: 16 / 12,
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -342,7 +394,11 @@ class _TrainerCalendarGrid extends StatelessWidget {
               return const SizedBox.shrink();
             }
 
-            final day = DateTime(focusedMonth.year, focusedMonth.month, dayNumber);
+            final day = DateTime(
+              focusedMonth.year,
+              focusedMonth.month,
+              dayNumber,
+            );
             final key = _key(day);
             final isToday = _sameDate(day, today);
             final isSelected = _sameDate(day, selectedDay);
@@ -372,8 +428,12 @@ class _TrainerCalendarGrid extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isSelected ? AppColors.primary : Colors.transparent,
-                        border: isToday && !isSelected ? Border.all(color: AppColors.ink) : null,
+                        color: isSelected
+                            ? AppColors.primary
+                            : Colors.transparent,
+                        border: isToday && !isSelected
+                            ? Border.all(color: AppColors.ink)
+                            : null,
                       ),
                       child: Text(
                         '$dayNumber',
@@ -383,8 +443,8 @@ class _TrainerCalendarGrid extends StatelessWidget {
                           color: isSelected
                               ? AppColors.onPrimary
                               : isFuture
-                                  ? AppColors.body
-                                  : AppColors.ink,
+                              ? AppColors.body
+                              : AppColors.ink,
                         ),
                       ),
                     ),
@@ -420,19 +480,18 @@ class _PtSessionRow extends StatelessWidget {
 
     return _MemberRow(
       name: session.memberName,
-      seed: session.memberId,
       meta: '$timeStr · PT · ${session.durationMinutes}분',
       onTap: onRecord,
       trailing: isCompleted
           ? const AppTag('완료', strong: true)
           : onRecord != null
-              ? AppButton(
-                  label: '기록',
-                  variant: AppButtonVariant.secondary,
-                  size: AppButtonSize.sm,
-                  onPressed: onRecord,
-                )
-              : null,
+          ? AppButton(
+              label: '기록',
+              variant: AppButtonVariant.secondary,
+              size: AppButtonSize.sm,
+              onPressed: onRecord,
+            )
+          : null,
     );
   }
 }
@@ -454,10 +513,13 @@ class _WorkoutRow extends StatelessWidget {
 
     return _MemberRow(
       name: workout.memberName,
-      seed: workout.memberId,
       meta: detail,
       onTap: onTap,
-      trailing: const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+      trailing: Icon(
+        AppIcons.forward,
+        size: AppSize.icon,
+        color: AppColors.mute,
+      ),
     );
   }
 }
@@ -465,14 +527,12 @@ class _WorkoutRow extends StatelessWidget {
 /// 아바타 + 이름(17) + 메타(13) + 오른쪽 요소. 아래 hairline.
 class _MemberRow extends StatelessWidget {
   final String name;
-  final String seed;
   final String meta;
   final VoidCallback? onTap;
   final Widget? trailing;
 
   const _MemberRow({
     required this.name,
-    required this.seed,
     required this.meta,
     this.onTap,
     this.trailing,
@@ -488,22 +548,36 @@ class _MemberRow extends StatelessWidget {
           highlightColor: AppColors.canvasSoft,
           splashFactory: NoSplash.splashFactory,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screenH,
+              vertical: AppSpacing.md,
+            ),
             child: Row(
               children: [
-                AppAvatar(name: name, seed: seed),
-                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: AppTextStyles.bodyLg, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(
+                        name,
+                        style: AppTextStyles.bodyLg,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: AppSpacing.xxs),
-                      Text(meta, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(
+                        meta,
+                        style: AppTextStyles.bodySm,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
-                if (trailing != null) ...[const SizedBox(width: AppSpacing.sm), trailing!],
+                if (trailing != null) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  trailing!,
+                ],
               ],
             ),
           ),

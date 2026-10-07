@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
@@ -6,11 +8,11 @@ import '../core/app_feedback.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
-import '../core/constants.dart';
+import '../core/app_routing.dart';
 import '../core/validators.dart';
 import '../models/center.dart' as center_model;
-import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../services/fcm_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_provider.dart';
 import '../widgets/app_action_row.dart';
@@ -87,35 +89,21 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      context.read<UserProvider>().setUser(user);
-
-      if (user.status == UserStatus.pending) {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.pendingApproval);
-        return;
-      }
-      if (user.status == UserStatus.rejected) {
+      final route = startRouteFor(user);
+      if (route == null) {
         _showError('가입이 거절된 계정입니다.');
         await AuthService.signOut();
         return;
       }
 
-      switch (user.role) {
-        case UserRole.admin:
-          Navigator.of(context).pushReplacementNamed(AppRoutes.adminHome);
-        case UserRole.trainer:
-          Navigator.of(context).pushReplacementNamed(AppRoutes.trainerHome);
-        case UserRole.member:
-          if (user.birthDate == null) {
-            Navigator.of(
-              context,
-            ).pushReplacementNamed(AppRoutes.onboardingBasic);
-          } else {
-            Navigator.of(context).pushReplacementNamed(AppRoutes.memberHome);
-          }
-      }
-    } on Exception {
+      context.read<UserProvider>().setUser(user);
+      // 로그아웃 때 지운 알림 토큰을 다시 저장한다 (승인된 사용자만).
+      if (user.isApproved) unawaited(FcmService.saveToken(user.uid));
+      Navigator.of(context).pushReplacementNamed(route);
+    } catch (e) {
       if (!mounted) return;
-      _showError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      // 잘못된 비밀번호·네트워크 오류 등을 구분해 안내한다.
+      AppFeedback.showErrorSnackBar(context, e);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -159,7 +147,10 @@ class _LoginScreenState extends State<LoginScreen> {
           child: ConstrainedBox(
             // 폼이 화면보다 작으면 세로 가운데, 키보드가 올라오면 스크롤
             constraints: BoxConstraints(
-              minHeight: constraints.maxHeight - media.padding.vertical - AppSpacing.xl2 * 2,
+              minHeight:
+                  constraints.maxHeight -
+                  media.padding.vertical -
+                  AppSpacing.xl2 * 2,
             ),
             child: Form(
               key: _formKey,
@@ -168,10 +159,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 보이는 제목은 없지만 스크린리더에는 화면 이름을 알린다
-                  Semantics(header: true, label: 'BurnFit 로그인', child: const SizedBox.shrink()),
+                  Semantics(
+                    header: true,
+                    label: 'BurnFit 로그인',
+                    child: const SizedBox.shrink(),
+                  ),
                   // 화면 가운데: 역할 → 센터·이메일·비밀번호 → 로그인 → 가입
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xl,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -206,14 +203,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         Align(
                           alignment: Alignment.centerRight,
-                          child: TextButton(
+                          child: AppButton(
+                            label: '비밀번호를 잊으셨나요?',
+                            variant: AppButtonVariant.ghost,
+                            size: AppButtonSize.sm,
                             onPressed: () => showPasswordResetSheet(
                               context,
                               initialEmail: _emailController.text,
-                            ),
-                            child: Text(
-                              '비밀번호를 잊으셨나요?',
-                              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
                             ),
                           ),
                         ),
@@ -288,7 +284,11 @@ class _RolePill extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _RolePill({required this.label, required this.selected, required this.onTap});
+  const _RolePill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -310,7 +310,9 @@ class _RolePill extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selected ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: Border.all(color: selected ? AppColors.primary : AppColors.outline),
+                border: Border.all(
+                  color: selected ? AppColors.primary : AppColors.outline,
+                ),
               ),
               child: Text(
                 label,
@@ -341,7 +343,12 @@ class _CenterSelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ExcludeSemantics(child: Text('센터', style: AppTextStyles.bodySm.copyWith(color: AppColors.body))),
+        ExcludeSemantics(
+          child: Text(
+            '센터',
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+          ),
+        ),
         const Gap(AppSpacing.sm),
         Semantics(
           button: true,
@@ -351,7 +358,7 @@ class _CenterSelector extends StatelessWidget {
             color: AppColors.canvasSoft,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.card),
-              side: const BorderSide(color: AppColors.hairline),
+              side: BorderSide(color: AppColors.hairline),
             ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
@@ -369,13 +376,19 @@ class _CenterSelector extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.bodyMd.copyWith(
-                          color: centerName == null ? AppColors.mute : AppColors.ink,
+                          color: centerName == null
+                              ? AppColors.mute
+                              : AppColors.ink,
                         ),
                       ),
                     ),
-                    const SizedBox(
+                    SizedBox(
                       width: AppSize.touchMin,
-                      child: Icon(AppIcons.search, size: AppSize.icon, color: AppColors.body),
+                      child: Icon(
+                        AppIcons.search,
+                        size: AppSize.icon,
+                        color: AppColors.body,
+                      ),
                     ),
                   ],
                 ),
@@ -483,7 +496,7 @@ class _CenterRow extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 56),
+          constraints: const BoxConstraints(minHeight: AppSize.listRow),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Row(
@@ -494,11 +507,20 @@ class _CenterRow extends StatelessWidget {
                     children: [
                       Text(center.name, style: AppTextStyles.bodyLg),
                       if (address.isNotEmpty)
-                        Text(address, style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
+                        Text(
+                          address,
+                          style: AppTextStyles.bodySm.copyWith(
+                            color: AppColors.body,
+                          ),
+                        ),
                     ],
                   ),
                 ),
-                const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.body),
+                Icon(
+                  AppIcons.forward,
+                  size: AppSize.icon,
+                  color: AppColors.body,
+                ),
               ],
             ),
           ),

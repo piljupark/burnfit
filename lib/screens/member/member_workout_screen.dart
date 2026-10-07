@@ -8,7 +8,6 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
-import '../../core/app_text_styles.dart';
 import '../../models/custom_exercise.dart';
 import '../../models/user.dart';
 import '../../models/workout.dart';
@@ -19,6 +18,7 @@ import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_kpi_card.dart';
@@ -281,7 +281,11 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     final member = widget.targetMember ?? actor;
     if (actor == null || member == null) return;
 
-    if (!_hasSessionContent) return;
+    // 마지막 운동까지 지웠으면 예전 임시 저장본도 지운다 (다시 열었을 때 되살아나지 않게).
+    if (!_hasSessionContent) {
+      await _clearDraft();
+      return;
+    }
 
     await WorkoutDraftService.saveDraft(
       memberId: member.uid,
@@ -404,7 +408,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     final exercise = _sessionExercises[exerciseIndex];
 
     if (exercise.sets.length == 1) {
-      AppFeedback.showSuccessSnackBar(context, '세트는 최소 1개 이상 필요합니다.');
+      AppFeedback.showWarning(context, '세트는 최소 1개 이상 필요합니다.');
       return;
     }
 
@@ -423,7 +427,9 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
       if (index < _activeIndex) _activeIndex--;
       if (_activeIndex >= _sessionExercises.length) {
-        _activeIndex = _sessionExercises.isEmpty ? 0 : _sessionExercises.length - 1;
+        _activeIndex = _sessionExercises.isEmpty
+            ? 0
+            : _sessionExercises.length - 1;
       }
     });
 
@@ -514,7 +520,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     }
 
     if (exercises.isEmpty) {
-      AppFeedback.showSuccessSnackBar(context, '운동명, 무게, 횟수를 입력해주세요.');
+      AppFeedback.showWarning(context, '운동명과 횟수를 입력해주세요. (맨몸 운동은 무게를 비워 두세요)');
       return;
     }
 
@@ -616,36 +622,12 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
   }
 
   Future<void> _deleteWorkout(Workout workout) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      barrierColor: AppColors.backdrop,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.canvasCard,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            side: const BorderSide(color: AppColors.hairline),
-          ),
-          title: Text('운동 기록 삭제', style: AppTextStyles.title),
-          content: Text(
-            '${workout.exercises.length}개 종목, ${workout.totalSets}세트 기록이 삭제됩니다. 되돌릴 수 없습니다.',
-            style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
-          ),
-          actions: [
-            AppButton(
-              label: '취소',
-              variant: AppButtonVariant.ghost,
-              onPressed: () => Navigator.of(ctx).pop(false),
-            ),
-            AppButton(
-              label: '삭제',
-              variant: AppButtonVariant.danger,
-              onPressed: () => Navigator.of(ctx).pop(true),
-            ),
-          ],
-        );
-      },
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '운동 기록 삭제',
+      message:
+          '${workout.exercises.length}개 종목, ${workout.totalSets}세트 기록이 삭제됩니다. 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
     );
 
     if (ok != true) return;
@@ -718,7 +700,10 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
   /// 본문 첫 머리말: 기록 날짜 `10월 7일 (수)` (PT면 `PT · 10월 7일 (수)`).
   String get _dateLabel {
-    final day = DateFormat('M월 d일 (E)', 'ko').format(DateTime.parse(_selectedDate));
+    final day = DateFormat(
+      'M월 d일 (E)',
+      'ko',
+    ).format(DateTime.parse(_selectedDate));
     return widget.workoutType == WorkoutType.pt ? 'PT · $day' : day;
   }
 
@@ -741,7 +726,8 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasSession = _sessionExercises.isNotEmpty || _editingWorkoutId != null;
+    final hasSession =
+        _sessionExercises.isNotEmpty || _editingWorkoutId != null;
     final activeIndex = _sessionExercises.isEmpty
         ? 0
         : _activeIndex.clamp(0, _sessionExercises.length - 1);
@@ -753,25 +739,15 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     );
 
     final header = widget.showAsTab
-        ? AppHero(
-            title: '운동',
-            actions: [calendarButton],
-          )
+        ? AppHero(title: '운동', actions: [calendarButton])
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-                child: AppScreenHeader(
-                  title: widget.workoutType == WorkoutType.pt ? 'PT 운동' : '운동 기록',
-                  onBack: _handleExit,
-                  trailing: Transform.translate(
-                    offset: const Offset(12, 0),
-                    child: calendarButton,
-                  ),
-                ),
+              AppScreenHeader(
+                title: widget.workoutType == WorkoutType.pt ? 'PT 운동' : '운동 기록',
+                onBack: _handleExit,
+                trailing: calendarButton,
               ),
-              const AppRowDivider(),
             ],
           );
 
@@ -799,7 +775,9 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                                 label: _isCardioSession ? '유산소' : '총 볼륨',
                                 value: _isCardioSession
                                     ? '$_sessionCardioMinutes'
-                                    : NumberFormat('#,###').format(_sessionVolume.round()),
+                                    : NumberFormat(
+                                        '#,###',
+                                      ).format(_sessionVolume.round()),
                                 unit: _isCardioSession ? '분' : 'kg',
                               ),
                               AppKpiCard(
@@ -825,28 +803,39 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                             description: '무게, 횟수, 완료 체크를 한 화면에서 입력할 수 있습니다.',
                           )
                         else ...[
-                          for (var index = 0; index < _sessionExercises.length; index++) ...[
+                          for (
+                            var index = 0;
+                            index < _sessionExercises.length;
+                            index++
+                          ) ...[
                             if (index > 0) const AppRowDivider(),
                             if (index == activeIndex)
                               ExerciseInputCard(
                                 order: index + 1,
                                 exercise: _sessionExercises[index],
-                                comparison: _comparisonFor(_sessionExercises[index]),
+                                comparison: _comparisonFor(
+                                  _sessionExercises[index],
+                                ),
                                 onChanged: () {
                                   setState(() {});
                                   _queueDraftSave();
                                 },
                                 onAddSet: () => _addSet(index),
                                 onMenuTap: () => _showExerciseMenu(index),
-                                onRemoveSet: (setIndex) => _removeSet(index, setIndex),
-                                onToggleSetDone: (setIndex) => _toggleSetDone(index, setIndex),
+                                onRemoveSet: (setIndex) =>
+                                    _removeSet(index, setIndex),
+                                onToggleSetDone: (setIndex) =>
+                                    _toggleSetDone(index, setIndex),
                               )
                             else
                               AppActionRow(
                                 icon: AppIcons.workout,
                                 label: _sessionExercises[index].name,
-                                subtitle: _collapsedSubtitle(_sessionExercises[index]),
-                                onTap: () => setState(() => _activeIndex = index),
+                                subtitle: _collapsedSubtitle(
+                                  _sessionExercises[index],
+                                ),
+                                onTap: () =>
+                                    setState(() => _activeIndex = index),
                               ),
                           ],
                           const AppRowDivider(),
@@ -922,7 +911,11 @@ class _WorkoutBottomBar extends StatelessWidget {
     final bottom = MediaQuery.of(context).padding.bottom;
 
     // 시작 단계 없이 바로 저장한다 (운동 시간은 기록하지 않음).
-    final primaryTitle = saving ? '저장 중' : editing ? '수정 저장' : '기록 저장';
+    final primaryTitle = saving
+        ? '저장 중'
+        : editing
+        ? '수정 저장'
+        : '기록 저장';
     // 운동을 하나도 추가하지 않았으면 저장할 것이 없으므로 비활성.
     final VoidCallback? primaryTap = saving || !hasContent ? null : onComplete;
 
@@ -933,7 +926,7 @@ class _WorkoutBottomBar extends StatelessWidget {
         AppSpacing.screenH,
         bottom + AppSpacing.md,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.canvas,
         border: Border(top: BorderSide(color: AppColors.hairline)),
       ),

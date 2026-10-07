@@ -33,7 +33,8 @@ Map<String, Set<CalendarMark>> buildCalendarMarks({
   required Iterable<Workout> workouts,
 }) {
   final marks = <String, Set<CalendarMark>>{};
-  void add(String key, CalendarMark mark) => marks.putIfAbsent(key, () => {}).add(mark);
+  void add(String key, CalendarMark mark) =>
+      marks.putIfAbsent(key, () => {}).add(mark);
 
   for (final session in sessions) {
     final key = _dateKey.format(session.scheduledAt);
@@ -49,7 +50,9 @@ Map<String, Set<CalendarMark>> buildCalendarMarks({
   for (final workout in workouts) {
     add(
       workout.workoutDate,
-      workout.workoutType == WorkoutType.pt ? CalendarMark.ptDone : CalendarMark.personal,
+      workout.workoutType == WorkoutType.pt
+          ? CalendarMark.ptDone
+          : CalendarMark.personal,
     );
   }
   return marks;
@@ -68,19 +71,28 @@ class CalendarMarkIcon extends StatelessWidget {
         return Container(
           width: 5,
           height: 5,
-          decoration: const BoxDecoration(color: AppColors.ink, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: AppColors.ink,
+            shape: BoxShape.circle,
+          ),
         );
       case CalendarMark.ptScheduled:
         return Container(
           width: 5,
           height: 5,
-          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppColors.ink)),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.ink),
+          ),
         );
       case CalendarMark.personal:
         return Container(
           width: 8,
           height: 2,
-          decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(AppRadius.pill)),
+          decoration: BoxDecoration(
+            color: AppColors.ink,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
         );
     }
   }
@@ -123,13 +135,17 @@ class CalendarLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final caption = AppTextStyles.bodySm.copyWith(fontSize: 12, height: 16 / 12);
+    final caption = AppTextStyles.bodySm.copyWith(
+      fontSize: 12,
+      height: 16 / 12,
+    );
     return ExcludeSemantics(
       child: Row(
         mainAxisAlignment: alignment,
         children: [
           for (final mark in CalendarMark.values) ...[
-            if (mark != CalendarMark.values.first) const SizedBox(width: AppSpacing.base),
+            if (mark != CalendarMark.values.first)
+              const SizedBox(width: AppSpacing.base),
             SizedBox(width: 8, child: Center(child: CalendarMarkIcon(mark))),
             const SizedBox(width: 6),
             Text(mark.label, style: caption),

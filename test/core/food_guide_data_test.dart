@@ -49,7 +49,11 @@ void main() {
         }
         // 탄·단·지 열량 합이 표시 kcal과 크게 어긋나지 않는다 (대략값 검증, ±35%)
         final energy = f.protein * 4 + f.carbs * 4 + f.fat * 9;
-        expect(energy, inInclusiveRange(f.kcal * 0.65, f.kcal * 1.35), reason: '${f.id}: $energy vs ${f.kcal}');
+        expect(
+          energy,
+          inInclusiveRange(f.kcal * 0.65, f.kcal * 1.35),
+          reason: '${f.id}: $energy vs ${f.kcal}',
+        );
       }
     });
 

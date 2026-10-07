@@ -19,6 +19,8 @@ import '../../widgets/app_hero.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
+import '../../widgets/theme_setting_row.dart';
+import '../../widgets/password_reset_sheet.dart';
 import '../../widgets/orb_loader.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_member_list_screen.dart';
@@ -38,9 +40,21 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   static const _navItems = [
     AppNavItem(label: '홈', icon: AppIcons.home, activeIcon: AppIcons.homeFill),
-    AppNavItem(label: '회원', icon: AppIcons.members, activeIcon: AppIcons.membersFill),
-    AppNavItem(label: '트레이너', icon: AppIcons.trainers, activeIcon: AppIcons.trainersFill),
-    AppNavItem(label: '마이', icon: AppIcons.profile, activeIcon: AppIcons.profileFill),
+    AppNavItem(
+      label: '회원',
+      icon: AppIcons.members,
+      activeIcon: AppIcons.membersFill,
+    ),
+    AppNavItem(
+      label: '트레이너',
+      icon: AppIcons.trainers,
+      activeIcon: AppIcons.trainersFill,
+    ),
+    AppNavItem(
+      label: '마이',
+      icon: AppIcons.profile,
+      activeIcon: AppIcons.profileFill,
+    ),
   ];
 
   late final List<Widget> _pages;
@@ -119,8 +133,10 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
     }
   }
 
-  void _push(Widget screen) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  /// 하위 화면에서 승인·PT 등록 등을 했을 수 있으므로 돌아오면 홈 숫자를 다시 불러온다.
+  Future<void> _push(Widget screen) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    if (mounted) _load();
   }
 
   @override
@@ -142,12 +158,13 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
-                child: AppHero(
-                  title: centerName.isEmpty ? '관리자' : centerName,
-                ),
+                child: AppHero(title: centerName.isEmpty ? '관리자' : centerName),
               ),
               if (_isLoading)
-                const SliverFillRemaining(hasScrollBody: false, child: AppLoadingView())
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: AppLoadingView(),
+                )
               else if (_loadError != null)
                 SliverToBoxAdapter(
                   child: Padding(
@@ -186,7 +203,9 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                         label: '예정 세션',
                         value: '${stats?.upcomingSessionCount ?? '-'}',
                         unit: '건',
-                        trend: stats == null ? null : '오늘 ${stats.todayScheduledSessions}',
+                        trend: stats == null
+                            ? null
+                            : '오늘 ${stats.todayScheduledSessions}',
                       ),
                     ],
                   ),
@@ -239,8 +258,10 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                         AppActionRow(
                           icon: AppIcons.archive,
                           label: '탈퇴 회원 PT 이력',
-                          subtitle: '분쟁 대응용 · ${AccountService.ptRecordRetentionYears}년 보관 후 파기',
-                          onTap: () => _push(const AdminWithdrawnMembersScreen()),
+                          subtitle:
+                              '분쟁 대응용 · ${AccountService.ptRecordRetentionYears}년 보관 후 파기',
+                          onTap: () =>
+                              _push(const AdminWithdrawnMembersScreen()),
                         ),
                       ],
                     ),
@@ -269,16 +290,22 @@ class _PendingRequestsCard extends StatelessWidget {
       button: true,
       child: AppCard(
         onTap: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.base,
+          vertical: AppSpacing.md,
+        ),
         child: Row(
           children: [
-            const Icon(AppIcons.userPlus, size: AppSize.icon, color: AppColors.ink),
+            Icon(AppIcons.userPlus, size: AppSize.icon, color: AppColors.ink),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(hasPending ? '가입 신청 $count건' : '가입 신청', style: AppTextStyles.bodyLg),
+                  Text(
+                    hasPending ? '가입 신청 $count건' : '가입 신청',
+                    style: AppTextStyles.bodyLg,
+                  ),
                   Text(
                     hasPending ? '승인을 기다리고 있어요' : '대기 중인 신청이 없어요',
                     style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
@@ -286,7 +313,7 @@ class _PendingRequestsCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.body),
+            Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.body),
           ],
         ),
       ),
@@ -312,25 +339,35 @@ class _AdminProfileTab extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
           children: [
-            const AppHero(title: '마이'),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.screenH),
-              child: AppProfileCard(
-                name: user?.name ?? '',
-                subtitle: user?.centerName ?? '',
-                roleLabel: '관리자',
-                seed: user?.uid,
-              ),
+            const AppHero(title: '마이', divider: false),
+            AppProfileRow(
+              name: user?.name ?? '',
+              subtitle: [
+                '센터 관리자',
+                if ((user?.centerName ?? '').isNotEmpty) user!.centerName,
+              ].join(' · '),
             ),
+            // 관리자 탈퇴는 서버에서 막는다 (탈퇴 링크 없음).
+            const AppMonthHeader(label: '계정'),
+            AppActionRow(
+              icon: AppIcons.lock,
+              label: '비밀번호 재설정 메일',
+              onTap: () =>
+                  showPasswordResetSheet(context, initialEmail: user?.email),
+            ),
+            const AppRowDivider(),
+            const ThemeSettingRow(),
             const AppRowDivider(),
             AppActionRow(
               icon: AppIcons.signOut,
               label: '로그아웃',
-              isDestructive: true,
+              showChevron: false,
               onTap: () async {
                 await context.read<UserProvider>().signOut();
                 if (!context.mounted) return;
-                Navigator.of(context).pushReplacementNamed(AppRoutes.memberLogin);
+                Navigator.of(
+                  context,
+                ).pushReplacementNamed(AppRoutes.memberLogin);
               },
             ),
             const AppRowDivider(),

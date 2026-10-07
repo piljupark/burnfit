@@ -41,31 +41,45 @@ class MealService {
 
     final urls = <String>[];
 
-    for (final file in files) {
-      final length = await file.length();
-      ServiceValidator.requireImageLength(length);
-      final id = _uuid.v4();
-      final ts = DateTime.now().millisecondsSinceEpoch;
-      final ref = _storage.ref('$centerId/meals/$memberId/${id}_$ts.jpg');
-
-      final metadata = SettableMetadata(contentType: 'image/jpeg');
-      AppLogger.debug(
-        '[식단 이미지 업로드] authUid=${AuthService.currentUser?.uid}, '
-        'centerId=$centerId, memberId=$memberId, bytes=$length, '
-        'path=${ref.fullPath}',
-      );
-      if (kIsWeb) {
-        await ref.putData(await file.readAsBytes(), metadata);
-      } else {
-        final compressed = await compressImage(File(file.path));
-        await ServiceValidator.requireImageFile(compressed);
-        await ref.putFile(compressed, metadata);
+    try {
+      for (final file in files) {
+        urls.add(
+          await _uploadOne(file, centerId: centerId, memberId: memberId),
+        );
       }
-      final url = await ref.getDownloadURL();
-      urls.add(url);
+    } catch (_) {
+      // 중간에 실패하면 이미 올라간 사진을 지워 저장소에 남지 않게 한다.
+      await deleteImages(urls);
+      rethrow;
     }
-
     return urls;
+  }
+
+  static Future<String> _uploadOne(
+    XFile file, {
+    required String centerId,
+    required String memberId,
+  }) async {
+    final length = await file.length();
+    ServiceValidator.requireImageLength(length);
+    final id = _uuid.v4();
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final ref = _storage.ref('$centerId/meals/$memberId/${id}_$ts.jpg');
+
+    final metadata = SettableMetadata(contentType: 'image/jpeg');
+    AppLogger.debug(
+      '[식단 이미지 업로드] authUid=${AuthService.currentUser?.uid}, '
+      'centerId=$centerId, memberId=$memberId, bytes=$length, '
+      'path=${ref.fullPath}',
+    );
+    if (kIsWeb) {
+      await ref.putData(await file.readAsBytes(), metadata);
+    } else {
+      final compressed = await compressImage(File(file.path));
+      await ServiceValidator.requireImageFile(compressed);
+      await ref.putFile(compressed, metadata);
+    }
+    return ref.getDownloadURL();
   }
 
   static Future<void> deleteImages(List<String> urls) async {

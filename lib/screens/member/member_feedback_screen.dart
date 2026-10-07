@@ -12,7 +12,6 @@ import '../../models/feedback.dart' as fb;
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_avatar.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
@@ -102,21 +101,17 @@ class _MemberFeedbackScreenState extends State<MemberFeedbackScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '트레이너 피드백',
-                onBack: () => Navigator.of(context).pop(),
-                trailing: newCount > 0
-                    ? Semantics(
-                        label: '새 피드백 $newCount개',
-                        excludeSemantics: true,
-                        child: AppTag('새 글 $newCount', strong: true),
-                      )
-                    : null,
-              ),
+            AppScreenHeader(
+              title: '트레이너 피드백',
+              onBack: () => Navigator.of(context).pop(),
+              trailing: newCount > 0
+                  ? Semantics(
+                      label: '새 피드백 $newCount개',
+                      excludeSemantics: true,
+                      child: AppTag('새 글 $newCount', strong: true),
+                    )
+                  : null,
             ),
-            const AppRowDivider(),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _load,
@@ -126,9 +121,7 @@ class _MemberFeedbackScreenState extends State<MemberFeedbackScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     if (_isLoading)
-                      const SliverFillRemaining(
-                        child: AppLoadingView(),
-                      )
+                      const SliverFillRemaining(child: AppLoadingView())
                     else if (_feedbacks.isEmpty)
                       const SliverFillRemaining(
                         hasScrollBody: false,
@@ -140,11 +133,15 @@ class _MemberFeedbackScreenState extends State<MemberFeedbackScreen> {
                       )
                     else ...[
                       SliverToBoxAdapter(
-                        child: AppMonthHeader(label: '피드백', count: '${_feedbacks.length}'),
+                        child: AppMonthHeader(
+                          label: '피드백',
+                          count: '${_feedbacks.length}',
+                        ),
                       ),
                       SliverList.separated(
                         itemCount: _feedbacks.length,
-                        separatorBuilder: (_, _) => const AppRowDivider(indent: AppSpacing.screenH),
+                        separatorBuilder: (_, _) =>
+                            const AppRowDivider(indent: AppSpacing.screenH),
                         itemBuilder: (context, index) {
                           final item = _feedbacks[index];
                           return _FeedbackRow(
@@ -153,7 +150,9 @@ class _MemberFeedbackScreenState extends State<MemberFeedbackScreen> {
                           );
                         },
                       ),
-                      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl3)),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: AppSpacing.xl3),
+                      ),
                     ],
                   ],
                 ),
@@ -183,11 +182,17 @@ class _FeedbackRow extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: '${isNew ? '새 피드백, ' : ''}$displayName, '
+      label:
+          '${isNew ? '새 피드백, ' : ''}$displayName, '
           '${DateFormat('M월 d일 a h시 mm분', 'ko').format(feedback.createdAt)}, '
           '${feedback.targetType.label} 피드백',
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.base, AppSpacing.screenH, AppSpacing.base),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.sm,
+          AppSpacing.base,
+          AppSpacing.screenH,
+          AppSpacing.base,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -207,8 +212,6 @@ class _FeedbackRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.xxs),
-            AppAvatar(name: name.isEmpty ? '트레이너' : name, seed: feedback.trainerId, size: 36),
-            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,11 +230,15 @@ class _FeedbackRow extends StatelessWidget {
                       ),
                       if (isNew) ...[
                         const SizedBox(width: AppSpacing.sm),
-                        const ExcludeSemantics(child: AppTag('새 글', strong: true)),
+                        const ExcludeSemantics(
+                          child: AppTag('새 글', strong: true),
+                        ),
                       ],
                       const Spacer(),
                       const SizedBox(width: AppSpacing.sm),
-                      ExcludeSemantics(child: Text(time, style: AppTextStyles.counter)),
+                      ExcludeSemantics(
+                        child: Text(time, style: AppTextStyles.counter),
+                      ),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -248,7 +255,10 @@ class _FeedbackRow extends StatelessWidget {
                         AppTag(feedback.targetType.label),
                         if (targetDate != null) ...[
                           const SizedBox(width: AppSpacing.sm),
-                          Text(DateFormat('MM.dd').format(targetDate), style: AppTextStyles.counter),
+                          Text(
+                            DateFormat('MM.dd').format(targetDate),
+                            style: AppTextStyles.counter,
+                          ),
                         ],
                       ],
                     ),

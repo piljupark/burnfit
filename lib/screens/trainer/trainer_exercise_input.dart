@@ -39,11 +39,14 @@ class TrainerExerciseInputCard extends StatelessWidget {
   });
 
   String get _caption => switch (comparison.tone) {
-        TrainerComparisonTone.up || TrainerComparisonTone.down => '지난 PT 대비 최고 ${comparison.label}',
-        TrainerComparisonTone.same => '지난 PT 최고와 동일',
-        TrainerComparisonTone.muted =>
-          comparison.label.startsWith('지난') ? comparison.label.replaceFirst('지난', '지난 PT') : comparison.label,
-      };
+    TrainerComparisonTone.up ||
+    TrainerComparisonTone.down => '지난 PT 대비 최고 ${comparison.label}',
+    TrainerComparisonTone.same => '지난 PT 최고와 동일',
+    TrainerComparisonTone.muted =>
+      comparison.label.startsWith('지난')
+          ? comparison.label.replaceFirst('지난', '지난 PT')
+          : comparison.label,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +58,12 @@ class TrainerExerciseInputCard extends StatelessWidget {
       children: [
         // ── 운동 머리 ──
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, AppSpacing.xs),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.base,
+            AppSpacing.screenH,
+            AppSpacing.xs,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -71,7 +79,8 @@ class TrainerExerciseInputCard extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   AppTag(exercise.category.label),
-                  if (exercise.unit == TrainerWeightUnit.lbs && !exercise.isCardio) ...[
+                  if (exercise.unit == TrainerWeightUnit.lbs &&
+                      !exercise.isCardio) ...[
                     const SizedBox(width: AppSpacing.xs),
                     AppTag(exercise.unit.label, muted: true),
                   ],
@@ -99,7 +108,9 @@ class TrainerExerciseInputCard extends StatelessWidget {
             children: [
               _HeaderRow(
                 primary: exercise.primaryMetricLabel,
-                secondary: exercise.isCardio ? exercise.secondaryMetricLabel : '회',
+                secondary: exercise.isCardio
+                    ? exercise.secondaryMetricLabel
+                    : '회',
               ),
               for (var i = 0; i < exercise.sets.length; i++)
                 _SetRow(
@@ -132,7 +143,9 @@ class TrainerExerciseInputCard extends StatelessWidget {
                       variant: AppButtonVariant.ghost,
                       size: AppButtonSize.sm,
                       icon: const Icon(AppIcons.remove),
-                      onPressed: canRemove ? () => onRemoveSet(exercise.sets.length - 1) : null,
+                      onPressed: canRemove
+                          ? () => onRemoveSet(exercise.sets.length - 1)
+                          : null,
                     ),
                   ),
                 ],
@@ -158,7 +171,11 @@ class _HeaderRow extends StatelessWidget {
     return Text(
       monoCase(text),
       textAlign: align,
-      style: monoOrSans(text, mono: AppTextStyles.counter, sans: AppTextStyles.bodySm.copyWith(fontSize: 11, height: 14 / 11)),
+      style: monoOrSans(
+        text,
+        mono: AppTextStyles.counter,
+        sans: AppTextStyles.bodySm.copyWith(fontSize: 11, height: 14 / 11),
+      ),
     );
   }
 
@@ -169,7 +186,10 @@ class _HeaderRow extends StatelessWidget {
         height: 28,
         child: Row(
           children: [
-            SizedBox(width: _setNumberWidth, child: _label('세트', align: TextAlign.start)),
+            SizedBox(
+              width: _setNumberWidth,
+              child: _label('세트', align: TextAlign.start),
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(child: _label(primary)),
             const SizedBox(width: AppSpacing.sm),
@@ -259,19 +279,30 @@ class _SetRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          SetDoneButton(number: number, done: set.done, current: current, onTap: onToggleDone),
+          SetDoneButton(
+            number: number,
+            done: set.done,
+            current: current,
+            onTap: onToggleDone,
+          ),
         ],
       ),
     );
   }
 }
 
-
 /// 접힌 운동 한 줄의 보조 줄: "4세트 · 완료 2/4 · 40kg".
 String trainerExerciseRowSummary(TrainerExerciseDraft exercise) {
   final done = exercise.sets.where((s) => s.done).length;
-  final parts = <String>['${exercise.sets.length}세트', '완료 $done/${exercise.sets.length}'];
+  final parts = <String>[
+    '${exercise.sets.length}세트',
+    '완료 $done/${exercise.sets.length}',
+  ];
   final max = exercise.maxWeight;
-  if (max != null) parts.add('${trainerFormatMetricValue(max)}${exercise.primaryMetricSuffix}');
+  if (max != null) {
+    parts.add(
+      '${trainerFormatMetricValue(max)}${exercise.primaryMetricSuffix}',
+    );
+  }
   return parts.join(' · ');
 }

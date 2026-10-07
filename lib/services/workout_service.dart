@@ -121,17 +121,19 @@ class WorkoutService {
     String memberId,
     String date, {
     WorkoutType? workoutType,
+    String? ptTrainerId,
   }) async {
     ServiceValidator.requireText(centerId, '센터 ID');
     ServiceValidator.requireText(memberId, '회원 ID');
     ServiceValidator.requireDateKey(date, '운동 날짜');
 
-    final snap = await _db
-        .collection('workouts')
-        .where('centerId', isEqualTo: centerId)
-        .where('memberId', isEqualTo: memberId)
-        .where('workoutDate', isEqualTo: date)
-        .get();
+    final snap = await _ptScoped(
+      _db
+          .collection('workouts')
+          .where('centerId', isEqualTo: centerId)
+          .where('memberId', isEqualTo: memberId),
+      ptTrainerId,
+    ).where('workoutDate', isEqualTo: date).get();
 
     final list = _parseWorkoutDocs(snap.docs)
         .where((w) => workoutType == null || w.workoutType == workoutType)
@@ -145,23 +147,37 @@ class WorkoutService {
     required String memberId,
     required String beforeDate,
     WorkoutType? workoutType,
+    String? ptTrainerId,
   }) async {
     ServiceValidator.requireText(centerId, '센터 ID');
     ServiceValidator.requireText(memberId, '회원 ID');
     ServiceValidator.requireDateKey(beforeDate, '운동 날짜');
 
-    final snap = await _db
-        .collection('workouts')
-        .where('centerId', isEqualTo: centerId)
-        .where('memberId', isEqualTo: memberId)
-        .where('workoutDate', isLessThan: beforeDate)
-        .get();
+    final snap = await _ptScoped(
+      _db
+          .collection('workouts')
+          .where('centerId', isEqualTo: centerId)
+          .where('memberId', isEqualTo: memberId),
+      ptTrainerId,
+    ).where('workoutDate', isLessThan: beforeDate).get();
 
     final list = _parseWorkoutDocs(snap.docs)
         .where((w) => workoutType == null || w.workoutType == workoutType)
         .toList();
     list.sort((a, b) => b.workoutDate.compareTo(a.workoutDate));
     return list;
+  }
+
+  /// 트레이너가 자기 PT 기록만 읽을 때: 회원의 운동 공유 설정과 관계없이 규칙이 허용하도록
+  /// 조회 조건에 PT 유형과 작성 트레이너를 넣는다 (규칙은 필터가 아니다).
+  static Query<Map<String, dynamic>> _ptScoped(
+    Query<Map<String, dynamic>> query,
+    String? ptTrainerId,
+  ) {
+    if (ptTrainerId == null) return query;
+    return query
+        .where('workoutType', isEqualTo: WorkoutType.pt.name)
+        .where('trainerId', isEqualTo: ptTrainerId);
   }
 
   static Future<void> deleteWorkout(String workoutId) async {

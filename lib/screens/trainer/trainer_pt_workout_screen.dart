@@ -18,9 +18,9 @@ import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_avatar.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
@@ -103,12 +103,14 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
           widget.member.uid,
           _workoutDate,
           workoutType: WorkoutType.pt,
+          ptTrainerId: trainer.uid,
         ),
         WorkoutService.getPreviousWorkouts(
           centerId: widget.member.centerId,
           memberId: widget.member.uid,
           beforeDate: _workoutDate,
           workoutType: WorkoutType.pt,
+          ptTrainerId: trainer.uid,
         ),
         ExerciseService.getCustomExercises(trainer.uid),
       ]);
@@ -216,7 +218,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
   void _removeSet(int exerciseIndex, int setIndex) {
     final exercise = _exercises[exerciseIndex];
     if (exercise.sets.length == 1) {
-      AppFeedback.showSuccessSnackBar(context, '세트는 최소 1개 이상 필요합니다.');
+      AppFeedback.showWarning(context, '세트는 최소 1개 이상 필요합니다.');
       return;
     }
     setState(() {
@@ -297,7 +299,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
         .toList();
 
     if (exercises.isEmpty) {
-      AppFeedback.showSuccessSnackBar(context, '운동명, 무게, 횟수를 입력해주세요.');
+      AppFeedback.showWarning(context, '운동명, 무게, 횟수를 입력해주세요.');
       return;
     }
 
@@ -323,15 +325,14 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
               : _noteController.text.trim(),
         );
 
-        if (!_savedWorkouts.any((w) => w.ptSessionId == widget.session.id)) {
-          await FirestoreService.updatePtSessionStatus(
-            widget.session.id,
-            PtSessionStatus.completed,
-          );
+        // 저장된 기록을 '수정 중'으로 잡아 두면, 아래 완료 처리가 실패해 다시 눌러도
+        // 새 기록이 또 생기지 않고 같은 기록을 고친 뒤 완료 처리를 다시 시도한다.
+        if (mounted) {
+          setState(() {
+            _savedWorkouts = [saved, ..._savedWorkouts];
+            _editingWorkoutId = saved.id;
+          });
         }
-
-        if (!mounted) return;
-        setState(() => _savedWorkouts = [saved, ..._savedWorkouts]);
       } else {
         await WorkoutService.updateWorkout(
           workoutId: _editingWorkoutId!,
@@ -343,6 +344,13 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
         );
       }
 
+      // 기록이 있으면 세션은 완료 상태여야 한다. 서버가 처음 한 번만 잔여 1회를 차감하므로
+      // 저장·수정 때마다 불러도 안전하다 (이전에 완료 처리가 실패했어도 여기서 다시 시도된다).
+      await FirestoreService.updatePtSessionStatus(
+        widget.session.id,
+        PtSessionStatus.completed,
+      );
+
       if (!mounted) return;
       setState(_clearSession);
       await _load();
@@ -350,7 +358,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       if (!mounted) return;
       AppFeedback.showSuccessSnackBar(
         context,
-        wasEditing ? '운동 기록을 수정했습니다.' : '운동 기록을 저장했습니다.',
+        wasEditing ? '운동 기록을 수정했습니다.' : 'PT 기록을 저장하고 완료 처리했습니다.',
       );
     } catch (e) {
       if (!mounted) return;
@@ -387,32 +395,30 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
   }
 
   Future<void> _deleteWorkout(Workout workout) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('PT 기록 삭제', style: AppTextStyles.title),
-        content: Text(
-          '운동 ${workout.exercises.length}개, ${workout.totalSets}세트 기록이 삭제되며 되돌릴 수 없습니다.',
-          style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
-        ),
-        actions: [
-          AppButton(
-            label: '취소',
-            variant: AppButtonVariant.ghost,
-            onPressed: () => Navigator.of(ctx).pop(false),
-          ),
-          AppButton(
-            label: '삭제',
-            variant: AppButtonVariant.danger,
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
-      ),
+    // 이 세션의 마지막 기록이면 PT 완료도 취소하고 잔여 1회를 되돌린다.
+    final isLastRecord =
+        _savedWorkouts
+            .where((w) => w.ptSessionId == widget.session.id)
+            .length <=
+        1;
+    final ok = await showAppConfirmDialog(
+      context,
+      title: 'PT 기록 삭제',
+      message:
+          '운동 ${workout.exercises.length}개, ${workout.totalSets}세트 기록이 삭제되며 되돌릴 수 없습니다.'
+          '${isLastRecord ? ' 이 PT의 마지막 기록이라 완료 처리도 취소되고 잔여 횟수 1회가 복구됩니다.' : ''}',
+      confirmLabel: '삭제',
     );
     if (ok != true) return;
 
     try {
       await WorkoutService.deleteWorkout(workout.id);
+      if (isLastRecord) {
+        await FirestoreService.updatePtSessionStatus(
+          widget.session.id,
+          PtSessionStatus.scheduled,
+        );
+      }
       if (!mounted) return;
 
       if (_editingWorkoutId == workout.id) {
@@ -479,25 +485,16 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
         bottom: false,
         child: Column(
           children: [
-            Container(
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.hairline)),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: 'PT 기록',
-                onBack: () => Navigator.of(context).pop(),
-                trailing: canSave
-                    ? Transform.translate(
-                        offset: const Offset(12, 0),
-                        child: AppButton(
-                          label: '저장',
-                          variant: AppButtonVariant.ghost,
-                          onPressed: _saving ? null : _saveWorkout,
-                        ),
-                      )
-                    : null,
-              ),
+            AppScreenHeader(
+              title: 'PT 기록',
+              onBack: () => Navigator.of(context).pop(),
+              trailing: canSave
+                  ? AppButton(
+                      label: '저장',
+                      variant: AppButtonVariant.ghost,
+                      onPressed: _saving ? null : _saveWorkout,
+                    )
+                  : null,
             ),
             Expanded(child: _buildBody(editing)),
             _BottomBar(
@@ -532,11 +529,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.zero,
       children: [
-        _MemberRow(
-          member: widget.member,
-          subtitle: subtitle,
-          editing: editing,
-        ),
+        _MemberRow(member: widget.member, subtitle: subtitle, editing: editing),
         if (_exercises.isNotEmpty || editing)
           AppStatStrip(
             topBorder: true,
@@ -657,8 +650,6 @@ class _MemberRow extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.base),
       child: Row(
         children: [
-          AppAvatar(name: member.name, seed: member.uid),
-          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -711,7 +702,11 @@ class _BottomBar extends StatelessWidget {
     final bottom = MediaQuery.of(context).padding.bottom;
 
     // 시작 단계 없이 바로 저장한다. 저장하면 예약된 PT가 완료 처리된다 (기존과 같음).
-    final primaryTitle = saving ? '저장 중' : editing ? '수정 저장' : '기록 저장';
+    final primaryTitle = saving
+        ? '저장 중'
+        : editing
+        ? '수정 저장'
+        : '기록 저장';
     // 운동 내용이 없으면 저장할 것이 없으므로 비활성.
     final VoidCallback? primaryTap = saving || !canSave ? null : onSave;
 
@@ -722,7 +717,7 @@ class _BottomBar extends StatelessWidget {
         AppSpacing.screenH,
         bottom + AppSpacing.sm,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.canvas,
         border: Border(top: BorderSide(color: AppColors.hairline)),
       ),

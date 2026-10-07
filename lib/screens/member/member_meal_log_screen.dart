@@ -15,8 +15,7 @@ import '../../services/firestore_service.dart';
 import '../../services/meal_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_avatar.dart';
-import '../../widgets/app_button.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_filter_tabs.dart';
 import '../../widgets/app_hero.dart';
@@ -62,9 +61,13 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
     _load();
   }
 
+  /// 날짜를 빠르게 바꿀 때 늦게 도착한 이전 날짜 결과가 화면을 덮지 않게 한다.
+  int _loadId = 0;
+
   Future<void> _load() async {
     final user = context.read<UserProvider>().user;
     if (user == null) return;
+    final loadId = ++_loadId;
     setState(() => _isLoading = true);
     _loadWeekMarkers(user.centerId, user.uid);
     try {
@@ -73,7 +76,7 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
         user.uid,
         _dateKey,
       );
-      if (!mounted) return;
+      if (!mounted || loadId != _loadId) return;
       setState(() => _meals = list);
       _loadFeedbacks(list, user.centerId, user.uid);
     } catch (e) {
@@ -88,7 +91,9 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
 
   /// 주간 스트립의 기록 점. 실패해도 화면은 그대로 둔다.
   Future<void> _loadWeekMarkers(String centerId, String memberId) async {
-    final monday = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+    final monday = _selectedDate.subtract(
+      Duration(days: _selectedDate.weekday - 1),
+    );
     final sunday = monday.add(const Duration(days: 6));
     try {
       final meals = await MealService.getMealsByDateRange(
@@ -105,7 +110,11 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   }
 
   /// 피드백 완료 식단의 트레이너 코멘트. 실패해도 태그만 보인다.
-  Future<void> _loadFeedbacks(List<Meal> meals, String centerId, String memberId) async {
+  Future<void> _loadFeedbacks(
+    List<Meal> meals,
+    String centerId,
+    String memberId,
+  ) async {
     final targets = meals.where((m) => m.hasFeedback).toList();
     if (targets.isEmpty) {
       if (mounted) setState(() => _feedbacks = {});
@@ -114,7 +123,11 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
     try {
       final results = await Future.wait(
         targets.map(
-          (m) => FirestoreService.getFeedbackByTarget(m.id, centerId: centerId, memberId: memberId),
+          (m) => FirestoreService.getFeedbackByTarget(
+            m.id,
+            centerId: centerId,
+            memberId: memberId,
+          ),
         ),
       );
       if (!mounted) return;
@@ -176,11 +189,16 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   /// 영양 가이드. 음식 상세의 추가 버튼은 선택한 날짜의 식단 입력을 미리 채워 연다.
   void _openNutritionGuide() {
     final isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
-    final dayLabel = isToday ? '오늘' : DateFormat('M월 d일', 'ko').format(_selectedDate);
+    final dayLabel = isToday
+        ? '오늘'
+        : DateFormat('M월 d일', 'ko').format(_selectedDate);
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => NutritionGuideScreen(
-          addAction: FoodAddAction(label: '$dayLabel 식단에 추가', onAdd: _addFoodToMeals),
+          addAction: FoodAddAction(
+            label: '$dayLabel 식단에 추가',
+            onAdd: _addFoodToMeals,
+          ),
         ),
       ),
     );
@@ -200,28 +218,14 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   }
 
   Future<void> _deleteMeal(Meal meal) async {
-    final photoNote = meal.imageUrls.isEmpty ? '' : ' 사진 ${meal.imageUrls.length}장도 함께 사라집니다.';
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('식단 삭제'),
-        content: Text(
-          '${meal.mealType.label} 식단 기록을 삭제할까요?$photoNote',
-          style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
-        ),
-        actions: [
-          AppButton(
-            label: '취소',
-            variant: AppButtonVariant.ghost,
-            onPressed: () => Navigator.of(ctx).pop(false),
-          ),
-          AppButton(
-            label: '삭제',
-            variant: AppButtonVariant.danger,
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
-      ),
+    final photoNote = meal.imageUrls.isEmpty
+        ? ''
+        : ' 사진 ${meal.imageUrls.length}장도 함께 사라집니다.';
+    final confirm = await showAppConfirmDialog(
+      context,
+      title: '식단 삭제',
+      message: '${meal.mealType.label} 식단 기록을 삭제할까요?$photoNote',
+      confirmLabel: '삭제',
     );
     if (confirm != true) return;
     try {
@@ -253,16 +257,13 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.screenH, right: AppSpacing.xs),
-              child: AppScreenHeader(
-                title: '식단 기록',
-                onBack: canPop ? () => Navigator.of(context).pop() : null,
-                trailing: AppIconButton(
-                  icon: AppIcons.add,
-                  label: '식단 추가',
-                  onPressed: _addMeal,
-                ),
+            AppScreenHeader(
+              title: '식단 기록',
+              onBack: canPop ? () => Navigator.of(context).pop() : null,
+              trailing: AppIconButton(
+                icon: AppIcons.add,
+                label: '식단 추가',
+                onPressed: _addMeal,
               ),
             ),
             Expanded(
@@ -335,8 +336,12 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
                     if (_isLoading)
                       const SliverToBoxAdapter(
                         child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: AppSpacing.xl4),
-                          child: Center(child: OrbLoader(semanticLabel: '식단 불러오는 중')),
+                          padding: EdgeInsets.symmetric(
+                            vertical: AppSpacing.xl4,
+                          ),
+                          child: Center(
+                            child: OrbLoader(semanticLabel: '식단 불러오는 중'),
+                          ),
                         ),
                       )
                     else if (filtered.isEmpty)
@@ -392,7 +397,12 @@ class _WeekStrip extends StatelessWidget {
     final keyFormat = DateFormat('yyyy-MM-dd');
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.md,
+      ),
       child: Row(
         children: days.map((day) {
           final isSel = DateUtils.isSameDay(day, selected);
@@ -405,7 +415,8 @@ class _WeekStrip extends StatelessWidget {
             child: Semantics(
               button: true,
               selected: isSel,
-              label: '${day.month}월 ${day.day}일 $weekday요일${hasRecord ? ', 기록 있음' : ''}',
+              label:
+                  '${day.month}월 ${day.day}일 $weekday요일${hasRecord ? ', 기록 있음' : ''}',
               excludeSemantics: true,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -421,7 +432,9 @@ class _WeekStrip extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isSel ? AppColors.primary : Colors.transparent,
-                        border: isToday && !isSel ? Border.all(color: AppColors.outline) : null,
+                        border: isToday && !isSel
+                            ? Border.all(color: AppColors.outline)
+                            : null,
                       ),
                       child: Text(
                         '${day.day}',
@@ -429,8 +442,8 @@ class _WeekStrip extends StatelessWidget {
                           color: isSel
                               ? AppColors.onPrimary
                               : isFuture
-                                  ? AppColors.mute
-                                  : AppColors.ink,
+                              ? AppColors.mute
+                              : AppColors.ink,
                         ),
                       ),
                     ),
@@ -460,7 +473,11 @@ class _MealEntry extends StatelessWidget {
   final fb.Feedback? feedback;
   final VoidCallback onDelete;
 
-  const _MealEntry({required this.meal, required this.feedback, required this.onDelete});
+  const _MealEntry({
+    required this.meal,
+    required this.feedback,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -471,7 +488,12 @@ class _MealEntry extends StatelessWidget {
         AppMonthHeader(
           label: meal.mealType.label,
           count: meal.mealTime,
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.base, AppSpacing.xs, AppSpacing.xs),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.base,
+            AppSpacing.xs,
+            AppSpacing.xs,
+          ),
           trailing: AppIconButton(
             icon: AppIcons.trash,
             label: '${meal.mealType.label} 식단 삭제',
@@ -482,10 +504,18 @@ class _MealEntry extends StatelessWidget {
         if (meal.imageUrls.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-            child: _MealPhotoGrid(urls: meal.imageUrls, mealLabel: meal.mealType.label),
+            child: _MealPhotoGrid(
+              urls: meal.imageUrls,
+              mealLabel: meal.mealType.label,
+            ),
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, 0),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.md,
+            AppSpacing.screenH,
+            0,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -503,18 +533,27 @@ class _MealEntry extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 3),
                   child: Text(
                     '${NumberFormat('#,###').format(meal.calories)}kcal',
-                    style: AppTextStyles.counter.copyWith(color: AppColors.body),
+                    style: AppTextStyles.counter.copyWith(
+                      color: AppColors.body,
+                    ),
                   ),
                 ),
               ],
               const SizedBox(width: AppSpacing.sm),
-              meal.hasFeedback ? const AppTag('피드백 완료', strong: true) : const AppTag('검토 대기'),
+              meal.hasFeedback
+                  ? const AppTag('피드백 완료', strong: true)
+                  : const AppTag('검토 대기'),
             ],
           ),
         ),
         if (feedback != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, 0),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.md,
+              AppSpacing.screenH,
+              0,
+            ),
             child: _FeedbackQuote(feedback: feedback!),
           ),
         const SizedBox(height: AppSpacing.base),
@@ -562,8 +601,12 @@ class _MealPhotoGrid extends StatelessWidget {
                 child: Image.network(
                   shown[i],
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const Center(
-                    child: Icon(AppIcons.image, size: AppSize.icon, color: AppColors.mute),
+                  errorBuilder: (_, _, _) => Center(
+                    child: Icon(
+                      AppIcons.image,
+                      size: AppSize.icon,
+                      color: AppColors.mute,
+                    ),
                   ),
                 ),
               ),
@@ -602,8 +645,6 @@ class _FeedbackQuote extends StatelessWidget {
         children: [
           Row(
             children: [
-              AppAvatar(name: name.isEmpty ? '트레이너' : name, seed: feedback.trainerId, size: 24),
-              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   name.isEmpty ? '트레이너' : '$name 트레이너',
@@ -612,7 +653,10 @@ class _FeedbackQuote extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(DateFormat('HH:mm').format(feedback.createdAt), style: AppTextStyles.counter.copyWith(color: AppColors.body)),
+              Text(
+                DateFormat('HH:mm').format(feedback.createdAt),
+                style: AppTextStyles.counter.copyWith(color: AppColors.body),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),

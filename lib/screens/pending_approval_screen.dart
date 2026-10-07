@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_feedback.dart';
+import '../core/app_routing.dart';
 import '../core/constants.dart';
 import '../services/user_provider.dart';
 import '../widgets/app_button.dart';
@@ -46,17 +48,31 @@ class PendingApprovalScreen extends StatelessWidget {
                 label: '새로고침',
                 fullWidth: true,
                 size: AppButtonSize.lg,
-                onPressed: () {
-                  context.read<UserProvider>().loadUser().then((_) {
+                onPressed: () async {
+                  final provider = context.read<UserProvider>();
+                  await provider.loadUser();
+                  if (!context.mounted) return;
+                  final user = provider.user;
+                  if (user == null) return;
+                  final route = startRouteFor(user);
+                  if (route == null) {
+                    AppFeedback.showWarning(
+                      context,
+                      '가입이 거절되었습니다. 센터에 문의해주세요.',
+                    );
+                    await provider.signOut();
                     if (!context.mounted) return;
-                    final user = context.read<UserProvider>().user;
-                    if (user == null) return;
-                    if (user.status.name == 'approved') {
-                      Navigator.of(
-                        context,
-                      ).pushReplacementNamed(_routeForRole(user.role.name));
-                    }
-                  });
+                    Navigator.of(
+                      context,
+                    ).pushReplacementNamed(AppRoutes.memberLogin);
+                    return;
+                  }
+                  if (route == AppRoutes.pendingApproval) {
+                    AppFeedback.showSuccessSnackBar(context, '아직 승인 대기 중이에요.');
+                    return;
+                  }
+                  // 승인됨 → 회원이면 온보딩부터 (스플래시·로그인과 같은 규칙)
+                  Navigator.of(context).pushReplacementNamed(route);
                 },
               ),
 
@@ -83,16 +99,5 @@ class PendingApprovalScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _routeForRole(String role) {
-    switch (role) {
-      case 'admin':
-        return AppRoutes.adminHome;
-      case 'trainer':
-        return AppRoutes.trainerHome;
-      default:
-        return AppRoutes.memberHome;
-    }
   }
 }

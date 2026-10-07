@@ -9,7 +9,12 @@ class AppProgressBar extends StatelessWidget {
   final double height;
   final String? semanticLabel;
 
-  const AppProgressBar({super.key, required this.value, this.height = 2, this.semanticLabel});
+  const AppProgressBar({
+    super.key,
+    required this.value,
+    this.height = 2,
+    this.semanticLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +31,7 @@ class AppProgressBar extends StatelessWidget {
           child: FractionallySizedBox(
             widthFactor: clamped,
             heightFactor: 1,
-            child: const ColoredBox(color: AppColors.ink),
+            child: ColoredBox(color: AppColors.ink),
           ),
         ),
       ),

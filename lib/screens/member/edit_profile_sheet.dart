@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../core/validators.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
@@ -54,11 +55,17 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     if (_isSaving) return;
     setState(() => _isSaving = true);
     try {
+      final m = Validators.bodyMetrics(
+        height: _heightCtrl.text,
+        weight: _weightCtrl.text,
+        muscleMass: _muscleCtrl.text,
+        bodyFat: _bodyFatCtrl.text,
+      );
       final profile = UserProfile(
-        height: double.tryParse(_heightCtrl.text.trim()),
-        weight: double.tryParse(_weightCtrl.text.trim()),
-        muscleMass: double.tryParse(_muscleCtrl.text.trim()),
-        bodyFat: double.tryParse(_bodyFatCtrl.text.trim()),
+        height: m.height,
+        weight: m.weight,
+        muscleMass: m.muscleMass,
+        bodyFat: m.bodyFat,
         goal: _goalCtrl.text.trim().isEmpty ? null : _goalCtrl.text.trim(),
       );
       await FirestoreService.updateUser(widget.user.uid, {
@@ -79,14 +86,16 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     }
   }
 
-  Widget _numberField(String label, String unit, TextEditingController controller) {
+  Widget _numberField(
+    String label,
+    String unit,
+    TextEditingController controller,
+  ) {
     return AppTextField(
       label: label,
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-      ],
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
       textInputAction: TextInputAction.next,
       suffix: Padding(
         padding: const EdgeInsets.only(right: AppSpacing.base),

@@ -33,10 +33,15 @@ class TrainerSavedWorkoutCard extends StatelessWidget {
     ].join(' · ');
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.hairline)),
       ),
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.sm,
+        AppSpacing.screenH,
+        AppSpacing.md,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -45,12 +50,27 @@ class TrainerSavedWorkoutCard extends StatelessWidget {
               AppTag(workout.category.label),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text(summary, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodySm),
+                child: Text(
+                  summary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodySm,
+                ),
               ),
-              AppIconButton(icon: AppIcons.edit, label: '기록 수정', onPressed: onEdit, color: AppColors.body),
+              AppIconButton(
+                icon: AppIcons.edit,
+                label: '기록 수정',
+                onPressed: onEdit,
+                color: AppColors.body,
+              ),
               Transform.translate(
                 offset: const Offset(12, 0),
-                child: AppIconButton(icon: AppIcons.trash, label: '기록 삭제', onPressed: onDelete, color: AppColors.body),
+                child: AppIconButton(
+                  icon: AppIcons.trash,
+                  label: '기록 삭제',
+                  onPressed: onDelete,
+                  color: AppColors.body,
+                ),
               ),
             ],
           ),
@@ -96,7 +116,9 @@ class _SavedExerciseRow extends StatelessWidget {
 
   String _strengthSummary(Exercise exercise) {
     if (exercise.sets.isEmpty) return '0세트';
-    final max = exercise.sets.map((s) => s.weight).reduce((a, b) => a > b ? a : b);
+    final max = exercise.sets
+        .map((s) => s.weight)
+        .reduce((a, b) => a > b ? a : b);
     return '${exercise.sets.length}세트 · 최고 ${trainerFormatWeight(max)}kg';
   }
 

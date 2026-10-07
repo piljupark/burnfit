@@ -17,6 +17,7 @@ import '../../services/meal_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_section.dart';
 import '../../widgets/app_icon_box.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_tag.dart';
@@ -24,6 +25,7 @@ import '../../widgets/calendar_marks.dart';
 import '../../widgets/notification_bell_button.dart';
 import '../../widgets/orb_loader.dart';
 
+import 'member_pt_workout_screen.dart';
 import 'member_routes.dart';
 
 class MemberCalendarScreen extends StatefulWidget {
@@ -39,6 +41,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime _selectedDay = DateTime.now();
   List<Workout> _workouts = [];
+
   /// 예약 상태 세션 (선택한 날 목록의 'PT 예약' 줄).
   List<PtSession> _ptSessions = [];
 
@@ -112,7 +115,9 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
       setState(() {
         _workouts = results[0] as List<Workout>;
         _meals = results[1] as List<Meal>;
-        _unreadFeedbackCount = allFeedbacks.where((item) => !item.isRead).length;
+        _unreadFeedbackCount = allFeedbacks
+            .where((item) => !item.isRead)
+            .length;
         _feedbacks = allFeedbacks.where((item) {
           final targetDate = item.targetDate;
           return targetDate != null &&
@@ -120,10 +125,12 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
               targetDate.compareTo(endKey) <= 0;
         }).toList();
         final sessions = results[3] as List<PtSession>;
-        _activePtSessions =
-            sessions.where((item) => item.status != PtSessionStatus.cancelled).toList();
-        _ptSessions =
-            sessions.where((item) => item.status == PtSessionStatus.scheduled).toList();
+        _activePtSessions = sessions
+            .where((item) => item.status != PtSessionStatus.cancelled)
+            .toList();
+        _ptSessions = sessions
+            .where((item) => item.status == PtSessionStatus.scheduled)
+            .toList();
         _errorMessage = null;
       });
     } catch (e) {
@@ -179,7 +186,8 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final records = _selectedWorkouts.length +
+    final records =
+        _selectedWorkouts.length +
         _selectedPtReservations.length +
         _selectedMeals.length +
         _selectedFeedbacks.length;
@@ -195,7 +203,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
           backgroundColor: AppColors.canvasCard,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 120),
+            padding: const EdgeInsets.only(bottom: AppSize.navClearance),
             children: [
               if (widget.showGreeting)
                 AppHero(
@@ -217,18 +225,24 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
               _CalendarGrid(
                 focusedMonth: _focusedMonth,
                 selectedDay: _selectedDay,
-                marks: buildCalendarMarks(sessions: _activePtSessions, workouts: _workouts),
+                marks: buildCalendarMarks(
+                  sessions: _activePtSessions,
+                  workouts: _workouts,
+                ),
                 onSelect: (day) => setState(() => _selectedDay = day),
               ),
               const Padding(
-                padding: EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.sm,
+                  AppSpacing.screenH,
+                  0,
+                ),
                 child: CalendarLegend(),
               ),
               AppMonthHeader(
                 label: _dayLabel(_selectedDay),
-                count: _isLoading || _errorMessage != null
-                    ? null
-                    : '$records건',
+                count: _isLoading || _errorMessage != null ? null : '$records건',
               ),
               if (_isLoading)
                 const Padding(
@@ -236,10 +250,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
                   child: Center(child: OrbLoader.screen()),
                 )
               else if (_errorMessage != null)
-                AppErrorCard(
-                  message: _errorMessage!,
-                  onRetry: _loadMonth,
-                )
+                AppErrorCard(message: _errorMessage!, onRetry: _loadMonth)
               else
                 _DayRecords(
                   workouts: _selectedWorkouts,
@@ -274,7 +285,12 @@ class _MonthHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.sm, AppSpacing.xs, AppSpacing.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.sm,
+        AppSpacing.xs,
+        AppSpacing.sm,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -284,12 +300,20 @@ class _MonthHeader extends StatelessWidget {
               excludeSemantics: true,
               child: Text(
                 DateFormat('yyyy.MM').format(month),
-                style: AppTextStyles.eyebrow.copyWith(color: AppColors.ink, fontSize: 13, height: 17 / 13),
+                style: AppTextStyles.eyebrow.copyWith(
+                  color: AppColors.ink,
+                  fontSize: 13,
+                  height: 17 / 13,
+                ),
               ),
             ),
           ),
           AppIconButton(icon: AppIcons.back, label: '이전 달', onPressed: onPrev),
-          AppIconButton(icon: AppIcons.forward, label: '다음 달', onPressed: onNext),
+          AppIconButton(
+            icon: AppIcons.forward,
+            label: '다음 달',
+            onPressed: onNext,
+          ),
         ],
       ),
     );
@@ -333,7 +357,13 @@ class _CalendarGrid extends StatelessWidget {
                 for (final label in weekdayLabels)
                   Expanded(
                     child: Center(
-                      child: Text(label, style: AppTextStyles.bodySm.copyWith(fontSize: 12, height: 16 / 12)),
+                      child: Text(
+                        label,
+                        style: AppTextStyles.bodySm.copyWith(
+                          fontSize: 12,
+                          height: 16 / 12,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -356,7 +386,11 @@ class _CalendarGrid extends StatelessWidget {
                 return const SizedBox.shrink();
               }
 
-              final day = DateTime(focusedMonth.year, focusedMonth.month, dayNumber);
+              final day = DateTime(
+                focusedMonth.year,
+                focusedMonth.month,
+                dayNumber,
+              );
               final key = _key(day);
               return _DayCell(
                 day: day,
@@ -403,8 +437,8 @@ class _DayCell extends StatelessWidget {
     final numberColor = isSelected
         ? AppColors.onPrimary
         : isFuture
-            ? AppColors.body
-            : AppColors.ink;
+        ? AppColors.body
+        : AppColors.ink;
 
     return Semantics(
       button: true,
@@ -424,11 +458,16 @@ class _DayCell extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSelected ? AppColors.primary : Colors.transparent,
-                border: !isSelected && isToday ? Border.all(color: AppColors.ink) : null,
+                border: !isSelected && isToday
+                    ? Border.all(color: AppColors.ink)
+                    : null,
               ),
               child: Text(
                 '${day.day}',
-                style: AppTextStyles.buttonLabel.copyWith(color: numberColor, height: 18 / 14),
+                style: AppTextStyles.buttonLabel.copyWith(
+                  color: numberColor,
+                  height: 18 / 14,
+                ),
               ),
             ),
             const Gap(3),
@@ -463,17 +502,14 @@ class _DayRecords extends StatelessWidget {
         ptReservations.isEmpty &&
         meals.isEmpty &&
         feedbacks.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.xl),
-        child: Text('이 날의 기록이 없습니다', style: AppTextStyles.bodySm),
-      );
+      return const AppEmptyLine('이 날의 기록이 없습니다');
     }
 
     // 화면 폭 목록: 줄마다 아래 hairline
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final workout in workouts) _workoutRow(workout),
+        for (final workout in workouts) _workoutRow(context, workout),
         for (final reservation in ptReservations) _reservationRow(reservation),
         for (final meal in meals) _mealRow(meal),
         for (final feedback in feedbacks) _feedbackRow(feedback),
@@ -481,7 +517,7 @@ class _DayRecords extends StatelessWidget {
     );
   }
 
-  Widget _workoutRow(Workout workout) {
+  Widget _workoutRow(BuildContext context, Workout workout) {
     final detail = [
       workout.category.label,
       '${workout.totalSets}세트',
@@ -493,6 +529,12 @@ class _DayRecords extends StatelessWidget {
       title: isPt ? 'PT 운동' : '개인운동',
       detail: detail,
       tag: isPt ? const AppTag('PT', strong: true) : const AppTag('개인'),
+      // PT 운동은 트레이너가 남긴 기록 화면으로 간다.
+      onTap: isPt
+          ? () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MemberPtWorkoutScreen()),
+            )
+          : null,
     );
   }
 
@@ -555,9 +597,12 @@ class _RecordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final row = Container(
-      constraints: const BoxConstraints(minHeight: 64),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.md),
-      decoration: const BoxDecoration(
+      constraints: const BoxConstraints(minHeight: AppSize.listRow),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.base,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.hairline)),
       ),
       child: Row(
@@ -572,7 +617,12 @@ class _RecordRow extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(title, style: AppTextStyles.bodyLg, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        title,
+                        style: AppTextStyles.bodyLg,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     if (meta != null) ...[
                       const Gap(AppSpacing.sm),
@@ -593,7 +643,7 @@ class _RecordRow extends StatelessWidget {
           if (tag != null) ...[const Gap(AppSpacing.md), tag!],
           if (onTap != null) ...[
             const Gap(AppSpacing.sm),
-            const Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+            Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
           ],
         ],
       ),
@@ -626,7 +676,7 @@ class _RecordShortcuts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.hairline)),
       ),
       child: IntrinsicHeight(
@@ -640,7 +690,7 @@ class _RecordShortcuts extends StatelessWidget {
                 onTap: onMealTap,
               ),
             ),
-            const VerticalDivider(width: 1, thickness: 1, color: AppColors.hairline),
+            VerticalDivider(width: 1, thickness: 1, color: AppColors.hairline),
             Expanded(
               child: _ShortcutCell(
                 icon: AppIcons.feedback,
@@ -682,7 +732,10 @@ class _ShortcutCell extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.base,
+            vertical: AppSpacing.md,
+          ),
           child: Row(
             children: [
               Icon(icon, size: AppSize.icon, color: AppColors.ink),

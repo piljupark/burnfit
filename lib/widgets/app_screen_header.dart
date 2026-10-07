@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+import 'app_action_row.dart';
 import 'app_icon_button.dart';
 
 /// 하위 화면 앱바: 뒤로 버튼 + 제목(20) + 오른쪽 행동. 높이 56, 그림자 없음.
+/// 화면 폭에 그대로 놓는다 — 좌우 여백(16)과 아래 hairline을 스스로 그린다 (감싸지 않는다).
 ///
-/// - [subtitle]은 제목 아래 보조 줄(body-sm).
-/// - [divider]가 true면 아래에 1px hairline (화면 폭으로 놓을 때).
-/// - 오른쪽 행동은 AppIconButton 최대 3개 또는 글자 버튼(AppButton ghost).
+/// - [subtitle]은 제목 아래 보조 줄(body-sm). 날짜는 넣지 않는다.
+/// - [divider]는 기본 true. 바로 아래가 날짜 줄·탭처럼 자체 경계가 있으면 false.
+/// - 오른쪽 행동은 AppIconButton 최대 3개 또는 글자 버튼(AppButton ghost). 가장자리 정렬은 위젯이 맞춘다.
 class AppScreenHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -24,23 +25,25 @@ class AppScreenHeader extends StatelessWidget {
     this.subtitle,
     this.onBack,
     this.trailing,
-    this.divider = false,
+    this.divider = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final bar = Container(
       constraints: const BoxConstraints(minHeight: AppSize.appBar),
-      decoration: divider
-          ? const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline)))
-          : null,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
       child: Row(
         children: [
           if (onBack != null) ...[
             // 앱바 안에서는 아이콘을 시각적으로 화면 가장자리에 맞춘다
             Transform.translate(
               offset: const Offset(-12, 0),
-              child: AppIconButton(icon: AppIcons.back, label: '뒤로', onPressed: onBack),
+              child: AppIconButton(
+                icon: AppIcons.back,
+                label: '뒤로',
+                onPressed: onBack,
+              ),
             ),
           ],
           Expanded(
@@ -50,16 +53,34 @@ class AppScreenHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: AppTextStyles.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    title,
+                    style: AppTextStyles.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   if (subtitle != null)
-                    Text(subtitle!, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      subtitle!,
+                      style: AppTextStyles.bodySm,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                 ],
               ),
             ),
           ),
-          if (trailing != null) trailing!,
+          // 오른쪽 아이콘 버튼도 시각적으로 화면 가장자리에 맞춘다
+          if (trailing != null)
+            Transform.translate(offset: const Offset(12, 0), child: trailing),
         ],
       ),
+    );
+    if (!divider) return bar;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [bar, const AppRowDivider()],
     );
   }
 }

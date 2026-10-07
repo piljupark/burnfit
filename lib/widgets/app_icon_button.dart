@@ -11,7 +11,7 @@ class AppIconButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool outlined;
   final bool showDot;
-  final Color color;
+  final Color? color;
 
   const AppIconButton({
     super.key,
@@ -20,7 +20,7 @@ class AppIconButton extends StatelessWidget {
     required this.onPressed,
     this.outlined = false,
     this.showDot = false,
-    this.color = AppColors.ink,
+    this.color,
   });
 
   @override
@@ -34,7 +34,9 @@ class AppIconButton extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           shape: CircleBorder(
-            side: outlined ? const BorderSide(color: AppColors.outline) : BorderSide.none,
+            side: outlined
+                ? BorderSide(color: AppColors.outline)
+                : BorderSide.none,
           ),
           child: InkWell(
             customBorder: const CircleBorder(),
@@ -45,7 +47,13 @@ class AppIconButton extends StatelessWidget {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  Icon(icon, size: AppSize.icon, color: onPressed == null ? AppColors.mute : color),
+                  Icon(
+                    icon,
+                    size: AppSize.icon,
+                    color: onPressed == null
+                        ? AppColors.mute
+                        : (color ?? AppColors.ink),
+                  ),
                   if (showDot)
                     Positioned(
                       top: 11,
@@ -53,7 +61,10 @@ class AppIconButton extends StatelessWidget {
                       child: Container(
                         width: 6,
                         height: 6,
-                        decoration: const BoxDecoration(color: AppColors.ink, shape: BoxShape.circle),
+                        decoration: BoxDecoration(
+                          color: AppColors.ink,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
                 ],

@@ -45,7 +45,8 @@ class ExerciseInputCard extends StatelessWidget {
 
   String get _comparisonCaption {
     return switch (comparison.tone) {
-      ComparisonTone.up || ComparisonTone.down => '지난 기록 대비 ${comparison.label}',
+      ComparisonTone.up ||
+      ComparisonTone.down => '지난 기록 대비 ${comparison.label}',
       ComparisonTone.same => '지난 기록과 동일',
       ComparisonTone.muted => comparison.label,
     };
@@ -73,7 +74,12 @@ class ExerciseInputCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.base, AppSpacing.screenH, AppSpacing.xs),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.base,
+              AppSpacing.screenH,
+              AppSpacing.xs,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -113,11 +119,22 @@ class ExerciseInputCard extends StatelessWidget {
                   height: 28,
                   child: Row(
                     children: [
-                      const SizedBox(width: _setNumberWidth, child: _HeaderText('세트', align: TextAlign.start)),
+                      const SizedBox(
+                        width: _setNumberWidth,
+                        child: _HeaderText('세트', align: TextAlign.start),
+                      ),
                       const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: _HeaderText(_headerLabel(exercise.primaryMetricLabel))),
+                      Expanded(
+                        child: _HeaderText(
+                          _headerLabel(exercise.primaryMetricLabel),
+                        ),
+                      ),
                       const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: _HeaderText(_headerLabel(exercise.secondaryMetricLabel))),
+                      Expanded(
+                        child: _HeaderText(
+                          _headerLabel(exercise.secondaryMetricLabel),
+                        ),
+                      ),
                       const SizedBox(width: AppSpacing.sm),
                       const SizedBox(width: AppSize.touchMin),
                     ],
@@ -156,7 +173,8 @@ class ExerciseInputCard extends StatelessWidget {
                           variant: AppButtonVariant.ghost,
                           size: AppButtonSize.sm,
                           icon: const Icon(AppIcons.remove),
-                          onPressed: () => onRemoveSet(exercise.sets.length - 1),
+                          onPressed: () =>
+                              onRemoveSet(exercise.sets.length - 1),
                         ),
                       ),
                   ],
@@ -182,7 +200,11 @@ class _HeaderText extends StatelessWidget {
     return Text(
       monoCase(label),
       textAlign: align,
-      style: monoOrSans(label, mono: AppTextStyles.counter, sans: AppTextStyles.captionSmall),
+      style: monoOrSans(
+        label,
+        mono: AppTextStyles.counter,
+        sans: AppTextStyles.captionSmall,
+      ),
     );
   }
 }
@@ -265,10 +287,14 @@ class _WorkoutSetRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          SetDoneButton(number: number, done: done, current: current, onTap: onToggleDone),
+          SetDoneButton(
+            number: number,
+            done: done,
+            current: current,
+            onTap: onToggleDone,
+          ),
         ],
       ),
     );
   }
 }
-

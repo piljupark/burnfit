@@ -23,13 +23,20 @@ class TrainerShareBlockedMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.xl3),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+          vertical: AppSpacing.xl3,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(AppIcons.eyeSlash, color: AppColors.mute, size: 28),
+            Icon(AppIcons.eyeSlash, color: AppColors.mute, size: 28),
             const SizedBox(height: AppSpacing.md),
-            Text(message, textAlign: TextAlign.center, style: AppTextStyles.bodySm),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySm,
+            ),
           ],
         ),
       ),
@@ -70,12 +77,15 @@ class TrainerMealsTab extends StatelessWidget {
         final meal = meals[i];
         final meta = [
           meal.mealType.label,
-          if (meal.mealTime != null && meal.mealTime!.isNotEmpty) meal.mealTime!,
+          if (meal.mealTime != null && meal.mealTime!.isNotEmpty)
+            meal.mealTime!,
           if (meal.calories != null) '${meal.calories} kcal',
         ].join(' · ');
         return _DatedRecordRow(
           date: meal.mealDate,
-          title: (meal.description?.isNotEmpty ?? false) ? meal.description! : meal.mealType.label,
+          title: (meal.description?.isNotEmpty ?? false)
+              ? meal.description!
+              : meal.mealType.label,
           meta: meta,
           imageUrls: meal.imageUrls,
           hasFeedback: meal.hasFeedback,
@@ -120,7 +130,8 @@ class TrainerWorkoutsTab extends StatelessWidget {
         return _DatedRecordRow(
           date: w.workoutDate,
           title: w.exercises.map((e) => e.name).join(', '),
-          meta: '${w.category.label} · ${w.exercises.length}종목 · ${w.totalSets}세트 · 볼륨 ${w.totalVolume.toStringAsFixed(0)}kg',
+          meta:
+              '${w.category.label} · ${w.exercises.length}종목 · ${w.totalSets}세트 · 볼륨 ${w.totalVolume.toStringAsFixed(0)}kg',
           hasFeedback: w.hasFeedback,
           onFeedback: () => onFeedback(w),
         );
@@ -163,7 +174,10 @@ class TrainerCardiosTab extends StatelessWidget {
         return _DatedRecordRow(
           date: c.cardioDate,
           title: c.summary,
-          meta: [c.type.label, if (c.note != null && c.note!.isNotEmpty) c.note!].join(' · '),
+          meta: [
+            c.type.label,
+            if (c.note != null && c.note!.isNotEmpty) c.note!,
+          ].join(' · '),
           hasFeedback: c.hasFeedback,
           onFeedback: () => onFeedback(c),
         );
@@ -239,7 +253,10 @@ class _DatedRecordRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.screenH,
+            vertical: AppSpacing.md,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -251,16 +268,28 @@ class _DatedRecordRow extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: AppTextStyles.bodyLg, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        Text(
+                          title,
+                          style: AppTextStyles.bodyLg,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         if (meta.isNotEmpty)
-                          Text(meta, style: AppTextStyles.bodySm, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(
+                            meta,
+                            style: AppTextStyles.bodySm,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                       ],
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   AppButton(
                     label: hasFeedback ? '피드백 수정' : '피드백 작성',
-                    variant: hasFeedback ? AppButtonVariant.ghost : AppButtonVariant.secondary,
+                    variant: hasFeedback
+                        ? AppButtonVariant.ghost
+                        : AppButtonVariant.secondary,
                     size: AppButtonSize.sm,
                     onPressed: onFeedback,
                   ),
@@ -275,13 +304,18 @@ class _DatedRecordRow extends StatelessWidget {
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: imageUrls.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xxs),
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(width: AppSpacing.xxs),
                       itemBuilder: (_, j) => Image.network(
                         imageUrls[j],
                         width: 72,
                         height: 72,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(width: 72, height: 72, color: AppColors.canvasSoft),
+                        errorBuilder: (_, _, _) => Container(
+                          width: 72,
+                          height: 72,
+                          color: AppColors.canvasSoft,
+                        ),
                       ),
                     ),
                   ),
@@ -314,8 +348,16 @@ class TrainerDateBlock extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(top, style: AppTextStyles.counter.copyWith(fontSize: 13, height: 17 / 13, color: AppColors.ink)),
-          if (parsed != null) Text('${parsed.year}', style: AppTextStyles.counter),
+          Text(
+            top,
+            style: AppTextStyles.counter.copyWith(
+              fontSize: 13,
+              height: 17 / 13,
+              color: AppColors.ink,
+            ),
+          ),
+          if (parsed != null)
+            Text('${parsed.year}', style: AppTextStyles.counter),
         ],
       ),
     );

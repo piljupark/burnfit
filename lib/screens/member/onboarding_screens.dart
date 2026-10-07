@@ -7,11 +7,13 @@ import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
+import '../../core/validators.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/gender_selector.dart';
 
 // ── 온보딩 Step 1: 기본 정보 ──────────────────────────────────────────────
 class OnboardingBasicScreen extends StatefulWidget {
@@ -35,8 +37,9 @@ class _OnboardingBasicScreenState extends State<OnboardingBasicScreen> {
   Future<void> _next() async {
     if (_isSaving) return;
     final birth = _birthController.text.trim();
-    if (birth.length != 8) {
-      _showError('생년월일을 8자리로 입력해주세요. (예: 19900101)');
+    final birthError = Validators.birthDate(birth);
+    if (birthError != null) {
+      _showError(birthError);
       return;
     }
     if (_gender == null) {
@@ -88,24 +91,9 @@ class _OnboardingBasicScreenState extends State<OnboardingBasicScreen> {
         const Gap(AppSpacing.xl),
         Text('성별', style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
         const Gap(AppSpacing.sm),
-        Row(
-          children: [
-            Expanded(
-              child: _GenderOption(
-                label: '남성',
-                selected: _gender == Gender.male,
-                onTap: () => setState(() => _gender = Gender.male),
-              ),
-            ),
-            const Gap(AppSpacing.sm),
-            Expanded(
-              child: _GenderOption(
-                label: '여성',
-                selected: _gender == Gender.female,
-                onTap: () => setState(() => _gender = Gender.female),
-              ),
-            ),
-          ],
+        GenderSelector(
+          value: _gender,
+          onChanged: (g) => setState(() => _gender = g),
         ),
       ],
       actions: [
@@ -153,11 +141,17 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
     try {
       final user = context.read<UserProvider>().user;
       if (user == null) return;
+      final m = Validators.bodyMetrics(
+        height: _heightController.text,
+        weight: _weightController.text,
+        muscleMass: _muscleController.text,
+        bodyFat: _bodyFatController.text,
+      );
       final profile = UserProfile(
-        height: double.tryParse(_heightController.text),
-        weight: double.tryParse(_weightController.text),
-        muscleMass: double.tryParse(_muscleController.text),
-        bodyFat: double.tryParse(_bodyFatController.text),
+        height: m.height,
+        weight: m.weight,
+        muscleMass: m.muscleMass,
+        bodyFat: m.bodyFat,
         goal: _goalController.text.trim().isEmpty
             ? null
             : _goalController.text.trim(),
@@ -193,8 +187,12 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
               child: AppTextField(
                 label: '키 (cm)',
                 controller: _heightController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                ],
                 textInputAction: TextInputAction.next,
               ),
             ),
@@ -203,8 +201,12 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
               child: AppTextField(
                 label: '체중 (kg)',
                 controller: _weightController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                ],
                 textInputAction: TextInputAction.next,
               ),
             ),
@@ -219,8 +221,12 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
                 label: '골격근량 (kg)',
                 hint: '선택',
                 controller: _muscleController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                ],
                 textInputAction: TextInputAction.next,
               ),
             ),
@@ -230,8 +236,12 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
                 label: '체지방 (kg)',
                 hint: '선택',
                 controller: _bodyFatController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                ],
                 textInputAction: TextInputAction.next,
               ),
             ),
@@ -258,9 +268,8 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
         AppButton(
           label: '나중에 입력',
           variant: AppButtonVariant.ghost,
-          onPressed: () => Navigator.of(
-            context,
-          ).pushReplacementNamed(AppRoutes.memberHome),
+          onPressed: () =>
+              Navigator.of(context).pushReplacementNamed(AppRoutes.memberHome),
           fullWidth: true,
         ),
       ],
@@ -316,7 +325,12 @@ class _OnboardingScaffold extends StatelessWidget {
                       child: Text(title, style: AppTextStyles.displayMd),
                     ),
                     const Gap(AppSpacing.sm),
-                    Text(description, style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
+                    Text(
+                      description,
+                      style: AppTextStyles.bodyMd.copyWith(
+                        color: AppColors.body,
+                      ),
+                    ),
                     const Gap(AppSpacing.xl2),
                     ...fields,
                   ],
@@ -330,7 +344,7 @@ class _OnboardingScaffold extends StatelessWidget {
                 AppSpacing.screenH,
                 AppSpacing.base,
               ),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.hairline)),
               ),
               child: Column(
@@ -378,44 +392,3 @@ class _OnboardingProgress extends StatelessWidget {
 }
 
 /// 성별 선택 pill (선택 = 흰 채움, 아니면 외곽선). 높이 48.
-class _GenderOption extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _GenderOption({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      inMutuallyExclusiveGroup: true,
-      label: label,
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: selected ? AppColors.primary : AppColors.outline),
-          ),
-          child: Text(
-            label,
-            style: AppTextStyles.bodyMd.copyWith(
-              color: selected ? AppColors.onPrimary : AppColors.ink,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

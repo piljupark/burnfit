@@ -13,7 +13,6 @@ import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_async_body.dart';
-import '../../widgets/app_avatar.dart';
 import '../../widgets/app_filter_tabs.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
@@ -110,9 +109,8 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
       case _MemberFilter.unassigned:
         return member.trainerId == null || member.trainerId!.isEmpty;
       case _MemberFilter.lowPt:
-        return info != null &&
-            info.remainingSessions > 0 &&
-            info.remainingSessions <= 3;
+        // 0회도 포함 (갱신이 가장 급한 회원)
+        return info != null && info.remainingSessions <= 3;
       case _MemberFilter.expiring:
         final endDate = info?.endDate;
         if (endDate == null) return false;
@@ -133,23 +131,17 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
   }
 
   Future<void> _openDetail(AppUser m) async {
-    final updated = await Navigator.of(context).push<AppUser>(
+    await Navigator.of(context).push<AppUser>(
       MaterialPageRoute(builder: (_) => AdminMemberDetailScreen(member: m)),
     );
-    if (updated == null || !mounted) return;
-    setState(() {
-      final idx = _members.indexWhere((item) => item.uid == updated.uid);
-      if (idx != -1) {
-        _members[idx] = updated;
-      }
-    });
-    _filter();
+    // 상세에서 담당 트레이너·PT권을 바꿨을 수 있다 (뒤로 가기 방식과 관계없이) → 목록과 PT 칩을 다시 불러온다.
+    if (mounted) await _load();
   }
 
   void _openRequests() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AdminRequestsScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AdminRequestsScreen()));
   }
 
   @override
@@ -170,21 +162,14 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
           children: [
             // 탭으로 열리면 AppHero, 메뉴에서 밀어 열리면 뒤로 버튼 앱바.
             if (canPop) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-                child: AppScreenHeader(
-                  title: '회원 관리',
-                  subtitle: '${_members.length}명',
-                  onBack: () => Navigator.of(context).pop(),
-                  trailing: Transform.translate(offset: const Offset(12, 0), child: requestsButton),
-                ),
+              AppScreenHeader(
+                title: '회원 관리',
+                subtitle: '${_members.length}명',
+                onBack: () => Navigator.of(context).pop(),
+                trailing: requestsButton,
               ),
-              const AppRowDivider(),
             ] else
-              AppHero(
-                title: '회원',
-                actions: [requestsButton],
-              ),
+              AppHero(title: '회원', actions: [requestsButton]),
             // 검색
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -205,7 +190,9 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: AppScrollableChips(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenH,
+                ),
                 labels: [
                   '전체 ${_members.length}',
                   '미배정 ${_filterCount(_MemberFilter.unassigned)}',
@@ -290,10 +277,10 @@ class _MemberListItem extends StatelessWidget {
     final Widget? tag = expired
         ? const AppTag('만료', muted: true)
         : _unassigned
-            ? const AppTag('PT 없음')
-            : days != null
-                ? AppTag('D-$days', strong: days <= 14)
-                : null;
+        ? const AppTag('PT 없음')
+        : days != null
+        ? AppTag('D-$days', strong: days <= 14)
+        : null;
 
     return Semantics(
       button: true,
@@ -302,24 +289,29 @@ class _MemberListItem extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 64),
+          constraints: const BoxConstraints(minHeight: AppSize.listRow),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Row(
               children: [
-                AppAvatar(name: member.name, seed: member.uid),
-                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         member.name,
-                        style: AppTextStyles.bodyLg.copyWith(color: expired ? AppColors.mute : AppColors.ink),
+                        style: AppTextStyles.bodyLg.copyWith(
+                          color: expired ? AppColors.mute : AppColors.ink,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Text(meta, style: AppTextStyles.bodySm, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(
+                        meta,
+                        style: AppTextStyles.bodySm,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),

@@ -26,7 +26,9 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
     final uid = context.watch<UserProvider>().user?.uid;
     if (uid != _uid) {
       _uid = uid;
-      _unreadCount = uid == null ? null : NotificationService.watchUnreadCount(uid);
+      _unreadCount = uid == null
+          ? null
+          : NotificationService.watchUnreadCount(uid);
     }
   }
 

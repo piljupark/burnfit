@@ -118,7 +118,7 @@ class _MemberWorkoutStatsScreenState extends State<MemberWorkoutStatsScreen> {
       final stats = _stats!;
       body = ListView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 120),
+        padding: const EdgeInsets.only(bottom: AppSize.navClearance),
         children: [
           _SummaryStrip(stats: stats),
           _InsightGrid(stats: stats),
@@ -137,16 +137,18 @@ class _MemberWorkoutStatsScreenState extends State<MemberWorkoutStatsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '운동 통계',
-                subtitle: '나의 운동 현황을 한눈에',
-                onBack: () => Navigator.of(context).pop(),
-              ),
+            AppScreenHeader(
+              title: '운동 통계',
+              subtitle: '나의 운동 현황을 한눈에',
+              onBack: () => Navigator.of(context).pop(),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.sm),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                0,
+                AppSpacing.screenH,
+                AppSpacing.sm,
+              ),
               child: AppFilterTabs(
                 tabs: const ['이번 주', '이번 달'],
                 selectedIndex: _period == _Period.weekly ? 0 : 1,
@@ -198,9 +200,24 @@ class _SummaryStrip extends StatelessWidget {
 
     return AppStatStrip(
       cells: [
-        AppKpiCard(framed: false, label: '운동 일수', value: '${stats.totalWorkoutDays}', unit: '일'),
-        AppKpiCard(framed: false, label: '총 볼륨', value: volumeValue, unit: volumeUnit),
-        AppKpiCard(framed: false, label: '총 세트', value: '${stats.totalSets}', unit: '세트'),
+        AppKpiCard(
+          framed: false,
+          label: '운동 일수',
+          value: '${stats.totalWorkoutDays}',
+          unit: '일',
+        ),
+        AppKpiCard(
+          framed: false,
+          label: '총 볼륨',
+          value: volumeValue,
+          unit: volumeUnit,
+        ),
+        AppKpiCard(
+          framed: false,
+          label: '총 세트',
+          value: '${stats.totalSets}',
+          unit: '세트',
+        ),
       ],
     );
   }
@@ -216,12 +233,26 @@ class _InsightGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bestDay = stats.bestVolumeDay;
-    final bestDate = bestDay == null ? null : DateFormat('MM.dd').format(DateTime.parse(bestDay.date));
+    final bestDate = bestDay == null
+        ? null
+        : DateFormat('MM.dd').format(DateTime.parse(bestDay.date));
 
     return AppStatGrid(
       cells: [
-        AppKpiCard(framed: false, valueSize: 20, label: '최근 연속', value: '${stats.activeStreakDays}', unit: '일'),
-        AppKpiCard(framed: false, valueSize: 20, label: '운동 횟수', value: '${stats.totalSessions}', unit: '회'),
+        AppKpiCard(
+          framed: false,
+          valueSize: 20,
+          label: '최근 연속',
+          value: '${stats.activeStreakDays}',
+          unit: '일',
+        ),
+        AppKpiCard(
+          framed: false,
+          valueSize: 20,
+          label: '운동 횟수',
+          value: '${stats.totalSessions}',
+          unit: '회',
+        ),
         AppKpiCard(
           framed: false,
           valueSize: 20,
@@ -254,7 +285,9 @@ class _VolumeBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = stats.dailyVolumes;
-    final peak = days.isEmpty ? 0.0 : days.map((d) => d.volume).reduce((a, b) => a > b ? a : b);
+    final peak = days.isEmpty
+        ? 0.0
+        : days.map((d) => d.volume).reduce((a, b) => a > b ? a : b);
     final maxY = peak <= 0 ? 100.0 : peak * 1.25;
     final barWidth = period == _Period.weekly ? 16.0 : 6.0;
     final axisStyle = AppTextStyles.counter.copyWith(fontSize: 10);
@@ -284,7 +317,12 @@ class _VolumeBarChart extends StatelessWidget {
         : '${days.length}일 기록, 최고 ${_volumeText(peak)}';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.base),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.xs,
+        AppSpacing.screenH,
+        AppSpacing.base,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -304,7 +342,8 @@ class _VolumeBarChart extends StatelessWidget {
                     show: true,
                     drawVerticalLine: false,
                     horizontalInterval: maxY / 4,
-                    getDrawingHorizontalLine: (_) => const FlLine(color: AppColors.hairline, strokeWidth: 1),
+                    getDrawingHorizontalLine: (_) =>
+                        FlLine(color: AppColors.hairline, strokeWidth: 1),
                   ),
                   borderData: FlBorderData(show: false),
                   titlesData: FlTitlesData(
@@ -314,22 +353,33 @@ class _VolumeBarChart extends StatelessWidget {
                         reservedSize: 36,
                         interval: maxY / 4,
                         getTitlesWidget: (value, meta) {
-                          if (value == meta.max || value == 0) return const SizedBox.shrink();
+                          if (value == meta.max || value == 0) {
+                            return const SizedBox.shrink();
+                          }
                           return Text(_compactNumber(value), style: axisStyle);
                         },
                       ),
                     ),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 24,
                         getTitlesWidget: (value, meta) {
                           final idx = value.toInt();
-                          if (idx < 0 || idx >= days.length) return const SizedBox.shrink();
+                          if (idx < 0 || idx >= days.length) {
+                            return const SizedBox.shrink();
+                          }
                           final date = DateTime.parse(days[idx].date);
-                          if (period == _Period.monthly && days.length > 8 && date.day != 1 && date.day % 5 != 0) {
+                          if (period == _Period.monthly &&
+                              days.length > 8 &&
+                              date.day != 1 &&
+                              date.day % 5 != 0) {
                             return const SizedBox.shrink();
                           }
                           final label = period == _Period.weekly
@@ -346,7 +396,7 @@ class _VolumeBarChart extends StatelessWidget {
                   barTouchData: BarTouchData(
                     touchTooltipData: BarTouchTooltipData(
                       getTooltipColor: (_) => AppColors.canvasCard,
-                      tooltipBorder: const BorderSide(color: AppColors.hairline),
+                      tooltipBorder: BorderSide(color: AppColors.hairline),
                       tooltipRoundedRadius: AppRadius.card,
                       getTooltipItem: (group, _, rod, __) {
                         final date = DateTime.parse(days[group.x].date);
@@ -383,15 +433,20 @@ class _CategoryBreakdown extends StatefulWidget {
 class _CategoryBreakdownState extends State<_CategoryBreakdown> {
   int? _touchedIndex;
 
-  Color _colorAt(int i) => AppColors.chartSeries[i % AppColors.chartSeries.length];
+  Color _colorAt(int i) =>
+      AppColors.chartSeries[i % AppColors.chartSeries.length];
 
   @override
   Widget build(BuildContext context) {
-    final entries = widget.stats.categorySetCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final entries = widget.stats.categorySetCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     final total = entries.fold<int>(0, (sum, e) => sum + e.value);
     if (entries.isEmpty || total == 0) return const SizedBox.shrink();
 
-    final touched = _touchedIndex != null && _touchedIndex! >= 0 && _touchedIndex! < entries.length
+    final touched =
+        _touchedIndex != null &&
+            _touchedIndex! >= 0 &&
+            _touchedIndex! < entries.length
         ? entries[_touchedIndex!]
         : null;
 
@@ -409,7 +464,8 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Semantics(
-          label: '부위별 세트 분포: ${entries.map((e) => '${e.key.label} ${(e.value / total * 100).toStringAsFixed(0)}%').join(', ')}',
+          label:
+              '부위별 세트 분포: ${entries.map((e) => '${e.key.label} ${(e.value / total * 100).toStringAsFixed(0)}%').join(', ')}',
           child: SizedBox(
             height: 180,
             child: Stack(
@@ -429,7 +485,8 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
                             _touchedIndex = null;
                             return;
                           }
-                          _touchedIndex = response.touchedSection!.touchedSectionIndex;
+                          _touchedIndex =
+                              response.touchedSection!.touchedSectionIndex;
                         });
                       },
                     ),
@@ -444,8 +501,14 @@ class _CategoryBreakdownState extends State<_CategoryBreakdown> {
                             Text('세트', style: AppTextStyles.captionSmall),
                           ]
                         : [
-                            Text('${(touched.value / total * 100).toStringAsFixed(0)}%', style: AppTextStyles.displayMd),
-                            Text(touched.key.label, style: AppTextStyles.bodySm),
+                            Text(
+                              '${(touched.value / total * 100).toStringAsFixed(0)}%',
+                              style: AppTextStyles.displayMd,
+                            ),
+                            Text(
+                              touched.key.label,
+                              style: AppTextStyles.bodySm,
+                            ),
                           ],
                   ),
                 ),
@@ -490,21 +553,39 @@ class _CategoryRow extends StatelessWidget {
       label: '${category.label} $count세트, $pct퍼센트',
       excludeSemantics: true,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenH,
+          vertical: AppSpacing.md,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 // 도넛 조각과 같은 색 표시 (차트 범례)
-                Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(child: Text(category.label, style: AppTextStyles.bodyMd)),
+                Expanded(
+                  child: Text(category.label, style: AppTextStyles.bodyMd),
+                ),
                 Text('$count세트', style: AppTextStyles.bodySm),
                 const SizedBox(width: AppSpacing.sm),
                 SizedBox(
                   width: 40,
-                  child: Text('$pct%', textAlign: TextAlign.end, style: AppTextStyles.counter.copyWith(color: AppColors.body)),
+                  child: Text(
+                    '$pct%',
+                    textAlign: TextAlign.end,
+                    style: AppTextStyles.counter.copyWith(
+                      color: AppColors.body,
+                    ),
+                  ),
                 ),
               ],
             ),

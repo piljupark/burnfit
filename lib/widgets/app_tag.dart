@@ -7,10 +7,14 @@ import '../core/app_text_styles.dart';
 final _hangul = RegExp(r'[ㄱ-ㅎㅏ-ㅣ가-힣]');
 
 /// 한글이 없으면 모노 대문자, 있으면 sans로 쓴다 (Galloway: 한글을 모노로 쓰지 않는다).
-TextStyle monoOrSans(String text, {required TextStyle mono, required TextStyle sans}) =>
-    _hangul.hasMatch(text) ? sans : mono;
+TextStyle monoOrSans(
+  String text, {
+  required TextStyle mono,
+  required TextStyle sans,
+}) => _hangul.hasMatch(text) ? sans : mono;
 
-String monoCase(String text) => _hangul.hasMatch(text) ? text : text.toUpperCase();
+String monoCase(String text) =>
+    _hangul.hasMatch(text) ? text : text.toUpperCase();
 
 /// 상태·역할 태그. 외곽선 pill이 기본, [strong]은 흰 채움(완료·선택된 상태).
 /// 색으로 상태를 나타내지 않는다 — 다른 상태는 strong/외곽선/[muted]로 구분.
@@ -20,17 +24,23 @@ class AppTag extends StatelessWidget {
   final bool muted;
   final bool danger;
 
-  const AppTag(this.label, {super.key, this.strong = false, this.muted = false, this.danger = false});
+  const AppTag(
+    this.label, {
+    super.key,
+    this.strong = false,
+    this.muted = false,
+    this.danger = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final fg = strong
         ? AppColors.onPrimary
         : danger
-            ? AppColors.danger
-            : muted
-                ? AppColors.mute
-                : AppColors.body;
+        ? AppColors.danger
+        : muted
+        ? AppColors.mute
+        : AppColors.body;
     final style = monoOrSans(
       label,
       mono: AppTextStyles.counter,
@@ -42,10 +52,15 @@ class AppTag extends StatelessWidget {
       decoration: BoxDecoration(
         color: strong ? AppColors.primary : Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: strong ? AppColors.primary : AppColors.outline),
+        border: Border.all(
+          color: strong ? AppColors.primary : AppColors.outline,
+        ),
       ),
       // 글자 폭만큼만 차지한다 (부모가 넓어도 늘어나지 않게)
-      child: Center(widthFactor: 1, child: Text(monoCase(label), style: style, maxLines: 1)),
+      child: Center(
+        widthFactor: 1,
+        child: Text(monoCase(label), style: style, maxLines: 1),
+      ),
     );
   }
 }
@@ -65,7 +80,13 @@ class AppCountBadge extends StatelessWidget {
         color: AppColors.scrim,
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
-      child: Center(widthFactor: 1, child: Text(monoCase(label), style: AppTextStyles.counter.copyWith(color: AppColors.ink))),
+      child: Center(
+        widthFactor: 1,
+        child: Text(
+          monoCase(label),
+          style: AppTextStyles.counter.copyWith(color: AppColors.ink),
+        ),
+      ),
     );
   }
 }
@@ -113,7 +134,9 @@ class AppChip extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selected ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: Border.all(color: selected ? AppColors.primary : AppColors.outline),
+                border: Border.all(
+                  color: selected ? AppColors.primary : AppColors.outline,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,

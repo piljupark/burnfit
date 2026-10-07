@@ -4,8 +4,8 @@ import '../core/app_colors.dart';
 import '../core/app_logger.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+import '../core/app_routing.dart';
 import '../core/constants.dart';
-import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/user_provider.dart';
 import '../widgets/orb_loader.dart';
@@ -60,34 +60,18 @@ class _SplashScreenState extends State<SplashScreen> {
 
     AppLogger.debug('[Splash] 사용자 상태 확인 완료');
 
-    if (user.status == UserStatus.pending) {
-      AppLogger.debug('[Splash] 승인 대기: ${stopwatch.elapsedMilliseconds}ms');
-      Navigator.of(context).pushReplacementNamed(AppRoutes.pendingApproval);
-      return;
-    }
-
-    if (user.status == UserStatus.rejected) {
+    final route = startRouteFor(user);
+    AppLogger.debug(
+      '[Splash] 총 소요: ${stopwatch.elapsedMilliseconds}ms → ${route ?? '로그인(거절됨)'}',
+    );
+    stopwatch.stop();
+    if (route == null) {
       await provider.signOut();
       if (!mounted) return;
       _goLogin();
       return;
     }
-
-    AppLogger.debug('[Splash] 총 소요: ${stopwatch.elapsedMilliseconds}ms → 홈 이동');
-    stopwatch.stop();
-
-    switch (user.role) {
-      case UserRole.admin:
-        Navigator.of(context).pushReplacementNamed(AppRoutes.adminHome);
-      case UserRole.trainer:
-        Navigator.of(context).pushReplacementNamed(AppRoutes.trainerHome);
-      case UserRole.member:
-        if (user.birthDate == null) {
-          Navigator.of(context).pushReplacementNamed(AppRoutes.onboardingBasic);
-        } else {
-          Navigator.of(context).pushReplacementNamed(AppRoutes.memberHome);
-        }
-    }
+    Navigator.of(context).pushReplacementNamed(route);
   }
 
   void _goLogin() {

@@ -13,7 +13,6 @@ import '../../services/fcm_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/notification_target.dart';
 import '../../services/user_provider.dart';
-import '../../widgets/app_action_row.dart';
 import '../../widgets/app_async_body.dart';
 import '../../widgets/app_icon_box.dart';
 import '../../widgets/app_screen_header.dart';
@@ -99,15 +98,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-              child: AppScreenHeader(
-                title: '알림',
-                subtitle: '${NotificationService.retentionDays}일 동안 보관돼요',
-                onBack: () => Navigator.of(context).pop(),
-              ),
+            AppScreenHeader(
+              title: '알림',
+              subtitle: '${NotificationService.retentionDays}일 동안 보관돼요',
+              onBack: () => Navigator.of(context).pop(),
             ),
-            const AppRowDivider(),
             Expanded(
               child: AppAsyncBody(
                 isLoading: _isLoading,
@@ -149,7 +144,11 @@ class _NotificationTile extends StatelessWidget {
   final bool isNew;
   final VoidCallback? onTap;
 
-  const _NotificationTile({required this.item, required this.isNew, this.onTap});
+  const _NotificationTile({
+    required this.item,
+    required this.isNew,
+    this.onTap,
+  });
 
   static IconData _iconFor(NotificationTarget? target) {
     switch (target) {
@@ -157,6 +156,8 @@ class _NotificationTile extends StatelessWidget {
         return AppIcons.feedback;
       case NotificationTarget.ptSchedule:
         return AppIcons.calendar;
+      case NotificationTarget.home:
+        return AppIcons.home;
       case null:
         return AppIcons.bell;
     }
@@ -172,8 +173,13 @@ class _NotificationTile extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: Container(
-          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.hairline))),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: AppSpacing.md),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.hairline)),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.screenH,
+            vertical: AppSpacing.md,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -185,10 +191,18 @@ class _NotificationTile extends StatelessWidget {
                   children: [
                     Text(item.title, style: AppTextStyles.bodyLg),
                     if (item.body.isNotEmpty)
-                      Text(item.body, style: AppTextStyles.bodyMd.copyWith(color: AppColors.body)),
+                      Text(
+                        item.body,
+                        style: AppTextStyles.bodyMd.copyWith(
+                          color: AppColors.body,
+                        ),
+                      ),
                     if (item.createdAt != null) ...[
                       const SizedBox(height: AppSpacing.xs),
-                      Text(formatRelativeTime(item.createdAt!), style: AppTextStyles.bodySm),
+                      Text(
+                        formatRelativeTime(item.createdAt!),
+                        style: AppTextStyles.bodySm,
+                      ),
                     ],
                   ],
                 ),
@@ -199,7 +213,10 @@ class _NotificationTile extends StatelessWidget {
                   child: Container(
                     width: 6,
                     height: 6,
-                    decoration: const BoxDecoration(color: AppColors.ink, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: AppColors.ink,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
             ],
@@ -222,9 +239,12 @@ class _DeleteBackground extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(AppIcons.trash, color: AppColors.danger, size: AppSize.icon),
+          Icon(AppIcons.trash, color: AppColors.danger, size: AppSize.icon),
           const SizedBox(width: AppSpacing.sm),
-          Text('삭제', style: AppTextStyles.bodyMd.copyWith(color: AppColors.danger)),
+          Text(
+            '삭제',
+            style: AppTextStyles.bodyMd.copyWith(color: AppColors.danger),
+          ),
         ],
       ),
     );

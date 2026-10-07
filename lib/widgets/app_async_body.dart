@@ -26,7 +26,12 @@ class AppAsyncBody extends StatelessWidget {
     required this.onRefresh,
     required this.empty,
     required this.children,
-    this.padding = const EdgeInsets.fromLTRB(AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.xl2),
+    this.padding = const EdgeInsets.fromLTRB(
+      AppSpacing.screenH,
+      0,
+      AppSpacing.screenH,
+      AppSpacing.xl2,
+    ),
   });
 
   @override
@@ -50,7 +55,7 @@ class AppAsyncBody extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       color: AppColors.brand,
-      backgroundColor: AppColors.card,
+      backgroundColor: AppColors.canvasCard,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: padding,
