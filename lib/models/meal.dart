@@ -19,6 +19,16 @@ extension MealTypeLabel on MealType {
   }
 }
 
+/// 시각으로 끼니를 짐작한다 (식단 입력 기본값용).
+/// 5–10시 아침, 11–14시 점심, 17–20시 저녁, 그 밖은 간식.
+MealType mealTypeForTime(DateTime time) {
+  final h = time.hour;
+  if (h >= 5 && h < 11) return MealType.breakfast;
+  if (h >= 11 && h < 15) return MealType.lunch;
+  if (h >= 17 && h < 21) return MealType.dinner;
+  return MealType.snack;
+}
+
 class Meal {
   final String id;
   final String centerId;

@@ -90,6 +90,26 @@ void main() {
       await shot('13_meal_log');
       await back(tester);
     });
+    await step('nutrition guide', () async {
+      await tester.tap(find.text('식단 기록').first);
+      await wait(tester);
+      await tester.tap(find.text('뭐 먹을지 고민될 때'));
+      await wait(tester);
+      await shot('13a_nutrition_guide');
+      await tester.tap(find.text('단백질'));
+      await wait(tester);
+      await shot('13b_food_list');
+      await tester.tap(find.text('닭가슴살'));
+      await wait(tester);
+      await shot('13c_food_sheet');
+      await tester.tap(find.textContaining('식단에 추가'));
+      await wait(tester);
+      await shot('13d_meal_input_prefilled');
+      // 입력 → 목록 → 가이드 → 식단 기록 순으로 닫는다 (저장하지 않음)
+      for (var i = 0; i < 4; i++) {
+        await back(tester);
+      }
+    });
     await step('member scroll', () async {
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -500));
       await wait(tester, 800);

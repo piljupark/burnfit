@@ -29,6 +29,11 @@ class MealInputSheet extends StatefulWidget {
   final String? trainerId;
   final String selectedDate;
 
+  /// 영양 가이드에서 음식을 골라 열 때 미리 채울 값. 모두 사용자가 고칠 수 있다.
+  final MealType? initialMealType;
+  final String? initialDescription;
+  final int? initialCalories;
+
   const MealInputSheet({
     super.key,
     required this.centerId,
@@ -36,6 +41,9 @@ class MealInputSheet extends StatefulWidget {
     required this.memberName,
     this.trainerId,
     required this.selectedDate,
+    this.initialMealType,
+    this.initialDescription,
+    this.initialCalories,
   });
 
   @override
@@ -43,9 +51,9 @@ class MealInputSheet extends StatefulWidget {
 }
 
 class _MealInputSheetState extends State<MealInputSheet> {
-  MealType _mealType = MealType.lunch;
-  final _descController = TextEditingController();
-  final _caloriesController = TextEditingController();
+  late MealType _mealType = widget.initialMealType ?? MealType.lunch;
+  late final _descController = TextEditingController(text: widget.initialDescription);
+  late final _caloriesController = TextEditingController(text: widget.initialCalories?.toString());
   final List<XFile> _images = [];
   final List<Uint8List> _imageBytes = [];
   bool _isSaving = false;
@@ -227,7 +235,7 @@ class _MealInputSheetState extends State<MealInputSheet> {
                       padding: const EdgeInsets.only(right: AppSpacing.base),
                       child: Center(
                         widthFactor: 1,
-                        child: Text('KCAL', style: AppTextStyles.counter),
+                        child: Text('kcal', style: AppTextStyles.counter),
                       ),
                     ),
                     textInputAction: TextInputAction.done,

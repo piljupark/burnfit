@@ -9,6 +9,7 @@ import '../../core/app_logger.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/feedback.dart' as fb;
+import '../../models/food_guide.dart';
 import '../../models/meal.dart';
 import '../../services/firestore_service.dart';
 import '../../services/meal_service.dart';
@@ -16,6 +17,7 @@ import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_avatar.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
 import '../../widgets/app_filter_tabs.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
@@ -23,7 +25,9 @@ import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/orb_loader.dart';
+import 'food_detail_sheet.dart';
 import 'meal_input_sheet.dart';
+import 'nutrition_guide_screen.dart';
 
 class MemberMealLogScreen extends StatefulWidget {
   /// 처음 보여줄 날짜. 없으면 오늘.
@@ -140,9 +144,14 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   int get _totalCalories =>
       _meals.fold<int>(0, (sum, m) => sum + (m.calories ?? 0));
 
-  Future<void> _addMeal() async {
+  /// 식단 입력 화면을 연다. 저장되면 목록을 다시 불러오고 true.
+  Future<bool> _openMealInput({
+    MealType? initialMealType,
+    String? initialDescription,
+    int? initialCalories,
+  }) async {
     final user = context.read<UserProvider>().user;
-    if (user == null) return;
+    if (user == null) return false;
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => MealInputSheet(
@@ -151,10 +160,43 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
           memberName: user.name,
           trainerId: user.trainerId,
           selectedDate: _dateKey,
+          initialMealType: initialMealType,
+          initialDescription: initialDescription,
+          initialCalories: initialCalories,
         ),
       ),
     );
-    if (result == true) _load();
+    if (result != true) return false;
+    _load();
+    return true;
+  }
+
+  Future<void> _addMeal() => _openMealInput();
+
+  /// 영양 가이드. 음식 상세의 추가 버튼은 선택한 날짜의 식단 입력을 미리 채워 연다.
+  void _openNutritionGuide() {
+    final isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
+    final dayLabel = isToday ? '오늘' : DateFormat('M월 d일', 'ko').format(_selectedDate);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NutritionGuideScreen(
+          addAction: FoodAddAction(label: '$dayLabel 식단에 추가', onAdd: _addFoodToMeals),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addFoodToMeals(FoodItem food) async {
+    final saved = await _openMealInput(
+      initialMealType: mealTypeForTime(DateTime.now()),
+      initialDescription: food.mealDescription,
+      initialCalories: food.kcal,
+    );
+    if (!saved || !mounted) return;
+    // 가이드·목록 화면을 닫고 방금 저장한 식단이 보이는 이 화면으로 돌아온다.
+    final self = ModalRoute.of(context);
+    Navigator.of(context).popUntil((route) => route == self);
+    AppFeedback.showSuccessSnackBar(context, '${food.name}을(를) 식단에 추가했어요');
   }
 
   Future<void> _deleteMeal(Meal meal) async {
@@ -215,7 +257,6 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
               padding: const EdgeInsets.only(left: AppSpacing.screenH, right: AppSpacing.xs),
               child: AppScreenHeader(
                 title: '식단 기록',
-                subtitle: DateFormat('M월 d일 (E)', 'ko').format(_selectedDate),
                 onBack: canPop ? () => Navigator.of(context).pop() : null,
                 trailing: AppIconButton(
                   icon: AppIcons.add,
@@ -266,12 +307,31 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
                             label: '총 $kcal 킬로칼로리, $mealCount끼',
                             excludeSemantics: true,
                             child: Text(
-                              '$kcal KCAL · $mealCount ${mealCount == 1 ? 'MEAL' : 'MEALS'}',
-                              style: AppTextStyles.eyebrow,
+                              '${kcal}kcal · $mealCount끼',
+                              style: AppTextStyles.bodySm,
                             ),
                           ),
                         ),
                       ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.screenH,
+                          AppSpacing.md,
+                          AppSpacing.screenH,
+                          0,
+                        ),
+                        child: AppCard(
+                          padding: EdgeInsets.zero,
+                          child: AppActionRow(
+                            icon: AppIcons.meal,
+                            label: '뭐 먹을지 고민될 때',
+                            subtitle: '상황별 · 영양소별 추천 음식 보기',
+                            onTap: _openNutritionGuide,
+                          ),
+                        ),
+                      ),
+                    ),
                     if (_isLoading)
                       const SliverToBoxAdapter(
                         child: Padding(
@@ -442,7 +502,7 @@ class _MealEntry extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 3),
                   child: Text(
-                    '${NumberFormat('#,###').format(meal.calories)} KCAL',
+                    '${NumberFormat('#,###').format(meal.calories)}kcal',
                     style: AppTextStyles.counter.copyWith(color: AppColors.body),
                   ),
                 ),
