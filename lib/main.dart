@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -21,28 +24,46 @@ import 'services/user_provider.dart';
 
 final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
+/// 개발용: `--dart-define=USE_FIREBASE_EMULATOR=true`로 빌드하면 로컬 Firebase 에뮬레이터에 붙는다.
+/// 정식 빌드에는 이 값이 없으므로 항상 실제 프로젝트를 쓴다.
+const bool useFirebaseEmulator = bool.fromEnvironment('USE_FIREBASE_EMULATOR');
+const String _emulatorHost = String.fromEnvironment('FIREBASE_EMULATOR_HOST', defaultValue: '127.0.0.1');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await bootstrapApp();
+  runApp(const PtSolutionApp());
+}
 
+/// Firebase·로케일·(선택) 알림 초기화. 화면 투어 통합 테스트도 이 함수를 쓴다.
+Future<void> bootstrapApp({bool withMessaging = true}) async {
   final stopwatch = Stopwatch()..start();
   AppLogger.debug('[Main] Firebase 초기화 시작');
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   AppLogger.debug('[Main] Firebase 초기화 완료: ${stopwatch.elapsedMilliseconds}ms');
 
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
+  if (useFirebaseEmulator) {
+    await FirebaseAuth.instance.useAuthEmulator(_emulatorHost, 9099);
+    FirebaseFirestore.instance.useFirestoreEmulator(_emulatorHost, 8080);
+    await FirebaseStorage.instance.useStorageEmulator(_emulatorHost, 9199);
+    FirebaseFunctions.instance.useFunctionsEmulator(_emulatorHost, 5001);
+    AppLogger.debug('[Main] Firebase 에뮬레이터 연결: $_emulatorHost');
+  }
+
+  FirebaseFirestore.instance.settings = Settings(
+    persistenceEnabled: !useFirebaseEmulator,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
   await initializeDateFormatting('ko_KR', null);
   AppLogger.debug('[Main] 로케일 초기화 완료: ${stopwatch.elapsedMilliseconds}ms');
 
-  await FcmService.initialize(messengerKey: scaffoldMessengerKey);
-  AppLogger.debug('[Main] FCM 초기화 완료: ${stopwatch.elapsedMilliseconds}ms');
-
+  if (withMessaging) {
+    await FcmService.initialize(messengerKey: scaffoldMessengerKey);
+    AppLogger.debug('[Main] FCM 초기화 완료: ${stopwatch.elapsedMilliseconds}ms');
+  }
   stopwatch.stop();
-  runApp(const PtSolutionApp());
 }
 
 class PtSolutionApp extends StatelessWidget {

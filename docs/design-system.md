@@ -80,3 +80,19 @@
 - 터치 영역 44 이상. 아이콘만 있는 버튼은 `AppIconButton(label:)`으로 이름을 준다.
 - 색만으로 상태를 구분하지 않는다 (모양·글자를 함께).
 
+## 화면 확인 (화면 투어)
+
+디자인을 바꾼 뒤에는 실제 화면을 iOS 시뮬레이터에서 찍어 확인한다. 로컬 에뮬레이터만 쓰며 실제 Firebase에는 접근하지 않는다.
+
+```bash
+# 1) 에뮬레이터 (앱과 같은 프로젝트 ID, 로컬 전용)
+firebase emulators:start --project burnfit-v01 --only auth,firestore,storage,functions
+# 2) 예시 데이터 (다른 터미널)
+cd functions && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 \
+  GCLOUD_PROJECT=burnfit-v01 node integration/seed_screens.js
+# 3) 화면 투어 → build/screen_tour/*.png
+flutter drive -d <iOS 시뮬레이터> --driver=test_driver/integration_test.dart \
+  --target=integration_test/screen_tour_test.dart --dart-define=USE_FIREBASE_EMULATOR=true
+```
+
+`--dart-define=USE_FIREBASE_EMULATOR=true`는 개발 빌드에서만 쓴다 (`lib/main.dart`).
