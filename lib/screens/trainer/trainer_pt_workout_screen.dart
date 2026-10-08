@@ -10,6 +10,7 @@ import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/custom_exercise.dart';
+import '../../models/feedback.dart' as fb;
 import '../../models/pt_session.dart';
 import '../../models/user.dart';
 import '../../models/workout.dart';
@@ -28,8 +29,10 @@ import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/feedback_sheet.dart';
 import '../../widgets/orb_loader.dart';
 import 'trainer_exercise_input.dart';
+import 'trainer_pt_done_screen.dart';
 import 'trainer_saved_card.dart';
 import 'trainer_workout_models.dart';
 import 'trainer_workout_sheets.dart';
@@ -307,9 +310,10 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     setState(() => _saving = true);
     try {
       final wasEditing = _editingWorkoutId != null;
+      Workout? saved;
 
       if (_editingWorkoutId == null) {
-        final saved = await WorkoutService.saveWorkout(
+        saved = await WorkoutService.saveWorkout(
           centerId: widget.member.centerId,
           memberId: widget.member.uid,
           memberName: widget.member.name,
@@ -330,8 +334,8 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
         // 새 기록이 또 생기지 않고 같은 기록을 고친 뒤 완료 처리를 다시 시도한다.
         if (mounted) {
           setState(() {
-            _savedWorkouts = [saved, ..._savedWorkouts];
-            _editingWorkoutId = saved.id;
+            _savedWorkouts = [saved!, ..._savedWorkouts];
+            _editingWorkoutId = saved!.id;
           });
         }
       } else {
@@ -357,10 +361,11 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       await _load();
 
       if (!mounted) return;
-      AppFeedback.showSuccessSnackBar(
-        context,
-        wasEditing ? '운동 기록을 수정했습니다.' : 'PT 기록을 저장하고 완료 처리했습니다.',
-      );
+      if (wasEditing) {
+        AppFeedback.showSuccessSnackBar(context, '운동 기록을 수정했습니다.');
+      } else {
+        await _showPtDone(trainer, saved!);
+      }
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
@@ -369,6 +374,52 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
         setState(() => _saving = false);
       }
     }
+  }
+
+  Future<void> _showPtDone(AppUser trainer, Workout saved) async {
+    final ptInfo = await FirestoreService.getPtInfo(
+      widget.member.uid,
+      centerId: widget.member.centerId,
+    );
+    if (!mounted) return;
+
+    final action = await Navigator.of(context).push<TrainerPtDoneAction>(
+      MaterialPageRoute(
+        builder: (_) => TrainerPtDoneScreen(
+          memberName: widget.member.name,
+          remainingSessions: ptInfo?.remainingSessions ?? 0,
+          exerciseCount: saved.exercises.length,
+          setCount: saved.totalSets,
+          totalVolumeKg: saved.totalVolume,
+        ),
+      ),
+    );
+    if (!mounted || action != TrainerPtDoneAction.feedback) return;
+
+    fb.Feedback? existing;
+    try {
+      existing = await FirestoreService.getFeedbackByTarget(
+        saved.id,
+        centerId: widget.member.centerId,
+        memberId: widget.member.uid,
+        trainerId: trainer.uid,
+      );
+    } catch (_) {
+      existing = null;
+    }
+    if (!mounted) return;
+    await FeedbackSheet.show(
+      context,
+      centerId: widget.member.centerId,
+      trainerId: trainer.uid,
+      trainerName: trainer.name,
+      memberId: widget.member.uid,
+      memberName: widget.member.name,
+      targetType: fb.FeedbackTargetType.workout,
+      targetId: saved.id,
+      targetDate: saved.workoutDate,
+      existing: existing,
+    );
   }
 
   void _editWorkout(Workout workout) {
