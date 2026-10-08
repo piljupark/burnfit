@@ -63,12 +63,15 @@ class _NoticeMenuRowState extends State<NoticeMenuRow> {
               width: 6,
               height: 6,
               decoration: BoxDecoration(
-                color: AppColors.ink,
+                color: AppColors.newDot,
                 shape: BoxShape.circle,
               ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            Text('새 글 $_unread', style: AppTextStyles.bodySm),
+            Text(
+              '새 글 $_unread',
+              style: AppTextStyles.bodySm.copyWith(color: AppColors.noticeText),
+            ),
             const SizedBox(width: AppSpacing.xs),
           ],
           Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),

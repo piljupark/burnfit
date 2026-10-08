@@ -77,7 +77,11 @@ class NoticeTile extends StatelessWidget {
                     Row(
                       children: [
                         if (notice.pinned) ...[
-                          Icon(noticePinIcon, size: 14, color: AppColors.ink),
+                          Icon(
+                            noticePinIcon,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(width: AppSpacing.xs),
                         ],
                         Expanded(
@@ -106,7 +110,7 @@ class NoticeTile extends StatelessWidget {
                     width: 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: AppColors.ink,
+                      color: AppColors.newDot,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -189,7 +193,7 @@ class NoticeArticle extends StatelessWidget {
             if (notice.pinned) ...[
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Icon(noticePinIcon, size: 16, color: AppColors.ink),
+                child: Icon(noticePinIcon, size: 16, color: AppColors.primary),
               ),
               const SizedBox(width: AppSpacing.sm),
             ],

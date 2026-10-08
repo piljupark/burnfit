@@ -138,7 +138,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 }
 
-/// 알림 한 줄: 아이콘 상자 + 제목(17) + 내용 + 시각. 새 알림은 오른쪽 흰 점(모양)으로 표시한다.
+/// 알림 한 줄: 아이콘 상자 + 제목(17) + 내용 + 시각. 새 알림은 오른쪽 주황 점으로 표시한다.
 class _NotificationTile extends StatelessWidget {
   final AppNotification item;
   final bool isNew;
@@ -216,7 +216,7 @@ class _NotificationTile extends StatelessWidget {
                     width: 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: AppColors.ink,
+                      color: AppColors.newDot,
                       shape: BoxShape.circle,
                     ),
                   ),

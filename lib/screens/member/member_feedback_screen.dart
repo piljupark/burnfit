@@ -206,7 +206,7 @@ class _FeedbackRow extends StatelessWidget {
                   height: 6,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isNew ? AppColors.ink : Colors.transparent,
+                    color: isNew ? AppColors.newDot : Colors.transparent,
                   ),
                 ),
               ),

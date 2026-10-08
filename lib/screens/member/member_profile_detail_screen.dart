@@ -489,10 +489,11 @@ class _TrendPainter extends CustomPainter {
     canvas.drawPath(path, line);
 
     final dot = Paint()..color = AppColors.ink;
+    final latestDot = Paint()..color = AppColors.primary;
     final hole = Paint()..color = AppColors.canvas;
     for (var i = 0; i < points.length; i++) {
       final isLast = i == points.length - 1;
-      canvas.drawCircle(points[i], isLast ? 4 : 3, dot);
+      canvas.drawCircle(points[i], isLast ? 4 : 3, isLast ? latestDot : dot);
       if (!isLast) canvas.drawCircle(points[i], 1.5, hole);
     }
 

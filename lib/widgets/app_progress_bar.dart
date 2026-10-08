@@ -8,12 +8,14 @@ class AppProgressBar extends StatelessWidget {
   final double value;
   final double height;
   final String? semanticLabel;
+  final Color? color;
 
   const AppProgressBar({
     super.key,
     required this.value,
     this.height = 2,
     this.semanticLabel,
+    this.color,
   });
 
   @override
@@ -31,7 +33,7 @@ class AppProgressBar extends StatelessWidget {
           child: FractionallySizedBox(
             widthFactor: clamped,
             heightFactor: 1,
-            child: ColoredBox(color: AppColors.ink),
+            child: ColoredBox(color: color ?? AppColors.ink),
           ),
         ),
       ),

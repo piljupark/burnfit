@@ -87,6 +87,7 @@ class _FoodDetail extends StatelessWidget {
           label: '단백질',
           grams: food.protein,
           share: share(food.protein, 4),
+          highlight: true,
         ),
         _MacroRow(
           label: '탄수화물',
@@ -155,11 +156,13 @@ class _MacroRow extends StatelessWidget {
   final String label;
   final double grams;
   final double share;
+  final bool highlight;
 
   const _MacroRow({
     required this.label,
     required this.grams,
     required this.share,
+    this.highlight = false,
   });
 
   @override
@@ -179,7 +182,13 @@ class _MacroRow extends StatelessWidget {
                 style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
               ),
             ),
-            Expanded(child: AppProgressBar(value: share, height: 4)),
+            Expanded(
+              child: AppProgressBar(
+                value: share,
+                height: 4,
+                color: highlight ? AppColors.primary : null,
+              ),
+            ),
             SizedBox(
               width: 56,
               child: Text(

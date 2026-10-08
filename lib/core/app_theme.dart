@@ -175,7 +175,7 @@ class AppTheme {
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
-              ? AppColors.ink
+              ? AppColors.primary
               : AppColors.canvasMid,
         ),
         trackOutlineColor: WidgetStatePropertyAll(AppColors.outline),

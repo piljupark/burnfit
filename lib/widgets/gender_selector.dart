@@ -68,16 +68,16 @@ class _GenderOption extends StatelessWidget {
           height: 48,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
+            color: selected ? AppColors.ink : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(
-              color: selected ? AppColors.primary : AppColors.outline,
+              color: selected ? AppColors.ink : AppColors.outline,
             ),
           ),
           child: Text(
             label,
             style: AppTextStyles.bodyMd.copyWith(
-              color: selected ? AppColors.onPrimary : AppColors.ink,
+              color: selected ? AppColors.canvas : AppColors.ink,
             ),
           ),
         ),

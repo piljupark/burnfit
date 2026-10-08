@@ -11,6 +11,7 @@
 4. **화면 글자는 한글.** 영어 라벨(`DONE`, `10.07 WED`, `KCAL` 등)을 쓰지 않는다 (2026-10-07 통일). 남기는 것: 단위(`kg`, `kcal`, `g` — 소문자), `PT`, `BMI`, `InBody`, 앱 이름. 날짜는 `10월 7일 (수)`. Geist Mono(`eyebrow`, `counter`)는 `2026.10`, `D-12`, `12 / 30` 같은 숫자에만 쓰고, 한글을 모노로 쓰지 않는다.
 5. **그림자 대신 hairline.** 층은 1px `hairline` 테두리와 면 색(`canvas` → `canvasCard` → `canvasSoft`)으로만 나눈다. `BoxShadow`, gradient, elevation 금지.
 6. **상태는 색이 아니라 모양.** 완료/선택 = 흰 채움(`AppTag(strong: true)`, 채운 원), 진행/대기 = 외곽선, 취소 = 흐린 글자(`muted`). 운동·식단·트레이너 같은 도메인 색 구분은 없다.
+   - **예외 — 강조점.** 캘린더 PT 표시(완료 ●/예약 ○), 토글 on, "새 글"·"새 알림" 점, 체성분·영양소 그래프의 최신값 강조는 `primary`(#FF7A33) 또는 "새 글" 전용 `newDot`(#FF5A1F)을 쓴다. 이 점들은 "주 행동"이 아니라 눈에 띄어야 하는 데이터 포인트라서 8번 원칙(화면당 주 행동 하나) 대상이 아니다. 반대로 역할·성별 같은 **선택 pill**은 이 예외에 해당하지 않고 검정(`ink`) 채움을 쓴다(`GenderSelector`, 로그인 역할 선택과 동일 패턴).
 7. **빨강(`danger`)은 되돌릴 수 없는 행동의 글자에만.** 빨간 채움 배경은 쓰지 않는다.
 8. **주 행동은 화면당 하나.** 흰 채움(`AppButton` primary)은 화면당 한 번. 나머지는 외곽선(`secondary`)이나 글자(`ghost`).
 9. **움직임은 Orb 하나.** 로딩은 `OrbLoader`/`AppLoadingView`. `CircularProgressIndicator`, 스켈레톤, 장식 애니메이션 금지.

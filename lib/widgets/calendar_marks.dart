@@ -7,10 +7,10 @@ import '../core/app_text_styles.dart';
 import '../models/pt_session.dart';
 import '../models/workout.dart';
 
-/// 캘린더 날짜 아래 표시. 색이 아니라 모양으로 구분한다.
-/// - PT 완료: 채운 점 ●
-/// - PT 예약: 빈 원 ○
-/// - 개인운동: 짧은 막대 ▬
+/// 캘린더 날짜 아래 표시.
+/// - PT 완료: 주황 채운 점 ●
+/// - PT 예약: 주황 빈 원 ○
+/// - 개인운동: 검정 짧은 막대 ▬
 enum CalendarMark {
   ptDone('PT 완료'),
   ptScheduled('PT 예약'),
@@ -72,7 +72,7 @@ class CalendarMarkIcon extends StatelessWidget {
           width: 5,
           height: 5,
           decoration: BoxDecoration(
-            color: AppColors.ink,
+            color: AppColors.primary,
             shape: BoxShape.circle,
           ),
         );
@@ -82,7 +82,7 @@ class CalendarMarkIcon extends StatelessWidget {
           height: 5,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.ink),
+            border: Border.all(color: AppColors.primary),
           ),
         );
       case CalendarMark.personal:
