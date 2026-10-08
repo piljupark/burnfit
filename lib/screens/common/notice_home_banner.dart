@@ -72,9 +72,13 @@ class _NoticeHomeBannerState extends State<NoticeHomeBanner> {
   }
 
   void _open(Notice n) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => NoticeDetailScreen(notice: n)));
+    final centerName = context.read<UserProvider>().user?.centerName ?? '';
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            NoticeDetailScreen(notice: n, centerName: centerName),
+      ),
+    );
   }
 
   @override

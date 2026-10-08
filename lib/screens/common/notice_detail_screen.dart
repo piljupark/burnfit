@@ -8,7 +8,12 @@ import '../../widgets/notice_widgets.dart';
 /// 공지 상세 (회원·트레이너 공용, 읽기 전용).
 class NoticeDetailScreen extends StatelessWidget {
   final Notice notice;
-  const NoticeDetailScreen({super.key, required this.notice});
+  final String centerName;
+  const NoticeDetailScreen({
+    super.key,
+    required this.notice,
+    this.centerName = '',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +34,7 @@ class NoticeDetailScreen extends StatelessWidget {
                   AppSpacing.screenH,
                   AppSpacing.xl2,
                 ),
-                child: NoticeArticle(notice: notice),
+                child: NoticeArticle(notice: notice, centerName: centerName),
               ),
             ),
           ],

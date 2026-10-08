@@ -48,6 +48,9 @@ class NoticeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final highlight = notice.important;
+    final chevronColor = highlight ? AppColors.noticeText : AppColors.mute;
+
     return Semantics(
       button: true,
       label: [
@@ -60,10 +63,23 @@ class NoticeTile extends StatelessWidget {
         onTap: onTap,
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
+        borderRadius: highlight
+            ? BorderRadius.circular(AppRadius.button)
+            : null,
         child: Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.hairline)),
-          ),
+          margin: highlight
+              ? const EdgeInsets.symmetric(vertical: AppSpacing.xs)
+              : null,
+          decoration: highlight
+              ? BoxDecoration(
+                  color: AppColors.noticeBg,
+                  borderRadius: BorderRadius.circular(AppRadius.button),
+                )
+              : BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: AppColors.hairline),
+                  ),
+                ),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.screenH,
             vertical: AppSpacing.md,
@@ -80,7 +96,9 @@ class NoticeTile extends StatelessWidget {
                           Icon(
                             noticePinIcon,
                             size: 14,
-                            color: AppColors.primary,
+                            color: highlight
+                                ? AppColors.noticeText
+                                : AppColors.primary,
                           ),
                           const SizedBox(width: AppSpacing.xs),
                         ],
@@ -97,7 +115,9 @@ class NoticeTile extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       noticeMetaLine(notice, showAudience: showAudience),
-                      style: AppTextStyles.bodySm,
+                      style: AppTextStyles.bodySm.copyWith(
+                        color: highlight ? AppColors.noticeText : null,
+                      ),
                     ),
                   ],
                 ),
@@ -116,7 +136,7 @@ class NoticeTile extends StatelessWidget {
                   ),
                 ),
               const SizedBox(width: AppSpacing.sm),
-              Icon(AppIcons.forward, size: 16, color: AppColors.mute),
+              Icon(AppIcons.forward, size: 16, color: chevronColor),
             ],
           ),
         ),
@@ -172,39 +192,43 @@ List<Widget> buildNoticeListChildren({
   ];
 }
 
-/// 공지 본문 (제목 · 보조 줄 · 내용).
+/// 공지 본문 (중요 라벨 · 제목 · 보조 줄 · 내용).
 class NoticeArticle extends StatelessWidget {
   final Notice notice;
   final bool showAudience;
+  final String centerName;
   const NoticeArticle({
     super.key,
     required this.notice,
     this.showAudience = false,
+    this.centerName = '',
   });
 
   @override
   Widget build(BuildContext context) {
+    final meta = <String>[
+      if (centerName.isNotEmpty) centerName,
+      if (notice.createdAt != null) formatNoticeDate(notice.createdAt),
+      if (showAudience) '${notice.audience.label} 대상',
+      if (notice.isEdited) '수정됨',
+    ].join(' · ');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (notice.pinned) ...[
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Icon(noticePinIcon, size: 16, color: AppColors.primary),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-            ],
-            Expanded(child: Text(notice.title, style: AppTextStyles.title)),
-          ],
+        if (notice.important) ...[
+          Text(
+            '중요 공지',
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.noticeText),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+        ],
+        Text(
+          notice.title,
+          style: AppTextStyles.title.copyWith(fontSize: 24),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Text(
-          noticeMetaLine(notice, showAudience: showAudience),
-          style: AppTextStyles.bodySm,
-        ),
+        Text(meta, style: AppTextStyles.bodySm),
         const SizedBox(height: AppSpacing.lg),
         Divider(height: 1, color: AppColors.hairline),
         const SizedBox(height: AppSpacing.lg),
@@ -283,14 +307,23 @@ Future<NoticeSheetAction?> showImportantNoticeSheet(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Container(
+          width: 64,
+          height: 64,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.noticeBg,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+          ),
+          child: Icon(AppIcons.megaphone, size: 34, color: AppColors.noticeText),
+        ),
+        const SizedBox(height: AppSpacing.base),
         Text(
           centerName.isEmpty ? '중요 공지' : '$centerName 공지',
-          style: AppTextStyles.bodySm,
+          style: AppTextStyles.bodySm.copyWith(color: AppColors.noticeText),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xxs),
         Text(notice.title, style: AppTextStyles.title),
-        const SizedBox(height: AppSpacing.xs),
-        Text(formatNoticeDate(notice.createdAt), style: AppTextStyles.bodySm),
         const SizedBox(height: AppSpacing.md),
         Text(
           notice.body,
@@ -303,26 +336,45 @@ Future<NoticeSheetAction?> showImportantNoticeSheet(
           builder: (ctx) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AppButton(
-                label: '확인',
-                fullWidth: true,
-                size: AppButtonSize.lg,
-                onPressed: () =>
-                    Navigator.of(ctx).pop(NoticeSheetAction.confirm),
+              Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      label: '자세히 보기',
+                      fullWidth: true,
+                      size: AppButtonSize.lg,
+                      variant: AppButtonVariant.secondary,
+                      onPressed: () =>
+                          Navigator.of(ctx).pop(NoticeSheetAction.detail),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: AppButton(
+                      label: '확인',
+                      fullWidth: true,
+                      size: AppButtonSize.lg,
+                      variant: AppButtonVariant.dark,
+                      onPressed: () =>
+                          Navigator.of(ctx).pop(NoticeSheetAction.confirm),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: '자세히 보기',
-                fullWidth: true,
-                variant: AppButtonVariant.secondary,
-                onPressed: () =>
-                    Navigator.of(ctx).pop(NoticeSheetAction.detail),
-              ),
-              AppButton(
-                label: '다시 보지 않기',
-                fullWidth: true,
-                variant: AppButtonVariant.ghost,
-                onPressed: () => Navigator.of(ctx).pop(NoticeSheetAction.never),
+              Center(
+                child: TextButton(
+                  onPressed: () =>
+                      Navigator.of(ctx).pop(NoticeSheetAction.never),
+                  child: Text(
+                    '다시 보지 않기',
+                    style: AppTextStyles.bodySm.copyWith(
+                      color: AppColors.mute,
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppColors.mute,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

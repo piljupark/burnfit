@@ -63,6 +63,7 @@ class AppIcons {
 
   // ── 도메인 ─────────────────────────────────────────────────────────────────
   static const IconData bell = PhosphorIconsLight.bell;
+  static const IconData megaphone = PhosphorIconsLight.megaphone;
   static const IconData meal = PhosphorIconsLight.forkKnife;
   static const IconData feedback = PhosphorIconsLight.chatCircleText;
   static const IconData note = PhosphorIconsLight.notePencil;

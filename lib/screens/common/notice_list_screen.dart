@@ -80,9 +80,12 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   }
 
   void _open(Notice n) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => NoticeDetailScreen(notice: n)));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            NoticeDetailScreen(notice: n, centerName: _centerName),
+      ),
+    );
   }
 
   @override
