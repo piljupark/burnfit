@@ -1140,4 +1140,49 @@ describe('firestore feedback rules', () => {
     // 공유를 끈 회원의 개인 운동에는 잇지 못한다.
     await assertFails(updateDoc(doc(db, 'workouts', 'workout-personal'), link));
   });
+  it('담당이 바뀌면 새 담당 트레이너가 이전 담당자의 피드백을 읽되 고치지는 못한다', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await updateDoc(doc(db, 'users', memberId), { trainerId: newTrainerId });
+      await setDoc(doc(db, 'feedbacks', 'feedback-target'), {
+        id: 'feedback-target',
+        centerId,
+        trainerId,
+        trainerName: '트레이너',
+        memberId,
+        memberName: '회원',
+        targetType: 'workout',
+        targetId: 'workout-x',
+        targetDate: '2026-07-20',
+        content: '이전 담당자 피드백',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    });
+    const newDb = authedDb(newTrainerId);
+
+    await assertSucceeds(getDoc(doc(newDb, 'feedbacks', 'feedback-target')));
+    // 앱이 쓰는 대상별 조회 (회원 조건 포함)
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(newDb, 'feedbacks'),
+          where('targetId', '==', 'workout-x'),
+          where('centerId', '==', centerId),
+          where('memberId', '==', memberId),
+        ),
+      ),
+    );
+    await assertFails(
+      updateDoc(doc(newDb, 'feedbacks', 'feedback-target'), {
+        content: '고친 내용',
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(deleteDoc(doc(newDb, 'feedbacks', 'feedback-target')));
+    // 담당이 아닌 이전 트레이너는 더 이상 읽지 못한다.
+    await assertFails(
+      getDoc(doc(authedDb(trainerId), 'feedbacks', 'feedback-target')),
+    );
+  });
 });

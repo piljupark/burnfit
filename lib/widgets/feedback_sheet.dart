@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../core/app_colors.dart';
 import '../core/app_icons.dart';
@@ -26,9 +27,13 @@ class FeedbackSheet extends StatefulWidget {
   final String? targetDate;
   final fb.Feedback? existing;
 
-  /// [existing]을 고칠 때 대상 기록에 피드백 연결도 다시 한다.
-  /// 이전에 피드백 문서만 만들고 연결이 실패했던 기록(대상의 hasFeedback이 false)에 쓴다.
-  final bool relinkTarget;
+  /// 대상 기록에 이미 피드백이 이어져 있다(hasFeedback). 그러면 연결값을 덮어쓰지 않는다
+  /// — 담당이 바뀌어 이전 트레이너의 피드백이 있어도 함께 남는다.
+  /// false면 저장할 때 잇는다 (앞서 문서만 만들고 연결이 실패한 기록도 이때 다시 잇는다).
+  final bool targetLinked;
+
+  /// 같은 기록에 다른(이전 담당) 트레이너가 남긴 피드백. 읽기 전용으로 위에 보여 준다.
+  final List<fb.Feedback> others;
 
   /// 저장을 시작하면 그 작업을 알린다. 저장 중에 시트가 끌어내려 닫혀도
   /// [show]가 작업이 끝나기를 기다렸다가 부모에게 다시 불러오라고(true) 알리기 위함이다.
@@ -45,9 +50,30 @@ class FeedbackSheet extends StatefulWidget {
     this.targetId,
     this.targetDate,
     this.existing,
-    this.relinkTarget = false,
+    this.targetLinked = false,
+    this.others = const [],
     this.onSaveStarted,
   });
+
+  /// 기록 하나의 피드백을 불러와 내 것(가장 최근 하나)과 다른 트레이너 것으로 나눈다.
+  /// [show]의 `existing`·`others`에 그대로 넘긴다.
+  static Future<({fb.Feedback? mine, List<fb.Feedback> others})> loadForTarget({
+    required String targetId,
+    required String centerId,
+    required String memberId,
+    required String trainerId,
+  }) async {
+    final all = await FirestoreService.getFeedbacksByTarget(
+      targetId,
+      centerId: centerId,
+      memberId: memberId,
+    );
+    final mine = all.where((f) => f.trainerId == trainerId).lastOrNull;
+    return (
+      mine: mine,
+      others: all.where((f) => f.trainerId != trainerId).toList(),
+    );
+  }
 
   /// 저장했거나, 저장하던 중 시트가 닫혀 무언가 쓰였을 수 있으면 true.
   static Future<bool?> show(
@@ -61,7 +87,8 @@ class FeedbackSheet extends StatefulWidget {
     String? targetId,
     String? targetDate,
     fb.Feedback? existing,
-    bool relinkTarget = false,
+    bool targetLinked = false,
+    List<fb.Feedback> others = const [],
   }) async {
     Future<void>? lastSave;
     final result = await showAppBottomSheet<bool>(
@@ -77,7 +104,8 @@ class FeedbackSheet extends StatefulWidget {
         targetId: targetId,
         targetDate: targetDate,
         existing: existing,
-        relinkTarget: relinkTarget,
+        targetLinked: targetLinked,
+        others: others,
         onSaveStarted: (save) => lastSave = save,
       ),
     );
@@ -220,7 +248,7 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
     final existing = widget.existing;
     if (existing != null) {
       await FirestoreService.updateFeedbackContent(existing.id, content);
-      if (widget.relinkTarget) await _linkTarget(existing.id);
+      if (!widget.targetLinked) await _linkTarget(existing.id);
       return;
     }
 
@@ -231,7 +259,7 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
         await FirestoreService.updateFeedbackContent(createdId, content);
         _createdContent = content;
       }
-      await _linkTarget(createdId);
+      if (!widget.targetLinked) await _linkTarget(createdId);
       return;
     }
 
@@ -255,7 +283,7 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
     );
     _createdId = id;
     _createdContent = content;
-    await _linkTarget(id);
+    if (!widget.targetLinked) await _linkTarget(id);
   }
 
   /// 대상 기록(식단·운동·유산소)에 피드백 id를 잇는다. 같은 값을 다시 써도 안전하다.
@@ -319,6 +347,26 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
               ),
             ),
             const SizedBox(height: AppSpacing.base),
+            // 이전 담당 트레이너의 피드백 (인수인계): 읽기 전용, 길면 안에서 스크롤
+            if (widget.others.isNotEmpty) ...[
+              Text('이전 피드백', style: AppTextStyles.fieldLabel.natural),
+              const SizedBox(height: AppSpacing.sm),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final (i, other) in widget.others.indexed) ...[
+                        if (i > 0) const SizedBox(height: AppSpacing.sm),
+                        FeedbackQuote(feedback: other, showDate: true),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.base),
+            ],
             // 빠른 문구: 14 mute 라벨 → 8 → 36 pill (사이 8)
             // pill 위아래 터치 여백 4를 빼고 시안 간격(8 · 16)을 맞춘다.
             Text('자주 쓰는 문구', style: AppTextStyles.fieldLabel.natural),
@@ -414,4 +462,53 @@ class _FeedbackTemplate {
   final String content;
 
   const _FeedbackTemplate(this.label, this.content);
+}
+
+/// 트레이너 피드백 상자 (시안 MemB-MealLog): 회색 면, 반경 14, 안쪽 14/16, 테두리 없음.
+/// 본문(15, 줄 1.5) → 위 6 '이름 트레이너 · 시각'(13 mute). [showDate]면 시각 대신 날짜.
+/// 회원 식단 기록과 트레이너 피드백 시트('이전 피드백')가 함께 쓴다.
+class FeedbackQuote extends StatelessWidget {
+  final fb.Feedback feedback;
+  final bool showDate;
+
+  const FeedbackQuote({
+    super.key,
+    required this.feedback,
+    this.showDate = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = feedback.trainerName.trim();
+    final who = name.isEmpty ? '트레이너' : '$name 트레이너';
+    final when = showDate
+        ? appDayLabel(feedback.createdAt)
+        : DateFormat('HH:mm').format(feedback.createdAt);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: 14,
+        horizontal: AppSpacing.base,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.field),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            feedback.content,
+            style: AppTextStyles.bodyMd.copyWith(height: 1.5),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$who · $when',
+            style: AppTextStyles.bodySm,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -76,6 +76,7 @@
 | `showAppBottomSheet` + `AppBottomSheetHeader` + `AppSheetAction` | 하단 시트, 시트 안 행동 줄 |
 | `AppEmptyState` | 그림 + 20 제목 + 설명 + (선택) 주 행동 — 화면 전체가 빈 경우 |
 | `AppEmptyLine` | 목록 자리의 짧은 빈 상태 한 줄: 52 높이, 14 mute ("이 날의 기록이 없습니다") |
+| `FeedbackSheet` · `FeedbackQuote` (`feedback_sheet.dart`) | 트레이너 피드백 작성 시트(같은 기록에 다른 — 이전 담당 — 트레이너 피드백이 있으면 위에 읽기 전용 '이전 피드백'), 피드백 상자(회색 · 반경 14 — 회원 식단 기록과 공용). 기록 하나에 피드백이 여러 개 남을 수 있다 |
 | `AppKeyValueRow` | 52 키/값 줄 (라벨 15 body · 값 16/500 + 단위 mute) — 회원 상세 PT 정보, 인바디 상세 |
 | `workout_parts.dart` | 회원·트레이너 운동 공용: `WorkoutPickerRow`(운동 고르기 줄) · `WorkoutExerciseMenuSheet` · `WorkoutSavedExerciseRow`(+ 유산소 요약 계산) · `WorkoutCollapsedRow` · `WorkoutSummaryStats`(요약 3칸) · 완료 화면 `DoneConfirmButton`·`DoneTextLink`. 차이는 매개변수(회원 모양이 기본) |
 | `showAppConfirmDialog` | 확인 다이얼로그: 제목 + 설명 (+ 선택 `warning` 주황 콜아웃) + 2열 전체폭 버튼(취소 회색 · 확정 주황, 파괴적이면 검정). `showDialog`를 직접 쓰지 않는다 |

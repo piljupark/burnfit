@@ -260,7 +260,8 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   }
 
   /// [targetLinked]: 대상 기록에 이미 피드백이 이어져 있는지 (hasFeedback).
-  /// 내 피드백 문서는 있는데 연결이 안 된 기록(앞서 연결만 실패)이면 고칠 때 연결도 다시 한다.
+  /// 이어져 있으면 연결값을 덮어쓰지 않고(이전 담당 트레이너 피드백과 함께 남는다),
+  /// 아니면 저장할 때 잇는다. 이전 담당자의 피드백은 시트 위에 읽기 전용으로 보인다.
   Future<void> _writeFeedback({
     required fb.FeedbackTargetType type,
     String? targetId,
@@ -274,15 +275,18 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     _openingFeedback = true;
     try {
       fb.Feedback? existing;
+      var others = const <fb.Feedback>[];
       try {
-        existing = targetId == null
-            ? null
-            : await FirestoreService.getFeedbackByTarget(
-                targetId,
-                centerId: widget.member.centerId,
-                memberId: widget.member.uid,
-                trainerId: trainer.uid,
-              );
+        if (targetId != null) {
+          final loaded = await FeedbackSheet.loadForTarget(
+            targetId: targetId,
+            centerId: widget.member.centerId,
+            memberId: widget.member.uid,
+            trainerId: trainer.uid,
+          );
+          existing = loaded.mine;
+          others = loaded.others;
+        }
       } catch (e) {
         if (!mounted) return;
         AppFeedback.showErrorSnackBar(context, e);
@@ -301,7 +305,8 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
         targetId: targetId,
         targetDate: targetDate,
         existing: existing,
-        relinkTarget: existing != null && !targetLinked,
+        others: others,
+        targetLinked: targetLinked,
       );
 
       if (result == true && mounted) {

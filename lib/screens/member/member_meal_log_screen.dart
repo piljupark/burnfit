@@ -22,6 +22,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
 import '../../widgets/brand_marks.dart';
+import '../../widgets/feedback_sheet.dart';
 import 'food_detail_sheet.dart';
 import 'meal_input_sheet.dart';
 import 'nutrition_guide_screen.dart';
@@ -42,7 +43,8 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   bool _isLoading = false;
 
   /// 식단 id → 트레이너 피드백 (피드백 완료된 식단만).
-  Map<String, fb.Feedback> _feedbacks = {};
+  /// 식단별 트레이너 피드백 (담당이 바뀌면 여러 개일 수 있다, 오래된 순).
+  Map<String, List<fb.Feedback>> _feedbacks = {};
 
   static final _keyFormat = DateFormat('yyyy-MM-dd');
 
@@ -95,7 +97,7 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
     try {
       final results = await Future.wait(
         targets.map(
-          (m) => FirestoreService.getFeedbackByTarget(
+          (m) => FirestoreService.getFeedbacksByTarget(
             m.id,
             centerId: centerId,
             memberId: memberId,
@@ -106,7 +108,7 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
       setState(() {
         _feedbacks = {
           for (var i = 0; i < targets.length; i++)
-            if (results[i] != null) targets[i].id: results[i]!,
+            if (results[i].isNotEmpty) targets[i].id: results[i],
         };
       });
     } catch (e) {
@@ -653,7 +655,7 @@ class _DeleteMeal extends _MealSheetAction {
 class _MealTypeSheet extends StatelessWidget {
   final MealType type;
   final List<Meal> meals;
-  final Map<String, fb.Feedback> feedbacks;
+  final Map<String, List<fb.Feedback>> feedbacks;
 
   const _MealTypeSheet({
     required this.type,
@@ -690,7 +692,7 @@ class _MealTypeSheet extends StatelessWidget {
                     delay: Duration(milliseconds: 80 * i),
                     child: _MealEntry(
                       meal: meals[i],
-                      feedback: feedbacks[meals[i].id],
+                      feedbacks: feedbacks[meals[i].id] ?? const [],
                       onDelete: () =>
                           Navigator.of(context).pop(_DeleteMeal(meals[i])),
                     ),
@@ -723,12 +725,12 @@ class _MealTypeSheet extends StatelessWidget {
 //    → 사진 3열(간격 6, 반경 14) → 메모 16 + kcal(15/500 + 'kcal' mute) → 상태 13 → 피드백 상자 ──
 class _MealEntry extends StatelessWidget {
   final Meal meal;
-  final fb.Feedback? feedback;
+  final List<fb.Feedback> feedbacks;
   final VoidCallback onDelete;
 
   const _MealEntry({
     required this.meal,
-    required this.feedback,
+    required this.feedbacks,
     required this.onDelete,
   });
 
@@ -846,7 +848,7 @@ class _MealEntry extends StatelessWidget {
                 )
               : Text('검토 대기', style: AppTextStyles.bodySm),
         ),
-        if (feedback != null)
+        for (final feedback in feedbacks)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.screenH,
@@ -854,7 +856,7 @@ class _MealEntry extends StatelessWidget {
               AppSpacing.screenH,
               0,
             ),
-            child: _FeedbackQuote(feedback: feedback!),
+            child: FeedbackQuote(feedback: feedback),
           ),
       ],
     );
@@ -928,46 +930,6 @@ class _MealPhotoGrid extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-/// 트레이너 코멘트 상자 (시안 MemB-MealLog): 회색 면, 반경 14, 안쪽 14/16, 테두리 없음.
-/// 본문(15, 줄 1.5) → 위 6 '이름 트레이너 · 시각'(13 mute).
-class _FeedbackQuote extends StatelessWidget {
-  final fb.Feedback feedback;
-
-  const _FeedbackQuote({required this.feedback});
-
-  @override
-  Widget build(BuildContext context) {
-    final name = feedback.trainerName.trim();
-    final who = name.isEmpty ? '트레이너' : '$name 트레이너';
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: 14,
-        horizontal: AppSpacing.base,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.canvasCard,
-        borderRadius: BorderRadius.circular(AppRadius.field),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            feedback.content,
-            style: AppTextStyles.bodyMd.copyWith(height: 1.5),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '$who · ${DateFormat('HH:mm').format(feedback.createdAt)}',
-            style: AppTextStyles.bodySm,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
     );
   }
 }

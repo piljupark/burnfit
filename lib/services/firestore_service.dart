@@ -315,39 +315,26 @@ class FirestoreService {
     return _parseFeedbackDocs(snap.docs);
   }
 
-  static Future<fb.Feedback?> getFeedbackByTarget(
+  /// 기록 하나(식단·운동·유산소)에 달린 피드백 전체, 오래된 순.
+  /// 담당이 바뀌면 이전 트레이너의 피드백도 함께 남고, 지금 담당 트레이너도 읽을 수 있다
+  /// (규칙이 회원 기준으로 판단하므로 [memberId] 조건이 꼭 있어야 한다).
+  static Future<List<fb.Feedback>> getFeedbacksByTarget(
     String targetId, {
-    String? centerId,
-    String? memberId,
-    String? trainerId,
+    required String centerId,
+    required String memberId,
   }) async {
     ServiceValidator.requireText(targetId, '피드백 대상 ID');
-    if (centerId != null) {
-      ServiceValidator.requireText(centerId, '센터 ID');
-    }
-    if (memberId != null) {
-      ServiceValidator.requireText(memberId, '회원 ID');
-    }
-    if (trainerId != null) {
-      ServiceValidator.requireText(trainerId, '트레이너 ID');
-    }
+    ServiceValidator.requireText(centerId, '센터 ID');
+    ServiceValidator.requireText(memberId, '회원 ID');
 
-    Query query = _db
+    final snap = await _db
         .collection('feedbacks')
         .where('targetId', isEqualTo: targetId)
-        .limit(1);
-    if (centerId != null) {
-      query = query.where('centerId', isEqualTo: centerId);
-    }
-    if (memberId != null) {
-      query = query.where('memberId', isEqualTo: memberId);
-    }
-    if (trainerId != null) {
-      query = query.where('trainerId', isEqualTo: trainerId);
-    }
-    final snap = await query.get();
-    if (snap.docs.isEmpty) return null;
-    return fb.Feedback.fromMap(snap.docs.first.data() as Map<String, dynamic>);
+        .where('centerId', isEqualTo: centerId)
+        .where('memberId', isEqualTo: memberId)
+        .get();
+    return _parseFeedbackDocs(snap.docs)
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
   }
 
   static List<fb.Feedback> _parseFeedbackDocs(

@@ -887,12 +887,13 @@ service cloud.firestore {
     }
 
     match /feedbacks/{feedbackId} {
+      // 지금 담당 트레이너는 그 회원의 피드백을 작성자와 관계없이 읽는다 (담당 변경 인수인계).
+      // 고치기·지우기는 아래처럼 작성자 본인(과 관리자)만 한다.
       allow read: if isOwner(resource.data.memberId) ||
         isCenterAdmin(resource.data.centerId) ||
         (
           isTrainer() &&
           sameCenter(resource.data.centerId) &&
-          resource.data.trainerId == request.auth.uid &&
           isAssignedTrainer(resource.data.memberId)
         );
       allow create: if isTrainer() &&

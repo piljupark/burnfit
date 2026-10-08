@@ -576,15 +576,18 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     if (!mounted || action != TrainerPtDoneAction.feedback) return;
 
     fb.Feedback? existing;
+    var others = const <fb.Feedback>[];
     try {
-      existing = await FirestoreService.getFeedbackByTarget(
-        workoutId,
+      final loaded = await FeedbackSheet.loadForTarget(
+        targetId: workoutId,
         centerId: widget.member.centerId,
         memberId: widget.member.uid,
         trainerId: trainer.uid,
       );
+      existing = loaded.mine;
+      others = loaded.others;
     } catch (_) {
-      existing = null;
+      // 불러오지 못해도 새로 쓰기는 할 수 있다.
     }
     if (!mounted) return;
     await FeedbackSheet.show(
@@ -598,6 +601,13 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       targetId: workoutId,
       targetDate: _workoutDate,
       existing: existing,
+      others: others,
+      targetLinked:
+          _savedWorkouts
+              .where((w) => w.id == workoutId)
+              .firstOrNull
+              ?.hasFeedback ??
+          false,
     );
   }
 
