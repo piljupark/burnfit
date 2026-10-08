@@ -36,11 +36,14 @@ class _TrainerPtDoneScreenState extends State<TrainerPtDoneScreen>
     duration: const Duration(milliseconds: 700),
   );
 
+  bool _started = false;
+
   @override
-  void initState() {
-    super.initState();
-    final reduceMotion =
-        WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     _controller.value = reduceMotion ? 1 : 0;
     if (!reduceMotion) _controller.forward();
   }
