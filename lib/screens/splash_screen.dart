@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_icons.dart';
 import '../core/app_logger.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
@@ -8,6 +9,7 @@ import '../core/app_routing.dart';
 import '../core/constants.dart';
 import '../services/auth_service.dart';
 import '../services/user_provider.dart';
+import '../widgets/app_button.dart';
 import '../widgets/app_loader.dart';
 import '../widgets/brand_marks.dart';
 
@@ -19,6 +21,9 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  /// 사용자 정보를 읽다가 네트워크 등으로 실패함 → 다시 시도·로그아웃을 보여준다.
+  bool _failed = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,7 +59,15 @@ class _SplashScreenState extends State<SplashScreen> {
 
     final user = provider.user;
     if (user == null) {
-      AppLogger.debug('[Splash] 유저 문서 없음 → 로그인 화면');
+      if (provider.loadFailed) {
+        // 계정이 없는 게 아니라 읽지 못한 것이므로 로그인 화면으로 보내지 않는다.
+        AppLogger.debug('[Splash] 사용자 정보 읽기 실패 → 다시 시도 안내');
+        setState(() => _failed = true);
+        return;
+      }
+      AppLogger.debug('[Splash] 유저 문서 없음 → 로그아웃 후 로그인 화면');
+      await provider.signOut();
+      if (!mounted) return;
       _goLogin();
       return;
     }
@@ -77,6 +90,17 @@ class _SplashScreenState extends State<SplashScreen> {
 
   void _goLogin() {
     Navigator.of(context).pushReplacementNamed(AppRoutes.memberLogin);
+  }
+
+  void _retry() {
+    setState(() => _failed = false);
+    _init();
+  }
+
+  Future<void> _signOut() async {
+    await context.read<UserProvider>().signOut();
+    if (!mounted) return;
+    _goLogin();
   }
 
   @override
@@ -107,14 +131,61 @@ class _SplashScreenState extends State<SplashScreen> {
               ],
             ),
           ),
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: AppSpacing.xl4,
-            child: Center(child: AppLoader.screen()),
-          ),
+          if (_failed)
+            Positioned(
+              left: AppSpacing.screenH,
+              right: AppSpacing.screenH,
+              bottom: AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom,
+              child: _LoadFailedActions(onRetry: _retry, onSignOut: _signOut),
+            )
+          else
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: AppSpacing.xl4,
+              child: Center(child: AppLoader.screen()),
+            ),
         ],
       ),
+    );
+  }
+}
+
+/// 사용자 정보 읽기 실패 시 안내 + 다시 시도(주 행동) + 로그아웃.
+class _LoadFailedActions extends StatelessWidget {
+  final VoidCallback onRetry;
+  final VoidCallback onSignOut;
+
+  const _LoadFailedActions({required this.onRetry, required this.onSignOut});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '계정 정보를 불러오지 못했어요.\n네트워크 연결을 확인해주세요.',
+          textAlign: TextAlign.center,
+          style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppButton(
+          label: '다시 시도',
+          icon: const Icon(AppIcons.refresh),
+          onPressed: onRetry,
+          fullWidth: true,
+          size: AppButtonSize.lg,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppButton(
+          label: '로그아웃',
+          variant: AppButtonVariant.secondary,
+          onPressed: onSignOut,
+          fullWidth: true,
+          size: AppButtonSize.lg,
+        ),
+      ],
     );
   }
 }

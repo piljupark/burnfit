@@ -12,6 +12,7 @@ import '../services/firestore_service.dart';
 class UserProvider extends ChangeNotifier {
   AppUser? _user;
   bool _isLoading = false;
+  bool _loadFailed = false;
 
   /// 로그인한 사용자 문서 구독. 관리자의 승인·거절이 바로 반영되게 한다
   /// (화면 이동은 AccountStatusListener가 맡는다).
@@ -26,6 +27,10 @@ class UserProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isLoggedIn => _user != null;
 
+  /// 마지막 [loadUser]가 네트워크 등 오류로 실패했는지.
+  /// false인데 [user]가 null이면 로그인 계정에 사용자 문서가 없는 것이다.
+  bool get loadFailed => _loadFailed;
+
   Future<void> loadUser() async {
     final current = AuthService.currentUser;
     if (current == null) {
@@ -36,6 +41,7 @@ class UserProvider extends ChangeNotifier {
     }
 
     _isLoading = true;
+    _loadFailed = false;
     notifyListeners();
 
     try {
@@ -50,6 +56,7 @@ class UserProvider extends ChangeNotifier {
       AppLogger.debug('[UserProvider] 사용자 로드 실패: $e');
       _detach();
       _user = null;
+      _loadFailed = true;
     } finally {
       _isLoading = false;
       notifyListeners();
