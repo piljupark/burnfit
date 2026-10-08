@@ -21,7 +21,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/calendar_marks.dart';
 import '../../widgets/notification_bell_button.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import '../common/notice_home_banner.dart';
 import 'trainer_member_detail_screen.dart';
 import 'trainer_pt_workout_screen.dart';
@@ -237,7 +237,7 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.xl3),
-                  child: Center(child: OrbLoader.screen()),
+                  child: Center(child: AppLoader.screen()),
                 )
               else if (_errorMessage != null)
                 Padding(
@@ -278,7 +278,7 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 월 이동: 모노 '2026.10' + 이전/다음 아이콘 버튼
+// 월 이동: '2026.10' + 이전/다음 아이콘 버튼
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MonthNav extends StatelessWidget {

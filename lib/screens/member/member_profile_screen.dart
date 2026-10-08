@@ -13,7 +13,7 @@ import '../../widgets/app_hero.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/theme_setting_row.dart';
 import '../../widgets/delete_account_sheet.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import '../common/notice_menu_row.dart';
 import 'member_profile_detail_screen.dart';
 import 'member_share_settings_screen.dart';

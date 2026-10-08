@@ -4,7 +4,7 @@ import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 
-/// 하단 탭 항목. [icon]은 Phosphor Light, [activeIcon]은 같은 아이콘의 Fill.
+/// 하단 탭 항목. [icon]은 Phosphor Regular, [activeIcon]은 같은 아이콘의 Fill.
 class AppNavItem {
   final String label;
   final IconData icon;
@@ -17,7 +17,7 @@ class AppNavItem {
   });
 }
 
-/// 하단 탭: canvas 바탕 + 위 hairline. 선택은 색이 아니라 모양(Fill)으로 바꾸고 글자도 ink로.
+/// 하단 탭: canvas 바탕 + 위 hairline. 선택 = Fill 아이콘 + ink 500 글자, 나머지 = Regular 아이콘 + faint 글자.
 class AppNavBar extends StatelessWidget {
   final int currentIndex;
   final void Function(int) onTap;
@@ -38,14 +38,16 @@ class AppNavBar extends StatelessWidget {
         color: AppColors.canvas,
         border: Border(top: BorderSide(color: AppColors.hairline)),
       ),
-      padding: EdgeInsets.only(bottom: bottom),
+      // 시안: 위 10 여백 + 아이콘 26 + 4 + 글자 11/14 = 54, 그 아래는 기기 안전 영역
+      padding: EdgeInsets.only(top: 10, bottom: bottom),
       child: SizedBox(
-        height: 56,
+        height: 44,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: List.generate(items.length, (i) {
             final active = i == currentIndex;
             final item = items[i];
-            final color = active ? AppColors.ink : AppColors.mute;
+            final color = active ? AppColors.ink : AppColors.faint;
             return Expanded(
               child: Semantics(
                 button: true,
@@ -56,7 +58,6 @@ class AppNavBar extends StatelessWidget {
                   onTap: () => onTap(i),
                   behavior: HitTestBehavior.opaque,
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         active ? item.activeIcon : item.icon,
@@ -68,7 +69,9 @@ class AppNavBar extends StatelessWidget {
                         item.label,
                         style: AppTextStyles.badge.copyWith(
                           color: color,
-                          fontWeight: FontWeight.w400,
+                          fontWeight: active
+                              ? FontWeight.w500
+                              : FontWeight.w400,
                         ),
                       ),
                     ],

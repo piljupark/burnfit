@@ -14,7 +14,7 @@ import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/app_text_field.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import 'trainer_workout_models.dart';
 
 // ─────────────────────────────────────────────
@@ -176,7 +176,7 @@ class _TrainerExercisePickerSheetState
                   height: 52,
                   child: Row(
                     children: [
-                      const OrbLoader.inline(semanticLabel: '새 운동 추가 중'),
+                      const AppLoader.inline(semanticLabel: '새 운동 추가 중'),
                       const SizedBox(width: AppSpacing.base),
                       Text('추가 중', style: AppTextStyles.bodyMd),
                     ],
@@ -302,7 +302,7 @@ class TrainerExerciseMenuSheet extends StatelessWidget {
           subtitle: '${exercise.category.label} · 현재 단위 ${exercise.unit.label}',
         ),
         AppSheetAction(
-          icon: PhosphorIconsLight.arrowsLeftRight,
+          icon: PhosphorIconsRegular.arrowsLeftRight,
           label: '무게 단위 변경 (${exercise.unit.label} → $nextUnit)',
           onTap: () => Navigator.of(context).pop(
             const TrainerMenuAction(type: TrainerMenuActionType.toggleUnit),

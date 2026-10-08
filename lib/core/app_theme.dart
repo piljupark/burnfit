@@ -4,7 +4,7 @@ import 'app_colors.dart';
 import 'app_spacing.dart';
 import 'app_text_styles.dart';
 
-/// Galloway 테마 (지금 [AppColors.palette]로 만든다 — 다크·라이트 공통 구조). 그림자·elevation 없음, 모서리는 0 / 8 / pill.
+/// 앱 테마 (지금 [AppColors.palette]로 만든다 — 다크·라이트 공통 구조). 그림자·elevation 없음, 모서리는 [AppRadius] 토큰.
 class AppTheme {
   AppTheme._();
 

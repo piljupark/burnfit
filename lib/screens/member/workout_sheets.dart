@@ -302,7 +302,7 @@ class ExerciseMenuSheet extends StatelessWidget {
           subtitle: '${exercise.category.label} · 현재 단위 ${exercise.unit.label}',
         ),
         AppSheetAction(
-          icon: PhosphorIconsLight.arrowsLeftRight,
+          icon: PhosphorIconsRegular.arrowsLeftRight,
           label: '무게 단위 변경',
           value: '${exercise.unit.label} → $nextUnit',
           onTap: () {

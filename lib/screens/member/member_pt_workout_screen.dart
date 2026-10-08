@@ -14,7 +14,7 @@ import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 
 class MemberPtWorkoutScreen extends StatefulWidget {
   const MemberPtWorkoutScreen({super.key});
@@ -147,7 +147,7 @@ class _MemberPtWorkoutScreenState extends State<MemberPtWorkoutScreen> {
   }
 }
 
-/// PT 기록 한 줄: 왼쪽 모노 날짜(10.07 / WED) + 종목 이름 + 요약 + 메모.
+/// PT 기록 한 줄: 왼쪽 날짜 칸(10.07 / 수) + 종목 이름 + 요약 + 메모.
 class _PtWorkoutRow extends StatelessWidget {
   final Workout workout;
 

@@ -24,7 +24,7 @@ import '../../widgets/app_profile_card.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_text_field.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 
 final _ymd = DateFormat('yyyy.MM.dd');
 

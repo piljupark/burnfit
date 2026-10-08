@@ -1,4 +1,4 @@
-/// Galloway 간격: 2 · 4 · 8 · 12 · 16 · 24 · 32 · 48
+/// 간격: 2 · 4 · 8 · 12 · 16 · 24 · 32 · 48
 class AppSpacing {
   AppSpacing._();
 
@@ -56,9 +56,7 @@ class AppSize {
   static const double buttonHeightLg = 56;
   static const double icon = 20;
   static const double iconSm = 14;
-  static const double iconNav = 24;
+  static const double iconNav = 26;
   static const double avatar = 40;
-  static const double orbLoader = 64;
-  static const double orbInline = 20;
   static const double appBar = 56;
 }

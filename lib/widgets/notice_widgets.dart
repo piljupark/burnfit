@@ -249,43 +249,66 @@ class NoticeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '공지, ${notice.title}',
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        highlightColor: AppColors.canvasSoft,
-        splashFactory: NoSplash.splashFactory,
-        child: Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.screenH,
-            vertical: AppSpacing.xs,
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.canvasSoft,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-          ),
-          child: Row(
-            children: [
-              Icon(AppIcons.clipboard, size: 16, color: AppColors.ink),
-              const SizedBox(width: AppSpacing.sm),
-              Text('공지', style: AppTextStyles.bodySm),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  notice.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodyMd,
+    // 시안 MemA-Home·Tr-Home: 연한 주황 48 줄(반경 14) + 확성기 18 + '공지' 14 + 제목 15 + 화살표 16
+    final radius = BorderRadius.circular(AppRadius.field);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.md,
+        AppSpacing.screenH,
+        0,
+      ),
+      child: Semantics(
+        button: true,
+        label: '공지, ${notice.title}',
+        excludeSemantics: true,
+        child: Material(
+          color: AppColors.noticeBg,
+          borderRadius: radius,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            splashFactory: NoSplash.splashFactory,
+            child: SizedBox(
+              height: 48,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    const Icon(
+                      AppIcons.megaphone,
+                      size: 18,
+                      color: AppColors.noticeText,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '공지',
+                      style: AppTextStyles.buttonLabel.copyWith(
+                        color: AppColors.noticeText,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        notice.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        // 바탕(noticeBg)이 두 테마 공통이라 글자도 테마와 관계없이 검정
+                        style: AppTextStyles.bodyMd.copyWith(
+                          color: AppPalette.light.ink,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Icon(
+                      AppIcons.chevronRightBold,
+                      size: 16,
+                      color: AppColors.noticeText,
+                    ),
+                  ],
                 ),
               ),
-              Icon(AppIcons.forward, size: 14, color: AppColors.mute),
-            ],
+            ),
           ),
         ),
       ),

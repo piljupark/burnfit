@@ -1,92 +1,110 @@
-# BurnFit 디자인 시스템 (Galloway 기반)
+# BurnFit 디자인 시스템
 
-라이트(기본)·다크 두 테마, 외곽선 pill, 400 굵기, 한글 표기, 그림자 없음.
-원본: Galloway 디자인 시스템 + "BurnFit × Galloway 화면" 캔버스(16개 화면 시안).
+미니멀 · 한 가지 강조색(주황 #FF7A33) · 작은 움직임. 라이트(기본)·다크 두 테마.
+기준: `BurnFit-디자인-시안/screens/*.html` (정적 HTML 시안, C0~C4 컴포넌트 스펙 포함). 값이 헷갈리면 시안 HTML의 숫자를 따른다.
 
 ## 원칙
 
-1. **캔버스는 하나, 테마는 둘.** 모든 화면 바탕은 `AppColors.canvas`. 라이트(기본, #FFFFFF)와 다크(#0A0A0A)는 같은 구조에서 면·글자 색만 뒤집는다 — 라이트의 주 행동은 검은 채움. UI는 무채색만 쓴다. 테마는 마이 → 계정 → '화면 테마'에서 시스템 설정 · 라이트 · 다크 중에 고르고 기기에 저장된다 (`ThemeController`).
-2. **누르는 것은 전부 pill.** 버튼·칩·태그·토스트는 pill, 카드·입력창·시트·다이얼로그는 반경 8, 사진은 0. 이 세 가지 외의 모서리는 없다.
-3. **굵기 대신 크기.** Wanted Sans 400이 기본. `FontWeight.w600` 이상을 쓰지 않는다 (예외: `AppTextStyles.badge` 500).
-4. **화면 글자는 한글.** 영어 라벨(`DONE`, `10.07 WED`, `KCAL` 등)을 쓰지 않는다 (2026-10-07 통일). 남기는 것: 단위(`kg`, `kcal`, `g` — 소문자), `PT`, `BMI`, `InBody`, 앱 이름. 날짜는 `10월 7일 (수)`. Geist Mono(`eyebrow`, `counter`)는 `2026.10`, `D-12`, `12 / 30` 같은 숫자에만 쓰고, 한글을 모노로 쓰지 않는다.
-5. **그림자 대신 hairline.** 층은 1px `hairline` 테두리와 면 색(`canvas` → `canvasCard` → `canvasSoft`)으로만 나눈다. `BoxShadow`, gradient, elevation 금지.
-6. **상태는 색이 아니라 모양.** 완료/선택 = 흰 채움(`AppTag(strong: true)`, 채운 원), 진행/대기 = 외곽선, 취소 = 흐린 글자(`muted`). 운동·식단·트레이너 같은 도메인 색 구분은 없다.
-   - **예외 — 강조점.** 캘린더 PT 표시(완료 ●/예약 ○), 토글 on, "새 글"·"새 알림" 점, 체성분·영양소 그래프의 최신값 강조는 `primary`(#FF7A33) 또는 "새 글" 전용 `newDot`(#FF5A1F)을 쓴다. 이 점들은 "주 행동"이 아니라 눈에 띄어야 하는 데이터 포인트라서 8번 원칙(화면당 주 행동 하나) 대상이 아니다. 반대로 역할·성별 같은 **선택 pill**은 이 예외에 해당하지 않고 검정(`ink`) 채움을 쓴다(`GenderSelector`, 로그인 역할 선택과 동일 패턴).
-7. **빨강(`danger`)은 되돌릴 수 없는 행동의 글자에만.** 빨간 채움 배경은 쓰지 않는다.
-8. **주 행동은 화면당 하나.** 흰 채움(`AppButton` primary)은 화면당 한 번. 나머지는 외곽선(`secondary`)이나 글자(`ghost`).
-9. **움직임은 Orb 하나.** 로딩은 `OrbLoader`/`AppLoadingView`. `CircularProgressIndicator`, 스켈레톤, 장식 애니메이션 금지.
-10. **아이콘은 Phosphor 하나.** `AppIcons.*` (없으면 `PhosphorIconsLight.*`). 켜진 상태만 Fill. Material `Icons.*`·`Iconsax`·이모지 금지.
+1. **캔버스는 하나, 테마는 둘.** 모든 화면 바탕은 `AppColors.canvas`. 라이트(기본, #FFFFFF)와 다크(#0A0A0A)는 같은 구조에서 면·글자 색만 뒤집는다. 테마는 마이 → 계정 → '화면 테마'에서 시스템 설정 · 라이트 · 다크 중에 고르고 기기에 저장된다 (`ThemeController`).
+2. **모서리는 토큰으로만.** 아이콘 상자 12 · 입력창·안내 줄·꽉 찬 중간 버튼 14 · 큰 버튼·토스트 18 · 카드 20 · 시트 28 · 칩·태그·작은 버튼 pill (`AppRadius`).
+3. **굵기는 400·500 두 가지.** Wanted Sans 하나만 쓴다. 제목·값·목록 줄 제목은 500, 나머지는 400. `FontWeight.w600` 이상은 쓰지 않는다.
+4. **화면 글자는 한글.** 영어 라벨(`DONE`, `10.07 WED`, `KCAL` 등)을 쓰지 않는다. 남기는 것: 단위(`kg`, `kcal`, `g` — 소문자), `PT`, `BMI`, `InBody`, 앱 이름. 날짜는 `10월 7일 (수)`, 달은 `2026년 10월`. 큰 수는 천 단위 쉼표(`11,440kg`).
+5. **그림자 대신 면과 선.** 층은 면 색(`canvas` → `canvasCard`)과 1px `hairline`으로 나눈다. `BoxShadow`, gradient, elevation 금지.
+6. **강조색은 주황 하나.** 주 행동 채움(`primary`)과 눈에 띄어야 할 데이터 점(캘린더 PT 표시, 토글 on, 그래프 최신값)에 쓴다. "새 글"·"새 알림" 점은 `newDot`(#FF5A1F). 안내·경고·PT 강조 줄은 연한 주황 면 `noticeBg` + 진한 주황 글자 `noticeText`. 역할·성별 같은 **선택 pill**은 주황이 아니라 검정(`ink`) 채움.
+7. **빨강(`danger`)은 되돌릴 수 없는 행동의 글자에만.** 빨간 채움 배경은 쓰지 않는다. 파괴적 확정 버튼은 검정 채움(`AppButtonVariant.dark`).
+8. **주 행동은 화면당 하나.** 주황 채움(`AppButton` primary)은 화면당 한 번. 나머지는 회색 채움(`secondary`)이나 글자(`ghost`).
+9. **움직임은 작게.** 로딩은 점 세 개(`AppLoader`/`AppLoadingView`). `CircularProgressIndicator`·스켈레톤은 쓰지 않는다. 기기의 '동작 줄이기'가 켜져 있으면 멈춘다.
+10. **아이콘은 Phosphor 하나.** `AppIcons.*` (없으면 `PhosphorIconsRegular.*`). 기본은 Regular(선 1.5 — 시안 아이콘 선 1.8~2에 가장 가깝다), 켜진 상태만 Fill, 줄 끝·월 이동 화살표와 작은 체크는 Bold. Material `Icons.*`·이모지 금지.
 
 ## 토큰 (`lib/core/`)
 
-| 용도 | 토큰 |
-|---|---|
-| 바탕 | `AppColors.canvas` |
-| 카드·시트·다이얼로그·토스트 | `canvasCard` + `hairline` 테두리 |
-| 입력창·눌림·중첩 면 | `canvasSoft` |
-| 진행 막대 바탕·손잡이 | `canvasMid` |
-| 기본 글자·아이콘 | `ink` |
-| 보조 글자 (캔버스·카드 모두) | `body` |
-| 캡션 (캔버스 위에서만) | `mute` |
-| 외곽선 버튼 테두리 | `outline` |
-| 주 행동 채움 / 그 위 글자 | `primary` / `onPrimary` |
-| 파괴적 행동 글자 | `danger` |
-| 아바타·빈 상태 그림·차트 계열 | `accent*`, `chartSeries` (UI 컨트롤에는 쓰지 않음) |
+| 용도 | 토큰 | 라이트 값 |
+|---|---|---|
+| 바탕 | `canvas` | #FFFFFF |
+| 카드·시트·아이콘 상자·바로가기 면 | `canvasCard` | #F6F6F7 |
+| 입력창·눌림 | `canvasSoft` | #F3F3F5 |
+| 진행 막대 바탕·손잡이 | `canvasMid` | #D4D4D8 |
+| 1px 테두리·목록 줄 구분선 | `hairline` | #F0F0F2 |
+| 회색 카드 안 세로 구분선 | `line` | #EAEAEC |
+| 외곽선 버튼 테두리 | `outline` | #D4D4D8 |
+| 기본 글자·아이콘 | `ink` | #191919 |
+| 보조 본문 (캔버스·카드 모두) | `body` | #4A4A4A |
+| 캡션 (캔버스 위에서만) | `mute` | #6B6B70 |
+| 비활성 탭 글자·아이콘 | `faint` | #9A9AA0 |
+| 목록 줄 끝 화살표 | `chevron` | #B0B0B5 |
+| 주 행동 채움 / 그 위 글자 | `primary` / `onPrimary` | #FF7A33 / #191919 |
+| 파괴적 행동 글자 | `danger` | #D93036 |
+| 안내 줄 면 / 글자 (두 테마 공통) | `noticeBg` / `noticeText` | #FFF1E8 / #A8400E |
+| 새 소식 점 (두 테마 공통) | `newDot` | #FF5A1F |
+| 차트 계열 구분 | `chartSeries` | — |
 
-글자: `displayLg`(40) · `displayMd`(28, 탭 제목) · `title`(20, 앱바·시트·다이얼로그) · `bodyLg`(17, 목록 주 텍스트) · `bodyMd`(15) · `bodySm`(13, mute) · `buttonLabel`(14) · `badge`(11/500) · `eyebrow`(모노 12) · `counter`(모노 11).
+**두 테마 공통 면(`noticeBg` 등) 위의 글자는 테마 색(`ink`)을 쓰지 않는다** — 다크에서 흰 글자가 된다. 검정이 필요하면 `AppPalette.light.ink`.
 
-간격: 2 · 4 · 8 · 12 · 16(화면 좌우) · 24(시트 안쪽·섹션 사이) · 32 · 48. 크기: `AppSize.touchMin` 44, 목록 한 줄 `AppSize.listRow` 56, 목록 맨 아래 여백 `AppSize.navClearance`, 버튼 32/40/52, 아이콘 20, 탭 아이콘 24.
+글자: `displayLg`(40) · `displayMd`(28, 탭 제목) · `title`(20, 앱바·시트·다이얼로그) · `section`(17/500, 섹션·날짜 머리말, 월 이름) · `bodyLg`(17) · `listTitle`(16/500, 목록 줄 제목) · `bodyMd`(15) · `note`(14/21 body, 목록 안 긴 글·짧은 빈 상태) · `buttonLabel`(14) · `bodySm`(13 mute) · `badge`(11/500) · `eyebrow`(15 mute, 섹션 개수) · `counter`(13 mute).
+
+간격: 2 · 4 · 8 · 12 · 16 · 20(화면 좌우 `screenH`) · 24 · 32 · 48 · 64. 크기: `AppSize.touchMin` 44, 목록 한 줄 `AppSize.listRow` 56, 목록 맨 아래 여백 `AppSize.navClearance`, 버튼 32/40/56, 아이콘 20, 탭 아이콘 26.
 
 **이니셜 원(아바타)은 쓰지 않는다.** 사람은 이름 글자로만 보여준다.
 
 `Color(0x…)` 직접 쓰기 금지 — 토큰을 쓴다. 토큰 값은 `AppPalette.dark` / `AppPalette.light`에 있다.
 
-**토큰은 테마에 따라 바뀌므로 `const` 안에서 쓸 수 없다** (`const BoxDecoration(color: AppColors.ink)` ✕). 색 기본값이 필요한 매개변수는 `Color?`로 받고 쓰는 곳에서 `?? AppColors.ink`. 사진 위 덮개(`scrim`·`dim`·`select`·`backdrop`), 아바타·일러스트 `accent*`, `onAccent`는 두 테마 공통 상수다.
+**토큰은 테마에 따라 바뀌므로 `const` 안에서 쓸 수 없다** (`const BoxDecoration(color: AppColors.ink)` ✕). 색 기본값이 필요한 매개변수는 `Color?`로 받고 쓰는 곳에서 `?? AppColors.ink`. 사진 위 덮개(`scrim`·`dim`·`select`·`backdrop`)와 `noticeBg`·`noticeText`·`newDot`·`flameCore`는 두 테마 공통 상수다.
 
 ## 컴포넌트 (`lib/widgets/`)
 
 | 컴포넌트 | 쓰임 |
 |---|---|
-| `AppHero` | 탭 화면 상단: 오른쪽 아이콘 버튼 줄 + 28 제목 + 아래 hairline |
-| `AppScreenHeader` | 하위 화면 앱바: 뒤로 + 20 제목 + 오른쪽 행동. 화면 폭에 그대로 둔다 — 좌우 16 여백·아래 hairline·오른쪽 가장자리 정렬을 스스로 한다 (Padding으로 감싸거나 Divider를 따로 붙이지 않는다) |
-| `AppMonthHeader` | 화면 폭 섹션 머리말: `10월 7일 (수)` + 카운터 + 남은 폭 hairline |
+| `AppHero` | 탭 화면 상단: 오른쪽 아이콘 버튼 줄 + 28 제목. (시안은 제목과 아이콘이 한 줄 — 회원 홈은 `_HomeHeader`로 옮겼고, 다른 탭은 아직) |
+| `AppScreenHeader` | 하위 화면 앱바: 뒤로 + 20 제목 + 오른쪽 행동. (시안은 가운데 17/500 제목 — 아직 옮기지 않음) |
+| `AppMonthHeader` | 화면 폭 섹션 머리말: 라벨 + 개수. (시안은 17/500 ink 라벨 + 오른쪽 끝 15 mute 개수 — 회원 홈은 `_DayHeader`로 옮겼고, 다른 화면은 아직) |
 | `AppSectionHeader` | 여백 있는 열 안의 섹션 머리말 (+ 오른쪽 글자 행동) |
-| `AppActionRow` + `AppRowDivider` | 목록·메뉴 한 줄: 아이콘 상자 + 17 라벨 + 보조 줄 + 오른쪽(태그/화살표). 목록은 카드로 감싸지 말고 hairline으로 나눈다 |
-| `AppTag` / `StatusBadge` | 상태·역할 태그 (strong / 외곽선 / muted / danger) |
+| `AppActionRow` + `AppRowDivider` | 목록·메뉴 한 줄: 아이콘 상자 + 라벨 + 보조 줄 + 오른쪽(태그/화살표). 목록은 카드로 감싸지 말고 hairline으로 나눈다 |
+| `AppIconBox` | 40 둥근 사각형(반경 12) + `canvasCard` 면, 아이콘 20. PT 운동처럼 강조할 줄만 `noticeBg` + `noticeText` |
+| `AppTag` / `StatusBadge` | 상태 글자 (strong / 기본 / muted / danger) |
 | `AppChip` / `AppScrollableChips` / `AppFilterTabs` | 필터·선택 pill |
 | `AppCountBadge` | 사진 위 카운터 (`+2`) |
-| `AppButton` | primary / secondary / ghost / danger / dangerText, sm 32 · md 40 · lg 52 |
-| `AppIconButton` | 44px 원형 아이콘 버튼 (`label` 필수, `outlined`, `showDot`) |
-| `AppTextField` | 라벨 위 + 48 입력창. 라벨은 한글로 쓴다 (한글 없는 라벨은 모노 대문자로 바뀐다) |
+| `AppButton` | primary(주황) / secondary(회색 채움) / ghost / dark(파괴적 확정) / danger / dangerText, sm 32 · md 40 · lg 56 |
+| `AppIconButton` | 44 터치 영역 아이콘 버튼 (`label` 필수, `showDot`, `iconSize` 기본 20 — 알림 종은 24) |
+| `AppTextField` | 라벨(13 body) 위 + 입력창 |
 | `AppCard` | canvasCard + hairline (그림자 없음). 목록 대신 한 덩어리 정보에만 |
-| `AppKpiCard` / `AppStatStrip` / `AppStatGrid` | 숫자 칸. 화면 폭 숫자 줄은 `AppStatStrip`(`framed: false` 칸) |
-| `AppProfileRow` | 마이 탭 맨 위 프로필 줄: 이름 20 + 보조 줄(센터·역할을 글자로) + 화살표. 이니셜 원·역할 태그 없음 |
-| `AppProfileCard` | 28 이름 + 역할 태그 + 보조 줄 (관리자 회원 상세 머리에만) |
+| `AppKpiCard` / `AppStatStrip` / `AppStatGrid` | 숫자 칸 |
+| `AppHighlightCard` | 주황 강조 카드 (PT 잔여 횟수 등) |
+| `AppProfileRow` / `AppProfileCard` | 마이 탭 맨 위 프로필 줄 / 관리자 회원 상세 머리 |
 | `showAppBottomSheet` + `AppBottomSheetHeader` + `AppSheetAction` | 하단 시트, 시트 안 행동 줄 |
-| `AppEmptyState` | 도형 그림 + 20 제목 + 설명 + (선택) 주 행동 — 화면 전체가 빈 경우 |
-| `AppEmptyLine` | 목록 자리의 짧은 빈 상태 한 줄 ("이 날의 기록이 없습니다") |
-| `showAppConfirmDialog` | 확인 다이얼로그 (제목 + 설명 + 취소·확정). `showDialog`를 직접 쓰지 않는다 |
-| `AppAsyncBody` / `AppLoadingView` / `OrbLoader` | 로딩·오류·빈 상태 |
-| `AppErrorCard`, `AppFeedback.show*` → `AppToast` | 오류 카드, 토스트. 토스트는 **화면 위쪽**, 좌우 16 여백의 같은 폭, 한 번에 하나. `SnackBar`·`ScaffoldMessenger`를 직접 쓰지 않는다 |
-| `AppNavBar` | 하단 탭 (활성 = Fill 아이콘 + ink 글자) |
+| `AppEmptyState` | 그림 + 20 제목 + 설명 + (선택) 주 행동 — 화면 전체가 빈 경우 |
+| `AppEmptyLine` | 목록 자리의 짧은 빈 상태 한 줄: 52 높이, 14 mute ("이 날의 기록이 없습니다") |
+| `showAppConfirmDialog` | 확인 다이얼로그: 제목 + 설명 (+ 선택 `warning` 주황 콜아웃) + 2열 전체폭 버튼(취소 회색 · 확정 주황, 파괴적이면 검정). `showDialog`를 직접 쓰지 않는다 |
+| `AppAsyncBody` / `AppLoadingView` / `AppLoader` | 로딩·오류·빈 상태. 로딩은 점 세 개(화면 6 / 줄 안 4) |
+| `AppErrorCard`·`AppFeedback.show*`(`core/app_feedback.dart`) → `AppToast` | 오류 카드, 토스트(검정 채움 + 주황 원 배지, **화면 위쪽**, 한 번에 하나). `SnackBar`·`ScaffoldMessenger`를 직접 쓰지 않는다 |
+| `NoticeBanner` | 홈 공지 한 줄: 48 높이 `noticeBg`(반경 14) + 확성기 18 + '공지' + 제목 15 + 화살표 16 |
+| `SplashFlameMark` / `PendingClockMark` | 스플래시 불꽃, 승인 대기 시계 (주황 원 브랜드 표시) |
+| `AppNavBar` | 하단 탭: 위 10 + 아이콘 26 + 글자 11. 선택 = Fill + ink 500, 나머지 = Regular + `faint` |
 
 ## 화면 패턴
 
-- **탭 화면**: `SafeArea` → `AppHero` → 화면 폭 목록(`AppActionRow`/행 + `AppRowDivider`) → `AppNavBar`. 제목 위 머리말(`AppHero.eyebrow`)은 쓰지 않는다 — 앱 이름·날짜·개수를 제목 위에 반복하지 않는다 (2026-10-07 통일).
-- **마이 탭**: '나'에 대한 것만 둔다 — `AppProfileRow` → 내 몸(회원) → 계정(비밀번호 재설정 메일·기록 공유·로그아웃) → 탈퇴 링크. 다른 탭에 있는 기능(PT 잔여·일정, 식단·피드백 바로가기)이나 매일 쓰는 업무 기능(담당 회원 목록)은 두지 않는다. 로그아웃은 되돌릴 수 있으므로 빨강이 아닌 평범한 행이다.
-- **하위 화면**: `AppScreenHeader(onBack:)` → 내용 (여백·아래 hairline은 헤더가 그린다). 날짜는 제목 아래 보조 줄에 두지 않는다 (날짜 줄·섹션 머리말이 보여준다). 주 행동은 아래 고정 pill 하나.
-- **캘린더**: 요일 머리 `bodySm mute`, 월요일 시작, 날짜 셀 44px. 선택일 = 흰 원 + `onPrimary` 숫자, 오늘 = 외곽선 원, 미래 = `body` 색. 날짜 아래 표시는 `widgets/calendar_marks.dart`만 쓴다: PT 완료 ● / PT 예약 ○ / 개인운동 ▬ (`buildCalendarMarks`가 회원·트레이너 공통 규칙으로 계산). 범례(`CalendarLegend`)를 함께 둔다.
-- **세트 입력**: 줄 높이 48, 세트 번호 모노, 값 상자 `canvasSoft` 36 높이, 완료 = 흰 채운 원 + 굵은 체크(`AppIcons.checkBold`), 미완료 = 외곽선 원, 진행 중 줄 = 흰 테두리.
-- **사진**: 3열 격자, 간격 2, 반경 0. 사진 위 배지는 `scrim` pill.
-- **차트**: 선 1.5px `ink`(여러 계열은 `chartSeries`), 격자 `hairline`, 축 라벨 `counter`. 막대는 4px pill 트랙(`canvasMid`) + `ink` 채움.
-- **다이얼로그**: 제목 + 한 문단 설명(무엇이 몇 개 사라지는지) + 오른쪽 정렬 버튼 (취소 ghost → 확정; 파괴적이면 danger).
-- **시트**: 제목 20, 모노 메타, 행동 줄 52 높이, 파괴적 행은 맨 아래.
+- **탭 화면**: `SafeArea` → 머리(28 제목 + 오른쪽 아이콘) → 화면 폭 목록 → `AppNavBar`. 제목 위 머리말은 두지 않는다 — 앱 이름·날짜·개수를 제목 위에 반복하지 않는다.
+- **회원 홈** (시안 `MemA-Home`, 기준 구현): 제목·종 한 줄 → 공지 줄 → 바로가기 카드(식단 기록 | 트레이너 피드백, 가운데 `line` 구분선) → 월 이동 → 달력 → 범례 → 8 회색 띠 → 날짜 머리말(17/500 + 오른쪽 개수) → 기록 줄.
+- **기록 줄**: 최소 68 높이, 40 아이콘 상자 + 14 + `listTitle` 제목 · `bodySm` 보조 줄, 누를 수 있으면 18 Bold 화살표(`chevron` 색). 오른쪽 상태 태그는 두지 않는다. 긴 글(피드백)은 위아래 14, 아이콘은 위로 붙이고 본문 `note` 최대 3줄.
+- **마이 탭**: '나'에 대한 것만 둔다 — `AppProfileRow` → 내 몸(회원) → 계정(비밀번호 재설정 메일·기록 공유·로그아웃) → 탈퇴 링크. 다른 탭에 있는 기능이나 매일 쓰는 업무 기능은 두지 않는다. 로그아웃은 되돌릴 수 있으므로 빨강이 아닌 평범한 행이다.
+- **하위 화면**: `AppScreenHeader(onBack:)` → 내용. 날짜는 제목 아래 보조 줄에 두지 않는다. 주 행동은 아래 고정 버튼 하나.
+- **캘린더**: 월 이동은 가운데 `2026년 10월`(17/500, 폭 130) + 양옆 44 버튼 안 16 Bold 화살표(mute). 요일 머리 12 mute, 월요일 시작, 날짜 칸 46 높이 · 원 32 · 숫자 15. 선택일 = ink 채운 원 + canvas 500 숫자, 오늘 = ink 1px 외곽선 원, 미래 = `body` 색. 날짜 아래 표시는 `widgets/calendar_marks.dart`만 쓴다: PT 완료 ● 주황 / PT 예약 ○ 주황 / 개인운동 ● 검정 (5px, `buildCalendarMarks`가 회원·트레이너 공통 규칙으로 계산). 범례(`CalendarLegend`)는 표시 6 · 글자 12 mute · 항목 사이 14.
+- **세트 입력**: 줄 높이 48, 값 상자 `canvasSoft`, 완료 = 주황 채운 원 + 체크, 미완료 = 외곽선 원, 진행 중 줄 = ink 테두리.
+- **사진**: 3열 격자, 반경 14.
+- **차트**: 선 1.5px `ink`(여러 계열은 `chartSeries`), 격자 `hairline`, 축 라벨 `counter`. 막대는 `canvasMid` 트랙 + `ink` 채움.
+- **시트**: 제목 20, 메타 13, 행동 줄 52 높이, 파괴적 행은 맨 아래.
 
 ## 접근성
 
-- 텍스트 대비 4.5:1 (`mute`는 캔버스 위에서만, 카드 위 보조 글자는 `body`).
+- 텍스트 대비 4.5:1 (`mute`는 캔버스 위에서만, 카드 위 보조 글자는 `body`). `faint`·`chevron`은 글자 본문에 쓰지 않는다 (비활성 탭·장식 화살표 전용).
 - 터치 영역 44 이상. 아이콘만 있는 버튼은 `AppIconButton(label:)`으로 이름을 준다.
 - 색만으로 상태를 구분하지 않는다 (모양·글자를 함께).
+
+## 시안과 아직 다른 곳
+
+- 아이콘 모양: 시안은 Lucide 계열 선 아이콘, 앱은 Phosphor. 굵기만 맞췄다(Regular).
+- `AppHero` · `AppScreenHeader` · `AppMonthHeader` 구조 (위 컴포넌트 표 참고) — 회원 홈 외 화면.
+- 스플래시·승인 대기 화면의 고리 퍼짐·불꽃 흔들림 애니메이션은 넣지 않았다 (정지 표시 + 로딩 점).
+- 시안의 탭 바 위 선은 #EDEDEF, 앱은 `hairline`(#F0F0F2).
 
 ## 화면 확인 (화면 투어)
 

@@ -13,6 +13,9 @@ class AppPalette {
   final Color ink;
   final Color body;
   final Color mute;
+  final Color faint;
+  final Color chevron;
+  final Color line;
   final Color primary;
   final Color onPrimary;
   final Color danger;
@@ -29,6 +32,9 @@ class AppPalette {
     required this.ink,
     required this.body,
     required this.mute,
+    required this.faint,
+    required this.chevron,
+    required this.line,
     required this.primary,
     required this.onPrimary,
     required this.danger,
@@ -46,14 +52,17 @@ class AppPalette {
     ink: Color(0xFFFFFFFF),
     body: Color(0xFFDADBDF),
     mute: Color(0xFF7D8187),
+    faint: Color(0xFF5E6268),
+    chevron: Color(0xFF4A4D52),
+    line: Color(0xFF2A2C30),
     primary: Color(0xFFFF7A33),
     onPrimary: Color(0xFF191919),
     danger: Color(0xFFE5484D),
     chartSeries: [
       Color(0xFFFFFFFF),
-      AppColors.accentBreeze,
-      AppColors.accentSunsetSoft,
-      AppColors.accentTwilight,
+      Color(0xFFA0C3EC),
+      Color(0xFFFFC285),
+      Color(0xFFC4B5FD),
       Color(0xFF7D8187),
     ],
   );
@@ -70,6 +79,9 @@ class AppPalette {
     ink: Color(0xFF191919),
     body: Color(0xFF4A4A4A),
     mute: Color(0xFF6B6B70),
+    faint: Color(0xFF9A9AA0),
+    chevron: Color(0xFFB0B0B5),
+    line: Color(0xFFEAEAEC),
     primary: Color(0xFFFF7A33),
     onPrimary: Color(0xFF191919),
     danger: Color(0xFFD93036),
@@ -91,7 +103,7 @@ class AppPalette {
 /// - 강조색은 [primary](오렌지) 하나, 그 위 글자는 [onPrimary](검정). 나머지 UI는 무채색.
 /// - 상태는 색만이 아니라 모양(채움/외곽선)으로도 구분한다.
 /// - [danger]는 되돌릴 수 없는 행동의 글자에만.
-/// - accent* 는 일러스트·아바타·차트 계열 구분 전용. 버튼·아이콘 등 UI 컨트롤에는 쓰지 않는다.
+/// - 차트 계열 구분은 [chartSeries]만 쓴다. 버튼·아이콘 등 UI 컨트롤에는 쓰지 않는다.
 /// - 그림자 대신 [hairline] 테두리와 면 색(canvas → canvasCard)으로 층을 나눈다.
 ///
 /// 토큰이 테마에 따라 바뀌므로 `const` 위젯·장식 안에서 쓸 수 없다.
@@ -106,7 +118,7 @@ class AppColors {
 
   static bool get isLight => _p.brightness == Brightness.light;
 
-  // ── Galloway 기본 토큰 ─────────────────────────────────────────────────────
+  // ── 기본 토큰 ──────────────────────────────────────────────────────────────
   static Color get canvas => _p.canvas; // 유일한 페이지 바탕
   static Color get canvasCard => _p.canvasCard; // 카드·시트·다이얼로그·토스트 면
   static Color get canvasSoft => _p.canvasSoft; // 입력창, 눌림, 로딩 자리
@@ -117,6 +129,9 @@ class AppColors {
   static Color get ink => _p.ink; // 기본 글자·아이콘
   static Color get body => _p.body; // 보조 본문 (캔버스·카드 모두)
   static Color get mute => _p.mute; // 캡션 (캔버스 위 전용. 카드 위에서는 body)
+  static Color get faint => _p.faint; // 비활성 탭 글자·아이콘
+  static Color get chevron => _p.chevron; // 목록 줄 끝 화살표
+  static Color get line => _p.line; // 회색 카드 안 세로 구분선
 
   static Color get primary => _p.primary; // 화면당 하나의 주 행동 채움
   static Color get onPrimary => _p.onPrimary; // primary 위 글자
@@ -136,101 +151,9 @@ class AppColors {
   /// 새 소식 점 (알림 종, 바로가기)
   static const Color newDot = Color(0xFFFF5A1F);
 
-  // 일러스트·차트 전용 (두 테마 공통)
-  static const Color accentSunset = Color(0xFFFF7A17);
-  static const Color accentSunsetSoft = Color(0xFFFFC285);
-  static const Color accentDusk = Color(0xFF7C3AED);
-  static const Color accentTwilight = Color(0xFFC4B5FD);
-  static const Color accentBreeze = Color(0xFFA0C3EC);
-  static const Color accentMidnight = Color(0xFF0D1726);
+  /// 스플래시 불꽃 안쪽 (두 테마 공통)
+  static const Color flameCore = Color(0xFFFFD166);
 
   /// 차트 계열 구분 색 (밝기 차이가 나는 순서).
   static List<Color> get chartSeries => _p.chartSeries;
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 기존 이름 → Galloway 값. 새 코드는 위 토큰을 쓴다.
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  static Color get brand => primary;
-  static Color get brandDark => body;
-  static Color get brandLight => canvasSoft;
-
-  // 도메인 색은 쓰지 않는다 (색 대신 모양·글자로 구분).
-  static Color get workout => ink;
-  static Color get diet => ink;
-  static Color get trainer => ink;
-  static Color get destructive => danger;
-
-  static Color get bg => canvas;
-  static Color get bgElevated => canvasCard;
-  static Color get bgLogin => canvas;
-
-  static Color get card => canvasCard;
-  static Color get cardHover => canvasSoft;
-
-  static Color get textPrimary => ink;
-  static Color get textSecondary => body;
-  static Color get textTertiary => mute;
-  static Color get textDisabled => _p.mute.withValues(alpha: 0.6);
-  static Color get textOnAccent => onPrimary;
-  static Color get textNeutral => ink;
-
-  static Color get border => hairline;
-  static Color get borderFocus => ink;
-  static Color get divider => hairline;
-
-  static Color get success => ink;
-  static Color get warning => body;
-  static Color get error => danger;
-  static Color get info => ink;
-
-  static Color get statusPending => body;
-  static Color get statusApproved => ink;
-  static Color get statusRejected => danger;
-
-  static Color get mealBreakfast => accentSunsetSoft;
-  static Color get mealLunch => accentBreeze;
-  static Color get mealDinner => accentTwilight;
-  static Color get mealSnack => accentSunset;
-
-  static Color get categoryUpper => accentBreeze;
-  static Color get categoryLower => accentTwilight;
-  static Color get categoryCore => accentSunsetSoft;
-  static Color get categoryCardio => accentSunset;
-
-  static Color get navBg => canvas;
-  static Color get navBorder => hairline;
-
-  static Color get surface0 => canvas;
-  static Color get surface1 => canvasCard;
-  static Color get surface2 => canvasSoft;
-  static Color get surface3 => canvasMid;
-  static Color get separator => hairline;
-  static Color get separatorStrong => canvasMid;
-  static Color get label => ink;
-  static Color get labelSecondary => body;
-  static Color get labelTertiary => mute;
-  static Color get labelQuaternary => canvasMid;
-  static Color get brandOrange => primary;
-  static Color get brandDim => canvasMid;
-
-  static Color get primaryActive => body;
-  static Color get primaryDisabled => canvasMid;
-  static Color get background => canvas;
-  static Color get surface => canvasCard;
-  static Color get surfaceCard => canvasCard;
-  static Color get surfaceElevated => canvasCard;
-  static Color get surfaceVariant => canvasSoft;
-  static Color get surfaceSoft => canvasSoft;
-  static Color get hairlineStrong => canvasMid;
-  static Color get onDark => ink;
-  static Color get bodyStrong => body;
-  static Color get muted => mute;
-  static Color get mutedSoft => mute;
-  static Color get accent => primary;
-  static Color get accentMuted => body;
-  static Color get brandActive => body;
-
-  static Color get navGlass => canvas;
-  static Color get navGlassBorder => hairline;
 }

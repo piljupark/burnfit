@@ -19,7 +19,7 @@ const double _setNumberWidth = 32;
 String workoutCategoryCode(WorkoutCategory category) => category.label;
 
 /// 진행 중인 운동 한 덩어리: 이름 + 부위 태그 + 메뉴, 지난 기록 캡션,
-/// 모노 머리 세트 표(48 높이 줄), "세트 추가" ghost 버튼.
+/// 세트 표(48 높이 줄), "세트 추가" ghost 버튼.
 /// 카드로 감싸지 않고 화면 폭에 바로 놓는다 (좌우 16).
 class ExerciseInputCard extends StatelessWidget {
   final int order;
@@ -52,7 +52,7 @@ class ExerciseInputCard extends StatelessWidget {
     };
   }
 
-  /// 표 머리: 단위만 있는 칸은 한글 지표명을 붙인다 (모노 대문자 변환 방지).
+  /// 표 머리: 단위만 있는 칸은 한글 지표명을 붙인다.
   String _headerLabel(String label) {
     return switch (label) {
       'kg' || 'lbs' => '무게 $label',
@@ -198,18 +198,14 @@ class _HeaderText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      monoCase(label),
+      label,
       textAlign: align,
-      style: monoOrSans(
-        label,
-        mono: AppTextStyles.counter,
-        sans: AppTextStyles.captionSmall,
-      ),
+      style: AppTextStyles.captionSmall,
     );
   }
 }
 
-/// 세트 한 줄 (높이 48): 모노 세트 번호 · 값 상자 2개 · 완료 원.
+/// 세트 한 줄 (높이 48): 세트 번호 · 값 상자 2개 · 완료 원.
 /// 완료 = 흰 채운 원 + 굵은 체크, 진행 중 = 흰 테두리 원 + 값 상자 흰 테두리, 대기 = 외곽선 원.
 class _WorkoutSetRow extends StatelessWidget {
   final int number;

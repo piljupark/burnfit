@@ -20,7 +20,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_inputs.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_text_field.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 
 /// 가입 화면 공통 몸체 (회원가입·트레이너 등록).
 /// 다른 점은 화면 제목과 가입 역할뿐이다.
@@ -193,7 +193,7 @@ class _RegisterFormState extends State<RegisterForm> {
                                       padding: EdgeInsets.only(
                                         right: AppSpacing.md,
                                       ),
-                                      child: OrbLoader.inline(
+                                      child: AppLoader.inline(
                                         semanticLabel: '센터 검색 중',
                                       ),
                                     )

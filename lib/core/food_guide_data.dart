@@ -15,25 +15,25 @@ class FoodGuideData {
   static const List<NutrientCategoryInfo> categories = [
     NutrientCategoryInfo(
       category: NutrientCategory.protein,
-      icon: PhosphorIconsLight.egg,
+      icon: PhosphorIconsRegular.egg,
       tagline: '근육 회복',
       description: '근육 회복에 필요해요. 끼니마다 손바닥 크기 한 덩이가 기준이에요.',
     ),
     NutrientCategoryInfo(
       category: NutrientCategory.carb,
-      icon: PhosphorIconsLight.grains,
+      icon: PhosphorIconsRegular.grains,
       tagline: '운동 에너지',
       description: '운동할 힘을 내요. 끼니마다 주먹 하나 크기가 기준이에요.',
     ),
     NutrientCategoryInfo(
       category: NutrientCategory.fat,
-      icon: PhosphorIconsLight.avocado,
+      icon: PhosphorIconsRegular.avocado,
       tagline: '포만감 · 호르몬',
       description: '포만감과 호르몬에 필요해요. 끼니마다 엄지 한 마디 정도면 충분해요.',
     ),
     NutrientCategoryInfo(
       category: NutrientCategory.vegFruit,
-      icon: PhosphorIconsLight.carrot,
+      icon: PhosphorIconsRegular.carrot,
       tagline: '비타민 · 식이섬유',
       description: '비타민과 식이섬유를 채워요. 끼니마다 두 주먹 정도 곁들이세요.',
     ),
@@ -43,7 +43,7 @@ class FoodGuideData {
     FoodSituation(
       id: 'pre_workout',
       title: '운동 1–2시간 전',
-      icon: PhosphorIconsLight.lightning,
+      icon: PhosphorIconsRegular.lightning,
       description: '소화가 잘 되는 탄수화물 위주로 먹고, 기름진 음식은 피하세요.',
       foodIds: [
         'banana',
@@ -74,7 +74,7 @@ class FoodGuideData {
     FoodSituation(
       id: 'late_night',
       title: '저녁 · 야식이 당길 때',
-      icon: PhosphorIconsLight.moon,
+      icon: PhosphorIconsRegular.moon,
       description: '단백질이 많고 가벼운 음식으로, 양은 손바닥 하나만큼만 드세요.',
       foodIds: [
         'greek_yogurt',
@@ -89,7 +89,7 @@ class FoodGuideData {
     FoodSituation(
       id: 'convenience',
       title: '편의점 · 외식할 때',
-      icon: PhosphorIconsLight.storefront,
+      icon: PhosphorIconsRegular.storefront,
       description: '단백질 하나 + 탄수화물 하나 + 채소 하나로 골라 보세요.',
       foodIds: [
         'chicken_breast',

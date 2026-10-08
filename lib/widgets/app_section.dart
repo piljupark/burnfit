@@ -5,7 +5,6 @@ import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import 'app_button.dart';
-import 'app_tag.dart';
 
 /// 섹션 머리말 (패딩 없는 버전 — 이미 여백이 있는 열 안에서 쓴다).
 /// 라벨 + hairline + (선택) 오른쪽 글자 행동. 화면 폭 머리말은 AppMonthHeader.
@@ -32,16 +31,12 @@ class AppSectionHeader extends StatelessWidget {
     return Row(
       children: [
         Text(
-          monoCase(title),
-          style: monoOrSans(
-            title,
-            mono: AppTextStyles.eyebrow.copyWith(color: AppColors.ink),
-            sans: AppTextStyles.bodySm.copyWith(color: AppColors.ink),
-          ),
+          title,
+          style: AppTextStyles.bodySm.copyWith(color: AppColors.ink),
         ),
         if (count != null) ...[
           const SizedBox(width: AppSpacing.sm),
-          Text(monoCase(count!), style: AppTextStyles.eyebrow),
+          Text(count!, style: AppTextStyles.eyebrow),
         ],
         const SizedBox(width: AppSpacing.sm),
         Expanded(child: Divider(height: 1, color: AppColors.hairline)),
@@ -146,8 +141,9 @@ class _EmptyArt extends StatelessWidget {
   }
 }
 
-/// 목록 자리의 짧은 빈 상태 한 줄 ("이 날의 기록이 없습니다"). 그림이 필요한 큰 빈 화면은 [AppEmptyState].
-/// [inset]이 true면 화면 좌우 여백(16)을 스스로 둔다 (시트 안처럼 이미 여백이 있으면 false).
+/// 목록 자리의 짧은 빈 상태 한 줄 ("이 날의 기록이 없습니다"): 52 높이, 14 mute.
+/// 그림이 필요한 큰 빈 화면은 [AppEmptyState].
+/// [inset]이 true면 화면 좌우 여백(20)을 스스로 둔다 (시트 안처럼 이미 여백이 있으면 false).
 class AppEmptyLine extends StatelessWidget {
   final String message;
   final bool inset;
@@ -156,12 +152,16 @@ class AppEmptyLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
+      height: 52,
+      alignment: Alignment.centerLeft,
       padding: EdgeInsets.symmetric(
         horizontal: inset ? AppSpacing.screenH : 0,
-        vertical: AppSpacing.xl,
       ),
-      child: Text(message, style: AppTextStyles.bodySm),
+      child: Text(
+        message,
+        style: AppTextStyles.note.copyWith(color: AppColors.mute),
+      ),
     );
   }
 }

@@ -19,7 +19,7 @@ import '../widgets/app_action_row.dart';
 import '../widgets/app_bottom_sheet.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_text_field.dart';
-import '../widgets/orb_loader.dart';
+import '../widgets/app_loader.dart';
 import '../widgets/password_reset_sheet.dart';
 import 'member/member_register_screen.dart';
 import 'trainer/trainer_register_screen.dart';
@@ -456,7 +456,7 @@ class _CenterPickerSheetState extends State<_CenterPickerSheet> {
         if (_loading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.xl2),
-            child: Center(child: OrbLoader.screen()),
+            child: Center(child: AppLoader.screen()),
           )
         else if (_centers.isEmpty)
           Padding(

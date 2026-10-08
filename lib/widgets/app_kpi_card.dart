@@ -4,7 +4,6 @@ import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 
-import 'app_tag.dart';
 
 /// 숫자 칸: 라벨(13) + 값·단위(같은 크기, 값 500 / 단위 400 회색) + (선택) 추세.
 /// 여러 칸을 나란히 두려면 [AppStatStrip]/[AppStatGrid]를 쓴다 (회색 칸, 사이 8).
@@ -82,13 +81,11 @@ class AppKpiCard extends StatelessWidget {
           if (trend != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              monoCase(
-                '${trendUp == true
-                    ? '+'
-                    : trendUp == false
-                    ? '−'
-                    : ''}${trend!.replaceFirst(RegExp(r'^[+\-−]'), '')}',
-              ),
+              '${trendUp == true
+                  ? '+'
+                  : trendUp == false
+                  ? '−'
+                  : ''}${trend!.replaceFirst(RegExp(r'^[+\-−]'), '')}',
               style: AppTextStyles.counter,
             ),
           ],

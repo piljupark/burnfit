@@ -11,7 +11,7 @@ import '../../widgets/app_action_row.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_section.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 
 /// 회원이 공유를 꺼둔 항목: 아이콘 + 안내 글 (카드 없이 캔버스 위).
 class TrainerShareBlockedMessage extends StatelessWidget {
@@ -229,7 +229,7 @@ class _RecordList extends StatelessWidget {
   }
 }
 
-/// 모노 날짜 칸(MM.DD / YYYY) + 주 텍스트(17) + 메타(13) + 피드백 버튼. 아래 hairline.
+/// 날짜 칸(MM.DD / YYYY) + 주 텍스트(17) + 메타(13) + 피드백 버튼. 아래 hairline.
 class _DatedRecordRow extends StatelessWidget {
   final String date;
   final String title;
@@ -330,7 +330,7 @@ class _DatedRecordRow extends StatelessWidget {
   }
 }
 
-/// 48 폭 모노 날짜 칸: 'MM.DD' (ink) 위, 'YYYY' (mute) 아래.
+/// 48 폭 날짜 칸: 'MM.DD' (ink) 위, 'YYYY' (mute) 아래.
 /// 'yyyy-MM-dd' 형식이 아니면 원문을 그대로 쓴다.
 class TrainerDateBlock extends StatelessWidget {
   final String date;

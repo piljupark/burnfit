@@ -14,7 +14,7 @@ import 'trainer_workout_models.dart';
 /// 펼쳐진(현재) 운동 블록: 이름(17) + 부위 태그 + 메뉴 → 지난 PT 캡션 → 세트 표.
 ///
 /// 카드로 감싸지 않는다. 위아래 구분은 화면 쪽 hairline이 맡는다.
-/// 세트 표: 줄 높이 48, 세트 번호 모노, 값 상자 canvasSoft 36,
+/// 세트 표: 줄 높이 48, 세트 번호, 값 상자 canvasSoft 36,
 /// 완료 = 흰 채운 원 + 굵은 체크, 진행 중 줄 = 흰 테두리, 미완료 = 외곽선 원.
 class TrainerExerciseInputCard extends StatelessWidget {
   final int order;
@@ -169,13 +169,9 @@ class _HeaderRow extends StatelessWidget {
 
   Widget _label(String text, {TextAlign align = TextAlign.center}) {
     return Text(
-      monoCase(text),
+      text,
       textAlign: align,
-      style: monoOrSans(
-        text,
-        mono: AppTextStyles.counter,
-        sans: AppTextStyles.bodySm.copyWith(fontSize: 11, height: 14 / 11),
-      ),
+      style: AppTextStyles.bodySm.copyWith(fontSize: 11, height: 14 / 11),
     );
   }
 

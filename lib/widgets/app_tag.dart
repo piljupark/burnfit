@@ -4,17 +4,6 @@ import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 
-/// 예전에는 영문을 모노 대문자로 썼다. 지금은 글꼴을 하나(sans)로 통일해 항상 [sans]를 돌려준다.
-/// 호출부를 바꾸지 않으려고 이름은 남겨 둔다.
-TextStyle monoOrSans(
-  String text, {
-  required TextStyle mono,
-  required TextStyle sans,
-}) => sans;
-
-/// 글자를 그대로 돌려준다 (예전 모노 대문자 변환 자리).
-String monoCase(String text) => text;
-
 /// 상태 글자. 배지(테두리·채움) 없이 글자만 쓴다 — 글자 배지는 쓰지 않는다.
 /// - [strong]: 500 진한 글자 (완료·새 글처럼 눈에 띄어야 할 상태)
 /// - 기본: 회색 글자 / [muted]: 흐린 글자 / [danger]: 위험 글자

@@ -26,7 +26,7 @@ void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   Future<void> wait(WidgetTester tester, [int ms = 2500]) async {
-    // Orb가 계속 움직이므로 pumpAndSettle 대신 일정 시간만 그린다.
+    // 로딩 점이 계속 움직이므로 pumpAndSettle 대신 일정 시간만 그린다.
     for (var t = 0; t < ms; t += 100) {
       await tester.pump(const Duration(milliseconds: 100));
     }

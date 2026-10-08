@@ -23,7 +23,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_tag.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import 'food_detail_sheet.dart';
 import 'meal_input_sheet.dart';
 import 'nutrition_guide_screen.dart';
@@ -339,7 +339,7 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
                             vertical: AppSpacing.xl4,
                           ),
                           child: Center(
-                            child: OrbLoader(semanticLabel: '식단 불러오는 중'),
+                            child: AppLoader(semanticLabel: '식단 불러오는 중'),
                           ),
                         ),
                       )

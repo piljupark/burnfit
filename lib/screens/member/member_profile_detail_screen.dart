@@ -18,7 +18,7 @@ import '../../widgets/app_filter_tabs.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import 'edit_basic_info_sheet.dart';
 import 'edit_profile_sheet.dart';
 
@@ -401,7 +401,7 @@ class _InbodySectionState extends State<_InbodySection> {
             height: 140,
             child: _loading
                 ? const Center(
-                    child: OrbLoader.inline(semanticLabel: 'InBody 불러오는 중'),
+                    child: AppLoader.inline(semanticLabel: 'InBody 불러오는 중'),
                   )
                 : values.isEmpty
                 ? Center(
@@ -431,7 +431,7 @@ class _InbodySectionState extends State<_InbodySection> {
   }
 }
 
-/// 얇은 흰 선 그래프: 선 1.5px ink, 격자 hairline, 축 라벨 모노 counter.
+/// 얇은 흰 선 그래프: 선 1.5px ink, 격자 hairline, 축 라벨 counter.
 class _TrendPainter extends CustomPainter {
   final List<double> values;
   final List<String> labels;

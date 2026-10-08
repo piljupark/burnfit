@@ -32,7 +32,7 @@ import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/feedback_sheet.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import 'trainer_inbody_sheet.dart';
 import 'trainer_member_tabs.dart';
 
@@ -762,7 +762,7 @@ class _InbodySection extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.all(AppSpacing.xl),
             child: Center(
-              child: OrbLoader.inline(semanticLabel: 'InBody 기록 불러오는 중'),
+              child: AppLoader.inline(semanticLabel: 'InBody 기록 불러오는 중'),
             ),
           )
         else if (items.isEmpty)

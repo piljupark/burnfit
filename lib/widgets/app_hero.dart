@@ -3,16 +3,14 @@ import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
-import 'app_tag.dart';
 
 /// 탭 화면(홈·운동·PT·마이 등) 상단: 오른쪽 아이콘 버튼 줄 + 큰 제목.
 /// 하위 화면은 AppScreenHeader(뒤로 버튼 앱바)를 쓴다.
 ///
-/// 머리말([eyebrow])은 쓰지 않는다 (앱 이름·날짜를 제목 위에 반복하지 않는다).
+/// 제목 위 머리말은 두지 않는다 (앱 이름·날짜를 제목 위에 반복하지 않는다).
 /// 날짜·상태는 본문 첫 AppMonthHeader에 둔다.
 class AppHero extends StatelessWidget {
   final String title;
-  final String? eyebrow;
   final List<Widget> actions;
   final Widget? leading;
   final bool divider;
@@ -20,7 +18,6 @@ class AppHero extends StatelessWidget {
   const AppHero({
     super.key,
     required this.title,
-    this.eyebrow,
     this.actions = const [],
     this.leading,
     this.divider = false,
@@ -62,27 +59,11 @@ class AppHero extends StatelessWidget {
                   const SizedBox(width: AppSpacing.base),
                 ],
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (eyebrow != null) ...[
-                        Text(
-                          monoCase(eyebrow!),
-                          style: monoOrSans(
-                            eyebrow!,
-                            mono: AppTextStyles.eyebrow,
-                            sans: AppTextStyles.bodySm,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                      ],
-                      Text(
-                        title,
-                        style: AppTextStyles.displayMd,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  child: Text(
+                    title,
+                    style: AppTextStyles.displayMd,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

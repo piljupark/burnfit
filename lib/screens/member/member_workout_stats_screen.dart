@@ -18,7 +18,7 @@ import '../../widgets/app_hero.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import '../../widgets/app_progress_bar.dart';
 
 class MemberWorkoutStatsScreen extends StatefulWidget {
@@ -174,7 +174,7 @@ String _volumeText(double value) {
   return '${value.toStringAsFixed(0)}kg';
 }
 
-/// 축 라벨용 짧은 숫자 (모노): 1200 → 1.2K
+/// 축 라벨용 짧은 숫자: 1200 → 1.2K
 String _compactNumber(double value) {
   if (value >= 1000) {
     final k = value / 1000;
@@ -275,7 +275,7 @@ class _InsightGrid extends StatelessWidget {
 
 // ── 일별 볼륨 막대 ───────────────────────────────────────────────────────────
 
-/// 막대 = canvasMid 트랙 위 ink 채움, 격자 hairline, 축 라벨 모노 counter.
+/// 막대 = canvasMid 트랙 위 ink 채움, 격자 hairline, 축 라벨 counter.
 class _VolumeBarChart extends StatelessWidget {
   final WorkoutStats stats;
   final _Period period;

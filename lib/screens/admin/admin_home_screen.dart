@@ -21,7 +21,7 @@ import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/theme_setting_row.dart';
 import '../../widgets/password_reset_sheet.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_member_list_screen.dart';
 import 'admin_notice_list_screen.dart';

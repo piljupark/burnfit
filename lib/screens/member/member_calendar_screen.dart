@@ -16,14 +16,11 @@ import '../../services/firestore_service.dart';
 import '../../services/meal_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
-import '../../widgets/app_hero.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_icon_box.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_tag.dart';
 import '../../widgets/calendar_marks.dart';
 import '../../widgets/notification_bell_button.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 
 import '../common/notice_home_banner.dart';
 import 'member_pt_workout_screen.dart';
@@ -206,13 +203,10 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: AppSize.navClearance),
             children: [
-              if (widget.showGreeting)
-                AppHero(
-                  title: '$userName님',
-                  actions: const [NotificationBellButton()],
-                )
-              else
-                const AppHero(title: '캘린더'),
+              _HomeHeader(
+                title: widget.showGreeting ? '$userName님' : '캘린더',
+                showBell: widget.showGreeting,
+              ),
               if (widget.showGreeting) const NoticeHomeBanner(),
               _RecordShortcuts(
                 unreadFeedbackCount: _unreadFeedbackCount,
@@ -236,7 +230,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
               const Padding(
                 padding: EdgeInsets.fromLTRB(
                   AppSpacing.screenH,
-                  AppSpacing.sm,
+                  10,
                   AppSpacing.screenH,
                   0,
                 ),
@@ -248,14 +242,14 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
                 margin: const EdgeInsets.only(top: AppSpacing.lg),
                 color: AppColors.canvasCard,
               ),
-              AppMonthHeader(
+              _DayHeader(
                 label: _dayLabel(_selectedDay),
                 count: _isLoading || _errorMessage != null ? null : '$records건',
               ),
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.xl3),
-                  child: Center(child: OrbLoader.screen()),
+                  child: Center(child: AppLoader.screen()),
                 )
               else if (_errorMessage != null)
                 AppErrorCard(message: _errorMessage!, onRetry: _loadMonth)
@@ -279,6 +273,49 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
 /// 섹션 머리말용 날짜: `10월 7일 (수)`.
 String _dayLabel(DateTime day) => DateFormat('M월 d일 (E)', 'ko').format(day);
 
+/// 볼륨 표시: 11440 → `11,440`.
+final _volumeFormat = NumberFormat('#,##0');
+
+/// 홈 머리: 28 제목과 알림 종을 한 줄에 (시안 MemA-Home: 위 20, 왼쪽 20, 오른쪽 8).
+class _HomeHeader extends StatelessWidget {
+  final String title;
+  final bool showBell;
+
+  const _HomeHeader({required this.title, required this.showBell});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.lg,
+        AppSpacing.sm,
+        0,
+      ),
+      child: SizedBox(
+        height: AppSize.touchMin,
+        child: Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: AppTextStyles.displayMd,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            if (showBell) const NotificationBellButton(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 월 이동: 가운데 `2026년 10월`(17/500, 폭 130) + 양옆 44 버튼 안 16 화살표(mute).
 class _MonthHeader extends StatelessWidget {
   final DateTime month;
   final VoidCallback onPrev;
@@ -293,36 +330,66 @@ class _MonthHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.sm,
-        AppSpacing.xs,
-        AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Semantics(
-              header: true,
-              label: DateFormat('yyyy년 M월', 'ko').format(month),
-              excludeSemantics: true,
-              child: Text(
-                DateFormat('yyyy.MM').format(month),
-                style: AppTextStyles.eyebrow.copyWith(
-                  color: AppColors.ink,
-                  fontSize: 13,
-                  height: 17 / 13,
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      child: SizedBox(
+        height: 48,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _MonthArrow(
+              icon: AppIcons.chevronLeftBold,
+              label: '이전 달',
+              onTap: onPrev,
+            ),
+            SizedBox(
+              width: 130,
+              child: Semantics(
+                header: true,
+                child: Text(
+                  DateFormat('yyyy년 M월', 'ko').format(month),
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.section,
                 ),
               ),
             ),
-          ),
-          AppIconButton(icon: AppIcons.back, label: '이전 달', onPressed: onPrev),
-          AppIconButton(
-            icon: AppIcons.forward,
-            label: '다음 달',
-            onPressed: onNext,
-          ),
-        ],
+            _MonthArrow(
+              icon: AppIcons.chevronRightBold,
+              label: '다음 달',
+              onTap: onNext,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthArrow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _MonthArrow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkResponse(
+        onTap: onTap,
+        radius: AppSize.touchMin / 2,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: SizedBox.square(
+          dimension: AppSize.touchMin,
+          child: Icon(icon, size: 16, color: AppColors.mute),
+        ),
       ),
     );
   }
@@ -355,8 +422,9 @@ class _CalendarGrid extends StatelessWidget {
     final now = DateTime.now();
     final todayBase = DateTime(now.year, now.month, now.day);
 
+    // 시안: 좌우 14, 위 6 / 요일 12 mute, 아래 6 / 날짜 칸 46, 줄 사이 2
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
       child: Column(
         children: [
           ExcludeSemantics(
@@ -385,7 +453,7 @@ class _CalendarGrid extends StatelessWidget {
             itemCount: totalCells,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              mainAxisExtent: AppSize.touchMin,
+              mainAxisExtent: 46,
               mainAxisSpacing: 2,
             ),
             itemBuilder: (context, index) {
@@ -416,8 +484,9 @@ class _CalendarGrid extends StatelessWidget {
   }
 }
 
-/// 날짜 칸 (44 높이): 선택 = 흰 원 + onPrimary 숫자, 오늘 = 외곽선 원, 미래 = body 색.
-/// 아래 표시: CalendarMarkRow (PT 완료 ● · PT 예약 ○ · 개인운동 ▬).
+/// 날짜 칸 (46 높이): 32 원 + 15 숫자, 아래 4 띄우고 표시 줄(5).
+/// 선택 = ink 채운 원 + canvas 500 숫자, 오늘 = ink 1px 외곽선 원, 미래 = body 색.
+/// 아래 표시: CalendarMarkRow (PT 완료 ● · PT 예약 ○ · 개인운동 ●).
 class _DayCell extends StatelessWidget {
   final DateTime day;
   final bool isToday;
@@ -460,8 +529,8 @@ class _DayCell extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 30,
-              height: 30,
+              width: 32,
+              height: 32,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -472,16 +541,50 @@ class _DayCell extends StatelessWidget {
               ),
               child: Text(
                 '${day.day}',
-                style: AppTextStyles.buttonLabel.copyWith(
+                style: AppTextStyles.bodyMd.copyWith(
                   color: numberColor,
-                  height: 18 / 14,
+                  height: 18 / 15,
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
                 ),
               ),
             ),
-            const Gap(3),
+            const Gap(4),
             CalendarMarkRow(marks),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 선택한 날 머리말: 왼쪽 날짜(17/500), 오른쪽 끝 개수(15 mute). 위 20 · 아래 4.
+class _DayHeader extends StatelessWidget {
+  final String label;
+  final String? count;
+
+  const _DayHeader({required this.label, this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.lg,
+        AppSpacing.screenH,
+        AppSpacing.xs,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text(label, style: AppTextStyles.section),
+            ),
+          ),
+          if (count != null) Text(count!, style: AppTextStyles.eyebrow),
+        ],
       ),
     );
   }
@@ -513,15 +616,19 @@ class _DayRecords extends StatelessWidget {
       return const AppEmptyLine('이 날의 기록이 없습니다');
     }
 
-    // 목록: 줄마다 아래 hairline (좌우 20 안쪽)
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final workout in workouts) _workoutRow(context, workout),
-        for (final reservation in ptReservations) _reservationRow(reservation),
-        for (final meal in meals) _mealRow(meal),
-        for (final feedback in feedbacks) _feedbackRow(feedback),
-      ],
+    // 목록: 좌우 20 안쪽, 줄마다 아래 hairline
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final workout in workouts) _workoutRow(context, workout),
+          for (final reservation in ptReservations)
+            _reservationRow(reservation),
+          for (final meal in meals) _mealRow(meal),
+          for (final feedback in feedbacks) _feedbackRow(feedback),
+        ],
+      ),
     );
   }
 
@@ -529,14 +636,15 @@ class _DayRecords extends StatelessWidget {
     final detail = [
       workout.category.label,
       '${workout.totalSets}세트',
-      '${workout.totalVolume.toStringAsFixed(0)}kg',
+      '${_volumeFormat.format(workout.totalVolume.round())}kg',
     ].join(' · ');
     final isPt = workout.workoutType == WorkoutType.pt;
     return _RecordRow(
       icon: AppIcons.workout,
+      // PT 운동 줄만 아이콘 상자를 연한 주황으로 (시안 MemA-Home-PtDay)
+      highlighted: isPt,
       title: isPt ? 'PT 운동' : '개인운동',
       detail: detail,
-      tag: isPt ? const AppTag('PT', strong: true) : const AppTag('개인'),
       // PT 운동은 트레이너가 남긴 기록 화면으로 간다.
       onTap: isPt
           ? () => Navigator.of(context).push(
@@ -552,7 +660,6 @@ class _DayRecords extends StatelessWidget {
       title: 'PT 예약',
       detail:
           '${DateFormat('a h:mm', 'ko').format(reservation.scheduledAt)} · ${reservation.durationMinutes}분 · ${reservation.trainerName}',
-      tag: const AppTag('예약'),
     );
   }
 
@@ -575,22 +682,22 @@ class _DayRecords extends StatelessWidget {
       title: feedback.trainerName,
       meta: DateFormat('a h:mm', 'ko').format(feedback.createdAt),
       detail: feedback.content,
-      detailMaxLines: 3,
+      longText: true,
       onTap: onFeedbackTap,
     );
   }
 }
 
-/// 기록 한 줄: 아이콘 상자 + 17 제목 + 보조 줄 + 오른쪽(태그·화살표).
-/// 아래 hairline은 좌우 20 안쪽에서만 긋는다 (화면 끝까지 긋지 않음).
-/// AppActionRow와 같은 모양이지만 누를 수 없는 줄(운동·예약)도 그린다.
+/// 기록 한 줄 (시안 MemA-Home): 40 아이콘 상자 + 14 + 16/500 제목 · 13 mute 보조 줄
+/// (+ 누를 수 있으면 18 화살표). 최소 68 높이, 아래 hairline. 오른쪽 태그는 두지 않는다.
+/// [longText](피드백): 아이콘을 위로 붙이고 위아래 14, 본문 14 body 최대 3줄.
 class _RecordRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String detail;
   final String? meta;
-  final Widget? tag;
-  final int detailMaxLines;
+  final bool highlighted;
+  final bool longText;
   final VoidCallback? onTap;
 
   const _RecordRow({
@@ -598,62 +705,90 @@ class _RecordRow extends StatelessWidget {
     required this.title,
     required this.detail,
     this.meta,
-    this.tag,
-    this.detailMaxLines = 2,
+    this.highlighted = false,
+    this.longText = false,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconBox = AppIconBox(
+      icon: icon,
+      background: highlighted ? AppColors.noticeBg : null,
+      iconColor: highlighted ? AppColors.noticeText : null,
+    );
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: AppTextStyles.listTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (meta != null) ...[
+              const Gap(AppSpacing.sm),
+              Text(meta!, style: AppTextStyles.bodySm),
+            ],
+          ],
+        ),
+        Gap(longText ? AppSpacing.xs : 2),
+        Text(
+          detail,
+          style: longText ? AppTextStyles.note : AppTextStyles.bodySm,
+          maxLines: longText ? 3 : 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+    final chevron = Icon(
+      AppIcons.chevronRightBold,
+      size: 18,
+      color: AppColors.chevron,
+    );
+    // 긴 글 줄(피드백): 아이콘은 위로 붙이고 화살표는 줄 가운데 (시안 align-self: flex-start).
+    final content = longText
+        ? Stack(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(right: onTap != null ? 14 + 18 : 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    iconBox,
+                    const Gap(14),
+                    Expanded(child: text),
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                Positioned.fill(
+                  child: Align(alignment: Alignment.centerRight, child: chevron),
+                ),
+            ],
+          )
+        : Row(
+            children: [
+              iconBox,
+              const Gap(14),
+              Expanded(child: text),
+              if (onTap != null) ...[const Gap(14), chevron],
+            ],
+          );
     final row = Container(
-      constraints: const BoxConstraints(minHeight: AppSize.listRow),
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      constraints: BoxConstraints(minHeight: longText ? 0 : 68),
+      padding: EdgeInsets.symmetric(vertical: longText ? 14 : 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.hairline)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          AppIconBox(icon: icon),
-          const Gap(AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: AppTextStyles.bodyLg,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (meta != null) ...[
-                      const Gap(AppSpacing.sm),
-                      Text(meta!, style: AppTextStyles.bodySm),
-                    ],
-                  ],
-                ),
-                const Gap(2),
-                Text(
-                  detail,
-                  style: AppTextStyles.bodySm,
-                  maxLines: detailMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          if (tag != null) ...[const Gap(AppSpacing.md), tag!],
-          if (onTap != null) ...[
-            const Gap(AppSpacing.sm),
-            Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
-          ],
-        ],
-      ),
+      child: content,
     );
     if (onTap == null) return row;
     return Semantics(
@@ -711,7 +846,7 @@ class _RecordShortcuts extends StatelessWidget {
                 child: VerticalDivider(
                   width: 1,
                   thickness: 1,
-                  color: AppColors.canvasMid,
+                  color: AppColors.line,
                 ),
               ),
               Expanded(

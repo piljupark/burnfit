@@ -16,7 +16,7 @@ import '../../widgets/app_hero.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_tag.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 
 class MemberFeedbackScreen extends StatefulWidget {
   const MemberFeedbackScreen({super.key});

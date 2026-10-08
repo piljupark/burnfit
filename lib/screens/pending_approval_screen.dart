@@ -9,7 +9,7 @@ import '../core/app_routing.dart';
 import '../core/constants.dart';
 import '../services/user_provider.dart';
 import '../widgets/app_button.dart';
-import '../widgets/orb_loader.dart';
+import '../widgets/brand_marks.dart';
 
 class PendingApprovalScreen extends StatelessWidget {
   const PendingApprovalScreen({super.key});
@@ -27,9 +27,9 @@ class PendingApprovalScreen extends StatelessWidget {
               const Gap(AppSpacing.xl3),
               const Align(
                 alignment: Alignment.centerLeft,
-                child: ExcludeSemantics(child: OrbLoader(size: 96)),
+                child: ExcludeSemantics(child: PendingClockMark()),
               ),
-              const Gap(AppSpacing.xl2),
+              const Gap(40),
               Text('승인 대기', style: AppTextStyles.bodySm),
               const Gap(AppSpacing.sm),
               Semantics(

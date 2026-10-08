@@ -5,11 +5,10 @@ import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
-import 'app_tag.dart';
 
 /// 입력창: canvasSoft 면 + hairline, 반경 8, 높이 48. 포커스는 흰 테두리, 오류는 danger.
 ///
-/// 라벨은 입력창 위에 둔다. 영문 라벨(EMAIL 등)은 모노 대문자, 한글 라벨은 sans 13.
+/// 라벨은 입력창 위에 둔다. 라벨 글자는 13 body.
 /// [fillColor]·[showEnabledBorder]·[labelAbove]는 기존 호출부 호환용이다
 /// (라벨은 항상 위, 테두리는 항상 hairline).
 class AppTextField extends StatefulWidget {
@@ -135,12 +134,8 @@ class _AppTextFieldState extends State<AppTextField> {
       children: [
         if (widget.label.isNotEmpty) ...[
           Text(
-            monoCase(widget.label),
-            style: monoOrSans(
-              widget.label,
-              mono: AppTextStyles.eyebrow,
-              sans: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-            ),
+            widget.label,
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],

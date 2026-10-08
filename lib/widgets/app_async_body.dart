@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/app_feedback.dart';
 import '../core/app_spacing.dart';
-import 'orb_loader.dart';
+import 'app_loader.dart';
 
 /// 목록 화면 본문의 공통 상태 처리: 로딩 → 오류 → 빈 상태 → 내용.
 /// 모든 상태에서 당겨서 새로고침이 된다.
@@ -54,7 +54,7 @@ class AppAsyncBody extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      color: AppColors.brand,
+      color: AppColors.primary,
       backgroundColor: AppColors.canvasCard,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),

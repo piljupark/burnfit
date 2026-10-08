@@ -8,7 +8,8 @@ import '../core/app_routing.dart';
 import '../core/constants.dart';
 import '../services/auth_service.dart';
 import '../services/user_provider.dart';
-import '../widgets/orb_loader.dart';
+import '../widgets/app_loader.dart';
+import '../widgets/brand_marks.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -80,22 +81,40 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 시안 Com-Splash: 가운데 브랜드 표시 + 이름, 아래쪽 로딩 점.
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const OrbLoader(size: 160, semanticLabel: '불러오는 중'),
-            const SizedBox(height: AppSpacing.xl),
-            Text('BurnFit', style: AppTextStyles.displayMd),
-            const SizedBox(height: 6),
-            Text(
-              '피트니스 센터',
-              style: AppTextStyles.captionSmall.copyWith(color: AppColors.body),
+      body: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const ExcludeSemantics(child: SplashFlameMark()),
+                const SizedBox(height: AppSpacing.xl2),
+                Text(
+                  'BurnFit',
+                  style: AppTextStyles.displayMd.copyWith(
+                    fontSize: 32,
+                    height: 38 / 32,
+                    letterSpacing: 32 * -0.019,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '피트니스 센터',
+                  style: AppTextStyles.bodyMd.copyWith(color: AppColors.mute),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: AppSpacing.xl4,
+            child: Center(child: AppLoader.screen()),
+          ),
+        ],
       ),
     );
   }

@@ -3,95 +3,99 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 
 /// 앱 아이콘 — Phosphor 하나로 통일한다.
 ///
-/// - 기본은 Light. 켜진 상태(선택된 탭, 좋아요함, 재생 중)만 Fill.
+/// - 기본은 Regular (선 1.5 — 시안 아이콘 선 1.8~2에 가장 가깝다). 켜진 상태(선택된 탭, 좋아요함, 재생 중)만 Fill.
 /// - 14px 이하 배지 안 체크만 Bold([checkBold]).
 /// - 색은 ink(보조 위치는 body/mute). 아이콘에 accent·danger를 입히지 않는다
 ///   (파괴적 행의 아이콘은 라벨과 같이 danger).
-/// - Material Icons·Iconsax·이모지를 섞지 않는다. 여기 없는 아이콘은 PhosphorIconsLight에서 고른다.
+/// - Material Icons·Iconsax·이모지를 섞지 않는다. 여기 없는 아이콘은 PhosphorIconsRegular에서 고른다.
 class AppIcons {
   AppIcons._();
 
-  // ── 탭 (Light / Fill 짝) ───────────────────────────────────────────────────
-  static const IconData home = PhosphorIconsLight.house;
+  // ── 탭 (Regular / Fill 짝) ───────────────────────────────────────────────────
+  static const IconData home = PhosphorIconsRegular.house;
   static const IconData homeFill = PhosphorIconsFill.house;
-  static const IconData workout = PhosphorIconsLight.barbell;
+  static const IconData workout = PhosphorIconsRegular.barbell;
   static const IconData workoutFill = PhosphorIconsFill.barbell;
-  static const IconData calendar = PhosphorIconsLight.calendarBlank;
+  static const IconData calendar = PhosphorIconsRegular.calendarBlank;
   static const IconData calendarFill = PhosphorIconsFill.calendarBlank;
-  static const IconData profile = PhosphorIconsLight.userCircle;
-  static const IconData profileFill = PhosphorIconsFill.userCircle;
-  static const IconData members = PhosphorIconsLight.users;
+  static const IconData profile = PhosphorIconsRegular.user;
+  static const IconData profileFill = PhosphorIconsFill.user;
+  static const IconData members = PhosphorIconsRegular.users;
   static const IconData membersFill = PhosphorIconsFill.users;
-  static const IconData trainers = PhosphorIconsLight.identificationBadge;
+  static const IconData trainers = PhosphorIconsRegular.identificationBadge;
   static const IconData trainersFill = PhosphorIconsFill.identificationBadge;
 
   // ── 탐색 · 공통 행동 ───────────────────────────────────────────────────────
-  static const IconData back = PhosphorIconsLight.caretLeft;
-  static const IconData forward = PhosphorIconsLight.caretRight;
-  static const IconData chevronDown = PhosphorIconsLight.caretDown;
-  static const IconData chevronUp = PhosphorIconsLight.caretUp;
-  static const IconData close = PhosphorIconsLight.x;
-  static const IconData add = PhosphorIconsLight.plus;
-  static const IconData remove = PhosphorIconsLight.minus;
-  static const IconData more = PhosphorIconsLight.dotsThree;
-  static const IconData edit = PhosphorIconsLight.pencilSimple;
-  static const IconData trash = PhosphorIconsLight.trash;
-  static const IconData search = PhosphorIconsLight.magnifyingGlass;
-  static const IconData refresh = PhosphorIconsLight.arrowClockwise;
-  static const IconData undo = PhosphorIconsLight.arrowCounterClockwise;
-  static const IconData check = PhosphorIconsLight.check;
+  static const IconData back = PhosphorIconsRegular.caretLeft;
+  static const IconData forward = PhosphorIconsRegular.caretRight;
+  static const IconData chevronDown = PhosphorIconsRegular.caretDown;
+  static const IconData chevronUp = PhosphorIconsRegular.caretUp;
+  static const IconData close = PhosphorIconsRegular.x;
+  static const IconData add = PhosphorIconsRegular.plus;
+  static const IconData remove = PhosphorIconsRegular.minus;
+  static const IconData more = PhosphorIconsRegular.dotsThree;
+  static const IconData edit = PhosphorIconsRegular.pencilSimple;
+  static const IconData trash = PhosphorIconsRegular.trash;
+  static const IconData search = PhosphorIconsRegular.magnifyingGlass;
+  static const IconData refresh = PhosphorIconsRegular.arrowClockwise;
+  static const IconData undo = PhosphorIconsRegular.arrowCounterClockwise;
+  static const IconData check = PhosphorIconsRegular.check;
   static const IconData checkBold = PhosphorIconsBold.check;
-  static const IconData theme = PhosphorIconsLight.circleHalf;
-  static const IconData checkCircle = PhosphorIconsLight.checkCircle;
+
+  /// 목록 줄 끝·월 이동 화살표 (시안 선 2~2.2에 맞춰 Bold)
+  static const IconData chevronLeftBold = PhosphorIconsBold.caretLeft;
+  static const IconData chevronRightBold = PhosphorIconsBold.caretRight;
+  static const IconData theme = PhosphorIconsRegular.circleHalf;
+  static const IconData checkCircle = PhosphorIconsRegular.checkCircle;
   static const IconData checkCircleFill = PhosphorIconsFill.checkCircle;
-  static const IconData circle = PhosphorIconsLight.circle;
-  static const IconData filter = PhosphorIconsLight.funnelSimple;
-  static const IconData sort = PhosphorIconsLight.sortAscending;
-  static const IconData share = PhosphorIconsLight.shareNetwork;
-  static const IconData link = PhosphorIconsLight.linkSimple;
-  static const IconData download = PhosphorIconsLight.downloadSimple;
-  static const IconData upload = PhosphorIconsLight.uploadSimple;
-  static const IconData settings = PhosphorIconsLight.gear;
-  static const IconData signOut = PhosphorIconsLight.signOut;
-  static const IconData info = PhosphorIconsLight.info;
-  static const IconData warning = PhosphorIconsLight.warningCircle;
-  static const IconData lock = PhosphorIconsLight.lockSimple;
-  static const IconData eye = PhosphorIconsLight.eye;
-  static const IconData eyeSlash = PhosphorIconsLight.eyeSlash;
-  static const IconData email = PhosphorIconsLight.envelopeSimple;
-  static const IconData phone = PhosphorIconsLight.phone;
+  static const IconData circle = PhosphorIconsRegular.circle;
+  static const IconData filter = PhosphorIconsRegular.funnelSimple;
+  static const IconData sort = PhosphorIconsRegular.sortAscending;
+  static const IconData share = PhosphorIconsRegular.shareNetwork;
+  static const IconData link = PhosphorIconsRegular.linkSimple;
+  static const IconData download = PhosphorIconsRegular.downloadSimple;
+  static const IconData upload = PhosphorIconsRegular.uploadSimple;
+  static const IconData settings = PhosphorIconsRegular.gear;
+  static const IconData signOut = PhosphorIconsRegular.signOut;
+  static const IconData info = PhosphorIconsRegular.info;
+  static const IconData warning = PhosphorIconsRegular.warningCircle;
+  static const IconData lock = PhosphorIconsRegular.lockSimple;
+  static const IconData eye = PhosphorIconsRegular.eye;
+  static const IconData eyeSlash = PhosphorIconsRegular.eyeSlash;
+  static const IconData email = PhosphorIconsRegular.envelopeSimple;
+  static const IconData phone = PhosphorIconsRegular.phone;
 
   // ── 도메인 ─────────────────────────────────────────────────────────────────
-  static const IconData bell = PhosphorIconsLight.bell;
-  static const IconData megaphone = PhosphorIconsLight.megaphone;
-  static const IconData meal = PhosphorIconsLight.forkKnife;
-  static const IconData feedback = PhosphorIconsLight.chatCircleText;
-  static const IconData note = PhosphorIconsLight.notePencil;
-  static const IconData clipboard = PhosphorIconsLight.clipboardText;
-  static const IconData chart = PhosphorIconsLight.chartLine;
-  static const IconData chartBar = PhosphorIconsLight.chartBar;
-  static const IconData dashboard = PhosphorIconsLight.squaresFour;
-  static const IconData clock = PhosphorIconsLight.clock;
-  static const IconData timer = PhosphorIconsLight.timer;
-  static const IconData calendarCheck = PhosphorIconsLight.calendarCheck;
-  static const IconData calendarPlus = PhosphorIconsLight.calendarPlus;
-  static const IconData cardio = PhosphorIconsLight.personSimpleRun;
-  static const IconData inbody = PhosphorIconsLight.scales;
-  static const IconData heartbeat = PhosphorIconsLight.heartbeat;
-  static const IconData fire = PhosphorIconsLight.flame;
-  static const IconData trendUp = PhosphorIconsLight.trendUp;
-  static const IconData trendDown = PhosphorIconsLight.trendDown;
-  static const IconData camera = PhosphorIconsLight.camera;
-  static const IconData image = PhosphorIconsLight.image;
-  static const IconData userPlus = PhosphorIconsLight.userPlus;
-  static const IconData user = PhosphorIconsLight.user;
-  static const IconData center = PhosphorIconsLight.buildings;
-  static const IconData archive = PhosphorIconsLight.archive;
+  static const IconData bell = PhosphorIconsRegular.bell;
+  static const IconData megaphone = PhosphorIconsRegular.megaphone;
+  static const IconData meal = PhosphorIconsRegular.bowlSteam;
+  static const IconData feedback = PhosphorIconsRegular.chatText;
+  static const IconData note = PhosphorIconsRegular.notePencil;
+  static const IconData clipboard = PhosphorIconsRegular.clipboardText;
+  static const IconData chart = PhosphorIconsRegular.chartLine;
+  static const IconData chartBar = PhosphorIconsRegular.chartBar;
+  static const IconData dashboard = PhosphorIconsRegular.squaresFour;
+  static const IconData clock = PhosphorIconsRegular.clock;
+  static const IconData timer = PhosphorIconsRegular.timer;
+  static const IconData calendarCheck = PhosphorIconsRegular.calendarCheck;
+  static const IconData calendarPlus = PhosphorIconsRegular.calendarPlus;
+  static const IconData cardio = PhosphorIconsRegular.personSimpleRun;
+  static const IconData inbody = PhosphorIconsRegular.scales;
+  static const IconData heartbeat = PhosphorIconsRegular.heartbeat;
+  static const IconData fire = PhosphorIconsRegular.flame;
+  static const IconData trendUp = PhosphorIconsRegular.trendUp;
+  static const IconData trendDown = PhosphorIconsRegular.trendDown;
+  static const IconData camera = PhosphorIconsRegular.camera;
+  static const IconData image = PhosphorIconsRegular.image;
+  static const IconData userPlus = PhosphorIconsRegular.userPlus;
+  static const IconData user = PhosphorIconsRegular.user;
+  static const IconData center = PhosphorIconsRegular.buildings;
+  static const IconData archive = PhosphorIconsRegular.archive;
   static const IconData play = PhosphorIconsFill.play;
-  static const IconData pause = PhosphorIconsLight.pause;
-  static const IconData stop = PhosphorIconsLight.stop;
-  static const IconData target = PhosphorIconsLight.target;
-  static const IconData list = PhosphorIconsLight.listBullets;
-  static const IconData heart = PhosphorIconsLight.heart;
+  static const IconData pause = PhosphorIconsRegular.pause;
+  static const IconData stop = PhosphorIconsRegular.stop;
+  static const IconData target = PhosphorIconsRegular.target;
+  static const IconData list = PhosphorIconsRegular.listBullets;
+  static const IconData heart = PhosphorIconsRegular.heart;
   static const IconData heartFill = PhosphorIconsFill.heart;
 }

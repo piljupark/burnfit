@@ -12,7 +12,7 @@ import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_screen_header.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 
 class MemberShareSettingsScreen extends StatefulWidget {
   const MemberShareSettingsScreen({super.key});
@@ -83,7 +83,7 @@ class _MemberShareSettingsScreenState extends State<MemberShareSettingsScreen> {
               title: '기록 공유 설정',
               onBack: () => Navigator.of(context).pop(),
               trailing: _saving
-                  ? const OrbLoader.inline(semanticLabel: '저장 중')
+                  ? const AppLoader.inline(semanticLabel: '저장 중')
                   : null,
             ),
             Expanded(

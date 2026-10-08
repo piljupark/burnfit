@@ -16,7 +16,7 @@ import '../../widgets/app_hero.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_tag.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import '../../widgets/app_progress_bar.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -164,7 +164,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
 // ── 이번 달 PT 완료율 ─────────────────────────────────────────────────────────
 
-/// 모노 머리말 + 40 큰 숫자 + 캡션 + 2px 진행 막대.
+/// 머리말 + 40 큰 숫자 + 캡션 + 2px 진행 막대.
 class _CompletionHero extends StatelessWidget {
   final AdminStats stats;
 

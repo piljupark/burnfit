@@ -147,7 +147,7 @@ class _FoodListScreenState extends State<FoodListScreen> {
   }
 }
 
-/// 음식 한 줄: 이름(17) + 분량·특성 태그 / 오른쪽 단백질 g · kcal (모노) + 화살표.
+/// 음식 한 줄: 이름(17) + 분량·특성 태그 / 오른쪽 단백질 g · kcal + 화살표.
 class _FoodRow extends StatelessWidget {
   final FoodItem food;
   final VoidCallback onTap;

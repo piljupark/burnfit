@@ -11,7 +11,7 @@ import '../../widgets/app_tag.dart';
 import 'workout_draft_models.dart';
 
 /// 저장된 운동 한 건: 화면 폭 블록 + 아래 hairline (카드로 감싸지 않는다).
-/// 위: 부위 태그 + 수정·삭제 아이콘 버튼 / 가운데: 종목 줄 / 아래: 모노 요약 카운터.
+/// 위: 부위 태그 + 수정·삭제 아이콘 버튼 / 가운데: 종목 줄 / 아래: 요약 카운터.
 class SavedWorkoutCard extends StatelessWidget {
   final Workout workout;
   final VoidCallback onEdit;

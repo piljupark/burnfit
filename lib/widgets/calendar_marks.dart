@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../core/app_colors.dart';
-import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import '../models/pt_session.dart';
 import '../models/workout.dart';
@@ -10,7 +9,7 @@ import '../models/workout.dart';
 /// 캘린더 날짜 아래 표시.
 /// - PT 완료: 주황 채운 점 ●
 /// - PT 예약: 주황 빈 원 ○
-/// - 개인운동: 검정 짧은 막대 ▬
+/// - 개인운동: 검정 채운 점 ●
 enum CalendarMark {
   ptDone('PT 완료'),
   ptScheduled('PT 예약'),
@@ -58,43 +57,30 @@ Map<String, Set<CalendarMark>> buildCalendarMarks({
   return marks;
 }
 
-/// 표시 하나 (높이 5).
+/// 표시 하나: 날짜 아래 5, 범례 6. 빈 원 테두리는 5에서 1.2, 6에서 1.5 (시안 값).
 class CalendarMarkIcon extends StatelessWidget {
   final CalendarMark mark;
+  final double size;
 
-  const CalendarMarkIcon(this.mark, {super.key});
+  const CalendarMarkIcon(this.mark, {super.key, this.size = 5});
 
   @override
   Widget build(BuildContext context) {
-    switch (mark) {
-      case CalendarMark.ptDone:
-        return Container(
-          width: 5,
-          height: 5,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            shape: BoxShape.circle,
-          ),
-        );
-      case CalendarMark.ptScheduled:
-        return Container(
-          width: 5,
-          height: 5,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.primary),
-          ),
-        );
-      case CalendarMark.personal:
-        return Container(
-          width: 8,
-          height: 2,
-          decoration: BoxDecoration(
-            color: AppColors.ink,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-          ),
-        );
-    }
+    final decoration = switch (mark) {
+      CalendarMark.ptDone => BoxDecoration(
+        color: AppColors.primary,
+        shape: BoxShape.circle,
+      ),
+      CalendarMark.ptScheduled => BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.primary, width: size * 0.25),
+      ),
+      CalendarMark.personal => BoxDecoration(
+        color: AppColors.ink,
+        shape: BoxShape.circle,
+      ),
+    };
+    return Container(width: size, height: size, decoration: decoration);
   }
 }
 
@@ -127,7 +113,7 @@ class CalendarMarkRow extends StatelessWidget {
 String calendarMarksSemantics(Set<CalendarMark> marks) =>
     CalendarMark.values.where(marks.contains).map((m) => m.label).join(', ');
 
-/// 범례: ● PT 완료 · ○ PT 예약 · ▬ 개인운동
+/// 범례: ● PT 완료 · ○ PT 예약 · ● 개인운동 (표시 6, 표시↔글자 5, 항목 사이 14)
 class CalendarLegend extends StatelessWidget {
   final MainAxisAlignment alignment;
 
@@ -144,10 +130,9 @@ class CalendarLegend extends StatelessWidget {
         mainAxisAlignment: alignment,
         children: [
           for (final mark in CalendarMark.values) ...[
-            if (mark != CalendarMark.values.first)
-              const SizedBox(width: AppSpacing.base),
-            SizedBox(width: 8, child: Center(child: CalendarMarkIcon(mark))),
-            const SizedBox(width: 6),
+            if (mark != CalendarMark.values.first) const SizedBox(width: 14),
+            CalendarMarkIcon(mark, size: 6),
+            const SizedBox(width: 5),
             Text(mark.label, style: caption),
           ],
         ],

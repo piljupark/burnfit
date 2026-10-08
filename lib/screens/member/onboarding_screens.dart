@@ -279,7 +279,7 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
 
 // ── 공유 위젯 ─────────────────────────────────────────────────────────────
 
-/// 온보딩 화면 틀: 단계 막대 + 모노 단계 표시 + 28 제목 + 설명 → 스크롤 입력 → 아래 고정 행동.
+/// 온보딩 화면 틀: 단계 막대 + 단계 표시 + 28 제목 + 설명 → 스크롤 입력 → 아래 고정 행동.
 class _OnboardingScaffold extends StatelessWidget {
   final int step;
   final int total;

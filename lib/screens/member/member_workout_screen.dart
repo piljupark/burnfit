@@ -25,7 +25,7 @@ import '../../widgets/app_inputs.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_text_field.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import 'workout_draft_models.dart';
 import 'workout_exercise_input.dart';
 import 'workout_saved_card.dart';

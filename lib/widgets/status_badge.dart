@@ -4,7 +4,7 @@ import '../core/app_colors.dart';
 import '../models/user.dart';
 import 'app_tag.dart';
 
-/// 상태 배지 — Galloway 태그 모양. 상태는 색이 아니라 모양으로 구분한다.
+/// 상태 배지 — 글자 태그([AppTag]). 상태는 색이 아니라 모양으로 구분한다.
 /// - [strong]: 흰 채움 (완료·승인처럼 끝난 상태)
 /// - 기본: 외곽선 (진행·대기)
 /// - [color]가 AppColors.danger면 빨간 글자 (거절·만료처럼 되돌릴 수 없는 상태),

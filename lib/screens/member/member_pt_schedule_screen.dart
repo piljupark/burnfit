@@ -16,7 +16,7 @@ import '../../widgets/app_hero.dart';
 import '../../widgets/app_highlight.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_tag.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import 'member_pt_workout_screen.dart';
 
 class MemberPtScheduleScreen extends StatefulWidget {
@@ -171,7 +171,7 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: AppSpacing.xl3),
                     child: Center(
-                      child: OrbLoader(semanticLabel: 'PT 일정 불러오는 중'),
+                      child: AppLoader(semanticLabel: 'PT 일정 불러오는 중'),
                     ),
                   ),
                 )
@@ -289,7 +289,7 @@ class _SectionBand extends StatelessWidget {
   );
 }
 
-/// 일정 한 줄: 모노 날짜 칸(10.09 / 목) + 제목 + 시간 메타 + 상태 태그.
+/// 일정 한 줄: 날짜 칸(10.09 / 목) + 제목 + 시간 메타 + 상태 태그.
 class _SessionRow extends StatelessWidget {
   final PtSession session;
   final bool isPast;

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
-import 'orb_loader.dart';
+import 'app_loader.dart';
 
 /// 버튼 모양은 pill 하나뿐.
 /// - [primary]: 흰 채움. 화면당 하나의 주 행동에만.
@@ -87,7 +87,7 @@ class AppButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (isLoading) ...[
-          OrbLoader.inline(color: fg),
+          AppLoader.inline(color: fg),
           const SizedBox(width: AppSpacing.sm),
         ] else if (icon != null) ...[
           IconTheme(

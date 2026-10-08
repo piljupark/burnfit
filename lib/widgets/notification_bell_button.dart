@@ -40,6 +40,7 @@ class _NotificationBellButtonState extends State<NotificationBellButton> {
         final unread = snapshot.data ?? 0;
         return AppIconButton(
           icon: AppIcons.bell,
+          iconSize: 24,
           label: unread > 0 ? '알림, 새 알림 $unread개' : '알림',
           showDot: unread > 0,
           onPressed: () => Navigator.of(context).push(

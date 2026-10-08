@@ -30,7 +30,7 @@ import '../../widgets/app_section.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/feedback_sheet.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import 'trainer_exercise_input.dart';
 import 'trainer_pt_done_screen.dart';
 import 'trainer_saved_card.dart';
@@ -695,7 +695,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 // Widgets
 // ─────────────────────────────────────────────
 
-/// 회원 줄: 아바타 + 이름(17) + 일정 보조 줄 + 오른쪽 큰 모노 세션 타이머.
+/// 회원 줄: 아바타 + 이름(17) + 일정 보조 줄.
 class _MemberRow extends StatelessWidget {
   final AppUser member;
   final String subtitle;

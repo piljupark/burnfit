@@ -27,7 +27,7 @@ import '../../widgets/app_section.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/calendar_marks.dart';
 import '../../widgets/app_text_field.dart';
-import '../../widgets/orb_loader.dart';
+import '../../widgets/app_loader.dart';
 import 'trainer_pt_workout_screen.dart';
 
 class TrainerScheduleScreen extends StatefulWidget {
@@ -303,7 +303,7 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
       content = const [
         Padding(
           padding: EdgeInsets.symmetric(vertical: AppSpacing.xl3),
-          child: Center(child: OrbLoader.screen()),
+          child: Center(child: AppLoader.screen()),
         ),
       ];
     } else if (_errorMessage != null) {
@@ -609,7 +609,7 @@ class _WeekDayCell extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 시간대별 타임라인: 모노 시각 열(44) + hairline 구분 + 세션 블록
+// 시간대별 타임라인: 시각 열(44) + hairline 구분 + 세션 블록
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SessionTimeline extends StatelessWidget {
@@ -1209,7 +1209,7 @@ class _SessionSheetState extends State<_SessionSheet> {
 // 시트 내 공용 위젯
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// 모노 필드 라벨 (회원, 날짜 …).
+/// 필드 라벨 (회원, 날짜 …).
 class _FieldLabel extends StatelessWidget {
   final String label;
 

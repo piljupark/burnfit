@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// Galloway 타입 스케일.
+/// BurnFit 타입 스케일 (디자인 시안 기준).
 ///
 /// - 굵기는 400·500 두 가지뿐. 제목·값은 500, 나머지는 400. 600 이상은 쓰지 않는다.
 /// - 한 줄 안의 값+단위는 크기를 같게 하고 굵기·색으로만 구분한다.
@@ -11,7 +11,6 @@ class AppTextStyles {
   AppTextStyles._();
 
   static const String sans = 'WantedSans';
-  static const String mono = 'GeistMono';
 
   static TextStyle _sans(
     double size,
@@ -31,7 +30,7 @@ class AppTextStyles {
     );
   }
 
-  // ── Galloway 기본 스타일 ───────────────────────────────────────────────────
+  // ── 기본 스타일 ────────────────────────────────────────────────────────────
   /// 상세 화면 상단 큰 제목 (40/44)
   static TextStyle get displayLg => _sans(40, 44, weight: FontWeight.w500);
 
@@ -44,8 +43,14 @@ class AppTextStyles {
   /// 목록 항목 주 텍스트 (17/26)
   static TextStyle get bodyLg => _sans(17, 26);
 
+  /// 목록 줄 제목 (16/22, 500)
+  static TextStyle get listTitle => _sans(16, 22, weight: FontWeight.w500);
+
   /// 기본 본문·입력값 (15/22)
   static TextStyle get bodyMd => _sans(15, 22);
+
+  /// 목록 안 긴 글(피드백 내용 등)·짧은 빈 상태 (14/21, body)
+  static TextStyle get note => _sans(14, 21, color: AppColors.body);
 
   /// 보조 텍스트·캡션 (13/18, mute — 카드 위에서는 color: body로)
   static TextStyle get bodySm => _sans(13, 18, color: AppColors.mute);
@@ -59,10 +64,10 @@ class AppTextStyles {
   /// 사진·작은 배지 (11/14, 500)
   static TextStyle get badge => _sans(11, 14, weight: FontWeight.w500);
 
-  /// 묶음 머리말: 섹션 위 회색 글자 (15/22, mute). 예전 모노 머리말 자리.
+  /// 묶음 머리말·섹션 개수: 회색 글자 (15/22, mute).
   static TextStyle get eyebrow => _sans(15, 22, color: AppColors.mute);
 
-  /// 작은 숫자·상태 글자: D-12, 12/30 (13/18, mute). 예전 모노 카운터 자리.
+  /// 작은 숫자·상태 글자: D-12, 12/30 (13/18, mute).
   static TextStyle get counter => _sans(13, 18, color: AppColors.mute);
 
   // ═══════════════════════════════════════════════════════════════════════════
