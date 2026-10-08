@@ -26,7 +26,6 @@ dependencies:
   # UI
   gap: ^3.0.1
   cached_network_image: ^3.3.1
-  cupertino_icons: ^1.0.8
 
   # Image
   image_picker: ^1.0.7
