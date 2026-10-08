@@ -11,7 +11,8 @@ import 'orb_loader.dart';
 /// - [ghost]: 테두리 없음. 취소·보조 행동.
 /// - [danger]: 외곽선 + 빨간 글자. 되돌릴 수 없는 행동에만.
 /// - [dangerText]: 테두리 없는 빨간 글자.
-enum AppButtonVariant { primary, secondary, ghost, danger, dangerText }
+/// - [dark]: 검정 채움 + 흰 글자. 확인 다이얼로그·탈퇴 시트의 파괴적 확정 버튼 전용.
+enum AppButtonVariant { primary, secondary, ghost, danger, dangerText, dark }
 
 /// sm 32 · md 40 · lg 52(폼 대표 버튼). 시각 높이와 별개로 터치 영역은 44 이상.
 enum AppButtonSize { sm, md, lg }
@@ -55,6 +56,7 @@ class AppButton extends StatelessWidget {
       AppButtonSize.lg => 17.0,
     };
     final isPrimary = variant == AppButtonVariant.primary;
+    final isDark = variant == AppButtonVariant.dark;
     // 회색으로 채운 보조 버튼 (soft)
     final isSoft = variant == AppButtonVariant.secondary;
     // 큰 버튼은 모서리 18, 꽉 찬 중간 버튼은 14, 그 외(작은·내용 폭)는 알약
@@ -69,6 +71,7 @@ class AppButton extends StatelessWidget {
         : const StadiumBorder();
     final fg = switch (variant) {
       AppButtonVariant.primary => AppColors.onPrimary,
+      AppButtonVariant.dark => AppColors.canvas,
       AppButtonVariant.danger ||
       AppButtonVariant.dangerText => AppColors.danger,
       _ => AppColors.ink,
@@ -125,6 +128,8 @@ class AppButton extends StatelessWidget {
               child: Material(
                 color: isPrimary
                     ? AppColors.primary
+                    : isDark
+                    ? AppColors.ink
                     : isSoft
                     ? AppColors.canvasSoft
                     : Colors.transparent,
@@ -132,9 +137,11 @@ class AppButton extends StatelessWidget {
                 child: InkWell(
                   customBorder: shape,
                   onTap: disabled ? null : onPressed,
-                  // 눌림: 외곽선은 canvasSoft, primary는 body
+                  // 눌림: 외곽선은 canvasSoft, primary는 반투명 검정, dark는 반투명 흰색
                   highlightColor: isPrimary
                       ? AppColors.ink.withValues(alpha: 0.12)
+                      : isDark
+                      ? AppColors.canvas.withValues(alpha: 0.16)
                       : AppColors.canvasMid,
                   splashFactory: NoSplash.splashFactory,
                   child: Padding(

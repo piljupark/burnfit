@@ -170,7 +170,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
               Expanded(
                 child: AppButton(
                   label: '취소',
-                  variant: AppButtonVariant.ghost,
+                  variant: AppButtonVariant.secondary,
                   onPressed: _isDeleting
                       ? null
                       : () => Navigator.of(context).pop(false),
@@ -182,7 +182,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
               Expanded(
                 child: AppButton(
                   label: '탈퇴하기',
-                  variant: AppButtonVariant.danger,
+                  variant: AppButtonVariant.dark,
                   onPressed: _delete,
                   isLoading: _isDeleting,
                   fullWidth: true,
