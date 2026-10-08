@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
@@ -15,6 +16,7 @@ import '../../services/body_profile_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_motion.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/gender_selector.dart';
@@ -62,7 +64,8 @@ class _OnboardingBasicScreenState extends State<OnboardingBasicScreen> {
       context.read<UserProvider>().updateUserLocally(
         user.copyWith(birthDate: birth, gender: _gender),
       );
-      Navigator.of(context).pushReplacementNamed(AppRoutes.onboardingBody);
+      // 1단계 위에 쌓아 뒤로 가기로 1단계에 돌아올 수 있게 한다.
+      Navigator.of(context).pushNamed(AppRoutes.onboardingBody);
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
@@ -171,7 +174,7 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
       context.read<UserProvider>().updateUserLocally(
         user.copyWith(profile: profile),
       );
-      Navigator.of(context).pushReplacementNamed(AppRoutes.memberHome);
+      _goHome(context);
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
@@ -295,16 +298,59 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
           size: AppButtonSize.lg,
         ),
         const Gap(AppSpacing.xs),
-        _LaterLink(
-          onTap: () =>
-              Navigator.of(context).pushReplacementNamed(AppRoutes.memberHome),
-        ),
+        _LaterLink(onTap: () => _goHome(context)),
       ],
     );
   }
 }
 
 // ── 공유 위젯 ─────────────────────────────────────────────────────────────
+
+/// 온보딩을 마치면 쌓인 단계 화면을 지우고 홈으로 (홈에서 뒤로 가기로 온보딩에 돌아오지 않게).
+void _goHome(BuildContext context) {
+  Navigator.of(
+    context,
+  ).pushNamedAndRemoveUntil(AppRoutes.memberHome, (_) => false);
+}
+
+/// 온보딩 위쪽 줄: 이전 단계(돌아갈 단계가 있을 때) · 오른쪽 끝 로그아웃.
+/// 온보딩은 첫 화면이라 여기서 나갈 길이 없으면 앱을 끄는 수밖에 없다.
+class _OnboardingTopBar extends StatelessWidget {
+  const _OnboardingTopBar();
+
+  Future<void> _signOut(BuildContext context) async {
+    await context.read<UserProvider>().signOut();
+    if (!context.mounted) return;
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.memberLogin, (_) => false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
+    return SizedBox(
+      height: AppSize.touchMin,
+      child: Row(
+        children: [
+          if (canPop)
+            AppIconButton(
+              icon: AppIcons.back,
+              label: '이전 단계',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          const Spacer(),
+          AppButton(
+            label: '로그아웃',
+            variant: AppButtonVariant.ghost,
+            size: AppButtonSize.sm,
+            onPressed: () => _signOut(context),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// 온보딩 화면 틀 (시안 Com-Onboarding-*): 단계 막대(지금 칸 차오름) + 단계 글자 + 28 제목 + 16 설명
 /// → 입력 묶음들 → 아래 고정 행동(위 hairline). 글자·입력 묶음은 차례로 아래 10에서 올라온다 (`up`).
@@ -353,6 +399,8 @@ class _OnboardingScaffold extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const _OnboardingTopBar(),
+                    const Gap(AppSpacing.xs),
                     _OnboardingProgress(step: step, total: total),
                     const Gap(AppSpacing.xl2),
                     _up(
