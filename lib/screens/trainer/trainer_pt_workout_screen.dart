@@ -313,7 +313,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       Workout? saved;
 
       if (_editingWorkoutId == null) {
-        saved = await WorkoutService.saveWorkout(
+        final newWorkout = await WorkoutService.saveWorkout(
           centerId: widget.member.centerId,
           memberId: widget.member.uid,
           memberName: widget.member.name,
@@ -330,12 +330,14 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
               : _noteController.text.trim(),
         );
 
+        saved = newWorkout;
+
         // 저장된 기록을 '수정 중'으로 잡아 두면, 아래 완료 처리가 실패해 다시 눌러도
         // 새 기록이 또 생기지 않고 같은 기록을 고친 뒤 완료 처리를 다시 시도한다.
         if (mounted) {
           setState(() {
-            _savedWorkouts = [saved!, ..._savedWorkouts];
-            _editingWorkoutId = saved!.id;
+            _savedWorkouts = [newWorkout, ..._savedWorkouts];
+            _editingWorkoutId = newWorkout.id;
           });
         }
       } else {
