@@ -528,4 +528,99 @@ describe('users / centers / pt_infos security rules', () => {
       }));
     });
   });
+
+  describe('권한 보강 (담당 배정·센터 읽기·운동 생성·나만의 운동)', () => {
+    const otherCenterTrainerId = 'trainer-other-center';
+    const closedAdminId = 'admin-closed';
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, 'users', otherCenterTrainerId), {
+          uid: otherCenterTrainerId,
+          role: 'trainer',
+          status: 'approved',
+          centerId: 'center-other',
+          name: '다른 센터 트레이너',
+        });
+        await setDoc(doc(db, 'users', closedAdminId), {
+          uid: closedAdminId,
+          role: 'admin',
+          status: 'approved',
+          centerId: inactiveCenterId,
+          name: '폐업 센터 관리자',
+        });
+      });
+    });
+
+    const assign = (uid, trainer) =>
+      updateDoc(doc(authedDb(adminId), 'users', uid), {
+        trainerId: trainer,
+        trainerName: '이름',
+        updatedAt: serverTimestamp(),
+      });
+
+    it('관리자는 같은 센터의 승인된 트레이너만 회원에게 배정할 수 있다', async () => {
+      await assertSucceeds(assign(memberId, trainerId));
+      await assertSucceeds(assign(memberId, null));
+      await assertFails(assign(memberId, pendingTrainerId));
+      await assertFails(assign(memberId, otherCenterTrainerId));
+      await assertFails(assign(memberId, adminId));
+      await assertFails(assign(memberId, 'no-such-user'));
+      // 트레이너 문서에는 담당 트레이너를 둘 수 없다.
+      await assertFails(assign(pendingTrainerId, trainerId));
+    });
+
+    it('운영 중이 아닌 센터는 그 센터 소속만 읽는다', async () => {
+      const unauthed = testEnv.unauthenticatedContext().firestore();
+      await assertFails(getDoc(doc(unauthed, 'centers', inactiveCenterId)));
+      await assertFails(getDoc(doc(authedDb(memberId), 'centers', inactiveCenterId)));
+      await assertSucceeds(getDoc(doc(authedDb(closedAdminId), 'centers', inactiveCenterId)));
+      await assertSucceeds(getDoc(doc(authedDb(memberId), 'centers', centerId)));
+      // 가입 화면의 운영 중 센터 검색 쿼리는 비로그인도 된다.
+      await assertSucceeds(
+        getDocs(query(collection(unauthed, 'centers'), where('status', '==', 'active'))),
+      );
+    });
+
+    it('관리자는 운동 기록을 새로 만들 수 없다', async () => {
+      await assertFails(
+        setDoc(doc(authedDb(adminId), 'workouts', 'admin-made'), {
+          id: 'admin-made',
+          centerId,
+          memberId,
+          memberName: '회원',
+          trainerId,
+          workoutType: 'personal',
+          createdById: memberId,
+          createdByRole: 'member',
+          ptSessionId: null,
+          workoutDate: '2026-07-20',
+          category: 'chest',
+          exercises: [],
+          note: null,
+          hasFeedback: false,
+          feedbackId: null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('승인되지 않은 계정은 나만의 운동을 만들 수 없다', async () => {
+      const exercise = (uid) => ({
+        id: `custom-${uid}`,
+        memberId: uid,
+        name: '케이블 로우',
+        category: 'back',
+        createdAt: serverTimestamp(),
+      });
+      await assertFails(
+        setDoc(doc(authedDb(pendingTrainerId), 'custom_exercises', `custom-${pendingTrainerId}`), exercise(pendingTrainerId)),
+      );
+      await assertSucceeds(
+        setDoc(doc(authedDb(memberId), 'custom_exercises', `custom-${memberId}`), exercise(memberId)),
+      );
+    });
+  });
 });
