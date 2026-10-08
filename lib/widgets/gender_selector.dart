@@ -5,7 +5,8 @@ import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import '../models/user.dart';
 
-/// 성별 선택: 같은 폭 pill 2개 (선택 = 흰 채움). 온보딩·기본 정보 편집 공통.
+/// 성별 선택 (시안 Com-Onboarding-Basic): 같은 폭 2칸, 높이 52 · 반경 14 · 회색 면(canvasSoft),
+/// 글자 16 body. 선택 = 검정 채움 + 흰 16/500. 온보딩·기본 정보 편집 공통.
 /// '기타'는 고르게 하지 않는다 (예전 값이면 아무것도 선택되지 않은 상태로 보인다).
 class GenderSelector extends StatelessWidget {
   final Gender? value;
@@ -65,19 +66,17 @@ class _GenderOption extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: Container(
-          height: 48,
+          height: 52,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? AppColors.ink : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(
-              color: selected ? AppColors.ink : AppColors.outline,
-            ),
+            color: selected ? AppColors.ink : AppColors.canvasSoft,
+            borderRadius: BorderRadius.circular(AppRadius.field),
           ),
           child: Text(
             label,
-            style: AppTextStyles.bodyMd.copyWith(
-              color: selected ? AppColors.canvas : AppColors.ink,
+            style: AppTextStyles.input.copyWith(
+              color: selected ? AppColors.canvas : AppColors.body,
+              fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
             ),
           ),
         ),

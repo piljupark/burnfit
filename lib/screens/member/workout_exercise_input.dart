@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../models/workout.dart';
 import '../../widgets/set_input.dart';
 import 'workout_draft_models.dart';
 
@@ -36,7 +38,8 @@ class ExerciseInputCard extends StatelessWidget {
     required this.onToggleSetDone,
   });
 
-  /// 지난 기록과 비교한 한 줄. 늘었으면 강조색 글자.
+  /// 부위 · 지난 기록 비교 한 줄 (시안 MemA-Workout-Recording: 13 mute, 위 3).
+  /// 늘었으면 비교 부분만 강조색 500.
   Widget _comparisonLine() {
     final text = switch (comparison.tone) {
       ComparisonTone.up ||
@@ -44,13 +47,25 @@ class ExerciseInputCard extends StatelessWidget {
       ComparisonTone.same => '지난 기록과 동일',
       ComparisonTone.muted => comparison.label,
     };
-    return Text(
-      text,
-      style: AppTextStyles.bodySm.copyWith(
-        color: comparison.tone == ComparisonTone.up
-            ? AppColors.noticeText
-            : null,
+    final up = comparison.tone == ComparisonTone.up;
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '${exercise.category.label} · '),
+          TextSpan(
+            text: text,
+            style: up
+                ? TextStyle(
+                    color: AppColors.noticeText,
+                    fontWeight: FontWeight.w500,
+                  )
+                : null,
+          ),
+        ],
       ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppTextStyles.bodySm,
     );
   }
 
@@ -61,7 +76,12 @@ class ExerciseInputCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // 진행 중 줄 = 아직 완료하지 않은 첫 세트
     final currentIndex = exercise.sets.indexWhere((set) => !set.done);
-    final header = AppTextStyles.bodySm.copyWith(fontSize: 12, height: 16 / 12);
+    final header = AppTextStyles.bodySm.copyWith(
+      fontSize: 12,
+      height: 16 / 12,
+      letterSpacing: 12 * -0.019,
+      color: AppColors.caption,
+    );
 
     return Semantics(
       container: true,
@@ -81,50 +101,59 @@ class ExerciseInputCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // 이름 줄 높이 32 (시안: 메뉴 단추 44×32)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      exercise.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.section,
+              child: SizedBox(
+                height: 32,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        exercise.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.section.bold,
+                      ),
                     ),
-                  ),
-                  Semantics(
-                    button: true,
-                    label: '${exercise.name} 메뉴',
-                    excludeSemantics: true,
-                    child: GestureDetector(
-                      onTap: onMenuTap,
-                      behavior: HitTestBehavior.opaque,
-                      child: SizedBox(
-                        width: AppSize.touchMin,
-                        height: AppSize.touchMin,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Icon(
-                            AppIcons.moreBold,
-                            size: AppSize.icon,
-                            color: AppColors.mute,
+                    Semantics(
+                      button: true,
+                      label: '${exercise.name} 메뉴',
+                      excludeSemantics: true,
+                      child: GestureDetector(
+                        onTap: onMenuTap,
+                        behavior: HitTestBehavior.opaque,
+                        child: SizedBox(
+                          width: AppSize.touchMin,
+                          height: 32,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Icon(
+                              AppIcons.moreBold,
+                              size: AppSize.icon,
+                              color: AppColors.dots,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xs,
+                3,
+                AppSpacing.xs,
+                0,
+              ),
               child: _comparisonLine(),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.xs,
-                AppSpacing.md,
+                10,
                 AppSpacing.xs,
                 6,
               ),
@@ -178,7 +207,12 @@ class ExerciseInputCard extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(AppIcons.add, size: 16, color: AppColors.body),
+                      // 시안 선 2/24 → 16에서 1.33: Bold(1.5)가 가깝다
+                      Icon(
+                        PhosphorIconsBold.plus,
+                        size: 16,
+                        color: AppColors.body,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         '세트 추가',
@@ -287,6 +321,7 @@ class _WorkoutSetRow extends StatelessWidget {
                   done: set.done,
                   current: false,
                   size: 36,
+                  animate: true,
                   onTap: onToggleDone,
                 ),
               ),

@@ -14,14 +14,15 @@ import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
 import '../../models/meal.dart';
 import '../../services/meal_service.dart';
-import '../../widgets/app_button.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_inputs.dart';
+import '../../widgets/app_motion.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/app_text_field.dart';
 
-/// 식단 기록 입력 화면 (하위 화면으로 push).
-/// 끼니 칩 → 사진 3열 격자 → 메모·칼로리 → 아래 고정 주 행동 하나.
+/// 식단 기록 입력 화면 (하위 화면으로 push, 시안 MemB-MealInput).
+/// 끼니 칩 → 사진 3열 격자(간격 6, 반경 14) → 메모·칼로리 → 아래 고정 주 행동 하나.
 class MealInputSheet extends StatefulWidget {
   final String centerId;
   final String memberId;
@@ -168,11 +169,13 @@ class _MealInputSheetState extends State<MealInputSheet> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      // 아래 버튼 바가 안전 영역을 스스로 채운다 (시안 12 20 34)
       body: SafeArea(
+        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            AppScreenHeader.centered(
               title: '식단 기록',
               onBack: () => Navigator.of(context).pop(false),
             ),
@@ -180,40 +183,51 @@ class _MealInputSheetState extends State<MealInputSheet> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screenH,
-                  AppSpacing.xl,
+                  AppSpacing.lg,
                   AppSpacing.screenH,
                   AppSpacing.xl,
                 ),
                 children: [
-                  Text(
-                    '끼니',
-                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    children: [
-                      for (final type in MealType.values)
-                        AppChip(
-                          label: type.label,
-                          selected: _mealType == type,
-                          onTap: () => setState(() => _mealType = type),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
+                  Text('끼니', style: AppTextStyles.fieldLabel),
+                  const SizedBox(height: AppSpacing.sm),
+                  // 시안: 같은 폭 4칸 (높이 44, 반경 14, 간격 8)
                   Row(
                     children: [
-                      Text(
-                        '사진',
-                        style: AppTextStyles.bodySm.copyWith(
-                          color: AppColors.body,
+                      for (final type in MealType.values) ...[
+                        if (type != MealType.values.first)
+                          const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: AppChip(
+                            label: type.label,
+                            selected: _mealType == type,
+                            cell: true,
+                            onTap: () => setState(() => _mealType = type),
+                          ),
                         ),
-                      ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text('사진', style: AppTextStyles.fieldLabel),
                       const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        '${_images.length} / ${AppConstants.imageMaxCount}',
-                        style: AppTextStyles.counter,
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '${_images.length}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            TextSpan(text: ' / ${AppConstants.imageMaxCount}'),
+                          ],
+                        ),
+                        style: AppTextStyles.fieldLabel,
                       ),
                     ],
                   ),
@@ -225,11 +239,12 @@ class _MealInputSheetState extends State<MealInputSheet> {
                     onAdd: _pickImages,
                     onRemove: _removeImage,
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: 28),
                   AppTextField(
                     label: '메모',
                     hint: '먹은 음식을 기록해보세요',
                     controller: _descController,
+                    minLines: 4,
                     maxLines: 4,
                     textInputAction: TextInputAction.newline,
                   ),
@@ -239,35 +254,17 @@ class _MealInputSheetState extends State<MealInputSheet> {
                     hint: '선택 입력',
                     controller: _caloriesController,
                     keyboardType: TextInputType.number,
-                    suffix: Padding(
-                      padding: const EdgeInsets.only(right: AppSpacing.base),
-                      child: Center(
-                        widthFactor: 1,
-                        child: Text('kcal', style: AppTextStyles.counter),
-                      ),
-                    ),
+                    unit: 'kcal',
+                    strongValue: true,
                     textInputAction: TextInputAction.done,
                   ),
                 ],
               ),
             ),
-            Container(
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.hairline)),
-              ),
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.md,
-                AppSpacing.screenH,
-                AppSpacing.md,
-              ),
-              child: AppButton(
-                label: '기록 저장',
-                size: AppButtonSize.lg,
-                fullWidth: true,
-                isLoading: _isSaving,
-                onPressed: _isSaving ? null : _save,
-              ),
+            AppBottomActionBar(
+              primaryLabel: '기록 저장',
+              loading: _isSaving,
+              onPrimary: _isSaving ? null : _save,
             ),
           ],
         ),
@@ -276,7 +273,8 @@ class _MealInputSheetState extends State<MealInputSheet> {
   }
 }
 
-/// 사진 3열 격자 (간격 2, 반경 0). 마지막 칸은 추가 칸.
+/// 사진 3열 격자 (간격 6, 반경 14). 마지막 칸은 점선 추가 칸.
+/// 새로 넣은 사진 칸은 커지며 나타난다 (시안 `pop`).
 class _PhotoGrid extends StatelessWidget {
   final List<XFile> images;
   final List<Uint8List> imageBytes;
@@ -298,79 +296,154 @@ class _PhotoGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
       itemCount: count,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        mainAxisSpacing: AppSpacing.xxs,
-        crossAxisSpacing: AppSpacing.xxs,
+        mainAxisSpacing: 6,
+        crossAxisSpacing: 6,
       ),
       itemBuilder: (_, i) {
         if (i == images.length) {
+          final radius = BorderRadius.circular(AppRadius.field);
           return Semantics(
             button: true,
             label: '식단 사진 추가',
             excludeSemantics: true,
-            child: Material(
-              color: AppColors.canvasSoft,
-              shape: RoundedRectangleBorder(
-                side: BorderSide(color: AppColors.hairline),
+            child: CustomPaint(
+              foregroundPainter: _DashedBorderPainter(
+                color: AppColors.outline,
+                radius: AppRadius.field,
               ),
-              child: InkWell(
-                onTap: onAdd,
-                highlightColor: AppColors.canvasMid,
-                splashFactory: NoSplash.splashFactory,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      AppIcons.camera,
-                      size: AppSize.icon,
-                      color: AppColors.body,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text('사진 추가', style: AppTextStyles.bodySm),
-                  ],
+              child: Material(
+                color: Colors.transparent,
+                shape: RoundedRectangleBorder(borderRadius: radius),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onAdd,
+                  highlightColor: AppColors.canvasSoft,
+                  splashFactory: NoSplash.splashFactory,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(AppIcons.camera, size: 24, color: AppColors.body),
+                      const SizedBox(height: 6),
+                      Text(
+                        '사진 추가',
+                        style: AppTextStyles.bodySm.copyWith(
+                          color: AppColors.body,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           );
         }
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            Semantics(
-              image: true,
-              label: '식단 사진 ${i + 1}',
-              child: kIsWeb
-                  ? Image.memory(imageBytes[i], fit: BoxFit.cover)
-                  : Image.file(File(images[i].path), fit: BoxFit.cover),
-            ),
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // 사진 위 아이콘 대비용 scrim 원
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: const BoxDecoration(
-                      color: AppColors.scrim,
-                      shape: BoxShape.circle,
-                    ),
+        return _PopIn(
+          key: ValueKey(images[i].path),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.field),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Semantics(
+                  image: true,
+                  label: '식단 사진 ${i + 1}',
+                  child: ColoredBox(
+                    color: AppColors.track,
+                    child: kIsWeb
+                        ? Image.memory(imageBytes[i], fit: BoxFit.cover)
+                        : Image.file(File(images[i].path), fit: BoxFit.cover),
                   ),
-                  AppIconButton(
-                    icon: AppIcons.close,
-                    label: '사진 ${i + 1} 삭제',
-                    onPressed: () => onRemove(i),
+                ),
+                // 삭제: 누름 영역 44, 원 26 (rgba(25,25,25,.6)) + 흰 X 14
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: const BoxDecoration(
+                          color: Color(0x99191919),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      AppIconButton(
+                        icon: AppIcons.closeBold,
+                        label: '사진 ${i + 1} 삭제',
+                        iconSize: 14,
+                        color: Colors.white,
+                        onPressed: () => onRemove(i),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
   }
+}
+
+/// 사진 칸이 처음 놓일 때 커지며 나타난다 (시안 `pop`: .6 → 1.05 → 1, .45s,
+/// cubic-bezier(.3,1.3,.5,1)). '동작 줄이기'면 바로 그린다.
+class _PopIn extends StatelessWidget {
+  final Widget child;
+
+  const _PopIn({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    if (AppMotion.reduced(context)) return child;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 450),
+      curve: AppMotion.knob,
+      child: child,
+      builder: (context, t, child) => Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Transform.scale(scale: 0.6 + 0.4 * t, child: child),
+      ),
+    );
+  }
+}
+
+/// 점선 둥근 테두리 (시안 사진 추가 칸: 1.5 dashed #D4D4D8, 반경 14).
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double radius;
+
+  const _DashedBorderPainter({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const strokeWidth = 1.5;
+    const dash = 4.5;
+    const gap = 3.0;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    final rect = (Offset.zero & size).deflate(strokeWidth / 2);
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        canvas.drawPath(metric.extractPath(distance, distance + dash), paint);
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.radius != radius;
 }

@@ -6,12 +6,13 @@ import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/food_guide.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_filter_tabs.dart';
+import '../../widgets/app_motion.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_tag.dart';
 import 'food_detail_sheet.dart';
 
-/// 음식 목록 (영양소별·상황별 공용): 설명 → 특성 필터 칩 → 음식 줄(1회 분량 · 단백질 · kcal) → 상세 시트.
+/// 음식 목록 (영양소별·상황별 공용, 시안 MemB-FoodList): 설명 → 특성 필터 칩(40)
+/// → 열 이름 줄 → 음식 줄(68: 이름 16/500 · 분량·특성 13 / 단백질 15/500 · kcal 13) → 상세 시트.
 class FoodListScreen extends StatefulWidget {
   final String title;
   final String description;
@@ -49,6 +50,7 @@ class _FoodListScreenState extends State<FoodListScreen> {
   @override
   Widget build(BuildContext context) {
     final foods = _filtered;
+    final labels = ['전체', for (final tag in _tags) tag.label];
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
@@ -56,7 +58,7 @@ class _FoodListScreenState extends State<FoodListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            AppScreenHeader.centered(
               title: widget.title,
               onBack: () => Navigator.of(context).pop(),
             ),
@@ -77,64 +79,80 @@ class _FoodListScreenState extends State<FoodListScreen> {
                       widget.description,
                       style: AppTextStyles.bodyMd.copyWith(
                         color: AppColors.body,
+                        height: 1.55,
                       ),
                     ),
                   ),
                   if (_tags.isNotEmpty)
-                    AppScrollableChips(
-                      labels: ['전체', for (final tag in _tags) tag.label],
-                      selectedIndex: _filterIndex,
-                      onSelected: (i) => setState(() => _filterIndex = i),
+                    // 큰 칩(40)은 위아래 2 여백을 품으므로 14 + 2 = 시안 16
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.screenH,
-                        AppSpacing.sm,
+                        14,
                         AppSpacing.screenH,
-                        AppSpacing.xs,
+                        0,
+                      ),
+                      child: Row(
+                        children: [
+                          for (var i = 0; i < labels.length; i++) ...[
+                            if (i > 0) const SizedBox(width: AppSpacing.sm),
+                            AppChip(
+                              label: labels[i],
+                              selected: i == _filterIndex,
+                              large: true,
+                              onTap: () => setState(() => _filterIndex = i),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
+                  // 열 이름 줄: 위 16, 화면 폭 위 선, 안쪽 10 40 6 20, 12 mute
+                  const SizedBox(height: 14),
                   const AppRowDivider(),
                   ExcludeSemantics(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.screenH,
-                        AppSpacing.sm,
-                        44,
-                        AppSpacing.sm,
+                        10,
+                        40,
+                        6,
                       ),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(
-                            child: Text(
-                              '음식 · 1회 분량',
-                              style: AppTextStyles.captionSmall,
-                            ),
-                          ),
+                          Text('음식 · 1회 분량', style: AppTextStyles.captionSmall),
                           Text('단백질 · 열량', style: AppTextStyles.captionSmall),
                         ],
                       ),
                     ),
                   ),
-                  for (final food in foods) ...[
-                    _FoodRow(
-                      food: food,
-                      onTap: () => showFoodDetailSheet(
-                        context,
-                        food,
-                        addAction: widget.addAction,
+                  for (var i = 0; i < foods.length; i++) ...[
+                    AppEntrance.slide(
+                      // 필터를 바꾸면 줄이 다시 밀려 들어온다
+                      key: ValueKey('$_filterIndex-${foods[i].id}'),
+                      delay: Duration(milliseconds: 40 * i),
+                      child: _FoodRow(
+                        food: foods[i],
+                        onTap: () => showFoodDetailSheet(
+                          context,
+                          foods[i],
+                          addAction: widget.addAction,
+                        ),
                       ),
                     ),
-                    const AppRowDivider(),
+                    const AppRowDivider.inset(),
                   ],
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.screenH,
-                      AppSpacing.md,
+                      14,
                       AppSpacing.screenH,
                       0,
                     ),
                     child: Text(
                       '참고용 대략값이에요. 조리법·제품에 따라 달라져요.',
-                      style: AppTextStyles.captionSmall,
+                      style: AppTextStyles.bodySm,
                     ),
                   ),
                 ],
@@ -147,7 +165,8 @@ class _FoodListScreenState extends State<FoodListScreen> {
   }
 }
 
-/// 음식 한 줄: 이름(17) + 분량·특성 태그 / 오른쪽 단백질 g · kcal + 화살표.
+/// 음식 한 줄 (68, 좌우 20): 이름 16/500 + 위 3 '분량 · 특성'(13 mute, 한 줄)
+/// / 오른쪽 '23g'(15/500 + g mute) · 위 2 kcal(13 mute) + 12 + 화살표 16.
 class _FoodRow extends StatelessWidget {
   final FoodItem food;
   final VoidCallback onTap;
@@ -158,6 +177,10 @@ class _FoodRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final protein = formatGrams(food.protein);
     final tags = food.tags.map((t) => t.label).join(', ');
+    final detail = [
+      food.serving,
+      for (final t in food.tags) t.label,
+    ].join(' · ');
     return Semantics(
       button: true,
       label:
@@ -167,48 +190,62 @@ class _FoodRow extends StatelessWidget {
         onTap: onTap,
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.screenH,
-            vertical: AppSpacing.md,
-          ),
+        child: Container(
+          height: 68,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
           child: Row(
             children: [
               Expanded(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(food.name, style: AppTextStyles.bodyLg),
-                    const SizedBox(height: AppSpacing.xs),
-                    Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.xs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(food.serving, style: AppTextStyles.bodySm),
-                        for (final tag in food.tags) AppTag(tag.label),
-                      ],
+                    Text(
+                      food.name,
+                      style: AppTextStyles.listTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      detail,
+                      style: AppTextStyles.bodySm,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
               Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    '${protein}g',
-                    style: AppTextStyles.counter.copyWith(
-                      fontSize: 13,
-                      color: AppColors.ink,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: protein),
+                        TextSpan(
+                          text: 'g',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.mute,
+                          ),
+                        ),
+                      ],
                     ),
+                    style: AppTextStyles.bodyMd.medium,
                   ),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text('${food.kcal}kcal', style: AppTextStyles.counter),
+                  const SizedBox(height: 2),
+                  Text('${food.kcal}kcal', style: AppTextStyles.bodySm),
                 ],
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+              const SizedBox(width: AppSpacing.md),
+              Icon(
+                AppIcons.chevronRightBold,
+                size: 16,
+                color: AppColors.chevron,
+              ),
             ],
           ),
         ),

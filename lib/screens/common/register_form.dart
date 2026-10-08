@@ -21,6 +21,7 @@ import '../../widgets/app_inputs.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/app_motion.dart';
 
 /// 가입 화면 공통 몸체 (회원가입·트레이너 등록).
 /// 다른 점은 화면 제목과 가입 역할뿐이다.
@@ -114,7 +115,7 @@ class _RegisterFormState extends State<RegisterForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            AppScreenHeader.large(
               title: widget.title,
               onBack: () => Navigator.of(context).pop(),
             ),
@@ -127,6 +128,7 @@ class _RegisterFormState extends State<RegisterForm> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // ── 계정 정보 ─────────────────────────────────────
+                      const Gap(AppSpacing.sm),
                       const AppMonthHeader(
                         label: '계정 정보',
                         padding: EdgeInsets.fromLTRB(
@@ -147,7 +149,7 @@ class _RegisterFormState extends State<RegisterForm> {
                               validator: Validators.name,
                               textInputAction: TextInputAction.next,
                             ),
-                            const Gap(AppSpacing.md),
+                            const Gap(14),
                             AppTextField(
                               label: '이메일',
                               hint: 'example@email.com',
@@ -156,7 +158,7 @@ class _RegisterFormState extends State<RegisterForm> {
                               validator: Validators.email,
                               textInputAction: TextInputAction.next,
                             ),
-                            const Gap(AppSpacing.md),
+                            const Gap(14),
                             AppTextField(
                               label: '비밀번호',
                               hint: '비밀번호를 입력해주세요',
@@ -169,15 +171,19 @@ class _RegisterFormState extends State<RegisterForm> {
                         ),
                       ),
 
-                      // 묶음 사이 회색 띠
-                      const Gap(AppSpacing.xl),
-                      Container(
-                        height: AppSpacing.sm,
-                        color: AppColors.canvasSoft,
-                      ),
+                      // 묶음 사이 회색 띠 (8, #F6F6F7)
+                      const AppSectionBand(top: AppSpacing.xl),
 
                       // ── 소속 센터 ─────────────────────────────────────
-                      const AppMonthHeader(label: '소속 센터'),
+                      const AppMonthHeader(
+                        label: '소속 센터',
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.screenH,
+                          AppSpacing.lg,
+                          AppSpacing.screenH,
+                          AppSpacing.sm,
+                        ),
+                      ),
                       _Inset(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -256,7 +262,8 @@ class _Inset extends StatelessWidget {
   }
 }
 
-/// 선택된 센터: 회색 입력칸 모양 + 체크 + 이름 + 해제 버튼.
+/// 선택된 센터 (시안 Com-Register-Trainer): 56 높이 · 반경 14 · 회색 카드 면,
+/// 22 검정 원 안 흰 체크(튀어나옴 `pop`) + 이름 16/500 + 해제(X 18 mute).
 class _SelectedCenter extends StatelessWidget {
   final String name;
   final VoidCallback onClear;
@@ -265,28 +272,58 @@ class _SelectedCenter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduced = AppMotion.reduced(context);
     return Container(
-      padding: const EdgeInsets.only(left: AppSpacing.base),
+      height: 56,
+      padding: const EdgeInsets.only(
+        left: AppSpacing.base,
+        right: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
-        color: AppColors.canvasSoft,
+        color: AppColors.canvasCard,
         borderRadius: BorderRadius.circular(AppRadius.field),
       ),
       child: Row(
         children: [
-          Icon(AppIcons.checkCircle, size: AppSize.icon, color: AppColors.ink),
-          const Gap(AppSpacing.sm),
+          // 시안 `pop`: .45s, cubic-bezier(.3,1.3,.5,1), 0.4배·투명 → 1.15배 → 제자리
+          TweenAnimationBuilder<double>(
+            key: ValueKey(name),
+            tween: Tween(begin: reduced ? 1 : 0, end: 1),
+            duration: const Duration(milliseconds: 450),
+            curve: AppMotion.knob,
+            builder: (context, t, child) => Opacity(
+              opacity: t.clamp(0.0, 1.0),
+              child: Transform.scale(scale: 0.4 + 0.6 * t, child: child),
+            ),
+            child: Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.ink,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                AppIcons.checkBold,
+                size: 12,
+                color: AppColors.canvas,
+              ),
+            ),
+          ),
+          const Gap(10),
           Expanded(
             child: Text(
               name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w700),
+              style: AppTextStyles.listTitle,
             ),
           ),
           AppIconButton(
-            icon: AppIcons.close,
+            icon: AppIcons.closeBold,
             label: '센터 선택 해제',
-            color: AppColors.body,
+            iconSize: 18,
+            color: AppColors.mute,
             onPressed: onClear,
           ),
         ],
@@ -295,7 +332,8 @@ class _SelectedCenter extends StatelessWidget {
   }
 }
 
-/// 센터 검색 결과: 이름(500) + 주소 + 화살표, 줄 사이 hairline. 최소 높이 64.
+/// 센터 검색 결과 (시안 Com-Register-Member): 이름 16/500 + 주소 13 mute(위 3) + 화살표 18,
+/// 줄마다 아래 hairline, 최소 높이 64. 줄은 차례로 아래 8에서 올라온다 (`row`).
 class _CenterSearchResults extends StatelessWidget {
   final List<center_model.Center> results;
   final ValueChanged<center_model.Center> onSelect;
@@ -307,44 +345,66 @@ class _CenterSearchResults extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final c in results) ...[
-          Semantics(
-            button: true,
-            child: InkWell(
-              onTap: () => onSelect(c),
-              highlightColor: AppColors.canvasSoft,
-              splashFactory: NoSplash.splashFactory,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 64),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              c.name,
-                              style: AppTextStyles.bodyLg.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            if ((c.address ?? '').isNotEmpty)
-                              Text(c.address!, style: AppTextStyles.bodySm),
-                          ],
-                        ),
-                      ),
-                      Icon(AppIcons.forward, size: 18, color: AppColors.mute),
-                    ],
-                  ),
-                ),
-              ),
+        for (var i = 0; i < results.length; i++)
+          AppEntrance(
+            key: ValueKey(results[i].id),
+            offset: const Offset(0, 8),
+            duration: const Duration(milliseconds: 400),
+            delay: Duration(milliseconds: 50 + 70 * i),
+            child: _CenterResultRow(
+              center: results[i],
+              onTap: () => onSelect(results[i]),
             ),
           ),
-          const AppRowDivider(),
-        ],
       ],
+    );
+  }
+}
+
+class _CenterResultRow extends StatelessWidget {
+  final center_model.Center center;
+  final VoidCallback onTap;
+
+  const _CenterResultRow({required this.center, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final address = center.address ?? '';
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 64),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.hairline)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(center.name, style: AppTextStyles.listTitle),
+                    if (address.isNotEmpty) ...[
+                      const Gap(3),
+                      Text(address, style: AppTextStyles.bodySm),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                AppIcons.chevronRightBold,
+                size: 18,
+                color: AppColors.chevron,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -27,10 +27,12 @@ class AppIcons {
 
   // ── 탐색 · 공통 행동 ───────────────────────────────────────────────────────
   static const IconData back = PhosphorIconsRegular.caretLeft;
+  static const IconData backBold = PhosphorIconsBold.caretLeft;
   static const IconData forward = PhosphorIconsRegular.caretRight;
   static const IconData chevronDown = PhosphorIconsRegular.caretDown;
   static const IconData chevronUp = PhosphorIconsRegular.caretUp;
   static const IconData close = PhosphorIconsRegular.x;
+  static const IconData closeBold = PhosphorIconsBold.x;
   static const IconData add = PhosphorIconsRegular.plus;
   static const IconData remove = PhosphorIconsRegular.minus;
   static const IconData more = PhosphorIconsRegular.dotsThree;
@@ -102,4 +104,78 @@ class AppIcons {
   static const IconData list = PhosphorIconsRegular.listBullets;
   static const IconData heart = PhosphorIconsRegular.heart;
   static const IconData heartFill = PhosphorIconsFill.heart;
+
+  /// 같은 모양의 Bold 아이콘 (아이콘 상자 20·공지 18처럼 작은 크기에서 시안 선 1.8에 맞출 때).
+  /// 릴리스 빌드의 아이콘 줄이기를 위해 상수만 돌려준다. 목록에 없으면 그대로.
+  static IconData bold(IconData icon) => switch (icon.codePoint) {
+    0xe00c => PhosphorIconsBold.archive,
+    0xe036 => PhosphorIconsBold.arrowClockwise,
+    0xe038 => PhosphorIconsBold.arrowCounterClockwise,
+    0xe0b6 => PhosphorIconsBold.barbell,
+    0xe0ce => PhosphorIconsBold.bell,
+    0xe8e4 => PhosphorIconsBold.bowlSteam,
+    0xe102 => PhosphorIconsBold.buildings,
+    0xe10a => PhosphorIconsBold.calendarBlank,
+    0xe712 => PhosphorIconsBold.calendarCheck,
+    0xe714 => PhosphorIconsBold.calendarPlus,
+    0xe10e => PhosphorIconsBold.camera,
+    0xe136 => PhosphorIconsBold.caretDown,
+    0xe138 => PhosphorIconsBold.caretLeft,
+    0xe13a => PhosphorIconsBold.caretRight,
+    0xe13c => PhosphorIconsBold.caretUp,
+    0xed38 => PhosphorIconsBold.carrot,
+    0xe150 => PhosphorIconsBold.chartBar,
+    0xe154 => PhosphorIconsBold.chartLine,
+    0xe17a => PhosphorIconsBold.chatText,
+    0xe182 => PhosphorIconsBold.check,
+    0xe184 => PhosphorIconsBold.checkCircle,
+    0xe18a => PhosphorIconsBold.circle,
+    0xe18c => PhosphorIconsBold.circleHalf,
+    0xe198 => PhosphorIconsBold.clipboardText,
+    0xe19a => PhosphorIconsBold.clock,
+    0xe1fe => PhosphorIconsBold.dotsThree,
+    0xe20c => PhosphorIconsBold.downloadSimple,
+    0xe218 => PhosphorIconsBold.envelopeSimple,
+    0xe220 => PhosphorIconsBold.eye,
+    0xe224 => PhosphorIconsBold.eyeSlash,
+    0xe624 => PhosphorIconsBold.flame,
+    0xe268 => PhosphorIconsBold.funnelSimple,
+    0xe270 => PhosphorIconsBold.gear,
+    0xe2a8 => PhosphorIconsBold.heart,
+    0xe2ac => PhosphorIconsBold.heartbeat,
+    0xe2c2 => PhosphorIconsBold.house,
+    0xe6f6 => PhosphorIconsBold.identificationBadge,
+    0xe2ca => PhosphorIconsBold.image,
+    0xe2ce => PhosphorIconsBold.info,
+    0xe2e6 => PhosphorIconsBold.linkSimple,
+    0xe2f2 => PhosphorIconsBold.listBullets,
+    0xe308 => PhosphorIconsBold.lockSimple,
+    0xe30c => PhosphorIconsBold.magnifyingGlass,
+    0xe324 => PhosphorIconsBold.megaphone,
+    0xe32a => PhosphorIconsBold.minus,
+    0xe34c => PhosphorIconsBold.notePencil,
+    0xe39e => PhosphorIconsBold.pause,
+    0xe3b4 => PhosphorIconsBold.pencilSimple,
+    0xe730 => PhosphorIconsBold.personSimpleRun,
+    0xe3b8 => PhosphorIconsBold.phone,
+    0xe3d4 => PhosphorIconsBold.plus,
+    0xe750 => PhosphorIconsBold.scales,
+    0xe408 => PhosphorIconsBold.shareNetwork,
+    0xe42a => PhosphorIconsBold.signOut,
+    0xe444 => PhosphorIconsBold.sortAscending,
+    0xe464 => PhosphorIconsBold.squaresFour,
+    0xe46c => PhosphorIconsBold.stop,
+    0xe47c => PhosphorIconsBold.target,
+    0xe492 => PhosphorIconsBold.timer,
+    0xe4a6 => PhosphorIconsBold.trash,
+    0xe4ac => PhosphorIconsBold.trendDown,
+    0xe4ae => PhosphorIconsBold.trendUp,
+    0xe4c0 => PhosphorIconsBold.uploadSimple,
+    0xe4c2 => PhosphorIconsBold.user,
+    0xe4d0 => PhosphorIconsBold.userPlus,
+    0xe4d6 => PhosphorIconsBold.users,
+    0xe4e2 => PhosphorIconsBold.warningCircle,
+    0xe4f6 => PhosphorIconsBold.x,
+    _ => icon,
+  };
 }

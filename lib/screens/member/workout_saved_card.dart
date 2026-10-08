@@ -7,11 +7,11 @@ import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/workout.dart';
 import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_tag.dart';
 import 'workout_draft_models.dart';
 
-/// 저장된 운동 한 건: 화면 폭 블록 + 아래 hairline (카드로 감싸지 않는다).
-/// 위: 부위 태그 + 수정·삭제 아이콘 버튼 / 가운데: 종목 줄 / 아래: 요약 카운터.
+/// 저장된 운동 한 건 (시안 MemA-Workout-Saved): 화면 폭 블록 + 아래 hairline (카드로 감싸지 않는다).
+/// 여백 0 8 0 20. 위: 부위 글자(14 mute) + 수정·삭제 아이콘(20, body) /
+/// 가운데: 종목 줄(15 · 13 mute, 위아래 4) / 아래: 요약 줄(15/500 숫자 + mute 단위, 위 10 아래 16).
 class SavedWorkoutCard extends StatelessWidget {
   final Workout workout;
   final VoidCallback onEdit;
@@ -36,6 +36,10 @@ class SavedWorkoutCard extends StatelessWidget {
         .toSet()
         .toList();
     final volume = NumberFormat('#,###').format(workout.totalVolume.round());
+    final suffixStyle = TextStyle(
+      fontWeight: FontWeight.w400,
+      color: AppColors.mute,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -43,9 +47,9 @@ class SavedWorkoutCard extends StatelessWidget {
       ),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screenH,
-        AppSpacing.xs,
-        AppSpacing.xs,
-        AppSpacing.base,
+        0,
+        AppSpacing.sm,
+        0,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,10 +57,11 @@ class SavedWorkoutCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [for (final label in labels) AppTag(label)],
+                child: Text(
+                  labels.join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.fieldLabel,
                 ),
               ),
               AppIconButton(
@@ -80,18 +85,33 @@ class SavedWorkoutCard extends StatelessWidget {
               children: [
                 for (final exercise in workout.exercises)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                    ),
                     child: _SavedExerciseRow(
                       exercise: exercise,
                       isCardio: _isCardio,
                     ),
                   ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _isCardio
-                      ? '${workout.totalSets}세트'
-                      : '${volume}kg · ${workout.totalSets}세트',
-                  style: AppTextStyles.captionSmall,
+                Padding(
+                  padding: const EdgeInsets.only(top: 10, bottom: 16),
+                  child: Text.rich(
+                    TextSpan(
+                      children: _isCardio
+                          ? [
+                              TextSpan(text: '${workout.totalSets}'),
+                              TextSpan(text: '세트', style: suffixStyle),
+                            ]
+                          : [
+                              TextSpan(text: volume),
+                              TextSpan(
+                                text: 'kg · ${workout.totalSets}세트',
+                                style: suffixStyle,
+                              ),
+                            ],
+                    ),
+                    style: AppTextStyles.bodyMd.medium.natural,
+                  ),
                 ),
               ],
             ),
@@ -137,11 +157,11 @@ class _SavedExerciseRow extends StatelessWidget {
             exercise.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodyMd,
+            style: AppTextStyles.bodyMd.natural,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Text(detail, style: AppTextStyles.bodySm),
+        Text(detail, style: AppTextStyles.bodySm.natural),
       ],
     );
   }

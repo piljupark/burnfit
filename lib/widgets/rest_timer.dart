@@ -9,6 +9,7 @@ import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import 'app_bottom_sheet.dart';
+import 'app_motion.dart';
 
 /// 세트 사이 휴식 타이머 (앱 전체에 하나). 운동 화면에서 세트를 완료하면 시작하고,
 /// 홈 바로가기 '휴식 타이머'에서 직접 시작할 수도 있다.
@@ -78,55 +79,59 @@ class RestTimerBar extends StatelessWidget {
       listenable: timer,
       builder: (context, _) {
         if (!timer.isRunning) return const SizedBox.shrink();
-        return Semantics(
-          liveRegion: true,
-          label: '휴식 중, ${timer.remaining}초 남음',
-          child: Container(
-            height: 64,
-            padding: const EdgeInsets.fromLTRB(14, 0, AppSpacing.md, 0),
-            decoration: BoxDecoration(
-              color: AppColors.timerBar,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
-            child: Row(
-              children: [
-                ExcludeSemantics(
-                  child: CustomPaint(
-                    size: const Size.square(40),
-                    painter: _RingPainter(timer.fraction),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: ExcludeSemantics(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '휴식 중',
-                          style: AppTextStyles.bodySm.copyWith(
-                            fontSize: 12,
-                            height: 16 / 12,
-                            color: AppColors.timerCaption,
+        // 시안 `rise`: 나타날 때 아래 16에서 올라온다 (.45s ease-out).
+        return AppEntrance(
+          offset: const Offset(0, 16),
+          duration: const Duration(milliseconds: 450),
+          child: Semantics(
+            liveRegion: true,
+            label: '휴식 중, ${timer.remaining}초 남음',
+            child: Container(
+              height: 64,
+              padding: const EdgeInsets.fromLTRB(14, 0, AppSpacing.md, 0),
+              decoration: BoxDecoration(
+                color: AppColors.timerBar,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+              ),
+              child: Row(
+                children: [
+                  ExcludeSemantics(child: _CountdownRing(timer.fraction)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: ExcludeSemantics(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '휴식 중',
+                            style: AppTextStyles.bodySm.copyWith(
+                              fontSize: 12,
+                              height: 16 / 12,
+                              color: AppColors.timerCaption,
+                            ),
                           ),
-                        ),
-                        Text(
-                          _format(timer.remaining),
-                          style: AppTextStyles.title.copyWith(
-                            color: Colors.white,
-                            height: 24 / 20,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+                          Text(
+                            _format(timer.remaining),
+                            // 시안 Main 계열 Workout: 20/500 = Bold
+                            style: AppTextStyles.title.bold.copyWith(
+                              color: Colors.white,
+                              height: 24 / 20,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                _BarButton(label: '+30초', onTap: () => timer.addSeconds(30)),
-                const SizedBox(width: AppSpacing.sm),
-                _BarButton(label: '건너뛰기', onTap: timer.skip),
-              ],
+                  _BarButton(label: '+30초', onTap: () => timer.addSeconds(30)),
+                  // 시안: 막대 안 모든 요소 사이 14
+                  const SizedBox(width: 14),
+                  _BarButton(label: '건너뛰기', onTap: timer.skip),
+                ],
+              ),
             ),
           ),
         );
@@ -162,6 +167,62 @@ class _BarButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 진행 고리 (40): 남은 비율이 줄 때는 1초 동안 일정한 속도로 이어서 줄고(시안 `ring`: linear),
+/// 다시 시작·+30초로 늘 때는 바로 그 값으로 간다.
+class _CountdownRing extends StatefulWidget {
+  final double fraction;
+
+  const _CountdownRing(this.fraction);
+
+  @override
+  State<_CountdownRing> createState() => _CountdownRingState();
+}
+
+class _CountdownRingState extends State<_CountdownRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 1),
+    value: 1,
+  );
+  late double _from = widget.fraction;
+  late double _to = widget.fraction;
+
+  double get _value => _from + (_to - _from) * _controller.value;
+
+  @override
+  void didUpdateWidget(_CountdownRing oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.fraction == _to) return;
+    if (widget.fraction < _to && !AppMotion.reduced(context)) {
+      _from = _value;
+      _to = widget.fraction;
+      _controller.forward(from: 0);
+    } else {
+      _from = widget.fraction;
+      _to = widget.fraction;
+      _controller.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) => CustomPaint(
+        size: const Size.square(40),
+        painter: _RingPainter(_value),
       ),
     );
   }

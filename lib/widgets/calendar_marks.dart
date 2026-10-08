@@ -57,6 +57,20 @@ Map<String, Set<CalendarMark>> buildCalendarMarks({
   return marks;
 }
 
+/// 한 칸에 표시를 하나만 그릴 때(회원 홈 이번 주 줄) 고르는 순서:
+/// PT 완료 → PT 예약 → 개인운동. PT 예약이 개인운동 점에 가려지지 않게 한다.
+CalendarMark? primaryCalendarMark(Set<CalendarMark>? marks) {
+  if (marks == null || marks.isEmpty) return null;
+  for (final mark in const [
+    CalendarMark.ptDone,
+    CalendarMark.ptScheduled,
+    CalendarMark.personal,
+  ]) {
+    if (marks.contains(mark)) return mark;
+  }
+  return null;
+}
+
 /// 표시 하나: 날짜 아래 5, 범례 6. 빈 원 테두리는 5에서 1.2, 6에서 1.5 (시안 값).
 class CalendarMarkIcon extends StatelessWidget {
   final CalendarMark mark;

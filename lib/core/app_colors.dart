@@ -16,6 +16,10 @@ class AppPalette {
   final Color faint;
   final Color chevron;
   final Color line;
+  final Color track;
+  final Color caption;
+  final Color navLine;
+  final Color dots;
   final Color primary;
   final Color onPrimary;
   final Color danger;
@@ -35,6 +39,10 @@ class AppPalette {
     required this.faint,
     required this.chevron,
     required this.line,
+    required this.track,
+    required this.caption,
+    required this.navLine,
+    required this.dots,
     required this.primary,
     required this.onPrimary,
     required this.danger,
@@ -55,6 +63,10 @@ class AppPalette {
     faint: Color(0xFF5E6268),
     chevron: Color(0xFF4A4D52),
     line: Color(0xFF2A2C30),
+    track: Color(0xFF2C2E33),
+    caption: Color(0xFF8A8E94),
+    navLine: Color(0xFF212327),
+    dots: Color(0xFF6E7277),
     primary: Color(0xFFFF7A33),
     onPrimary: Color(0xFF191919),
     danger: Color(0xFFE5484D),
@@ -82,6 +94,10 @@ class AppPalette {
     faint: Color(0xFF9A9AA0),
     chevron: Color(0xFFB0B0B5),
     line: Color(0xFFEAEAEC),
+    track: Color(0xFFE6E6EA),
+    caption: Color(0xFF767676),
+    navLine: Color(0xFFEDEDEF),
+    dots: Color(0xFF8B8B90),
     primary: Color(0xFFFF7A33),
     onPrimary: Color(0xFF191919),
     danger: Color(0xFFD93036),
@@ -132,6 +148,10 @@ class AppColors {
   static Color get faint => _p.faint; // 비활성 탭 글자·아이콘
   static Color get chevron => _p.chevron; // 목록 줄 끝 화살표
   static Color get line => _p.line; // 회색 카드 안 세로 구분선
+  static Color get track => _p.track; // 진행 막대 바탕 (#E6E6EA)
+  static Color get caption => _p.caption; // 기준 시안(Main 계열) 캡션 회색 (#767676)
+  static Color get navLine => _p.navLine; // 아래 탭 위 선 (#EDEDEF)
+  static Color get dots => _p.dots; // 메뉴 점 세 개 (#8B8B90)
 
   static Color get primary => _p.primary; // 화면당 하나의 주 행동 채움
   static Color get onPrimary => _p.onPrimary; // primary 위 글자
@@ -140,7 +160,7 @@ class AppColors {
   static const Color scrim = Color(0x8C000000); // 사진 위 배지 배경 (55%)
   static const Color dim = Color(0x59000000); // 비활성 덮개 (35%)
   static const Color select = Color(0x80000000); // 선택 덮개 (50%)
-  static const Color backdrop = Color(0x99000000); // 시트·다이얼로그 뒤 (60%)
+  static const Color backdrop = Color(0x66000000); // 시트·다이얼로그 뒤 (40%, 시안 rgba(0,0,0,.4))
 
   static Color get danger => _p.danger; // 파괴적 행동 글자 전용
 
@@ -148,6 +168,7 @@ class AppColors {
   static const Color noticeBg = Color(0xFFFFF1E8);
   static const Color noticeText = Color(0xFFA8400E);
   static const Color noticeLine = Color(0xFFF3E4D8); // 연한 주황 카드 테두리
+  static const Color noticeSoft = Color(0xFFFFF3EA); // 그림 칸 연한 주황 (식단 안내 카드)
 
   /// 새 소식 점 (알림 종, 바로가기)
   static const Color newDot = Color(0xFFFF5A1F);
@@ -161,7 +182,7 @@ class AppColors {
   static const Color illustGreen = Color(0xFF3DD68C);
   static const Color illustBlue = Color(0xFF4DB3F5);
 
-  // 휴식 타이머 막대: 검정 막대 위 흰 글자 (두 테마 공통, 시안 Workout)
+  // 토스트·휴식 타이머 막대: 검정 면 위 흰 글자 (두 테마 공통). 토스트도 timerBar 색을 쓴다.
   static const Color timerBar = Color(0xFF191919);
   static const Color timerButton = Color(0xFF2C2C2E);
   static const Color timerTrack = Color(0xFF3A3A3C);

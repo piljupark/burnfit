@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/birth_date.dart';
@@ -12,19 +13,19 @@ import '../../models/inbody.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
+import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
-import '../../widgets/app_button.dart';
-import '../../widgets/app_filter_tabs.dart';
-import '../../widgets/app_hero.dart';
 import '../../widgets/app_kpi_card.dart';
-import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/app_motion.dart';
+import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_tag.dart';
 import 'edit_basic_info_sheet.dart';
 import 'edit_profile_sheet.dart';
 
-/// 회원 프로필 (마이 → 프로필 줄 / 신체 정보 줄).
-/// 기본 정보 · 신체 정보 + 인바디 추이 · 목표. 각 묶음 오른쪽 '편집'이 해당 시트를 연다.
-/// 승인된 회원만 들어온다 (스플래시·로그인에서 걸러짐) — 상태 줄은 두지 않는다.
+/// 회원 프로필 (시안 MemB-Profile · MemB-ProfileEmpty).
+/// 가운데 17 머리 → 이름 24 + 이메일 → (띠) 기본 정보 → (띠) 신체 정보 → (띠) 인바디(숫자 칸·추이 그래프) → (띠) 목표.
+/// 각 묶음 머리 오른쪽 '편집'(15/500)이 해당 시트를 연다.
 class MemberProfileDetailScreen extends StatelessWidget {
   const MemberProfileDetailScreen({super.key});
 
@@ -48,20 +49,20 @@ class MemberProfileDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            AppScreenHeader.centered(
               title: '프로필',
               onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
               child: ListView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: AppSize.navClearance),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xl3),
                 children: [
                   // ── 이름 · 이메일 ─────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.screenH,
-                      AppSpacing.xl,
+                      AppSpacing.base,
                       AppSpacing.screenH,
                       0,
                     ),
@@ -72,126 +73,127 @@ class MemberProfileDetailScreen extends StatelessWidget {
                           header: true,
                           child: Text(
                             user.name,
-                            style: AppTextStyles.displayMd,
+                            style: AppTextStyles.displayMd.copyWith(
+                              fontSize: 24,
+                              height: 30 / 24,
+                              letterSpacing: 24 * -0.019,
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          user.email,
-                          style: AppTextStyles.bodySm.copyWith(
-                            color: AppColors.body,
-                          ),
-                        ),
+                        Text(user.email, style: AppTextStyles.note),
                       ],
                     ),
                   ),
+                  const AppSectionBand(top: AppSpacing.xl),
 
                   // ── 기본 정보 ───────────────────────────────────────────
-                  AppMonthHeader(
+                  _GroupHeader(
                     label: '기본 정보',
-                    trailing: _editButton(
-                      label: '기본 정보 편집',
-                      onPressed: () =>
-                          _openSheet(context, EditBasicInfoSheet(user: user)),
-                    ),
+                    action: '편집',
+                    actionSemantics: '기본 정보 편집',
+                    onAction: () =>
+                        _openSheet(context, EditBasicInfoSheet(user: user)),
                   ),
                   _InfoRow(
                     label: '센터',
-                    value: user.centerName.isNotEmpty ? user.centerName : '-',
+                    value: user.centerName.isNotEmpty ? user.centerName : null,
                   ),
                   _InfoRow(
                     label: '담당 트레이너',
-                    value: trainer.isNotEmpty ? trainer : '미배정',
+                    value: trainer.isNotEmpty ? trainer : null,
+                    emptyText: '미배정',
                   ),
                   _InfoRow(
                     label: '생년월일',
-                    value: formatBirthDate(user.birthDate) ?? '-',
+                    value: formatBirthDate(user.birthDate),
                   ),
-                  _InfoRow(label: '성별', value: user.gender?.label ?? '-'),
+                  _InfoRow(label: '성별', value: user.gender?.label, last: true),
+                  const AppSectionBand(top: AppSpacing.base),
 
                   // ── 신체 정보 ───────────────────────────────────────────
-                  AppMonthHeader(
+                  _GroupHeader(
                     label: '신체 정보',
-                    trailing: _editButton(
-                      label: '신체 정보 편집',
-                      onPressed: () =>
-                          _openSheet(context, EditProfileSheet(user: user)),
-                    ),
+                    action: '편집',
+                    actionSemantics: '신체 정보 편집',
+                    onAction: () =>
+                        _openSheet(context, EditProfileSheet(user: user)),
                   ),
-                  if (profile == null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.screenH,
-                        0,
-                        AppSpacing.screenH,
-                        AppSpacing.sm,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('신체 정보를 입력해주세요', style: AppTextStyles.bodyLg),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            '키, 체중, 목표를 입력하면 트레이너와 공유됩니다.',
-                            style: AppTextStyles.bodySm,
-                          ),
-                        ],
-                      ),
-                    )
-                  else ...[
+                  if (profile == null) ...[
+                    const _BodyEmptyCard(),
+                    const AppSectionBand(top: AppSpacing.xl),
+                  ] else ...[
                     _InfoRow(
                       label: '키',
-                      value: _withUnit(profile.height, 'cm'),
+                      value: _num(profile.height),
+                      unit: 'cm',
+                      strong: true,
                     ),
                     _InfoRow(
                       label: '체중',
-                      value: _withUnit(profile.weight, 'kg'),
+                      value: _num(profile.weight),
+                      unit: 'kg',
+                      strong: true,
                     ),
                     _InfoRow(
                       label: 'BMI',
-                      value: profile.bmi?.toStringAsFixed(1) ?? '-',
+                      value: profile.bmi?.toStringAsFixed(1),
+                      strong: true,
                     ),
                     _InfoRow(
                       label: '골격근량',
-                      value: _withUnit(profile.muscleMass, 'kg'),
+                      value: _num(profile.muscleMass),
+                      unit: 'kg',
+                      strong: true,
                     ),
                     _InfoRow(
                       label: '체지방량',
-                      value: _withUnit(profile.bodyFat, 'kg'),
+                      value: _num(profile.bodyFat),
+                      unit: 'kg',
+                      strong: true,
                     ),
                     _InfoRow(
                       label: '체지방률',
-                      value: profile.bodyFatPercent != null
-                          ? '${profile.bodyFatPercent!.toStringAsFixed(1)}%'
-                          : '-',
+                      value: profile.bodyFatPercent?.toStringAsFixed(1),
+                      unit: '%',
+                      strong: true,
+                      last: true,
                     ),
+                    const AppSectionBand(top: AppSpacing.md),
                   ],
 
                   // ── 인바디 추이 ─────────────────────────────────────────
                   _InbodySection(profile: profile),
+                  const AppSectionBand(top: AppSpacing.lg),
 
                   // ── 목표 ────────────────────────────────────────────────
-                  AppMonthHeader(
+                  _GroupHeader(
                     label: '목표',
-                    trailing: _editButton(
-                      label: goal.isNotEmpty ? '목표 편집' : '목표 추가',
-                      text: goal.isNotEmpty ? '편집' : '추가',
-                      onPressed: () =>
-                          _openSheet(context, EditProfileSheet(user: user)),
-                    ),
+                    action: goal.isNotEmpty ? '편집' : '추가',
+                    actionSemantics: goal.isNotEmpty ? '목표 편집' : '목표 추가',
+                    onAction: () =>
+                        _openSheet(context, EditProfileSheet(user: user)),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.screenH,
-                      0,
+                      AppSpacing.xs,
                       AppSpacing.screenH,
-                      AppSpacing.sm,
+                      0,
                     ),
                     child: goal.isNotEmpty
-                        ? Text(goal, style: AppTextStyles.bodyMd)
-                        : Text('아직 목표가 없습니다.', style: AppTextStyles.bodySm),
+                        ? Text(
+                            goal,
+                            style: AppTextStyles.input.copyWith(height: 1.55),
+                          )
+                        : Text(
+                            '아직 목표가 없습니다.',
+                            style: AppTextStyles.note.copyWith(
+                              color: AppColors.mute,
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -202,69 +204,135 @@ class MemberProfileDetailScreen extends StatelessWidget {
     );
   }
 
-  /// 묶음 머리 오른쪽 글자 버튼. 화면에는 '편집'만 보이고 스크린리더에는 무엇을 고치는지 읽힌다.
-  static Widget _editButton({
-    required String label,
-    String text = '편집',
-    required VoidCallback onPressed,
-  }) {
-    return Semantics(
-      label: label,
-      button: true,
-      excludeSemantics: true,
-      child: AppButton(
-        label: text,
-        variant: AppButtonVariant.ghost,
-        size: AppButtonSize.sm,
-        onPressed: onPressed,
-      ),
-    );
-  }
-
   static void _openSheet(BuildContext context, Widget sheet) {
     showAppBottomSheet(context: context, memberStyle: true, child: sheet);
   }
 
-  static String _fmt(double v) =>
-      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
-
-  static String _withUnit(double? v, String unit) =>
-      v == null ? '-' : '${_fmt(v)} $unit';
+  static String? _num(double? v) {
+    if (v == null) return null;
+    return v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 정보 한 줄: 라벨(mute) + 값. hairline 아래.
+// 묶음 머리: 15 mute 라벨 + 오른쪽 '편집'(15/500 ink, 44 높이). 여백 8 8 0 20.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GroupHeader extends StatelessWidget {
+  final String label;
+  final String action;
+  final String actionSemantics;
+  final VoidCallback onAction;
+
+  const _GroupHeader({
+    required this.label,
+    required this.action,
+    required this.actionSemantics,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.sm,
+        AppSpacing.sm,
+        0,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text(label, style: AppTextStyles.eyebrow),
+            ),
+          ),
+          Semantics(
+            button: true,
+            label: actionSemantics,
+            excludeSemantics: true,
+            child: InkWell(
+              onTap: onAction,
+              borderRadius: BorderRadius.circular(AppRadius.field),
+              highlightColor: AppColors.canvasSoft,
+              splashFactory: NoSplash.splashFactory,
+              child: Container(
+                height: AppSize.touchMin,
+                constraints: const BoxConstraints(minWidth: AppSize.touchMin),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                alignment: Alignment.center,
+                child: Text(action, style: AppTextStyles.bodyMd.medium),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 정보 한 줄 (52): 왼쪽 라벨 15 mute, 오른쪽 값 16. 좌우 20 안쪽 아래 선(마지막 줄 없음).
+// [strong]이면 값 500 + 단위 400 mute를 붙여 쓴다. 값이 없으면 faint.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _InfoRow extends StatelessWidget {
   final String label;
-  final String value;
+  final String? value;
+  final String unit;
+  final String emptyText;
+  final bool strong;
+  final bool last;
 
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    this.unit = '',
+    this.emptyText = '-',
+    this.strong = false,
+    this.last = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final v = value;
+    final base = AppTextStyles.input;
+    final Widget valueText = v == null || v.isEmpty
+        ? Text(emptyText, style: base.copyWith(color: AppColors.faint))
+        : Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: v),
+                if (unit.isNotEmpty)
+                  TextSpan(
+                    text: unit,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.mute,
+                    ),
+                  ),
+              ],
+            ),
+            textAlign: TextAlign.end,
+            style: strong ? base.medium : base,
+          );
     return Semantics(
       container: true,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 48),
+        height: 52,
         margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.hairline)),
-        ),
+        decoration: last
+            ? null
+            : BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.hairline)),
+              ),
         child: Row(
           children: [
-            SizedBox(
-              width: 104,
-              child: Text(label, style: AppTextStyles.bodySm),
-            ),
+            Text(label, style: AppTextStyles.eyebrow),
+            const SizedBox(width: AppSpacing.base),
             Expanded(
-              child: Text(
-                value,
-                style: AppTextStyles.bodyMd.copyWith(
-                  color: value == '-' ? AppColors.mute : AppColors.ink,
-                ),
-              ),
+              child: Align(alignment: Alignment.centerRight, child: valueText),
             ),
           ],
         ),
@@ -273,8 +341,50 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+/// 신체 정보가 없을 때: 회색 카드(반경 18) 안 아이콘 36 + 16/500 + 14 mute, 가운데 정렬.
+class _BodyEmptyCard extends StatelessWidget {
+  const _BodyEmptyCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.sm,
+        AppSpacing.screenH,
+        0,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.xl,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+      ),
+      child: Column(
+        children: [
+          Icon(AppIcons.clipboard, size: 36, color: AppColors.faint),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '신체 정보를 입력해주세요',
+            style: AppTextStyles.listTitle,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '키, 체중, 목표를 입력하면 트레이너와 공유됩니다.',
+            style: AppTextStyles.note.copyWith(color: AppColors.mute),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// InBody: 머리말(날짜) → 숫자 줄(체중·골격근량·체지방률 + 변화량) → 추이 선 그래프
+// InBody: 머리(오른쪽 'M월 d일 측정') → 숫자 칸 3개 → 항목 칩 → 추이 선 그래프
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _InbodySection extends StatefulWidget {
@@ -319,27 +429,31 @@ class _InbodySectionState extends State<_InbodySection> {
     }
   }
 
-  /// 최신값과 직전값의 차이 (없으면 null).
-  ({String? text, bool? up}) _delta(_InbodyTrendMetric metric) {
+  /// 최신값과 직전값의 차이: '0.6 감소' / '0.4 증가' / '변화 없음' (없으면 null).
+  String? _delta(_InbodyTrendMetric metric) {
     final values = _items.map(metric.valueOf).whereType<double>().toList();
-    if (values.length < 2) return (text: null, up: null);
+    if (values.length < 2) return null;
     final diff = values.last - values[values.length - 2];
-    if (diff.abs() < 0.05) return (text: '0.0', up: null);
-    return (text: diff.abs().toStringAsFixed(1), up: diff > 0);
+    if (diff.abs() < 0.05) return '변화 없음';
+    return '${diff.abs().toStringAsFixed(1)} ${diff > 0 ? '증가' : '감소'}';
   }
 
   Widget _statCell(String label, _InbodyTrendMetric metric, double? fallback) {
     final latest = _items.isEmpty ? null : metric.valueOf(_items.last);
     final value = latest ?? fallback;
-    final delta = _delta(metric);
     return AppKpiCard(
       label: label,
       value: value == null ? '-' : value.toStringAsFixed(1),
       unit: value == null ? '' : metric.unit,
       framed: false,
-      valueSize: 24,
-      trend: delta.text,
-      trendUp: delta.up,
+      valueSize: 20,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      labelSize: 12,
+      labelGap: AppSpacing.xxs,
+      trend: _delta(metric),
+      trendSize: 12,
+      trendGap: AppSpacing.xxs,
+      valueColor: value == null ? AppColors.faint : null,
     );
   }
 
@@ -357,21 +471,43 @@ class _InbodySectionState extends State<_InbodySection> {
     final labels = chartItems
         .map((item) {
           final parsed = DateTime.tryParse(item.measurementDate);
-          return parsed != null ? DateFormat('MM').format(parsed) : '';
+          return parsed != null ? DateFormat('M월').format(parsed) : '';
         })
         .toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppMonthHeader(
-          label: '인바디',
-          count: latestDate == null
-              ? null
-              : DateFormat('MM.dd').format(latestDate),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.lg,
+            AppSpacing.screenH,
+            0,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text('인바디', style: AppTextStyles.eyebrow),
+                ),
+              ),
+              if (latestDate != null)
+                Text(
+                  DateFormat('M월 d일 측정').format(latestDate),
+                  style: AppTextStyles.note.copyWith(color: AppColors.mute),
+                ),
+            ],
+          ),
         ),
+        const SizedBox(height: AppSpacing.md),
         AppStatStrip(
-          topBorder: true,
+          radius: AppRadius.field,
+          // 시안 `up`: .5s, 0 / .08 / .16초 차례로 (기록이 있을 때만)
+          entrance: _items.isEmpty ? null : const AppStatEntrance(),
           cells: [
             _statCell('체중', _InbodyTrendMetric.weight, widget.profile?.weight),
             _statCell(
@@ -386,132 +522,264 @@ class _InbodySectionState extends State<_InbodySection> {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.md),
-        AppScrollableChips(
-          labels: [for (final m in _InbodyTrendMetric.values) m.label],
-          selectedIndex: _InbodyTrendMetric.values.indexOf(_metric),
-          onSelected: (i) =>
-              setState(() => _metric = _InbodyTrendMetric.values[i]),
+        // 칩 자체의 위아래 터치 여백 2를 빼서 시안 16에 맞춘다
+        const SizedBox(height: 14),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+          child: Row(
+            children: [
+              for (final m in _InbodyTrendMetric.values) ...[
+                if (m.index > 0) const SizedBox(width: AppSpacing.sm),
+                AppChip(
+                  label: m.label,
+                  large: true,
+                  selected: m == _metric,
+                  onTap: () => setState(() => _metric = m),
+                ),
+              ],
+            ],
+          ),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: 14),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-          child: SizedBox(
-            height: 140,
-            child: _loading
-                ? const Center(
+          child: _loading
+              ? const SizedBox(
+                  height: 150,
+                  child: Center(
                     child: AppLoader.inline(semanticLabel: 'InBody 불러오는 중'),
-                  )
-                : values.isEmpty
-                ? Center(
-                    child: Text(
-                      '${_metric.label} 기록이 없습니다.',
-                      style: AppTextStyles.bodySm,
-                    ),
-                  )
-                : Semantics(
-                    image: true,
-                    label:
-                        '${_metric.label} 추이: ${[for (var i = 0; i < values.length; i++) '${labels[i]}월 ${values[i].toStringAsFixed(1)}${_metric.unit}'].join(', ')}',
-                    excludeSemantics: true,
-                    child: CustomPaint(
-                      size: Size.infinite,
-                      painter: _TrendPainter(
-                        values: values,
-                        labels: labels,
-                        labelStyle: AppTextStyles.counter,
-                      ),
+                  ),
+                )
+              : values.isEmpty
+              ? Container(
+                  height: 140,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    border: Border.symmetric(
+                      horizontal: BorderSide(color: AppColors.hairline),
                     ),
                   ),
-          ),
+                  child: Text(
+                    '${_metric.label} 기록이 없습니다.',
+                    style: AppTextStyles.note.copyWith(color: AppColors.mute),
+                  ),
+                )
+              : Semantics(
+                  image: true,
+                  label:
+                      '${_metric.label} 추이: ${[for (var i = 0; i < values.length; i++) '${labels[i]} ${values[i].toStringAsFixed(1)}${_metric.unit}'].join(', ')}',
+                  excludeSemantics: true,
+                  child: _TrendChart(
+                    // 항목을 바꾸면 선을 다시 그린다
+                    key: ValueKey(_metric),
+                    values: values,
+                    labels: labels,
+                    unit: _metric.unit,
+                  ),
+                ),
         ),
       ],
     );
   }
 }
 
-/// 얇은 흰 선 그래프: 선 1.5px ink, 격자 hairline, 축 라벨 counter.
+/// 추이 선 그래프 (높이 150): 시안 `draw`(선 1.4s ease-out으로 그려짐) +
+/// `pop`(점이 .2s부터 .25s 간격으로 튀어나옴, .4s).
+class _TrendChart extends StatefulWidget {
+  final List<double> values;
+  final List<String> labels;
+  final String unit;
+
+  const _TrendChart({
+    super.key,
+    required this.values,
+    required this.labels,
+    required this.unit,
+  });
+
+  @override
+  State<_TrendChart> createState() => _TrendChartState();
+}
+
+class _TrendChartState extends State<_TrendChart>
+    with SingleTickerProviderStateMixin {
+  static const _lineMs = 1400;
+  static const _dotStartMs = 200;
+  static const _dotStepMs = 250;
+  static const _dotMs = 400;
+
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: Duration(
+      milliseconds: [
+        _lineMs,
+        _dotStartMs + _dotStepMs * (widget.values.length - 1) + _dotMs,
+      ].reduce((a, b) => a > b ? a : b),
+    ),
+  );
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (AppMotion.reduced(context)) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalMs = _controller.duration!.inMilliseconds;
+    return SizedBox(
+      height: 150,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final ms = _controller.value * totalMs;
+          final line = Curves.easeOut.transform((ms / _lineMs).clamp(0.0, 1.0));
+          final dots = [
+            for (var i = 0; i < widget.values.length; i++)
+              ((ms - _dotStartMs - _dotStepMs * i) / _dotMs).clamp(0.0, 1.0),
+          ];
+          return CustomPaint(
+            size: Size.infinite,
+            painter: _TrendPainter(
+              values: widget.values,
+              labels: widget.labels,
+              unit: widget.unit,
+              line: line,
+              dots: dots,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// 선 그래프: 가로 격자 3줄(y 12·66·120, hairline), 선 2px ink, 점 r3.5 ink,
+/// 마지막 점 r5.5 주황 + 위에 값(13/500), 아래 월 라벨 12 mute.
 class _TrendPainter extends CustomPainter {
   final List<double> values;
   final List<String> labels;
-  final TextStyle labelStyle;
+  final String unit;
+
+  /// 선이 그려진 비율 (0~1)
+  final double line;
+
+  /// 점마다 튀어나온 정도 (0~1)
+  final List<double> dots;
 
   const _TrendPainter({
     required this.values,
     required this.labels,
-    required this.labelStyle,
+    required this.unit,
+    required this.line,
+    required this.dots,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     if (values.isEmpty) return;
-    const labelBand = 20.0;
-    const topPad = 12.0;
-    final chartH = size.height - labelBand;
+    const top = 12.0;
+    const bottom = 120.0;
+    const hPad = 12.0;
 
-    // 격자: 가로 hairline 3줄
     final grid = Paint()
       ..color = AppColors.hairline
       ..strokeWidth = 1;
-    for (var i = 0; i < 3; i++) {
-      final y = topPad + (chartH - topPad) * i / 2;
+    for (final y in const [top, (top + bottom) / 2, bottom]) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
     }
 
     final minV = values.reduce((a, b) => a < b ? a : b);
     final maxV = values.reduce((a, b) => a > b ? a : b);
-    final range = (maxV - minV).abs() < 0.1 ? 1.0 : maxV - minV;
-    const hPad = 12.0;
+    final flat = (maxV - minV).abs() < 0.1;
     final usableW = size.width - hPad * 2;
 
     final points = List.generate(values.length, (i) {
       final x = values.length == 1
-          ? size.width / 2
+          ? size.width - hPad
           : hPad + usableW * i / (values.length - 1);
-      final norm = values.length == 1 || (maxV - minV).abs() < 0.1
-          ? 0.5
-          : (values[i] - minV) / range;
-      final y = topPad + (chartH - topPad) * (1 - norm);
+      final norm = flat ? 0.5 : (values[i] - minV) / (maxV - minV);
+      final y = top + (bottom - top) * (1 - norm);
       return Offset(x, y);
     });
 
-    final line = Paint()
-      ..color = AppColors.ink
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (final p in points.skip(1)) {
-      path.lineTo(p.dx, p.dy);
+    // 선: 길이 비율만큼 잘라 그린다 (선 그리기 효과)
+    if (points.length > 1 && line > 0) {
+      final path = Path()..moveTo(points.first.dx, points.first.dy);
+      for (final p in points.skip(1)) {
+        path.lineTo(p.dx, p.dy);
+      }
+      final paint = Paint()
+        ..color = AppColors.ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      for (final metric in path.computeMetrics()) {
+        canvas.drawPath(metric.extractPath(0, metric.length * line), paint);
+      }
     }
-    canvas.drawPath(path, line);
 
-    final dot = Paint()..color = AppColors.ink;
-    final latestDot = Paint()..color = AppColors.primary;
-    final hole = Paint()..color = AppColors.canvas;
+    // 점: 0 → 1.3 → 1 (cubic-bezier(.3,1.4,.5,1))
     for (var i = 0; i < points.length; i++) {
+      final t = i < dots.length ? dots[i] : 1.0;
+      if (t <= 0) continue;
+      final scale = AppMotion.pop.transform(t);
       final isLast = i == points.length - 1;
-      canvas.drawCircle(points[i], isLast ? 4 : 3, isLast ? latestDot : dot);
-      if (!isLast) canvas.drawCircle(points[i], 1.5, hole);
+      canvas.drawCircle(
+        points[i],
+        (isLast ? 5.5 : 3.5) * scale,
+        Paint()..color = isLast ? AppColors.primary : AppColors.ink,
+      );
+      if (isLast) {
+        final tp = TextPainter(
+          text: TextSpan(
+            text: '${values[i].toStringAsFixed(1)}$unit',
+            style: AppTextStyles.bodySm.medium.copyWith(
+              color: AppColors.ink.withValues(alpha: t),
+            ),
+          ),
+          textDirection: ui.TextDirection.ltr,
+        )..layout();
+        final dx = (points[i].dx - tp.width).clamp(0.0, size.width - tp.width);
+        tp.paint(canvas, Offset(dx, points[i].dy - 12 - tp.height));
+      }
     }
 
+    // 월 라벨 (12 mute, 점 아래 가운데)
     for (var i = 0; i < points.length && i < labels.length; i++) {
       final tp = TextPainter(
-        text: TextSpan(text: labels[i], style: labelStyle),
+        text: TextSpan(text: labels[i], style: AppTextStyles.captionSmall),
         textDirection: ui.TextDirection.ltr,
       )..layout();
-      tp.paint(
-        canvas,
-        Offset(points[i].dx - tp.width / 2, size.height - tp.height),
+      final dx = (points[i].dx - tp.width / 2).clamp(
+        0.0,
+        size.width - tp.width,
       );
+      tp.paint(canvas, Offset(dx, size.height - tp.height));
     }
   }
 
   @override
   bool shouldRepaint(covariant _TrendPainter old) =>
-      old.values != values || old.labels != labels;
+      old.values != values ||
+      old.labels != labels ||
+      old.line != line ||
+      old.dots != dots;
 }
 
 enum _InbodyTrendMetric {

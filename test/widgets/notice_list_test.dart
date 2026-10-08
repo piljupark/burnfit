@@ -17,7 +17,7 @@ Notice _n(String id, String title, {bool pinned = false}) => Notice(
 );
 
 void main() {
-  testWidgets('고정 섹션과 전체 섹션을 나눠 보여주고 누르면 상세로 간다', (tester) async {
+  testWidgets('섹션 이름 없이 고정 공지를 먼저 보여주고 누르면 상세로 간다', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(390, 1200);
     addTearDown(tester.view.reset);
@@ -34,8 +34,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('고정된 공지'), findsOneWidget);
-    expect(find.text('전체 공지'), findsOneWidget);
+    // 시안 Nt-List: 회원 목록에는 섹션 이름을 두지 않는다
+    expect(find.text('상단 고정'), findsNothing);
+    expect(find.text('전체 공지'), findsNothing);
     expect(find.byType(NoticeTile), findsNWidgets(2));
     expect(find.byIcon(noticePinIcon), findsOneWidget);
 

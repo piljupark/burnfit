@@ -4,9 +4,11 @@ import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+import 'app_icon_box.dart';
 import 'app_tag.dart';
 
-/// 메뉴·목록 한 줄: 아이콘 상자 + 라벨(17) + 보조 줄 + 오른쪽(배지·화살표).
+/// 메뉴·목록 한 줄 (시안 공통): 최소 68, 좌우 20, 40 아이콘 상자 + 14 + 라벨 16/500 + 보조 13 mute(위 2)
+/// + 오른쪽(배지·18 화살표 chevron).
 /// 파괴적 행([isDestructive])은 맨 아래, 라벨과 아이콘 모두 danger.
 /// [iconColor]·[badgeColor]는 기존 호출부 호환용이며 색으로 구분하지 않는다.
 class AppActionRow extends StatelessWidget {
@@ -21,6 +23,9 @@ class AppActionRow extends StatelessWidget {
   final Widget? trailing;
   final bool showChevron;
 
+  /// 화살표 크기 (기본 18, 시안 MemB-NutritionGuide는 16)
+  final double chevronSize;
+
   const AppActionRow({
     super.key,
     required this.icon,
@@ -33,6 +38,7 @@ class AppActionRow extends StatelessWidget {
     this.iconColor,
     this.trailing,
     this.showChevron = true,
+    this.chevronSize = 18,
   });
 
   @override
@@ -45,10 +51,10 @@ class AppActionRow extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppSize.listRow),
+          constraints: const BoxConstraints(minHeight: 68),
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.base,
+              horizontal: AppSpacing.screenH,
               vertical: AppSpacing.sm,
             ),
             child: Row(
@@ -59,8 +65,8 @@ class AppActionRow extends StatelessWidget {
                     child: Icon(icon, size: AppSize.icon, color: fg),
                   )
                 else
-                  _IconTile(icon: icon),
-                const SizedBox(width: AppSpacing.md),
+                  AppIconBox(icon: icon),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,11 +76,13 @@ class AppActionRow extends StatelessWidget {
                         style:
                             (isDestructive
                                     ? AppTextStyles.bodyMd
-                                    : AppTextStyles.bodyLg)
+                                    : AppTextStyles.listTitle)
                                 .copyWith(color: fg),
                       ),
-                      if (subtitle != null)
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
                         Text(subtitle!, style: AppTextStyles.bodySm),
+                      ],
                     ],
                   ),
                 ),
@@ -85,9 +93,9 @@ class AppActionRow extends StatelessWidget {
                 ?trailing,
                 if (showChevron && !isDestructive && trailing == null)
                   Icon(
-                    AppIcons.forward,
-                    size: AppSize.icon,
-                    color: AppColors.mute,
+                    AppIcons.chevronRightBold,
+                    size: chevronSize,
+                    color: AppColors.chevron,
                   ),
               ],
             ),
@@ -98,38 +106,39 @@ class AppActionRow extends StatelessWidget {
   }
 }
 
-class _IconTile extends StatelessWidget {
-  final IconData icon;
-
-  const _IconTile({required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: AppColors.canvasSoft,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline),
-      ),
-      child: Icon(icon, size: AppSize.icon, color: AppColors.ink),
-    );
-  }
-}
-
-/// 목록 구분선 (1px hairline, 화면 폭).
+/// 목록 구분선 (1px hairline). 시안 목록은 대개 좌우 20 안쪽 → [AppRowDivider.inset].
 class AppRowDivider extends StatelessWidget {
   final double indent;
+  final double endIndent;
 
-  const AppRowDivider({super.key, this.indent = 0});
+  const AppRowDivider({super.key, this.indent = 0, this.endIndent = 0});
+
+  /// 좌우 20 안쪽에만 긋는 선 (시안 목록 줄 `padding: 0 20` + 아래 선).
+  const AppRowDivider.inset({super.key})
+    : indent = AppSpacing.screenH,
+      endIndent = AppSpacing.screenH;
 
   @override
   Widget build(BuildContext context) => Divider(
     height: 1,
     thickness: 1,
     indent: indent,
+    endIndent: endIndent,
     color: AppColors.hairline,
+  );
+}
+
+/// 묶음 사이 8 회색 띠 (#F6F6F7, 시안 공통). [top]은 띠 위 여백.
+class AppSectionBand extends StatelessWidget {
+  final double top;
+
+  const AppSectionBand({super.key, this.top = 0});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: AppSpacing.sm,
+    margin: EdgeInsets.only(top: top),
+    color: AppColors.canvasCard,
   );
 }
 

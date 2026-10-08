@@ -133,10 +133,7 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
           Positioned(
             left: AppSpacing.screenH,
             right: AppSpacing.screenH,
-            bottom:
-                MediaQuery.of(context).padding.bottom +
-                AppNavBar.contentHeight +
-                AppSpacing.md,
+            bottom: AppNavBar.totalHeight(context) + AppSpacing.md,
             child: const RestTimerBar(),
           ),
         Positioned(

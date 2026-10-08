@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
@@ -12,11 +14,15 @@ import '../../models/workout.dart';
 import '../../services/exercise_service.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_button.dart';
-import '../../widgets/app_filter_tabs.dart';
+import '../../widgets/app_loader.dart';
+import '../../widgets/app_motion.dart';
+import '../../widgets/app_tag.dart';
 import '../../widgets/app_text_field.dart';
 import 'workout_draft_models.dart';
 
+/// 운동 추가 시트 (시안 MemA-Sheet-ExercisePicker / ExerciseSearch).
+/// 좌우 20 · 머리 아래 12 · 검색창 48 · 칩 40(위아래 12) · 시트 폭 구분선 ·
+/// 줄 최소 60(이름 16/500, 부위 13 body, 오른쪽 '지난 100kg' 13 body, 줄마다 아래 선).
 class ExercisePickerSheet extends StatefulWidget {
   final String memberId;
   final WorkoutCategory defaultCategory;
@@ -142,66 +148,86 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
     final selectedChip = _selectedCategory == null
         ? 0
         : categories.indexOf(_selectedCategory!) + 1;
+    final labels = ['전체', ...categories.map((category) => category.label)];
+    final hasQuery = _searchController.text.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const AppBottomSheetHeader(title: '운동 추가'),
+              const AppBottomSheetHeader(title: '운동 추가', gap: AppSpacing.md),
               AppTextField(
                 label: '',
                 hint: '운동명 검색 또는 직접 입력',
                 controller: _searchController,
-                prefix: const Icon(AppIcons.search),
+                prefix: Icon(
+                  AppIcons.search,
+                  color: hasQuery ? AppColors.ink : AppColors.mute,
+                ),
+                // 시안 ExerciseSearch: 입력 중이면 오른쪽 28 회색 원 지우기
+                suffix: hasQuery
+                    ? _ClearButton(onTap: _searchController.clear)
+                    : null,
                 textInputAction: TextInputAction.search,
               ),
-              const SizedBox(height: AppSpacing.sm),
             ],
           ),
         ),
-        AppScrollableChips(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          labels: ['전체', ...categories.map((category) => category.label)],
-          selectedIndex: selectedChip,
-          onSelected: (index) => setState(() {
-            _selectedCategory = index == 0 ? null : categories[index - 1];
-          }),
+        // 칩 줄: 위아래 12 (큰 칩은 위아래 2 터치 여백을 스스로 둔다)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            10,
+            AppSpacing.screenH,
+            _canAddCustom ? 0 : 10,
+          ),
+          child: Row(
+            children: [
+              for (var i = 0; i < labels.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.sm),
+                AppChip(
+                  label: labels[i],
+                  selected: i == selectedChip,
+                  large: true,
+                  onTap: () => setState(() {
+                    _selectedCategory = i == 0 ? null : categories[i - 1];
+                  }),
+                ),
+              ],
+            ],
+          ),
         ),
         if (_canAddCustom)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl,
-              AppSpacing.sm,
-              AppSpacing.xl,
-              0,
-            ),
-            child: AppButton(
-              label: '"${_searchController.text.trim()}" 새 운동으로 추가',
-              variant: AppButtonVariant.secondary,
-              icon: const Icon(AppIcons.add),
-              fullWidth: true,
-              isLoading: _addingCustom,
-              onPressed: _addingCustom ? null : _addCustom,
+          // 시안 `rise`: 아래 8에서 올라오며 나타남 (.35s)
+          AppEntrance(
+            offset: const Offset(0, 8),
+            duration: const Duration(milliseconds: 350),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.md,
+                AppSpacing.screenH,
+                AppSpacing.md,
+              ),
+              child: _DashedAddButton(
+                label: '"${_searchController.text.trim()}" 새 운동으로 추가',
+                loading: _addingCustom,
+                onTap: _addingCustom ? null : _addCustom,
+              ),
             ),
           ),
-        const SizedBox(height: AppSpacing.sm),
         const AppRowDivider(),
         Expanded(
-          child: ListView.separated(
+          child: ListView.builder(
             padding: EdgeInsets.only(
               bottom: AppSpacing.xl + MediaQuery.of(context).padding.bottom,
             ),
             itemCount: items.length,
-            separatorBuilder: (_, __) => Divider(
-              height: 1,
-              color: AppColors.hairline,
-              indent: AppSpacing.xl,
-              endIndent: AppSpacing.xl,
-            ),
             itemBuilder: (_, index) {
               final item = items[index];
               final previous = widget.previousStatsByName[item.name];
@@ -217,6 +243,132 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
       ],
     );
   }
+}
+
+/// 검색어 지우기: 28 회색 원(#D4D4D8) + 흰 x 12.
+class _ClearButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _ClearButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '지우기',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox.square(
+          dimension: AppSize.touchMin,
+          child: Center(
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppColors.outline,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                AppIcons.closeBold,
+                size: 12,
+                color: AppColors.canvas,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// '"와이드" 새 운동으로 추가': 52 높이 · 반경 14 · 1.5 점선(#D4D4D8) · + 16 · 15/500.
+class _DashedAddButton extends StatelessWidget {
+  final String label;
+  final bool loading;
+  final VoidCallback? onTap;
+
+  const _DashedAddButton({
+    required this.label,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.field),
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: CustomPaint(
+          painter: WorkoutDashedBorderPainter(
+            color: AppColors.outline,
+            radius: AppRadius.field,
+          ),
+          child: SizedBox(
+            height: 52,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (loading)
+                  AppLoader.inline(color: AppColors.ink)
+                else
+                  Icon(PhosphorIconsBold.plus, size: 16, color: AppColors.ink),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodyMd.medium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 둥근 사각형 점선 (선 1.5, 대시 4.5 · 간격 4.5 — 브라우저 1.5px dashed와 같은 비율).
+class WorkoutDashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double radius;
+
+  const WorkoutDashedBorderPainter({required this.color, this.radius = 16});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 1.5;
+    final rect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    ).deflate(stroke / 2);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    for (final metric in (Path()..addRRect(rect)).computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        canvas.drawPath(metric.extractPath(distance, distance + 4.5), paint);
+        distance += 9;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(WorkoutDashedBorderPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.radius != radius;
 }
 
 class _PickerRow extends StatelessWidget {
@@ -238,25 +390,28 @@ class _PickerRow extends StatelessWidget {
         onTap: onTap,
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppSize.listRow),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
-              vertical: AppSpacing.sm,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 60),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.hairline)),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodyLg,
+                        style: AppTextStyles.listTitle,
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         item.custom
                             ? '${item.category.label} · 직접 추가'
@@ -269,7 +424,7 @@ class _PickerRow extends StatelessWidget {
                   ),
                 ),
                 if (previous != null) ...[
-                  const SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: AppSpacing.md),
                   Text(
                     '지난 ${formatWeight(previous!.maxWeight)}kg',
                     style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
@@ -284,6 +439,8 @@ class _PickerRow extends StatelessWidget {
   }
 }
 
+/// 운동 메뉴 시트 (시안 MemA-Sheet-ExerciseMenu): 제목 22/500 + 보조 14 mute, 아래 12 띄우고
+/// 60 높이 행동 줄 셋(40 아이콘 상자). 위 두 줄 아래에만 선.
 class ExerciseMenuSheet extends StatelessWidget {
   final WorkoutExerciseDraft exercise;
 
@@ -300,6 +457,8 @@ class ExerciseMenuSheet extends StatelessWidget {
         AppBottomSheetHeader(
           title: exercise.name,
           subtitle: '${exercise.category.label} · 현재 단위 ${exercise.unit.label}',
+          mutedSubtitle: true,
+          gap: AppSpacing.md,
         ),
         AppSheetAction(
           icon: PhosphorIconsRegular.arrowsLeftRight,
@@ -316,6 +475,7 @@ class ExerciseMenuSheet extends StatelessWidget {
           icon: AppIcons.timer,
           label: '휴식 타이머',
           value: '${exercise.restSeconds}초',
+          chevron: true,
           onTap: () async {
             final seconds = await showAppBottomSheet<int>(
               context: context,
@@ -349,8 +509,8 @@ class ExerciseMenuSheet extends StatelessWidget {
   }
 }
 
-/// 시트 행동 줄 (높이 52): 아이콘 + 라벨 + 오른쪽 현재 값. 파괴적 행은 danger 글자.
-
+/// 휴식 타이머 시트 (시안 MemA-Sheet-RestTimer): 제목 옆 주황 시계(바늘이 돎) + 보조 14 mute,
+/// 아래 20 띄우고 3열 칸(높이 52, 반경 14, 사이 8). 고른 칸은 검정 채움 + 흰 500.
 class RestTimerSheet extends StatelessWidget {
   final int initialSeconds;
 
@@ -367,14 +527,20 @@ class RestTimerSheet extends StatelessWidget {
         const AppBottomSheetHeader(
           title: '휴식 타이머',
           subtitle: '운동별 기본 휴식 시간을 설정합니다.',
+          mutedSubtitle: true,
+          gap: AppSpacing.lg,
+          trailingTitle: _TickingClock(),
         ),
-        GridView.count(
-          crossAxisCount: 3,
+        GridView(
           shrinkWrap: true,
+          padding: EdgeInsets.zero,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: AppSpacing.sm,
-          crossAxisSpacing: AppSpacing.sm,
-          childAspectRatio: 2.4,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: AppSpacing.sm,
+            crossAxisSpacing: AppSpacing.sm,
+            mainAxisExtent: 52,
+          ),
           children: [
             for (final seconds in options)
               _RestOption(
@@ -384,13 +550,12 @@ class RestTimerSheet extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
       ],
     );
   }
 }
 
-/// 휴식 시간 선택 pill (높이 44). 선택 = 흰 채움, 나머지 = 외곽선.
+/// 휴식 시간 칸 (높이 52, 반경 14). 고른 칸 = ink 채움 + canvas 글자 500, 나머지 = canvasSoft 채움.
 class _RestOption extends StatelessWidget {
   final String label;
   final bool selected;
@@ -404,29 +569,107 @@ class _RestOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.field),
+    );
     return Semantics(
       button: true,
       selected: selected,
       child: Material(
-        color: selected ? AppColors.ink : Colors.transparent,
-        shape: StadiumBorder(
-          side: BorderSide(color: selected ? AppColors.ink : AppColors.outline),
-        ),
+        color: selected ? AppColors.ink : AppColors.canvasSoft,
+        shape: shape,
         child: InkWell(
-          customBorder: const StadiumBorder(),
+          customBorder: shape,
           onTap: onTap,
-          highlightColor: AppColors.canvasSoft,
+          highlightColor: AppColors.canvasMid,
           splashFactory: NoSplash.splashFactory,
           child: Center(
             child: Text(
               label,
-              style: AppTextStyles.buttonLabel.copyWith(
-                color: selected ? AppColors.canvas : AppColors.ink,
-              ),
+              style: selected
+                  ? AppTextStyles.input.medium.copyWith(color: AppColors.canvas)
+                  : AppTextStyles.input,
             ),
           ),
         ),
       ),
     );
   }
+}
+
+/// 제목 옆 주황 시계 22 (선 2): 바늘이 4초에 한 바퀴 돈다 (시안 `tick`).
+class _TickingClock extends StatefulWidget {
+  const _TickingClock();
+
+  @override
+  State<_TickingClock> createState() => _TickingClockState();
+}
+
+class _TickingClockState extends State<_TickingClock>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 4),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) => CustomPaint(
+          size: const Size.square(22),
+          painter: _ClockPainter(
+            angle: _controller.value * 2 * math.pi,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 시안 SVG(viewBox 24): 원(12,13 r8) + 바늘(12,13 → 12,8.5) + 위 꼭지(10,2 → 14,2), 선 2.
+class _ClockPainter extends CustomPainter {
+  final double angle;
+  final Color color;
+
+  const _ClockPainter({required this.angle, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 24);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(const Offset(12, 13), 8, paint);
+    canvas.drawLine(const Offset(10, 2), const Offset(14, 2), paint);
+    canvas.save();
+    canvas.translate(12, 13);
+    canvas.rotate(angle);
+    canvas.drawLine(Offset.zero, const Offset(0, -4.5), paint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_ClockPainter oldDelegate) =>
+      oldDelegate.angle != angle || oldDelegate.color != color;
 }

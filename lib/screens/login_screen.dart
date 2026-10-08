@@ -15,11 +15,11 @@ import '../services/auth_service.dart';
 import '../services/fcm_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_provider.dart';
-import '../widgets/app_action_row.dart';
 import '../widgets/app_bottom_sheet.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/app_loader.dart';
+import '../widgets/app_motion.dart';
 import '../widgets/password_reset_sheet.dart';
 import 'member/member_register_screen.dart';
 import 'trainer/trainer_register_screen.dart';
@@ -113,6 +113,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showError(String msg) => AppFeedback.showWarning(context, msg);
 
+  /// 시안 `up`: 아래 12에서 올라오며 나타남 (.5s ease-out, 순번 × 0.05초 늦게)
+  Widget _up(int index, Widget child) => AppEntrance(
+    offset: const Offset(0, 12),
+    delay: Duration(milliseconds: 50 * index),
+    child: child,
+  );
+
   void _goRegister() {
     final screen = switch (_roleIndex) {
       0 => const MemberRegisterScreen(),
@@ -165,68 +172,81 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const SizedBox.shrink(),
                   ),
                   // 화면 가운데: 역할 → 센터·이메일·비밀번호 → 로그인 → 가입
+                  // (시안 `up`: 묶음마다 0.05초씩 늦게 아래 12에서 올라온다)
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl,
+                      horizontal: AppSpacing.screenH,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _RoleSelector(
-                          labels: [for (final r in _roles) r.label],
-                          selectedIndex: _roleIndex,
-                          onSelect: (i) => setState(() => _roleIndex = i),
+                        _up(
+                          0,
+                          _RoleSelector(
+                            labels: [for (final r in _roles) r.label],
+                            selectedIndex: _roleIndex,
+                            onSelect: (i) => setState(() => _roleIndex = i),
+                          ),
                         ),
-                        const Gap(AppSpacing.lg),
-                        _CenterSelector(
-                          centerName: _selectedCenter?.name,
-                          onTap: _openCenterPicker,
-                        ),
-                        const Gap(AppSpacing.base),
-                        AppTextField(
-                          label: '이메일',
-                          hint: 'name@example.com',
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: Validators.email,
-                          textInputAction: TextInputAction.next,
+                        const Gap(AppSpacing.xl),
+                        _up(
+                          1,
+                          _CenterSelector(
+                            centerName: _selectedCenter?.name,
+                            onTap: _openCenterPicker,
+                          ),
                         ),
                         const Gap(AppSpacing.base),
-                        AppTextField(
-                          label: '비밀번호',
-                          hint: '비밀번호',
-                          controller: _passwordController,
-                          obscureText: true,
-                          validator: Validators.password,
-                          textInputAction: TextInputAction.done,
-                          onSubmitted: (_) => _login(),
+                        _up(
+                          2,
+                          AppTextField(
+                            label: '이메일',
+                            hint: 'name@example.com',
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: Validators.email,
+                            textInputAction: TextInputAction.next,
+                          ),
                         ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: AppButton(
-                            label: '비밀번호를 잊으셨나요?',
-                            variant: AppButtonVariant.ghost,
-                            size: AppButtonSize.sm,
+                        const Gap(AppSpacing.base),
+                        _up(
+                          3,
+                          AppTextField(
+                            label: '비밀번호',
+                            hint: '비밀번호',
+                            controller: _passwordController,
+                            obscureText: true,
+                            validator: Validators.password,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _login(),
+                          ),
+                        ),
+                        _up(
+                          4,
+                          ForgotPasswordLink(
                             onPressed: () => showPasswordResetSheet(
                               context,
                               initialEmail: _emailController.text,
                             ),
                           ),
                         ),
-                        const Gap(AppSpacing.xs),
-                        AppButton(
-                          label: '로그인',
-                          onPressed: _login,
-                          isLoading: _isLoading,
-                          fullWidth: true,
-                          size: AppButtonSize.lg,
-                        ),
-                        const Gap(AppSpacing.sm),
-                        AppButton(
-                          label: '처음이에요 · 가입하기',
-                          variant: AppButtonVariant.ghost,
-                          onPressed: _goRegister,
-                          fullWidth: true,
+                        _up(
+                          5,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Gap(AppSpacing.xs),
+                              AppButton(
+                                label: '로그인',
+                                onPressed: _login,
+                                isLoading: _isLoading,
+                                fullWidth: true,
+                                size: AppButtonSize.lg,
+                              ),
+                              const Gap(AppSpacing.sm),
+                              _RegisterLink(onTap: _goRegister),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -242,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 역할 선택: 같은 폭 pill 3개 (선택 = 흰 채움)
+// 역할 선택 (시안 Com-Login): 같은 폭 3칸, 높이 44 · 반경 14 · 회색 면, 선택 = 검정 채움 + 흰 15/500
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _RoleSelector extends StatelessWidget {
@@ -301,25 +321,18 @@ class _RolePill extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: SizedBox(
+        child: Container(
           height: AppSize.touchMin,
-          child: Center(
-            child: Container(
-              height: AppSize.buttonHeight,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? AppColors.ink : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: Border.all(
-                  color: selected ? AppColors.ink : AppColors.outline,
-                ),
-              ),
-              child: Text(
-                label,
-                style: AppTextStyles.buttonLabel.copyWith(
-                  color: selected ? AppColors.canvas : AppColors.ink,
-                ),
-              ),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? AppColors.ink : AppColors.canvasSoft,
+            borderRadius: BorderRadius.circular(AppRadius.field),
+          ),
+          child: Text(
+            label,
+            style: AppTextStyles.bodyMd.copyWith(
+              color: selected ? AppColors.canvas : AppColors.body,
+              fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
             ),
           ),
         ),
@@ -343,30 +356,22 @@ class _CenterSelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ExcludeSemantics(
-          child: Text(
-            '센터',
-            style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-          ),
-        ),
-        const Gap(AppSpacing.sm),
+        ExcludeSemantics(child: Text('센터', style: AppTextStyles.fieldLabel)),
+        const Gap(6),
         Semantics(
           button: true,
           label: centerName == null ? '센터 선택' : '센터, $centerName. 바꾸기',
           excludeSemantics: true,
           child: Material(
             color: AppColors.canvasSoft,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.card),
-              side: BorderSide(color: AppColors.hairline),
-            ),
+            borderRadius: BorderRadius.circular(AppRadius.field),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onTap,
               highlightColor: AppColors.canvasMid,
               splashFactory: NoSplash.splashFactory,
               child: SizedBox(
-                height: 48,
+                height: 52,
                 child: Row(
                   children: [
                     const Gap(AppSpacing.base),
@@ -375,9 +380,9 @@ class _CenterSelector extends StatelessWidget {
                         centerName ?? '센터를 선택해주세요',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodyMd.copyWith(
+                        style: AppTextStyles.input.copyWith(
                           color: centerName == null
-                              ? AppColors.mute
+                              ? AppColors.faint
                               : AppColors.ink,
                         ),
                       ),
@@ -387,9 +392,10 @@ class _CenterSelector extends StatelessWidget {
                       child: Icon(
                         AppIcons.search,
                         size: AppSize.icon,
-                        color: AppColors.body,
+                        color: AppColors.mute,
                       ),
                     ),
+                    const Gap(AppSpacing.xs),
                   ],
                 ),
               ),
@@ -397,6 +403,50 @@ class _CenterSelector extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 가입 링크: '처음이에요 ·' 15 body + '가입하기' 15/500 ink (높이 48)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RegisterLink extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _RegisterLink({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '처음이에요, 가입하기',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: Colors.transparent,
+        child: SizedBox(
+          height: 48,
+          child: Center(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  const TextSpan(text: '처음이에요 · '),
+                  TextSpan(
+                    text: '가입하기',
+                    style: TextStyle(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -443,7 +493,7 @@ class _CenterPickerSheetState extends State<_CenterPickerSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const AppBottomSheetHeader(title: '센터 선택'),
+        const AppBottomSheetHeader(title: '센터 선택', gap: AppSpacing.md),
         AppTextField(
           label: '센터 검색',
           hint: '센터 이름을 입력해주세요',
@@ -452,7 +502,7 @@ class _CenterPickerSheetState extends State<_CenterPickerSheet> {
           textInputAction: TextInputAction.search,
           prefix: const Icon(AppIcons.search),
         ),
-        const Gap(AppSpacing.md),
+        const Gap(AppSpacing.sm),
         if (_loading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.xl2),
@@ -468,13 +518,18 @@ class _CenterPickerSheetState extends State<_CenterPickerSheet> {
             ),
           )
         else
-          for (var i = 0; i < _centers.length; i++) ...[
-            if (i > 0) const AppRowDivider(),
-            _CenterRow(
-              center: _centers[i],
-              onTap: () => Navigator.of(context).pop(_centers[i]),
+          // 시안 `row`: 줄마다 0.05초씩 늦게 아래 8에서 올라온다
+          for (var i = 0; i < _centers.length; i++)
+            AppEntrance(
+              key: ValueKey(_centers[i].id),
+              offset: const Offset(0, 8),
+              duration: const Duration(milliseconds: 400),
+              delay: Duration(milliseconds: 50 * (i + 1)),
+              child: _CenterRow(
+                center: _centers[i],
+                onTap: () => Navigator.of(context).pop(_centers[i]),
+              ),
             ),
-          ],
       ],
     );
   }
@@ -495,34 +550,32 @@ class _CenterRow extends StatelessWidget {
         onTap: onTap,
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppSize.listRow),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(center.name, style: AppTextStyles.bodyLg),
-                      if (address.isNotEmpty)
-                        Text(
-                          address,
-                          style: AppTextStyles.bodySm.copyWith(
-                            color: AppColors.body,
-                          ),
-                        ),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 68),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.hairline)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(center.name, style: AppTextStyles.listTitle),
+                    if (address.isNotEmpty) ...[
+                      const Gap(3),
+                      Text(address, style: AppTextStyles.bodySm),
                     ],
-                  ),
+                  ],
                 ),
-                Icon(
-                  AppIcons.forward,
-                  size: AppSize.icon,
-                  color: AppColors.body,
-                ),
-              ],
-            ),
+              ),
+              Icon(
+                AppIcons.chevronRightBold,
+                size: 18,
+                color: AppColors.chevron,
+              ),
+            ],
           ),
         ),
       ),

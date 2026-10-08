@@ -70,10 +70,10 @@ class _NoticeMenuRowState extends State<NoticeMenuRow> {
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
+                  const SizedBox(width: 6),
                   Text(
                     '새 글 $_unread',
-                    style: AppTextStyles.eyebrow.copyWith(
+                    style: AppTextStyles.eyebrow.medium.copyWith(
                       color: AppColors.noticeText,
                     ),
                   ),

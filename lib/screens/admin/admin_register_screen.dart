@@ -9,9 +9,10 @@ import '../../core/validators.dart';
 import '../../models/user.dart';
 import '../../services/admin_setup_service.dart';
 import '../../services/user_provider.dart';
-import '../../widgets/app_button.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_inputs.dart';
 import '../../widgets/app_screen_header.dart';
-import '../../widgets/app_section.dart';
 import '../../widgets/app_text_field.dart';
 
 class AdminRegisterScreen extends StatefulWidget {
@@ -93,108 +94,127 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 시안 Com-Register-Admin: 뒤로 줄 + 28 큰 제목 → '관리자 정보' 묶음 → 회색 띠 →
+    // '센터 정보' 묶음 → 아래 고정 '등록' 버튼.
+    Widget inset(Widget child) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      child: child,
+    );
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
+        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            AppScreenHeader.large(
               title: '관리자 등록',
               onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.xl,
-                  AppSpacing.screenH,
-                  AppSpacing.xl2,
-                ),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
                 child: Form(
                   key: _formKey,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const AppSectionHeader(title: '관리자 정보'),
-                      const Gap(AppSpacing.base),
-                      AppTextField(
-                        label: '이름',
-                        hint: '이름을 입력해주세요',
-                        controller: _nameController,
-                        validator: Validators.name,
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const Gap(AppSpacing.base),
-                      AppTextField(
-                        label: '이메일',
-                        hint: 'example@email.com',
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: Validators.email,
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const Gap(AppSpacing.base),
-                      AppTextField(
-                        label: '비밀번호',
-                        hint: '8자 이상 입력해주세요',
-                        controller: _passwordController,
-                        obscureText: true,
-                        validator: (v) => Validators.password(
-                          v,
-                          minLength: AdminSetupService.passwordMinLength,
+                      const Gap(AppSpacing.sm),
+                      const AppMonthHeader(
+                        label: '관리자 정보',
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.screenH,
+                          AppSpacing.base,
+                          AppSpacing.screenH,
+                          AppSpacing.sm,
                         ),
-                        textInputAction: TextInputAction.next,
                       ),
-                      const Gap(AppSpacing.base),
-                      AppTextField(
-                        label: '설정 코드',
-                        hint: '관리자 설정 코드를 입력해주세요',
-                        controller: _codeController,
-                        obscureText: true,
-                        validator: (v) => Validators.required(v, '설정 코드'),
-                        textInputAction: TextInputAction.next,
+                      inset(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AppTextField(
+                              label: '이름',
+                              hint: '이름을 입력해주세요',
+                              controller: _nameController,
+                              validator: Validators.name,
+                              textInputAction: TextInputAction.next,
+                            ),
+                            const Gap(14),
+                            AppTextField(
+                              label: '이메일',
+                              hint: 'example@email.com',
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              validator: Validators.email,
+                              textInputAction: TextInputAction.next,
+                            ),
+                            const Gap(14),
+                            AppTextField(
+                              label: '비밀번호',
+                              hint: '8자 이상 입력해주세요',
+                              controller: _passwordController,
+                              obscureText: true,
+                              validator: (v) => Validators.password(
+                                v,
+                                minLength: AdminSetupService.passwordMinLength,
+                              ),
+                              textInputAction: TextInputAction.next,
+                            ),
+                            const Gap(14),
+                            AppTextField(
+                              label: '설정 코드',
+                              hint: '관리자 설정 코드를 입력해주세요',
+                              controller: _codeController,
+                              obscureText: true,
+                              validator: (v) => Validators.required(v, '설정 코드'),
+                              textInputAction: TextInputAction.next,
+                            ),
+                          ],
+                        ),
                       ),
-                      const Gap(AppSpacing.xl2),
-                      const AppSectionHeader(title: '센터 정보'),
-                      const Gap(AppSpacing.base),
-                      AppTextField(
-                        label: '센터 이름',
-                        hint: '센터 이름을 입력해주세요',
-                        controller: _centerNameController,
-                        validator: (v) => Validators.required(v, '센터 이름'),
-                        textInputAction: TextInputAction.next,
+                      const AppSectionBand(top: AppSpacing.xl),
+                      const AppMonthHeader(
+                        label: '센터 정보',
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.screenH,
+                          AppSpacing.lg,
+                          AppSpacing.screenH,
+                          AppSpacing.sm,
+                        ),
                       ),
-                      const Gap(AppSpacing.base),
-                      AppTextField(
-                        label: '주소 (선택)',
-                        hint: '주소를 입력해주세요',
-                        controller: _centerAddressController,
-                        textInputAction: TextInputAction.done,
+                      inset(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AppTextField(
+                              label: '센터 이름',
+                              hint: '센터 이름을 입력해주세요',
+                              controller: _centerNameController,
+                              validator: (v) => Validators.required(v, '센터 이름'),
+                              textInputAction: TextInputAction.next,
+                            ),
+                            const Gap(14),
+                            AppTextField(
+                              label: '주소',
+                              labelHint: '(선택)',
+                              hint: '주소를 입력해주세요',
+                              controller: _centerAddressController,
+                              textInputAction: TextInputAction.done,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
             ),
-            // 주 행동: 아래 고정 pill 하나
-            Container(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.md,
-                AppSpacing.screenH,
-                AppSpacing.base,
-              ),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.hairline)),
-              ),
-              child: AppButton(
-                label: '등록',
-                onPressed: _register,
-                isLoading: _isLoading,
-                fullWidth: true,
-                size: AppButtonSize.lg,
-              ),
+            // 주 행동: 아래 고정 버튼 하나 (위 hairline, 아래 안전 영역)
+            AppBottomActionBar(
+              primaryLabel: '등록',
+              onPrimary: _register,
+              loading: _isLoading,
             ),
           ],
         ),

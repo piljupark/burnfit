@@ -4,6 +4,7 @@ import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+import 'app_motion.dart';
 
 /// 강조 띠: 강조색 바탕 한 줄. 왼쪽 내용, 오른쪽 행동 글자 + 화살표.
 /// 화면당 하나만 둔다 (예: 관리자 홈 '가입 신청 n건').
@@ -60,7 +61,7 @@ class AppAccentBar extends StatelessWidget {
                           title,
                           style: AppTextStyles.bodyLg.copyWith(
                             color: fg,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         if (subtitle != null)
@@ -90,8 +91,10 @@ class AppAccentBar extends StatelessWidget {
   }
 }
 
-/// 강조 요약 카드: 강조색 바탕에 라벨 / 값·단위 / (선택) 진행 막대 / 보조 줄.
-/// 값과 단위는 같은 크기, 단위만 400 반투명. 화면당 하나만 둔다.
+/// 강조 요약 카드 (시안 MemA-PtSchedule): 강조색 바탕, 안쪽 20, 반경 20.
+/// 라벨 15 + 오른쪽 15/500 / (위 6) 값 30/500 + 단위 400 반투명 / (위 14) 8 높이 막대(1초 차오름) /
+/// (위 12) 보조 줄 14. 화면당 하나만 둔다.
+/// [muted]면 회색 카드(시안 MemA-PtSchedule-Empty): 라벨 body, 단위·보조 줄 mute, 막대 바탕 track.
 class AppHighlightCard extends StatelessWidget {
   final String label;
   final String? trailingLabel;
@@ -101,6 +104,7 @@ class AppHighlightCard extends StatelessWidget {
   /// 0~1. null이면 막대를 그리지 않는다.
   final double? progress;
   final String? footer;
+  final bool muted;
 
   const AppHighlightCard({
     super.key,
@@ -110,40 +114,50 @@ class AppHighlightCard extends StatelessWidget {
     this.unit,
     this.progress,
     this.footer,
+    this.muted = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fg = AppColors.onPrimary;
+    // 주황 바탕은 두 테마 공통이라 글자는 늘 검정(onPrimary). 회색 카드는 테마 색을 따른다.
+    final fg = muted ? AppColors.ink : AppColors.onPrimary;
+    final soft = muted ? AppColors.mute : fg.withValues(alpha: 0.6);
     final valueStyle = AppTextStyles.displayMd.copyWith(
       fontSize: 30,
+      height: 36 / 30,
+      letterSpacing: 30 * -0.019,
       color: fg,
     );
+    final clamped = (progress ?? 0).clamp(0.0, 1.0);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: muted ? AppColors.canvasCard : AppColors.primary,
         borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
               Expanded(
                 child: Text(
                   label,
-                  style: AppTextStyles.bodyMd.copyWith(color: fg),
+                  style: AppTextStyles.bodyMd.copyWith(
+                    color: muted ? AppColors.body : fg,
+                  ),
                 ),
               ),
               if (trailingLabel != null)
                 Text(
                   trailingLabel!,
-                  style: AppTextStyles.bodySmall.copyWith(color: fg),
+                  style: AppTextStyles.bodyMd.medium.copyWith(color: fg),
                 ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: 6),
           Text.rich(
             TextSpan(
               children: [
@@ -151,24 +165,48 @@ class AppHighlightCard extends StatelessWidget {
                 if (unit != null)
                   TextSpan(
                     text: unit,
-                    style: valueStyle.copyWith(
-                      fontWeight: FontWeight.w400,
-                      color: fg.withValues(alpha: 0.6),
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w400, color: soft),
                   ),
               ],
             ),
             style: valueStyle,
           ),
           if (progress != null) ...[
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: 14),
             ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: LinearProgressIndicator(
-                value: progress!.clamp(0.0, 1.0),
-                minHeight: 8,
-                color: fg,
-                backgroundColor: fg.withValues(alpha: 0.15),
+              child: SizedBox(
+                height: 8,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(
+                      color: muted
+                          ? AppColors.track
+                          : fg.withValues(alpha: 0.15),
+                    ),
+                    if (clamped > 0)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: clamped,
+                          heightFactor: 1,
+                          // 시안 `fill`: 1초, cubic-bezier(.2,.8,.2,1)
+                          child: AppGrow(
+                            duration: const Duration(milliseconds: 1000),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: fg,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.pill,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -177,7 +215,7 @@ class AppHighlightCard extends StatelessWidget {
             Text(
               footer!,
               style: AppTextStyles.bodySmall.copyWith(
-                color: fg.withValues(alpha: 0.72),
+                color: muted ? AppColors.mute : fg.withValues(alpha: 0.72),
               ),
             ),
           ],
@@ -229,7 +267,7 @@ class AppInlineNotice extends StatelessWidget {
                 message,
                 style: AppTextStyles.bodySmall.copyWith(
                   color: fg,
-                  fontWeight: neutral ? FontWeight.w400 : FontWeight.w700,
+                  fontWeight: neutral ? FontWeight.w400 : FontWeight.w500,
                 ),
               ),
             ),
@@ -288,7 +326,7 @@ class AppFloatingAction extends StatelessWidget {
                         label,
                         style: AppTextStyles.bodyLg.copyWith(
                           color: fg,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],

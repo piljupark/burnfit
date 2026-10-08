@@ -1,19 +1,28 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../widgets/app_motion.dart';
 
 /// 운동 완료 화면에서 고른 행동.
 /// - [home]: '확인' → 홈으로
 /// - [detail]: '기록 자세히 보기' → 운동 화면의 저장된 기록으로
 enum MemberWorkoutDoneAction { home, detail }
 
-/// 개인 운동을 새로 저장한 순간 뜨는 완료 화면 (시안 Done.html).
-/// 주황 바탕 · 흰 카드(290×350, 반경 32)에 '운동 완료'와 바벨 그림, 양옆 불꽃·체크 표시,
-/// 아래 '8,450kg을 들어 올렸어요' + 요약 줄 + '기록 자세히 보기 >', 맨 아래 검정 '확인'.
-/// 꽃가루·바벨 들어 올리기 같은 반복 애니메이션은 넣지 않았다 (정지 그림).
+/// 빛줄기 색 (시안 Done 일러스트 전용 #FFB020, 두 테마 공통).
+const Color _burstColor = Color(0xFFFFB020);
+
+/// 꽃가루 주황 (강조색과 같은 값, const 목록에 쓰려고 따로 둔다).
+const Color _confettiOrange = Color(0xFFFF7A33);
+
+/// 개인 운동을 새로 저장한 순간 뜨는 완료 화면 (시안 Done.html, Main 계열이라 500 = Bold).
+/// 주황 바탕 · 흰 카드(290×350, 반경 32, 상태줄 아래 41)에 '운동 완료'와 바벨 그림(들었다 내림 ·
+/// 그림자 · 빛줄기 · 꽃가루), 양옆 불꽃·체크 배지(떠다님), 아래 '8,450kg을 들어 올렸어요' +
+/// 요약 줄 + '기록 자세히 보기 >'(등장), 맨 아래 검정 '확인'.
 class MemberWorkoutDoneScreen extends StatelessWidget {
   final double totalVolumeKg;
   final int exerciseCount;
@@ -65,59 +74,69 @@ class MemberWorkoutDoneScreen extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        const _DoneCard(),
-                        const SizedBox(height: 44),
-                        Semantics(
-                          header: true,
-                          child: Text(
-                            headline,
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.displayMd.copyWith(
-                              fontSize: 32,
-                              height: 1.35,
-                              letterSpacing: 32 * -0.019,
-                              color: ink,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          summary,
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.bodyMd.copyWith(
-                            color: ink.withValues(alpha: 0.72),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Semantics(
-                          button: true,
-                          child: InkWell(
-                            onTap: () => pop(MemberWorkoutDoneAction.detail),
-                            borderRadius: BorderRadius.circular(
-                              AppRadius.field,
-                            ),
-                            child: Container(
-                              height: AppSize.touchMin,
-                              alignment: Alignment.center,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.md,
-                              ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // 시안: 카드 위 88 = 상태줄 47 + 41
+                      const SizedBox(height: 41),
+                      const _DoneCard(),
+                      const SizedBox(height: 44),
+                      // 시안 `appear`: 아래 14에서 올라오며 나타남 (.6s, .2s 뒤)
+                      AppEntrance(
+                        offset: const Offset(0, 14),
+                        duration: const Duration(milliseconds: 600),
+                        delay: const Duration(milliseconds: 200),
+                        child: Column(
+                          children: [
+                            Semantics(
+                              header: true,
                               child: Text(
-                                '기록 자세히 보기 >',
-                                style: AppTextStyles.bodyMd.copyWith(
+                                headline,
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.displayMd.bold.copyWith(
+                                  fontSize: 32,
+                                  height: 1.35,
+                                  letterSpacing: 32 * -0.019,
                                   color: ink,
-                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 14),
+                            Text(
+                              summary,
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.bodyMd.copyWith(
+                                color: ink.withValues(alpha: 0.72),
+                              ),
+                            ),
+                            // 시안 위 10: 44 터치 칸의 위 여백(11)이 그 몫을 한다.
+                            Semantics(
+                              button: true,
+                              child: InkWell(
+                                onTap: () =>
+                                    pop(MemberWorkoutDoneAction.detail),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.field,
+                                ),
+                                child: Container(
+                                  height: AppSize.touchMin,
+                                  alignment: Alignment.center,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                  ),
+                                  child: Text(
+                                    '기록 자세히 보기 >',
+                                    style: AppTextStyles.bodyMd.bold.copyWith(
+                                      color: ink,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -140,7 +159,7 @@ class MemberWorkoutDoneScreen extends StatelessWidget {
                       child: Center(
                         child: Text(
                           '확인',
-                          style: AppTextStyles.section.copyWith(
+                          style: AppTextStyles.section.bold.copyWith(
                             color: Colors.white,
                           ),
                         ),
@@ -157,13 +176,92 @@ class MemberWorkoutDoneScreen extends StatelessWidget {
   }
 }
 
+/// 키프레임 사이를 [curve]로 잇는다 (CSS처럼 구간마다 가속 곡선을 다시 적용).
+double _keyframes(double t, List<(double, double)> frames, Curve curve) {
+  for (var i = 0; i < frames.length - 1; i++) {
+    final (t0, v0) = frames[i];
+    final (t1, v1) = frames[i + 1];
+    if (t <= t1) {
+      if (t1 == t0) return v1;
+      final p = curve.transform(((t - t0) / (t1 - t0)).clamp(0.0, 1.0));
+      return v0 + (v1 - v0) * p;
+    }
+  }
+  return frames.last.$2;
+}
+
 /// 흰 카드(290×350, 가운데) + 화면 왼쪽 끝 불꽃 원 · 오른쪽 끝 체크 상자
 /// (시안 위치: 화면 왼쪽 −14 · 카드 위에서 102, 화면 오른쪽 −10 · 카드 위에서 242).
-class _DoneCard extends StatelessWidget {
+/// 움직임 (시안 Done):
+/// - `lift`·`shadow`·`burst` 1.6s 반복 (바벨 들기 · 그림자 줄어듦 · 빛줄기 퍼짐)
+/// - `fall` 2.6s 반복 꽃가루 5개 (지연 0 · .6 · 1.2 · .3 · 1.8s)
+/// - `float` 3.2s 반복 배지 떠다님 (체크 배지는 −1.4s 앞서 시작)
+class _DoneCard extends StatefulWidget {
   const _DoneCard();
 
   @override
+  State<_DoneCard> createState() => _DoneCardState();
+}
+
+class _DoneCardState extends State<_DoneCard> with TickerProviderStateMixin {
+  late final AnimationController _lift = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  );
+  late final AnimationController _fall = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  );
+  late final AnimationController _float = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 3200),
+  );
+
+  List<AnimationController> get _all => [_lift, _fall, _float];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    for (final c in _all) {
+      if (AppMotion.reduced(context)) {
+        c.stop();
+      } else if (!c.isAnimating) {
+        c.repeat();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _all) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  /// 시안 `float`: translateY 0 · −8° → 50% −10 · 6° → 처음 (ease-in-out).
+  Widget _floating(Widget child, double phase) {
+    return AnimatedBuilder(
+      animation: _float,
+      child: child,
+      builder: (context, child) {
+        final t = (_float.value + phase) % 1;
+        const frames = [(0.0, 0.0), (0.5, 1.0), (1.0, 0.0)];
+        final p = _keyframes(t, frames, Curves.easeInOut);
+        return Transform.translate(
+          offset: Offset(0, -10 * p),
+          child: Transform.rotate(
+            angle: (-8 + 14 * p) * math.pi / 180,
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final reduced = AppMotion.reduced(context);
     return ExcludeSemantics(
       child: SizedBox(
         width: double.infinity,
@@ -175,6 +273,7 @@ class _DoneCard extends StatelessWidget {
             Container(
               width: 290,
               height: 350,
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(32),
@@ -188,7 +287,7 @@ class _DoneCard extends StatelessWidget {
                     child: Text(
                       '운동 완료',
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.displayMd.copyWith(
+                      style: AppTextStyles.displayMd.bold.copyWith(
                         fontSize: 34,
                         height: 40 / 34,
                         letterSpacing: 34 * -0.019,
@@ -196,12 +295,23 @@ class _DoneCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const Positioned(
+                  if (!reduced)
+                    Positioned.fill(
+                      child: AnimatedBuilder(
+                        animation: _fall,
+                        builder: (context, _) =>
+                            CustomPaint(painter: _ConfettiPainter(_fall.value)),
+                      ),
+                    ),
+                  Positioned(
                     left: 45,
                     bottom: 24,
-                    child: CustomPaint(
-                      size: Size.square(200),
-                      painter: _BarbellPainter(),
+                    child: AnimatedBuilder(
+                      animation: _lift,
+                      builder: (context, _) => CustomPaint(
+                        size: const Size.square(200),
+                        painter: _BarbellPainter(_lift.value),
+                      ),
                     ),
                   ),
                 ],
@@ -210,23 +320,23 @@ class _DoneCard extends StatelessWidget {
             Positioned(
               left: -14,
               top: 102,
-              child: Transform.rotate(
-                angle: -0.14,
-                child: const CustomPaint(
+              child: _floating(
+                const CustomPaint(
                   size: Size.square(76),
                   painter: _FlameBadgePainter(),
                 ),
+                0,
               ),
             ),
             Positioned(
               right: -10,
               top: 242,
-              child: Transform.rotate(
-                angle: 0.1,
-                child: const CustomPaint(
+              child: _floating(
+                const CustomPaint(
                   size: Size.square(70),
                   painter: _CheckBadgePainter(),
                 ),
+                1.4 / 3.2,
               ),
             ),
           ],
@@ -236,18 +346,105 @@ class _DoneCard extends StatelessWidget {
   }
 }
 
-/// 시안 SVG(200×200)의 바벨: 그림자 타원 + 봉 + 원판 넷 + 주황 손잡이.
+/// 시안 `fall`: 꽃가루 5개 (8×12 반경 2 · 원 8×8). 위 −30 → 260으로 떨어지며 320° 돌고,
+/// 투명도 0 → 15%에 1 → 끝에 0 (2.6s linear).
+class _ConfettiPainter extends CustomPainter {
+  final double t;
+
+  const _ConfettiPainter(this.t);
+
+  static const _pieces = [
+    (40.0, 0.0, _confettiOrange, false),
+    (90.0, 0.6, AppColors.illustYellow, true),
+    (150.0, 1.2, AppColors.illustBlue, false),
+    (205.0, 0.3, AppColors.illustGreen, true),
+    (245.0, 1.8, _confettiOrange, false),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final (left, delay, color, round) in _pieces) {
+      final p = (t - delay / 2.6) % 1;
+      final opacity = p < 0.15 ? p / 0.15 : (1 - p) / 0.85;
+      final dy = -30 + 290 * p;
+      final h = round ? 8.0 : 12.0;
+      canvas.save();
+      canvas.translate(left + 4, dy + h / 2);
+      canvas.rotate(320 * p * math.pi / 180);
+      final rect = Rect.fromCenter(center: Offset.zero, width: 8, height: h);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(round ? 4 : 2)),
+        Paint()..color = color.withValues(alpha: opacity.clamp(0.0, 1.0)),
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter oldDelegate) => oldDelegate.t != t;
+}
+
+/// 시안 SVG(200×200)의 바벨: 그림자 타원 + 빛줄기 + 봉 + 원판 넷 + 주황 손잡이.
+/// [t]는 1.6s 주기의 진행(0~1). 동작 줄이기면 0(내려 놓은 자세, 빛줄기 없음).
 class _BarbellPainter extends CustomPainter {
-  const _BarbellPainter();
+  final double t;
+
+  const _BarbellPainter(this.t);
+
+  static const _liftCurve = Cubic(.5, 0, .3, 1);
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.scale(size.width / 200);
     final ink = AppPalette.light.ink;
+
+    // `shadow`: scaleX 1 → .6, 투명도 .18 → .08 (45~60%)
+    const holdFrames = [(0.0, 0.0), (0.45, 1.0), (0.6, 1.0), (1.0, 0.0)];
+    final up = _keyframes(t, holdFrames, _liftCurve);
     canvas.drawOval(
-      Rect.fromCenter(center: const Offset(100, 176), width: 124, height: 16),
-      Paint()..color = ink.withValues(alpha: 0.18),
+      Rect.fromCenter(
+        center: const Offset(100, 176),
+        width: 124 * (1 - 0.4 * up),
+        height: 16,
+      ),
+      Paint()..color = ink.withValues(alpha: 0.18 - 0.10 * up),
     );
+
+    // `burst`: 0~40% 작고 투명 → 55% 크기 1 · 불투명 → 80~100% 1.25 · 투명 (ease-out)
+    final scale = _keyframes(t, const [
+      (0.0, 0.2),
+      (0.4, 0.2),
+      (0.55, 1.0),
+      (0.8, 1.25),
+      (1.0, 1.25),
+    ], Curves.easeOut);
+    final opacity = _keyframes(t, const [
+      (0.0, 0.0),
+      (0.4, 0.0),
+      (0.55, 1.0),
+      (0.8, 0.0),
+      (1.0, 0.0),
+    ], Curves.easeOut);
+    if (opacity > 0) {
+      canvas.save();
+      canvas.translate(100, 100);
+      canvas.scale(scale);
+      canvas.translate(-100, -100);
+      final rays = Paint()
+        ..color = _burstColor.withValues(alpha: opacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(const Offset(100, 30), const Offset(100, 14), rays);
+      canvas.drawLine(const Offset(64, 44), const Offset(54, 32), rays);
+      canvas.drawLine(const Offset(136, 44), const Offset(146, 32), rays);
+      canvas.drawLine(const Offset(44, 74), const Offset(28, 74), rays);
+      canvas.drawLine(const Offset(156, 74), const Offset(172, 74), rays);
+      canvas.restore();
+    }
+
+    // `lift`: translateY 18 → −14 (45~60%) → 18
+    canvas.translate(0, 18 - 32 * up);
     void rrect(double x, double y, double w, double h, double r, Color c) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(r)),
@@ -264,7 +461,7 @@ class _BarbellPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_BarbellPainter oldDelegate) => false;
+  bool shouldRepaint(_BarbellPainter oldDelegate) => oldDelegate.t != t;
 }
 
 /// 흰 원(반지름 30, 90%) 안 주황 불꽃.

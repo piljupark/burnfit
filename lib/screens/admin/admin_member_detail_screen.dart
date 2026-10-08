@@ -932,7 +932,7 @@ class _DateRow extends StatelessWidget {
                     color: value == null ? AppColors.body : AppColors.ink,
                     fontWeight: value == null
                         ? FontWeight.w400
-                        : FontWeight.w700,
+                        : FontWeight.w500,
                   ),
                 ),
               ),

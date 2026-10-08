@@ -7,13 +7,13 @@
 
 1. **캔버스는 하나, 테마는 둘.** 모든 화면 바탕은 `AppColors.canvas`. 라이트(기본, #FFFFFF)와 다크(#0A0A0A)는 같은 구조에서 면·글자 색만 뒤집는다. 테마는 마이 → 계정 → '화면 테마'에서 시스템 설정 · 라이트 · 다크 중에 고르고 기기에 저장된다 (`ThemeController`).
 2. **모서리는 토큰으로만.** 아이콘 상자 12 · 입력창·안내 줄·꽉 찬 중간 버튼 14 · 큰 버튼·토스트 18 · 카드 20 · 시트 28 · 칩·태그·작은 버튼 pill (`AppRadius`).
-3. **굵기는 400·700 두 가지.** Wanted Sans 하나만 쓴다. 제목·값·목록 줄 제목은 700(Bold), 나머지는 400. 기준 시안(`Main` 계열)은 `font-weight:500` 자리에 Wanted Sans Bold 글꼴을 묶어 두어 실제로 굵게 그려진다.
+3. **굵기는 화면 계열을 따른다.** Wanted Sans 하나만 쓴다. 기본은 400·500(Medium) — 상세 시안(`MemA-*`·`MemB-*`·`Com-*`·`Nt-*`·`Tr-*`·`Ad-*`)의 500은 Medium이다. 기준 시안 `Main` 계열(회원 홈 오늘 보기·운동·운동 완료·식단·마이)만 `font-weight:500` 자리에 Bold 글꼴을 묶어 두었으므로 그 화면 요소에만 `.bold`(700)를 붙인다. 시안의 `line-height: normal`은 `.natural`(1.193).
 4. **화면 글자는 한글.** 영어 라벨(`DONE`, `10.07 WED`, `KCAL` 등)을 쓰지 않는다. 남기는 것: 단위(`kg`, `kcal`, `g` — 소문자), `PT`, `BMI`, `InBody`, 앱 이름. 날짜는 `10월 7일 (수)`, 달은 `2026년 10월`. 큰 수는 천 단위 쉼표(`11,440kg`).
 5. **그림자 대신 면과 선.** 층은 면 색(`canvas` → `canvasCard`)과 1px `hairline`으로 나눈다. `BoxShadow`, gradient, elevation 금지.
 6. **강조색은 주황 하나.** 주 행동 채움(`primary`)과 눈에 띄어야 할 데이터 점(캘린더 PT 표시, 토글 on, 그래프 최신값)에 쓴다. "새 글"·"새 알림" 점은 `newDot`(#FF5A1F). 안내·경고·PT 강조 줄은 연한 주황 면 `noticeBg` + 진한 주황 글자 `noticeText`. 역할·성별 같은 **선택 pill**은 주황이 아니라 검정(`ink`) 채움.
 7. **빨강(`danger`)은 되돌릴 수 없는 행동의 글자에만.** 빨간 채움 배경은 쓰지 않는다. 파괴적 확정 버튼은 검정 채움(`AppButtonVariant.dark`).
 8. **주 행동은 화면당 하나.** 주황 채움(`AppButton` primary)은 화면당 한 번. 나머지는 회색 채움(`secondary`)이나 글자(`ghost`).
-9. **움직임은 작게.** 로딩은 점 세 개(`AppLoader`/`AppLoadingView`). `CircularProgressIndicator`·스켈레톤은 쓰지 않는다. 기기의 '동작 줄이기'가 켜져 있으면 멈춘다.
+9. **움직임은 시안 키프레임대로.** 공용 도구 `lib/widgets/app_motion.dart`(`AppEntrance`·`AppEntrance.slide`·`AppPulse`·`AppGrow`·`AppPop`·`AppShake`, 곡선 `AppMotion.sheet/fill/dialog/pop/knob`)와 움직이는 그림 `brand_marks.dart`를 쓴다. 시트 450ms·확인 창 300ms·토스트 450ms. 로딩은 점 세 개(`AppLoader`). 시안의 시연용 무한 반복(토스트 오르내림, 자동 밀기 등)은 실제 동작으로 대신한다. 기기의 '동작 줄이기'가 켜져 있으면 모두 끝 상태로 멈춘다.
 10. **아이콘은 Phosphor 하나.** `AppIcons.*` (없으면 `PhosphorIconsRegular.*`). 기본은 Regular(선 1.5 — 시안 아이콘 선 1.8~2에 가장 가깝다), 켜진 상태만 Fill, 줄 끝·월 이동 화살표와 작은 체크는 Bold. Material `Icons.*`·이모지 금지.
 
 ## 토큰 (`lib/core/`)
@@ -40,7 +40,7 @@
 
 **두 테마 공통 면(`noticeBg` 등) 위의 글자는 테마 색(`ink`)을 쓰지 않는다** — 다크에서 흰 글자가 된다. 검정이 필요하면 `AppPalette.light.ink`.
 
-글자: `displayLg`(40) · `displayMd`(28, 탭 제목) · `title`(20, 앱바·시트·다이얼로그) · `section`(17/700, 섹션·날짜 머리말, 월 이름) · `bodyLg`(17) · `listTitle`(16/700, 목록 줄 제목) · `bodyMd`(15) · `note`(14/21 body, 목록 안 긴 글·짧은 빈 상태) · `buttonLabel`(14) · `bodySm`(13 mute) · `badge`(11/700) · `eyebrow`(15 mute, 섹션 개수) · `counter`(13 mute).
+글자: `displayLg`(40) · `displayMd`(28, 탭 제목) · `sheetTitle`(22/500, 시트 제목) · `title`(20, 앱바·확인 창) · `section`(17/500, 섹션·날짜 머리말, 월 이름) · `bodyLg`(17) · `listTitle`(16/500, 목록 줄 제목) · `input`(16, 입력 글자) · `bodyMd`(15) · `fieldLabel`(14 mute, 입력 라벨) · `note`(14/21 body) · `buttonLabel`(14) · `bodySm`(13 mute) · `badge`(11/500) · `eyebrow`(15 mute, 섹션 개수) · `counter`(13 mute). Main 계열 화면은 `.bold`.
 
 간격: 2 · 4 · 8 · 12 · 16 · 20(화면 좌우 `screenH`) · 24 · 32 · 48 · 64. 크기: `AppSize.touchMin` 44, 목록 한 줄 `AppSize.listRow` 56, 목록 맨 아래 여백 `AppSize.navClearance`, 버튼 32/40/56, 아이콘 20, 탭 아이콘 26.
 
@@ -82,6 +82,16 @@
 | `AppPlainRow` | 글자만 있는 목록 줄 (56, 16 라벨 · 15 mute 값, 아이콘·화살표 없음). 회원 마이 (`ThemeSettingRow(plain:)`·`NoticeMenuRow(plain:)`도 같은 모양) |
 | `RestTimer` / `RestTimerBar` / `showRestTimerSheet` | 앱 전체 휴식 타이머 하나. 세트 완료 시 그 운동의 휴식 시간으로 시작, 검정 64 막대(진행 고리 · '+30초' · '건너뛰기'). 운동 탭은 화면 안, 다른 탭은 탭 바 위에 뜬다 |
 | `FlameIcon` · `MealBowlIllustration` | 홈 연속 운동 불꽃, 식단 안내 카드 그릇 그림 (`brand_marks.dart`) |
+
+## 공용 부품 요약 (2026-10-08 시안 재대조 반영)
+
+- 입력창 `AppTextField`: 52 · 16 글자 · 라벨 14 mute(간격 6) · 평소 테두리 없음 · 포커스 2px ink · 오류는 연한 주황 면 + 1.5 noticeText + '!' 문구(흔들림). `unit`·`labelHint`·`showCounter`·`strongValue`. 비밀번호 보기 단추는 기본 없음.
+- 시트 `showAppBottomSheet`: 손잡이 36×5, 위 10 · 머리까지 14, 뒤 덮개 40%, 올라옴 450ms. 머리 `AppBottomSheetHeader` 제목 22/500, 닫기 22 ink, 보조 줄 15 body 또는 `mutedSubtitle` 14 mute. 행동 줄 `AppSheetAction` 60 높이 · 아이콘 상자.
+- 확인 창 `showAppConfirmDialog`: 흰 면 · 제목 20/500 · 버튼 `AppButtonSize.dialog`(52 · 반경 14 · 16) · 커지며 나타남.
+- 토스트 `AppToast`: 좌우 16 · 최소 56 · #191919 · 15/500 흰 글자 · 주황 원 기호(`AppToastKind` success 체크 그리기 / error '!' / wait 시계).
+- 머리 `AppScreenHeader.centered`(MemA·MemB 하위 화면, 가운데 17/500) · `AppScreenHeader.large`(가입·알림·공지 목록, 28/500 큰 제목). 기본(왼쪽 20)은 트레이너·관리자 화면.
+- 목록: `AppActionRow`(68 · 아이콘 상자 40/12 · 16/500 · 화살표 18 chevron), `AppRowDivider.inset()`(좌우 20 안쪽), `AppSectionBand`(8 회색 띠), `AppMonthHeader`(개수 오른쪽 끝, `strong` 17/500), `AppEmptyState(card: true)`.
+- 아이콘 상자 안 아이콘은 `AppIcons.bold()`(같은 모양 Bold, 20에서 선 약 1.9).
 
 ## 화면 패턴
 

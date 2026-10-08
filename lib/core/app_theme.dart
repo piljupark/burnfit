@@ -61,21 +61,28 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
+      // 입력창 (시안 C2c): 평소 테두리 없음, 포커스 2px ink, 오류는 연한 주황 면 + 1.5px noticeText.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.canvasSoft,
-        border: _inputBorder(AppColors.hairline),
-        enabledBorder: _inputBorder(AppColors.hairline),
-        focusedBorder: _inputBorder(AppColors.ink),
-        errorBorder: _inputBorder(AppColors.danger),
-        focusedErrorBorder: _inputBorder(AppColors.danger),
-        disabledBorder: _inputBorder(AppColors.hairline),
-        labelStyle: AppTextStyles.bodyMd.copyWith(color: AppColors.mute),
-        hintStyle: AppTextStyles.bodyMd.copyWith(color: AppColors.mute),
-        errorStyle: AppTextStyles.bodySm.copyWith(color: AppColors.danger),
+        fillColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.error)
+              ? AppColors.noticeBg
+              : AppColors.canvasSoft,
+        ),
+        border: _inputBorder(Colors.transparent, 0),
+        enabledBorder: _inputBorder(Colors.transparent, 0),
+        focusedBorder: _inputBorder(AppColors.ink, 2),
+        errorBorder: _inputBorder(AppColors.noticeText, 1.5),
+        focusedErrorBorder: _inputBorder(AppColors.noticeText, 1.5),
+        disabledBorder: _inputBorder(Colors.transparent, 0),
+        labelStyle: AppTextStyles.input.copyWith(color: AppColors.mute),
+        hintStyle: AppTextStyles.input.copyWith(color: AppColors.faint),
+        errorStyle: AppTextStyles.bodySm.medium.copyWith(
+          color: AppColors.noticeText,
+        ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.base,
-          vertical: 13,
+          vertical: 15,
         ),
       ),
       textSelectionTheme: TextSelectionThemeData(
@@ -237,8 +244,11 @@ class AppTheme {
           systemNavigationBarIconBrightness: Brightness.light,
         );
 
-  static OutlineInputBorder _inputBorder(Color color) => OutlineInputBorder(
-    borderSide: BorderSide(color: color),
-    borderRadius: BorderRadius.circular(AppRadius.field),
-  );
+  static OutlineInputBorder _inputBorder(Color color, double width) =>
+      OutlineInputBorder(
+        borderSide: width == 0
+            ? BorderSide.none
+            : BorderSide(color: color, width: width),
+        borderRadius: BorderRadius.circular(AppRadius.field),
+      );
 }

@@ -4,16 +4,16 @@ import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 
-/// 탭 화면(홈·운동·PT·마이 등) 상단: 오른쪽 아이콘 버튼 줄 + 큰 제목.
-/// 하위 화면은 AppScreenHeader(뒤로 버튼 앱바)를 쓴다.
-///
-/// 제목 위 머리말은 두지 않는다 (앱 이름·날짜를 제목 위에 반복하지 않는다).
-/// 날짜·상태는 본문 첫 AppMonthHeader에 둔다.
+/// 탭 화면 맨 위 제목 (회원·트레이너·관리자 모든 탭 공통, 시안 Main·My·TrainerHome·AdminHome).
+/// 위 20 · 좌우 20, 44 높이 한 줄에 28/700 제목(한 줄) + 오른쪽 아이콘 버튼.
+/// 아래 [bottomGap](기본 16) 뒤에 본문이 온다 — 탭마다 제목 모양과 위치가 같게, 탭 화면은 모두 이것만 쓴다.
+/// 하위 화면은 AppScreenHeader(뒤로 버튼)를 쓴다.
 class AppHero extends StatelessWidget {
   final String title;
   final List<Widget> actions;
   final Widget? leading;
   final bool divider;
+  final double bottomGap;
 
   const AppHero({
     super.key,
@@ -21,6 +21,7 @@ class AppHero extends StatelessWidget {
     this.actions = const [],
     this.leading,
     this.divider = false,
+    this.bottomGap = AppSpacing.base,
   });
 
   @override
@@ -31,83 +32,88 @@ class AppHero extends StatelessWidget {
               border: Border(bottom: BorderSide(color: AppColors.hairline)),
             )
           : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            height: AppSize.touchMin,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const SizedBox(width: AppSpacing.xs),
-                ...actions,
-                const SizedBox(width: AppSpacing.xs),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenH,
-              AppSpacing.xs,
-              AppSpacing.screenH,
-              AppSpacing.base,
-            ),
-            child: Row(
-              children: [
-                if (leading != null) ...[
-                  leading!,
-                  const SizedBox(width: AppSpacing.base),
-                ],
-                Expanded(
-                  child: Text(
-                    title,
-                    style: AppTextStyles.displayMd,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.lg,
+        AppSpacing.screenH,
+        bottomGap,
+      ),
+      child: SizedBox(
+        height: AppSize.touchMin,
+        child: Row(
+          children: [
+            if (leading != null) ...[
+              leading!,
+              const SizedBox(width: AppSpacing.base),
+            ],
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: AppTextStyles.displayMd.bold,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+            ...actions,
+          ],
+        ),
       ),
     );
   }
 }
 
-/// 묶음 머리말: 회색 15 라벨 + (선택) 개수 + (선택) 오른쪽 행동. 선은 긋지 않는다.
+/// 묶음 머리말 (시안 공통): 왼쪽 라벨, 오른쪽 끝 개수(15 mute, 글자 바닥선 맞춤).
+/// - 기본: 15 mute 라벨 (시안 MemB-Feedback·Share 등)
+/// - [strong]: 17/500 ink 라벨, 여백 20 20 4 (시안 MemA-PtSchedule·Stats·Workout '저장된 기록' 등)
 class AppMonthHeader extends StatelessWidget {
   final String label;
   final String? count;
-  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? padding;
   final Widget? trailing;
+  final bool strong;
 
   const AppMonthHeader({
     super.key,
     required this.label,
     this.count,
-    this.padding = const EdgeInsets.fromLTRB(
-      AppSpacing.screenH,
-      AppSpacing.xl,
-      AppSpacing.screenH,
-      AppSpacing.sm,
-    ),
+    this.padding,
     this.trailing,
+    this.strong = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = AppTextStyles.eyebrow;
+    final labelStyle = strong ? AppTextStyles.section : AppTextStyles.eyebrow;
     return Padding(
-      padding: padding,
+      padding:
+          padding ??
+          (strong
+              ? const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.lg,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                )
+              : const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xl,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                )),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
         children: [
-          Text(label, style: labelStyle),
-          if (count != null) ...[
-            const SizedBox(width: AppSpacing.sm),
-            Text(count!, style: AppTextStyles.eyebrow),
-          ],
-          const Spacer(),
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text(label, style: labelStyle),
+            ),
+          ),
+          if (count != null) Text(count!, style: AppTextStyles.eyebrow),
           if (trailing != null) ...[
             const SizedBox(width: AppSpacing.sm),
             trailing!,

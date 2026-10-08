@@ -15,7 +15,8 @@ import 'app_loader.dart';
 enum AppButtonVariant { primary, secondary, ghost, danger, dangerText, dark }
 
 /// sm 32 · md 40 · lg 52(폼 대표 버튼). 시각 높이와 별개로 터치 영역은 44 이상.
-enum AppButtonSize { sm, md, lg }
+/// sm 32 · md 40 · lg 56(반경 18, 17) · dialog 52(반경 14, 16, 확인 창 시안)
+enum AppButtonSize { sm, md, lg, dialog }
 
 class AppButton extends StatelessWidget {
   final String label;
@@ -26,6 +27,12 @@ class AppButton extends StatelessWidget {
   final bool fullWidth;
   final Widget? icon;
 
+  /// 글자 700 (기준 시안 Main 계열 화면의 주 버튼)
+  final bool bold;
+
+  /// 글자 크기를 바꿀 때 (예: 2칸 버튼 16)
+  final double? labelSize;
+
   const AppButton({
     super.key,
     required this.label,
@@ -35,6 +42,8 @@ class AppButton extends StatelessWidget {
     this.isLoading = false,
     this.fullWidth = false,
     this.icon,
+    this.bold = false,
+    this.labelSize,
   });
 
   @override
@@ -44,16 +53,18 @@ class AppButton extends StatelessWidget {
       AppButtonSize.sm => AppSize.buttonHeightSm,
       AppButtonSize.md => AppSize.buttonHeight,
       AppButtonSize.lg => AppSize.buttonHeightLg,
+      AppButtonSize.dialog => 52.0,
     };
     final hPad = switch (size) {
       AppButtonSize.sm => AppSpacing.md,
       AppButtonSize.md => AppSpacing.base,
-      AppButtonSize.lg => AppSpacing.xl,
+      AppButtonSize.lg || AppButtonSize.dialog => AppSpacing.xl,
     };
     final fontSize = switch (size) {
       AppButtonSize.sm => 14.0,
       AppButtonSize.md => 15.0,
       AppButtonSize.lg => 17.0,
+      AppButtonSize.dialog => 16.0,
     };
     final isPrimary = variant == AppButtonVariant.primary;
     final isDark = variant == AppButtonVariant.dark;
@@ -91,7 +102,10 @@ class AppButton extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
         ] else if (icon != null) ...[
           IconTheme(
-            data: IconThemeData(color: fg, size: 18),
+            data: IconThemeData(
+              color: fg,
+              size: size == AppButtonSize.lg ? 20 : 18,
+            ),
             child: icon!,
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -103,8 +117,8 @@ class AppButton extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.buttonLabel.copyWith(
               color: fg,
-              fontSize: fontSize,
-              fontWeight: FontWeight.w700,
+              fontSize: labelSize ?? fontSize,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_feedback.dart';
+import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import '../core/constants.dart';
@@ -14,6 +15,7 @@ import 'app_bottom_sheet.dart';
 import 'app_confirm_dialog.dart';
 import 'app_toast.dart';
 import 'app_button.dart';
+import 'app_motion.dart';
 import 'app_text_field.dart';
 import 'password_reset_sheet.dart';
 
@@ -33,7 +35,11 @@ Future<void> startDeleteAccountFlow(BuildContext context) async {
   if (deleted != true) return;
 
   navigator.pushNamedAndRemoveUntil(AppRoutes.memberLogin, (_) => false);
-  AppToast.show(null, message: '탈퇴가 완료되었습니다. 그동안 이용해주셔서 감사합니다.');
+  AppToast.show(
+    null,
+    message: '탈퇴가 완료되었습니다. 그동안 이용해주셔서 감사합니다.',
+    kind: AppToastKind.success,
+  );
 }
 
 /// 역할별로 탈퇴하면 무엇이 어떻게 되는지. functions/account_deletion.js의 계획과 맞춘다.
@@ -106,63 +112,42 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
             subtitle: isTrainer
                 ? '탈퇴하면 계정이 삭제되고 다음과 같이 처리됩니다.'
                 : '탈퇴하면 아래 정보가 모두 삭제됩니다.',
+            gap: 14,
           ),
-          for (final line in _consequencesFor(widget.user.role))
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '·  ',
-                    style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
-                  ),
-                  Expanded(
-                    child: Text(
-                      line,
-                      style: AppTextStyles.bodyMd.copyWith(
-                        color: AppColors.body,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // 무엇이 어떻게 되는지: 회색 상자 안 점 목록, 줄 사이 1px line
+          _ConsequenceList(
+            lines: _consequencesFor(widget.user.role),
+            multiline: isTrainer,
+          ),
           if (widget.user.role == UserRole.member) ...[
-            const Gap(AppSpacing.xs),
-            Text(
+            const Gap(AppSpacing.sm),
+            _RetentionNotice(
               'PT 이용 내역(횟수·기간·수업 일시)은 환불 등 분쟁 대응을 위해 이름 등 회원을 알 수 있는 정보를 지운 뒤 '
               'PT 종료일(또는 탈퇴일) 중 늦은 날로부터 ${AccountService.ptRecordRetentionYears}년간 보관하고 파기합니다.',
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
             ),
           ],
-          const Gap(AppSpacing.md),
+          const Gap(AppSpacing.sm),
           const AppWarningCallout('삭제된 정보는 복구할 수 없습니다.'),
-          const Gap(AppSpacing.lg),
+          const Gap(18),
           AppTextField(
             label: '비밀번호 확인',
             hint: '본인 확인을 위해 비밀번호를 입력해주세요',
             controller: _passwordController,
             obscureText: true,
+            enabled: !_isDeleting,
             validator: (v) => (v == null || v.isEmpty) ? '비밀번호를 입력해주세요.' : null,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _delete(),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: AppButton(
-              label: '비밀번호를 잊으셨나요?',
-              variant: AppButtonVariant.ghost,
-              size: AppButtonSize.sm,
-              onPressed: _isDeleting
-                  ? null
-                  : () => showPasswordResetSheet(
-                      context,
-                      initialEmail: widget.user.email,
-                    ),
-            ),
+          ForgotPasswordLink(
+            onPressed: _isDeleting
+                ? null
+                : () => showPasswordResetSheet(
+                    context,
+                    initialEmail: widget.user.email,
+                  ),
           ),
-          const Gap(AppSpacing.sm),
+          const Gap(AppSpacing.xs),
           Row(
             children: [
               Expanded(
@@ -174,22 +159,191 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
                       : () => Navigator.of(context).pop(false),
                   fullWidth: true,
                   size: AppButtonSize.lg,
+                  labelSize: 16,
                 ),
               ),
               const Gap(AppSpacing.sm),
               Expanded(
-                child: AppButton(
-                  label: '탈퇴하기',
-                  variant: AppButtonVariant.dark,
-                  onPressed: _delete,
-                  isLoading: _isDeleting,
-                  fullWidth: true,
-                  size: AppButtonSize.lg,
-                ),
+                child: _isDeleting
+                    ? const _DeletingButton()
+                    : AppButton(
+                        label: '탈퇴하기',
+                        variant: AppButtonVariant.dark,
+                        onPressed: _delete,
+                        fullWidth: true,
+                        size: AppButtonSize.lg,
+                        labelSize: 16,
+                      ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 결과 목록 (시안 Com-DeleteAccount-*): 회색 카드(반경 18, 안쪽 6 16) 안
+/// 점(5, faint) + 15 ink 글자, 줄 사이 1px line. 회원은 한 줄 44, 트레이너는 위아래 12 · 줄 높이 1.45.
+class _ConsequenceList extends StatelessWidget {
+  final List<String> lines;
+  final bool multiline;
+
+  const _ConsequenceList({required this.lines, required this.multiline});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.base,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < lines.length; i++)
+            Container(
+              constraints: const BoxConstraints(minHeight: AppSize.touchMin),
+              padding: EdgeInsets.symmetric(vertical: multiline ? 12 : 10),
+              decoration: BoxDecoration(
+                border: i < lines.length - 1
+                    ? Border(bottom: BorderSide(color: AppColors.line))
+                    : null,
+              ),
+              child: Row(
+                crossAxisAlignment: multiline
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(top: multiline ? 9 : 0),
+                    child: Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: AppColors.faint,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  const Gap(10),
+                  Expanded(
+                    child: Text(
+                      lines[i],
+                      style: AppTextStyles.bodyMd.copyWith(
+                        height: multiline ? 1.45 : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// PT 기록 보관 안내: 1px hairline 테두리 상자(반경 14, 안쪽 12 14) + 정보 아이콘 18 mute + 13 body(줄 높이 1.55).
+class _RetentionNotice extends StatelessWidget {
+  final String message;
+
+  const _RetentionNotice(this.message);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.field),
+        border: Border.all(color: AppColors.hairline),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(AppIcons.info, size: 18, color: AppColors.mute),
+          ),
+          const Gap(AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.bodySm.copyWith(
+                color: AppColors.body,
+                height: 1.55,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 탈퇴 중 버튼 (시안 Com-DeleteAccount-Trainer): 검정 56 · 반경 18 안 회전 원 22
+/// (선 2.6, 바탕 흰색 25% + 흰 호, .8s에 한 바퀴).
+class _DeletingButton extends StatefulWidget {
+  const _DeletingButton();
+
+  @override
+  State<_DeletingButton> createState() => _DeletingButtonState();
+}
+
+class _DeletingButtonState extends State<_DeletingButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spin = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _spin.stop();
+    } else if (!_spin.isAnimating) {
+      _spin.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '탈퇴하는 중',
+      button: true,
+      enabled: false,
+      excludeSemantics: true,
+      child: Container(
+        height: AppSize.buttonHeightLg,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.ink,
+          borderRadius: BorderRadius.circular(AppRadius.button),
+        ),
+        child: RotationTransition(
+          turns: _spin,
+          child: SizedBox.square(
+            dimension: 22,
+            child: CircularProgressIndicator(
+              value: 0.25,
+              strokeWidth: 2.6,
+              strokeCap: StrokeCap.round,
+              color: AppColors.canvas,
+              backgroundColor: AppColors.canvas.withValues(alpha: 0.25),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -15,7 +15,8 @@ import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_highlight.dart';
 import '../../widgets/app_screen_header.dart';
-import '../../widgets/app_tag.dart';
+import '../../widgets/app_motion.dart';
+import '../../widgets/app_section.dart';
 import '../../widgets/app_loader.dart';
 import 'member_pt_workout_screen.dart';
 
@@ -125,7 +126,7 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
             slivers: [
               SliverToBoxAdapter(
                 child: widget.showBackButton
-                    ? AppScreenHeader(
+                    ? AppScreenHeader.large(
                         title: 'PT 일정',
                         onBack: () => Navigator.of(context).pop(),
                       )
@@ -133,9 +134,10 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
+                  // 시안: 제목 칸 아래 20 (히어로 아래 여백 16 + 4)
+                  padding: EdgeInsets.fromLTRB(
                     AppSpacing.screenH,
-                    AppSpacing.xl,
+                    widget.showBackButton ? AppSpacing.lg : AppSpacing.xs,
                     AppSpacing.screenH,
                     0,
                   ),
@@ -161,7 +163,7 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                           ),
                         ),
                       ),
-                      const _SectionBand(),
+                      const AppSectionBand(top: AppSpacing.md),
                     ],
                   ),
                 ),
@@ -195,34 +197,39 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                   child: AppMonthHeader(
                     label: '예정',
                     count: '${upcoming.length}',
+                    strong: true,
                   ),
                 ),
                 if (upcoming.isEmpty)
                   const SliverToBoxAdapter(
-                    child: _EmptyLine('예정된 PT 일정이 없습니다.'),
+                    child: AppEmptyLine('예정된 PT 일정이 없습니다.'),
                   )
                 else
-                  SliverList.separated(
+                  SliverList.builder(
                     itemCount: upcoming.length,
-                    separatorBuilder: (_, _) =>
-                        const AppRowDivider(indent: AppSpacing.screenH),
-                    itemBuilder: (_, i) =>
-                        _SessionRow(session: upcoming[i], isPast: false),
+                    // 시안 `slide`: 예정 줄만 .4s, 0.06초 간격
+                    itemBuilder: (_, i) => AppEntrance.slide(
+                      delay: Duration(milliseconds: 60 * (i < 8 ? i : 8)),
+                      child: _SessionRow(session: upcoming[i], isPast: false),
+                    ),
                   ),
-                const SliverToBoxAdapter(child: _SectionBand()),
+                const SliverToBoxAdapter(
+                  child: AppSectionBand(top: AppSpacing.md),
+                ),
                 SliverToBoxAdapter(
                   child: AppMonthHeader(
                     label: '지난 일정',
                     count: '${past.length}',
+                    strong: true,
                   ),
                 ),
                 if (past.isEmpty)
-                  const SliverToBoxAdapter(child: _EmptyLine('지난 PT 일정이 없습니다.'))
+                  const SliverToBoxAdapter(
+                    child: AppEmptyLine('지난 PT 일정이 없습니다.'),
+                  )
                 else
-                  SliverList.separated(
+                  SliverList.builder(
                     itemCount: past.length,
-                    separatorBuilder: (_, _) =>
-                        const AppRowDivider(indent: AppSpacing.screenH),
                     itemBuilder: (_, i) =>
                         _SessionRow(session: past[i], isPast: true),
                   ),
@@ -266,8 +273,10 @@ class _RemainingCard extends StatelessWidget {
       container: true,
       label: 'PT 잔여 $remaining회, 전체 $total회',
       child: AppHighlightCard(
+        // 잔여 정보가 없으면 회색 카드 (시안 MemA-PtSchedule-Empty)
+        muted: info == null,
         label: '남은 횟수',
-        trailingLabel: dDay,
+        trailingLabel: info == null ? null : dDay,
         value: '$remaining',
         unit: ' / $total회 남음',
         progress: ratio,
@@ -277,19 +286,8 @@ class _RemainingCard extends StatelessWidget {
   }
 }
 
-/// 묶음 사이 회색 띠 (선 대신 면으로 나눈다).
-class _SectionBand extends StatelessWidget {
-  const _SectionBand();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    height: AppSpacing.sm,
-    margin: const EdgeInsets.only(top: AppSpacing.md),
-    color: AppColors.canvasCard,
-  );
-}
-
-/// 일정 한 줄: 날짜 칸(10.09 / 목) + 제목 + 시간 메타 + 상태 태그.
+/// 일정 한 줄 (높이 68, 아래 선 좌우 20 안쪽): 날짜 칸 56(10.09 15/500 · 목 12) + 'PT 세션' 16/500 +
+/// 시간 13 mute + 상태 14 (오늘 500 noticeText · D-n mute · 완료 500 ink · 기록 전·취소 faint).
 class _SessionRow extends StatelessWidget {
   final PtSession session;
   final bool isPast;
@@ -314,18 +312,24 @@ class _SessionRow extends StatelessWidget {
             if (trainer.isNotEmpty) trainer,
           ].join(' · ');
 
+    final status = AppTextStyles.bodySmall;
     final Widget tag;
     if (!isPast) {
       final days = DateUtils.dateOnly(
         start,
       ).difference(DateUtils.dateOnly(DateTime.now())).inDays;
-      tag = AppTag(days <= 0 ? '오늘' : 'D-$days');
+      tag = days <= 0
+          ? Text(
+              '오늘',
+              style: status.medium.copyWith(color: AppColors.noticeText),
+            )
+          : Text('D-$days', style: status.copyWith(color: AppColors.mute));
     } else if (completed) {
-      tag = const AppTag('완료', strong: true);
+      tag = Text('완료', style: status.medium.copyWith(color: AppColors.ink));
     } else if (cancelled) {
-      tag = const AppTag('취소', muted: true);
+      tag = Text('취소', style: status.copyWith(color: AppColors.faint));
     } else {
-      tag = const AppTag('기록 전', muted: true);
+      tag = Text('기록 전', style: status.copyWith(color: AppColors.faint));
     }
 
     final semanticDate = DateFormat('M월 d일 E요일 a h시 mm분', 'ko').format(start);
@@ -334,75 +338,65 @@ class _SessionRow extends StatelessWidget {
       container: true,
       label: '$semanticDate PT 세션',
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.screenH,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            ExcludeSemantics(
-              child: SizedBox(
-                width: 48,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+        child: Container(
+          height: 68,
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.hairline)),
+          ),
+          child: Row(
+            children: [
+              ExcludeSemantics(
+                child: SizedBox(
+                  width: 56,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat('MM.dd').format(start),
+                        style: AppTextStyles.bodyMd.medium.natural.copyWith(
+                          color: cancelled
+                              ? AppColors.mute
+                              : (isPast ? AppColors.body : AppColors.ink),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        _weekdayKo[start.weekday - 1],
+                        style: AppTextStyles.captionSmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      DateFormat('MM.dd').format(start),
-                      style: AppTextStyles.eyebrow.copyWith(
+                      'PT 세션',
+                      style: AppTextStyles.listTitle.natural.copyWith(
                         color: cancelled ? AppColors.mute : AppColors.ink,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      _weekdayKo[start.weekday - 1],
-                      style: AppTextStyles.counter,
+                      meta,
+                      style: AppTextStyles.bodySm,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'PT 세션',
-                    style: AppTextStyles.bodyLg.copyWith(
-                      color: cancelled ? AppColors.mute : AppColors.ink,
-                    ),
-                  ),
-                  Text(
-                    meta,
-                    style: AppTextStyles.bodySm,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            tag,
-          ],
+              const SizedBox(width: AppSpacing.sm),
+              tag,
+            ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-class _EmptyLine extends StatelessWidget {
-  final String text;
-
-  const _EmptyLine(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.screenH,
-        vertical: AppSpacing.md,
-      ),
-      child: Text(text, style: AppTextStyles.bodySm),
     );
   }
 }

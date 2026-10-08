@@ -4,7 +4,8 @@
 // 실행: firebase emulators:start --project burnfit-v01 --only auth,firestore,storage,functions
 //       (다른 터미널) cd functions && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
 //         FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 GCLOUD_PROJECT=burnfit-v01 node integration/seed_screens.js
-// 계정: member@burnfit.test / trainer@burnfit.test / admin@burnfit.test, 비밀번호 password123
+// 계정: member@burnfit.test / trainer@burnfit.test / admin@burnfit.test,
+//       pending@burnfit.test(승인 대기) / newbie@burnfit.test(온보딩 전), 비밀번호 password123
 
 if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) {
   console.error('에뮬레이터 주소(FIRESTORE_EMULATOR_HOST, FIREBASE_AUTH_EMULATOR_HOST)가 없어 중단합니다.');
@@ -52,6 +53,9 @@ async function main() {
   const adminUid = await authUser('admin@burnfit.test', '박관리');
   const trainerUid = await authUser('trainer@burnfit.test', '김도윤');
   const memberUid = await authUser('member@burnfit.test', '이민지');
+  // 승인 대기 화면·온보딩 화면 확인용 계정
+  const pendingUid = await authUser('pending@burnfit.test', '최대기');
+  const newbieUid = await authUser('newbie@burnfit.test', '신입회원');
   const trainer = { uid: trainerUid, name: '김도윤' };
   const others = [
     { uid: 'member-seojun', name: '박서준', email: 'seojun@example.com' },
@@ -61,7 +65,16 @@ async function main() {
   const batch = db.batch();
   const set = (path, data) => batch.set(db.doc(path), data);
 
-  set(`centers/${CENTER.id}`, { id: CENTER.id, name: CENTER.name, address: '서울 강남구', adminId: adminUid, status: 'active', createdAt: ts(day(-200)) });
+  set(`centers/${CENTER.id}`, { id: CENTER.id, name: CENTER.name, address: '서울 강남구 테헤란로 123', adminId: adminUid, status: 'active', createdAt: ts(day(-200)) });
+  // 센터 선택 시트용 다른 센터들 (시안 Com-CenterPicker)
+  for (const [id, name, address] of [
+    ['center-yeoksam', '역삼 센터', '서울 강남구 역삼로 45'],
+    ['center-seolleung', '선릉 센터', '서울 강남구 선릉로 210'],
+    ['center-pangyo', '판교 센터', '경기 성남시 분당구 판교역로 8'],
+    ['center-jamsil', '잠실 센터', '서울 송파구 올림픽로 300'],
+  ]) {
+    set(`centers/${id}`, { id, name, address, adminId: adminUid, status: 'active', createdAt: ts(day(-200)) });
+  }
   set(`users/${adminUid}`, userDoc({ uid: adminUid, email: 'admin@burnfit.test', name: '박관리', role: 'admin' }));
   set(`users/${trainerUid}`, userDoc({ uid: trainerUid, email: 'trainer@burnfit.test', name: '김도윤', role: 'trainer' }));
   set(`users/${memberUid}`, userDoc({
@@ -72,6 +85,8 @@ async function main() {
   for (const o of others) {
     set(`users/${o.uid}`, userDoc({ uid: o.uid, email: o.email, name: o.name, role: 'member', trainer, birthDate: '19950101', gender: 'male' }));
   }
+  set(`users/${pendingUid}`, userDoc({ uid: pendingUid, email: 'pending@burnfit.test', name: '최대기', role: 'member', status: 'pending' }));
+  set(`users/${newbieUid}`, userDoc({ uid: newbieUid, email: 'newbie@burnfit.test', name: '신입회원', role: 'member' }));
   set('users/member-seoyun', userDoc({ uid: 'member-seoyun', email: 'seoyun@example.com', name: '한서윤', role: 'member', birthDate: '20000505', gender: 'female' }));
   // 가입 신청 대기
   for (const [uid, name, role] of [['pending-seojun', '이서준', 'member'], ['pending-jihoon', '이지훈', 'trainer']]) {

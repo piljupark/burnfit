@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_feedback.dart';
@@ -19,18 +22,25 @@ class PendingApprovalScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
+        bottom: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Gap(AppSpacing.xl3),
+              // 시안: 위에서 96 (상태 표시줄 포함)
+              Gap(
+                math.max(
+                  AppSpacing.xl3,
+                  96 - MediaQuery.paddingOf(context).top,
+                ),
+              ),
               const Align(
                 alignment: Alignment.centerLeft,
                 child: ExcludeSemantics(child: PendingClockMark()),
               ),
               const Gap(40),
-              Text('승인 대기', style: AppTextStyles.bodySm),
+              Text('승인 대기', style: AppTextStyles.eyebrow),
               const Gap(AppSpacing.sm),
               Semantics(
                 header: true,
@@ -39,13 +49,17 @@ class PendingApprovalScreen extends StatelessWidget {
               const Gap(AppSpacing.md),
               Text(
                 '관리자가 가입 신청을 검토하고 있습니다.\n승인이 완료되면 바로 서비스를 이용하실 수 있습니다.',
-                style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+                style: AppTextStyles.input.copyWith(
+                  color: AppColors.body,
+                  height: 1.6,
+                ),
               ),
               const Spacer(),
 
               // 새로고침 (화면의 주 행동)
               AppButton(
                 label: '새로고침',
+                icon: const Icon(AppIcons.refresh),
                 fullWidth: true,
                 size: AppButtonSize.lg,
                 onPressed: () async {
@@ -68,7 +82,7 @@ class PendingApprovalScreen extends StatelessWidget {
                     return;
                   }
                   if (route == AppRoutes.pendingApproval) {
-                    AppFeedback.showSuccessSnackBar(context, '아직 승인 대기 중이에요.');
+                    AppFeedback.showWaiting(context, '아직 승인 대기 중이에요.');
                     return;
                   }
                   // 승인됨 → 회원이면 온보딩부터 (스플래시·로그인과 같은 규칙)
@@ -93,7 +107,10 @@ class PendingApprovalScreen extends StatelessWidget {
                 },
               ),
 
-              const Gap(AppSpacing.xl),
+              // 시안: 버튼 묶음 아래 34 = 안전 영역 (없는 기기는 20)
+              Gap(
+                math.max(MediaQuery.paddingOf(context).bottom, AppSpacing.lg),
+              ),
             ],
           ),
         ),

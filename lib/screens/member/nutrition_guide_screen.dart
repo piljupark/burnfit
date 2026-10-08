@@ -8,12 +8,13 @@ import '../../models/food_guide.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_motion.dart';
 import '../../widgets/app_screen_header.dart';
 import 'food_detail_sheet.dart';
 import 'food_list_screen.dart';
 
-/// 영양 가이드: 상황별 추천(이럴 땐 이렇게) + 영양소별 2×2 → 음식 목록 → 상세 시트.
-/// 데이터는 앱 고정 파일([FoodGuideData]).
+/// 영양 가이드 (시안 MemB-NutritionGuide): 상황별 추천(이럴 땐 이렇게) + 8 회색 띠 + 영양소별 2×2
+/// → 음식 목록 → 상세 시트. 데이터는 앱 고정 파일([FoodGuideData]).
 class NutritionGuideScreen extends StatelessWidget {
   final FoodAddAction? addAction;
 
@@ -40,6 +41,7 @@ class NutritionGuideScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final categories = FoodGuideData.categories;
+    final situations = FoodGuideData.situations;
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
@@ -47,7 +49,7 @@ class NutritionGuideScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            AppScreenHeader.centered(
               title: '영양 가이드',
               onBack: () => Navigator.of(context).pop(),
             ),
@@ -64,39 +66,49 @@ class NutritionGuideScreen extends StatelessWidget {
                       AppSpacing.screenH,
                       0,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '부족한 게 있을 때 무엇을 먹으면 좋을지 가볍게 참고하세요.',
-                          style: AppTextStyles.bodyMd.copyWith(
-                            color: AppColors.body,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      '부족한 게 있을 때 무엇을 먹으면 좋을지 가볍게 참고하세요.',
+                      style: AppTextStyles.bodyMd.copyWith(
+                        color: AppColors.body,
+                        height: 1.55,
+                      ),
                     ),
                   ),
                   AppMonthHeader(
                     label: '이럴 땐 이렇게',
-                    count: '${FoodGuideData.situations.length}',
+                    count: '${situations.length}',
                   ),
-                  for (final s in FoodGuideData.situations) ...[
-                    AppActionRow(
-                      icon: s.icon,
-                      label: s.title,
-                      subtitle: FoodGuideData.resolve(
-                        s.foodIds,
-                      ).take(3).map((f) => f.name).join(' · '),
-                      onTap: () => _openList(
-                        context,
-                        title: s.title,
-                        description: s.description,
-                        foods: FoodGuideData.resolve(s.foodIds),
+                  // 줄 높이 68, 좌우 20 안쪽 선, 마지막 줄 아래는 선 없음. 왼쪽에서 밀려 들어온다.
+                  for (var i = 0; i < situations.length; i++) ...[
+                    if (i > 0) const AppRowDivider.inset(),
+                    AppEntrance.slide(
+                      delay: Duration(milliseconds: 50 * i),
+                      child: AppActionRow(
+                        chevronSize: 16,
+                        icon: situations[i].icon,
+                        label: situations[i].title,
+                        subtitle: FoodGuideData.resolve(
+                          situations[i].foodIds,
+                        ).take(3).map((f) => f.name).join(' · '),
+                        onTap: () => _openList(
+                          context,
+                          title: situations[i].title,
+                          description: situations[i].description,
+                          foods: FoodGuideData.resolve(situations[i].foodIds),
+                        ),
                       ),
                     ),
-                    const AppRowDivider(),
                   ],
-                  const AppMonthHeader(label: '영양소별로 찾기'),
+                  const AppSectionBand(top: AppSpacing.md),
+                  const AppMonthHeader(
+                    label: '영양소별로 찾기',
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.lg,
+                      AppSpacing.screenH,
+                      AppSpacing.md,
+                    ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.screenH,
@@ -114,16 +126,22 @@ class NutritionGuideScreen extends StatelessWidget {
                                     const SizedBox(width: AppSpacing.sm),
                                   Expanded(
                                     child: j < categories.length
-                                        ? _CategoryTile(
-                                            info: categories[j],
-                                            onTap: () => _openList(
-                                              context,
-                                              title:
-                                                  categories[j].category.label,
-                                              description:
-                                                  categories[j].description,
-                                              foods: FoodGuideData.byCategory(
-                                                categories[j].category,
+                                        ? AppEntrance(
+                                            delay: Duration(
+                                              milliseconds: 60 * j,
+                                            ),
+                                            child: _CategoryTile(
+                                              info: categories[j],
+                                              onTap: () => _openList(
+                                                context,
+                                                title: categories[j]
+                                                    .category
+                                                    .label,
+                                                description:
+                                                    categories[j].description,
+                                                foods: FoodGuideData.byCategory(
+                                                  categories[j].category,
+                                                ),
                                               ),
                                             ),
                                           )
@@ -146,7 +164,7 @@ class NutritionGuideScreen extends StatelessWidget {
                     ),
                     child: Text(
                       '참고용 대략값이에요. 조리법·제품에 따라 달라져요.',
-                      style: AppTextStyles.captionSmall,
+                      style: AppTextStyles.bodySm,
                     ),
                   ),
                 ],
@@ -159,7 +177,8 @@ class NutritionGuideScreen extends StatelessWidget {
   }
 }
 
-/// 영양소 칸: 아이콘 + 이름(17) + 짧은 설명 + 음식 수.
+/// 영양소 칸 (회색 면, 반경 20, 안쪽 16, 테두리 없음):
+/// 아이콘 26 → 12 → 이름 17/500 → 2 → 설명 14 body → 12 → 음식 수 13 mute.
 class _CategoryTile extends StatelessWidget {
   final NutrientCategoryInfo info;
   final VoidCallback onTap;
@@ -176,18 +195,17 @@ class _CategoryTile extends StatelessWidget {
       excludeSemantics: true,
       child: AppCard(
         onTap: onTap,
+        hasBorder: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(info.icon, size: AppSize.icon, color: AppColors.ink),
-            const SizedBox(height: AppSpacing.sm),
-            Text(name, style: AppTextStyles.bodyLg),
-            Text(
-              info.tagline,
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text('음식 $count개', style: AppTextStyles.captionSmall),
+            Icon(info.icon, size: 26, color: AppColors.ink),
+            const SizedBox(height: AppSpacing.md),
+            Text(name, style: AppTextStyles.section),
+            const SizedBox(height: 2),
+            Text(info.tagline, style: AppTextStyles.bodySmall),
+            const SizedBox(height: AppSpacing.md),
+            Text('음식 $count개', style: AppTextStyles.bodySm),
           ],
         ),
       ),

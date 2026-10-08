@@ -21,6 +21,7 @@ import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_highlight.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_section.dart';
@@ -366,19 +367,14 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
                           AppSize.navClearance + _fabHeight + AppSpacing.base,
                     ),
                     children: [
-                      AppHero(
-                        title: 'PT 일정',
-                        actions: [
-                          if (canPop) ...[
-                            AppIconButton(
-                              icon: AppIcons.back,
-                              label: '뒤로',
-                              onPressed: () => Navigator.of(context).pop(),
-                            ),
-                            const Spacer(),
-                          ],
-                        ],
-                      ),
+                      // 탭이면 공통 탭 제목, 하위 화면으로 열렸으면 뒤로 + 큰 제목
+                      if (canPop)
+                        AppScreenHeader.large(
+                          title: 'PT 일정',
+                          onBack: () => Navigator.of(context).pop(),
+                        )
+                      else
+                        const AppHero(title: 'PT 일정'),
                       _WeekStrip(
                         selectedDay: _selectedDay,
                         marks: buildCalendarMarks(

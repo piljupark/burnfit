@@ -85,4 +85,23 @@ void main() {
     });
     expect(calendarMarksSemantics(day), 'PT 완료, PT 예약, 개인운동');
   });
+
+  test('한 칸에 하나만 그릴 때는 PT 완료 → PT 예약 → 개인운동 순으로 고른다', () {
+    expect(primaryCalendarMark(null), isNull);
+    expect(primaryCalendarMark({}), isNull);
+    expect(
+      primaryCalendarMark({CalendarMark.personal, CalendarMark.ptScheduled}),
+      CalendarMark.ptScheduled,
+      reason: 'PT 예약이 개인운동 점에 가려지면 안 된다',
+    );
+    expect(
+      primaryCalendarMark({
+        CalendarMark.personal,
+        CalendarMark.ptScheduled,
+        CalendarMark.ptDone,
+      }),
+      CalendarMark.ptDone,
+    );
+    expect(primaryCalendarMark({CalendarMark.personal}), CalendarMark.personal);
+  });
 }

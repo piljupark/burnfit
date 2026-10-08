@@ -32,7 +32,7 @@ class AppTag extends StatelessWidget {
         : AppColors.mute;
     final style = AppTextStyles.bodySm.copyWith(
       color: fg,
-      fontWeight: strong ? FontWeight.w700 : FontWeight.w400,
+      fontWeight: strong ? FontWeight.w500 : FontWeight.w400,
     );
     return SizedBox(
       height: 22,
@@ -80,6 +80,16 @@ class AppChip extends StatelessWidget {
   final IconData? icon;
   final bool enabled;
 
+  /// 큰 칩 (시안 MemA-Sheet·MemB-FoodList·Profile): 높이 40, 좌우 16, 15 글자, 비선택 글자 body
+  final bool large;
+
+  /// 칸형 (시안 MemB-MealInput 끼니 고르기): 주어진 폭을 채우는 높이 44 · 반경 14 칸, 글자 가운데.
+  /// Row 안에서 Expanded로 감싸 같은 폭으로 쓴다.
+  final bool cell;
+
+  /// 비선택 글자를 ink로 (시안 MemB-FoodDetailSheet 짝 음식)
+  final bool inkLabel;
+
   const AppChip({
     super.key,
     required this.label,
@@ -87,15 +97,23 @@ class AppChip extends StatelessWidget {
     this.onTap,
     this.icon,
     this.enabled = true,
+    this.large = false,
+    this.cell = false,
+    this.inkLabel = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fg = selected ? AppColors.canvas : AppColors.body;
-    final style = AppTextStyles.bodySmall.copyWith(
-      color: fg,
-      fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-    );
+    final fg = selected
+        ? AppColors.canvas
+        : (inkLabel || cell)
+        ? AppColors.ink
+        : AppColors.body;
+    final style = (large || cell ? AppTextStyles.bodyMd : AppTextStyles.bodySmall)
+        .copyWith(
+          color: fg,
+          fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+        );
     return Semantics(
       button: true,
       selected: selected,
@@ -107,16 +125,27 @@ class AppChip extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           child: Container(
             // 시각 높이 32, 터치 영역은 세로 여백으로 확보
-            padding: const EdgeInsets.symmetric(vertical: 6),
+            padding: EdgeInsets.symmetric(
+              vertical: cell ? 0 : (large ? 2 : 6),
+            ),
             child: Container(
-              height: AppSize.buttonHeightSm,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              height: cell ? 44 : (large ? 40 : AppSize.buttonHeightSm),
+              padding: EdgeInsets.symmetric(
+                horizontal: cell
+                    ? 0
+                    : large
+                    ? AppSpacing.base
+                    : AppSpacing.md,
+              ),
               decoration: BoxDecoration(
                 color: selected ? AppColors.ink : AppColors.canvasSoft,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+                borderRadius: BorderRadius.circular(
+                  cell ? AppRadius.field : AppRadius.pill,
+                ),
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: cell ? MainAxisSize.max : MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (icon != null) ...[
                     Icon(icon, size: 16, color: fg),

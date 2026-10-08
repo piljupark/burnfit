@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
+import 'app_motion.dart';
 
-/// 진행 막대: canvasMid pill 트랙 + ink 채움. 요약 수치 아래는 2, 목록 막대는 4.
+/// 진행 막대: pill 트랙(기본 track #E6E6EA) + 채움(기본 ink). 채움은 왼쪽부터 차오른다
+/// (시안 `grow`·`fill`, [animate]=false면 바로 그린다).
 class AppProgressBar extends StatelessWidget {
   final double value;
   final double height;
   final String? semanticLabel;
   final Color? color;
+  final Color? trackColor;
+  final bool animate;
+  final Duration delay;
 
   const AppProgressBar({
     super.key,
@@ -16,6 +21,9 @@ class AppProgressBar extends StatelessWidget {
     this.height = 2,
     this.semanticLabel,
     this.color,
+    this.trackColor,
+    this.animate = true,
+    this.delay = Duration.zero,
   });
 
   @override
@@ -28,12 +36,17 @@ class AppProgressBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: Container(
           height: height,
-          color: AppColors.canvasMid,
+          color: trackColor ?? AppColors.track,
           alignment: Alignment.centerLeft,
           child: FractionallySizedBox(
             widthFactor: clamped,
             heightFactor: 1,
-            child: ColoredBox(color: color ?? AppColors.ink),
+            child: animate
+                ? AppGrow(
+                    delay: delay,
+                    child: ColoredBox(color: color ?? AppColors.ink),
+                  )
+                : ColoredBox(color: color ?? AppColors.ink),
           ),
         ),
       ),

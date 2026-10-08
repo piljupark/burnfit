@@ -40,7 +40,7 @@ void main() {
             .ancestor(of: find.text(message), matching: find.byType(Container))
             .first,
       );
-      expect(rect.width, 390 - AppSpacing.screenH * 2, reason: message);
+      expect(rect.width, 390 - AppSpacing.base * 2, reason: message);
       expect(rect.top, lessThan(844 / 3), reason: '위쪽에 뜬다');
     }
     // 새 토스트가 이전 것을 바꾼다 (하나만 남는다)

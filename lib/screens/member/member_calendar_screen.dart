@@ -17,12 +17,14 @@ import '../../services/firestore_service.dart';
 import '../../services/meal_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
+import '../../widgets/app_hero.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_icon_box.dart';
 import '../../widgets/brand_marks.dart';
 import '../../widgets/calendar_marks.dart';
 import '../../widgets/notification_bell_button.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/app_motion.dart';
 import '../../widgets/rest_timer.dart';
 
 import '../common/notice_home_banner.dart';
@@ -86,6 +88,9 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
 
   /// 이번 주(월~일) 세션 (취소 제외).
   List<PtSession> _weekSessions = [];
+
+  /// 오늘 보기의 운동·세션 조회가 실패했는지 (주간 줄 표시가 조용히 비지 않게 오류를 보인다).
+  bool _todayFailed = false;
 
   String _key(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
@@ -188,6 +193,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
     final today = _today();
     final weekStart = today.subtract(Duration(days: today.weekday - 1));
     final weekEnd = weekStart.add(const Duration(days: 6));
+    var failed = false;
     final results = await Future.wait<Object?>([
       FirestoreService.getPtInfo(
         user.uid,
@@ -198,16 +204,23 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
         user.uid,
         _key(today.subtract(const Duration(days: 40))),
         _key(weekEnd),
-      ).catchError((_) => <Workout>[]),
+      ).catchError((_) {
+        failed = true;
+        return <Workout>[];
+      }),
       FirestoreService.getPtSessionsByMember(
         user.uid,
         centerId: user.centerId,
         from: weekStart,
         to: DateTime(weekEnd.year, weekEnd.month, weekEnd.day, 23, 59, 59),
-      ).catchError((_) => <PtSession>[]),
+      ).catchError((_) {
+        failed = true;
+        return <PtSession>[];
+      }),
     ]);
     if (!mounted) return;
     setState(() {
+      _todayFailed = failed;
       _ptInfo = results[0] as PtInfo?;
       _recentWorkouts = results[1] as List<Workout>;
       _weekSessions = (results[2] as List<PtSession>)
@@ -277,20 +290,29 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
     return count;
   }
 
-  /// 이번 주 날짜별 표시 하나 (PT 완료 > 개인운동 > PT 예약 순으로 하나만).
+  /// 이번 주 날짜별 표시 하나 (PT 완료 > PT 예약 > 개인운동 순으로 하나만).
+  /// 오늘에 PT가 있으면(예약·완료) 시안 Main처럼 주황 채운 점으로 보인다 (맥박은 [_WeekCard]).
   Map<String, CalendarMark> get _weekMarks {
     final all = buildCalendarMarks(
       sessions: _weekSessions,
       workouts: _recentWorkouts,
     );
-    return {
+    final marks = <String, CalendarMark>{
       for (final entry in all.entries)
-        entry.key: [
-          CalendarMark.ptDone,
-          CalendarMark.personal,
-          CalendarMark.ptScheduled,
-        ].firstWhere(entry.value.contains),
+        if (primaryCalendarMark(entry.value) case final mark?) entry.key: mark,
     };
+    if (_todayHasPt) marks[_key(_today())] = CalendarMark.ptDone;
+    return marks;
+  }
+
+  /// 오늘에 취소되지 않은 PT(세션 또는 PT 운동 기록)가 있는지.
+  bool get _todayHasPt {
+    final today = _today();
+    final todayKey = _key(today);
+    return _weekSessions.any((item) => _sameDate(item.scheduledAt, today)) ||
+        _recentWorkouts.any(
+          (w) => w.workoutDate == todayKey && w.workoutType == WorkoutType.pt,
+        );
   }
 
   // 하위 화면에서 기록을 바꾸거나 피드백을 읽을 수 있으므로 돌아오면 다시 불러온다.
@@ -323,12 +345,14 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: AppSize.navClearance),
             children: [
-              const _HomeHeader(title: '홈'),
+              const AppHero(title: '홈', actions: [NotificationBellButton()]),
               _ViewTabs(
                 selected: _view,
                 onSelect: (view) => setState(() => _view = view),
               ),
-              const NoticeHomeBanner(),
+              // 오늘 보기(시안 Main)에는 공지 줄이 없다. 중요 공지 시트는 어느 보기에서든 뜬다.
+              // 같은 자리에 두어 보기를 바꿔도 공지를 다시 불러오지 않는다.
+              NoticeHomeBanner(showBanner: _view != _HomeView.today),
               ...switch (_view) {
                 _HomeView.today => _todayChildren(),
                 _HomeView.calendar => _calendarChildren(),
@@ -358,32 +382,36 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
         ),
       _ShortcutGrid(
         items: [
-          _Shortcut(AppIcons.workout, '운동 기록', widget.onOpenWorkout),
-          _Shortcut(AppIcons.meal, '식단', () => _openMealLog()),
           _Shortcut(
-            AppIcons.feedback,
+            const _LineGlyph(_Glyph.barbell),
+            '운동 기록',
+            widget.onOpenWorkout,
+          ),
+          _Shortcut(_icon(AppIcons.meal), '식단', () => _openMealLog()),
+          _Shortcut(
+            _icon(AppIcons.feedback),
             '피드백',
             _openFeedback,
             showDot: _unreadFeedbackCount > 0,
           ),
           _Shortcut(
-            AppIcons.nutrition,
+            const _LineGlyph(_Glyph.nutrition),
             '영양 가이드',
             () => _push(const NutritionGuideScreen()),
           ),
-          _Shortcut(AppIcons.calendarCheck, 'PT 일정', widget.onOpenPt),
+          _Shortcut(_icon(AppIcons.calendarCheck), 'PT 일정', widget.onOpenPt),
           _Shortcut(
-            AppIcons.chartBar,
+            const _LineGlyph(_Glyph.stats),
             '운동 통계',
             () => _push(const MemberWorkoutStatsScreen()),
           ),
           _Shortcut(
-            AppIcons.clipboard,
+            const _LineGlyph(_Glyph.inbody),
             '인바디',
             () => _push(const MemberProfileDetailScreen()),
           ),
           _Shortcut(
-            AppIcons.clock,
+            _icon(AppIcons.clock),
             '휴식 타이머',
             () => showRestTimerSheet(context),
           ),
@@ -393,8 +421,14 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
         today: today,
         streakDays: _streakDays,
         marks: _weekMarks,
+        pulseToday: _todayHasPt,
         onSelect: _openDay,
       ),
+      if (_todayFailed)
+        AppErrorCard(
+          message: '이번 주 기록을 불러오지 못했습니다',
+          onRetry: () => _loadToday(),
+        ),
       Padding(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.screenH,
@@ -404,7 +438,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
         ),
         child: Semantics(
           header: true,
-          child: Text('오늘', style: AppTextStyles.section),
+          child: Text('오늘', style: AppTextStyles.section.bold.natural),
         ),
       ),
       if (todaySessions.isEmpty)
@@ -422,6 +456,9 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
         onPrev: () => _moveMonth(-1),
         onNext: () => _moveMonth(1),
       ),
+      // 조회 실패: 달력 표시가 조용히 비지 않게 달력 바로 위에 알린다.
+      if (_errorMessage != null)
+        AppErrorCard(message: _errorMessage!, onRetry: _loadMonth),
       _CalendarGrid(
         focusedMonth: _focusedMonth,
         selectedDay: _selectedDay,
@@ -452,7 +489,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
             ? null
             : '${_recordCount(_selectedDay)}건',
       ),
-      ..._dayBody(_selectedDay),
+      ..._dayBody(_selectedDay, showError: false),
     ];
   }
 
@@ -483,8 +520,8 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
     ];
   }
 
-  /// 하루 기록 목록 (불러오는 중·오류 포함).
-  List<Widget> _dayBody(DateTime day) {
+  /// 하루 기록 목록 (불러오는 중·오류 포함). [showError]가 false면 오류는 다른 자리에서 보인다.
+  List<Widget> _dayBody(DateTime day, {bool showError = true}) {
     if (_isLoading) {
       return const [
         Padding(
@@ -494,11 +531,16 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
       ];
     }
     if (_errorMessage != null) {
-      return [AppErrorCard(message: _errorMessage!, onRetry: _loadMonth)];
+      return [
+        if (showError)
+          AppErrorCard(message: _errorMessage!, onRetry: _loadMonth),
+      ];
     }
     final key = _key(day);
     return [
       _DayRecords(
+        // 날을 바꾸면 줄이 다시 밀려 들어오게 (시안 `slide`)
+        key: ValueKey(key),
         workouts: _workoutsOn(key),
         ptReservations: _reservationsOn(day),
         meals: _mealsOn(key),
@@ -516,37 +558,105 @@ String _dayLabel(DateTime day) => DateFormat('M월 d일 (E)', 'ko').format(day);
 /// 볼륨 표시: 11440 → `11,440`.
 final _volumeFormat = NumberFormat('#,##0');
 
-/// 홈 머리: 28 제목과 알림 종을 한 줄에 (시안 Main: 위 20, 좌우 20).
-class _HomeHeader extends StatelessWidget {
-  final String title;
+/// 바로가기 아이콘 (Phosphor Regular 30 — 선 1.875로 시안 선 1.5 × 30/24와 같다).
+Widget _icon(IconData icon) => Icon(icon, size: 30, color: AppColors.ink);
 
-  const _HomeHeader({required this.title});
+/// 시안 Main 바로가기 중 Phosphor와 모양이 크게 다른 아이콘.
+enum _Glyph { barbell, nutrition, stats, inbody }
+
+/// 시안 SVG 경로(viewBox 24, 선 1.5, 둥근 끝)를 30 크기로 그린 선 아이콘.
+class _LineGlyph extends StatelessWidget {
+  final _Glyph glyph;
+
+  const _LineGlyph(this.glyph);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.lg,
-        AppSpacing.screenH,
-        0,
-      ),
-      child: SizedBox(
-        height: AppSize.touchMin,
-        child: Row(
-          children: [
-            Expanded(
-              child: Semantics(
-                header: true,
-                child: Text(title, style: AppTextStyles.displayMd),
-              ),
-            ),
-            const NotificationBellButton(),
-          ],
-        ),
-      ),
+    return CustomPaint(
+      size: const Size.square(30),
+      painter: _LineGlyphPainter(glyph, AppColors.ink),
     );
   }
+}
+
+class _LineGlyphPainter extends CustomPainter {
+  final _Glyph glyph;
+  final Color color;
+
+  const _LineGlyphPainter(this.glyph, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 24);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    void line(double x1, double y1, double x2, double y2) =>
+        canvas.drawLine(Offset(x1, y1), Offset(x2, y2), paint);
+
+    switch (glyph) {
+      // M6.5 6.5v11 M17.5 6.5v11 M3 9.5v5 M21 9.5v5 M6.5 12h11
+      case _Glyph.barbell:
+        line(6.5, 6.5, 6.5, 17.5);
+        line(17.5, 6.5, 17.5, 17.5);
+        line(3, 9.5, 3, 14.5);
+        line(21, 9.5, 21, 14.5);
+        line(6.5, 12, 17.5, 12);
+      // M12 3a4 4 0 0 0-4 4c0 3 4 5 4 5s4-2 4-5a4 4 0 0 0-4-4Z
+      // M5 21c1-4 4-6 7-6s6 2 7 6
+      case _Glyph.nutrition:
+        canvas.drawPath(
+          Path()
+            ..moveTo(12, 3)
+            ..arcToPoint(
+              const Offset(8, 7),
+              radius: const Radius.circular(4),
+              clockwise: false,
+            )
+            ..cubicTo(8, 10, 12, 12, 12, 12)
+            ..cubicTo(12, 12, 16, 10, 16, 7)
+            ..arcToPoint(
+              const Offset(12, 3),
+              radius: const Radius.circular(4),
+              clockwise: false,
+            )
+            ..close(),
+          paint,
+        );
+        canvas.drawPath(
+          Path()
+            ..moveTo(5, 21)
+            ..cubicTo(6, 17, 9, 15, 12, 15)
+            ..cubicTo(15, 15, 18, 17, 19, 21),
+          paint,
+        );
+      // M4 20V10 M10 20V4 M16 20v-7 M22 20H2
+      case _Glyph.stats:
+        line(4, 20, 4, 10);
+        line(10, 20, 10, 4);
+        line(16, 20, 16, 13);
+        line(22, 20, 2, 20);
+      // rect 5,3 14×18 rx3 · M9 8h6 M9 12h6 M9 16h3
+      case _Glyph.inbody:
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            const Rect.fromLTWH(5, 3, 14, 18),
+            const Radius.circular(3),
+          ),
+          paint,
+        );
+        line(9, 8, 15, 8);
+        line(9, 12, 15, 12);
+        line(9, 16, 12, 16);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LineGlyphPainter oldDelegate) =>
+      oldDelegate.glyph != glyph || oldDelegate.color != color;
 }
 
 /// 오늘 · 캘린더 · 기록 고르기: 40 높이 pill, 고른 것 = ink 채움 + 흰 15/700.
@@ -559,9 +669,10 @@ class _ViewTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
+      // 탭 제목(AppHero) 아래 16은 제목이 둔다
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screenH,
-        AppSpacing.base,
+        0,
         AppSpacing.screenH,
         0,
       ),
@@ -586,9 +697,8 @@ class _ViewTabs extends StatelessWidget {
                     child: Text(
                       view.label,
                       style: view == selected
-                          ? AppTextStyles.bodyMd.copyWith(
+                          ? AppTextStyles.bodyMd.bold.copyWith(
                               color: AppColors.canvas,
-                              fontWeight: FontWeight.w700,
                             )
                           : AppTextStyles.bodyMd.copyWith(
                               color: AppColors.body,
@@ -620,11 +730,8 @@ class _PtBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = AppColors.onPrimary;
-    final strong = AppTextStyles.section.copyWith(color: fg);
-    final action = AppTextStyles.bodyMd.copyWith(
-      color: fg,
-      fontWeight: FontWeight.w700,
-    );
+    final strong = AppTextStyles.section.bold.natural.copyWith(color: fg);
+    final action = AppTextStyles.bodyMd.bold.natural.copyWith(color: fg);
     Widget link(String label, String semantic, VoidCallback? onTap) {
       return Semantics(
         button: true,
@@ -683,7 +790,8 @@ class _PtBar extends StatelessWidget {
 }
 
 class _Shortcut {
-  final IconData icon;
+  /// 30 크기 아이콘 ([_icon] 또는 [_LineGlyph]).
+  final Widget icon;
   final String label;
   final VoidCallback? onTap;
 
@@ -719,17 +827,20 @@ class _ShortcutGrid extends StatelessWidget {
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    Icon(item.icon, size: 30, color: AppColors.ink),
+                    SizedBox.square(dimension: 30, child: item.icon),
                     if (showDot)
+                      // 새 소식 점: 아이콘 오른쪽 위, 숨 쉬듯 커졌다 작아짐 (시안 MemA-Home `pulse`)
                       Positioned(
                         top: -2,
                         right: -3,
-                        child: Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: AppColors.newDot,
-                            shape: BoxShape.circle,
+                        child: AppPulse(
+                          child: Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: AppColors.newDot,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
                       ),
@@ -740,7 +851,9 @@ class _ShortcutGrid extends StatelessWidget {
                   item.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.ink),
+                  style: AppTextStyles.bodySm.natural.copyWith(
+                    color: AppColors.ink,
+                  ),
                 ),
               ],
             ),
@@ -784,12 +897,16 @@ class _WeekCard extends StatelessWidget {
   final DateTime today;
   final int streakDays;
   final Map<String, CalendarMark> marks;
+
+  /// 오늘에 PT가 있어 오늘 점이 숨 쉬듯 커졌다 작아진다 (시안 Main `dotpulse`).
+  final bool pulseToday;
   final ValueChanged<DateTime> onSelect;
 
   const _WeekCard({
     required this.today,
     required this.streakDays,
     required this.marks,
+    required this.pulseToday,
     required this.onSelect,
   });
 
@@ -801,7 +918,10 @@ class _WeekCard extends StatelessWidget {
     final weekStart = today.subtract(Duration(days: today.weekday - 1));
     final firstOffset = DateTime(today.year, today.month).weekday - 1;
     final weekOfMonth = (today.day + firstOffset - 1) ~/ 7;
-    final caption = AppTextStyles.bodySm;
+    // 시안 Main 캡션: 13 #767676, 줄 높이 normal
+    final caption = AppTextStyles.bodySm.natural.copyWith(
+      color: AppColors.caption,
+    );
     return Container(
       margin: const EdgeInsets.fromLTRB(
         AppSpacing.screenH,
@@ -823,7 +943,7 @@ class _WeekCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   streakDays > 0 ? '$streakDays일째 운동 중' : '이번 주 운동',
-                  style: AppTextStyles.listTitle,
+                  style: AppTextStyles.listTitle.bold.natural,
                 ),
               ),
               Text(
@@ -868,7 +988,7 @@ class _WeekCard extends StatelessWidget {
           children: [
             Text(
               weekday,
-              style: caption.copyWith(fontSize: 12, height: 16 / 12),
+              style: caption.copyWith(fontSize: 12, letterSpacing: 12 * -0.019),
             ),
             const Gap(6),
             Container(
@@ -881,9 +1001,8 @@ class _WeekCard extends StatelessWidget {
               ),
               child: Text(
                 '${day.day}',
-                style: AppTextStyles.bodyMd.copyWith(
+                style: AppTextStyles.bodyMd.natural.copyWith(
                   color: isToday ? AppColors.canvas : AppColors.ink,
-                  height: 18 / 15,
                   fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
                 ),
               ),
@@ -891,7 +1010,11 @@ class _WeekCard extends StatelessWidget {
             const Gap(6),
             SizedBox.square(
               dimension: 6,
-              child: mark == null ? null : CalendarMarkIcon(mark, size: 6),
+              child: mark == null
+                  ? null
+                  : isToday && pulseToday
+                  ? AppPulse(child: CalendarMarkIcon(mark, size: 6))
+                  : CalendarMarkIcon(mark, size: 6),
             ),
           ],
         ),
@@ -909,7 +1032,8 @@ class _TodaySessionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final strong = AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w700);
+    // 시안 Main: 15/500(Bold 글꼴), 보조 13 #767676, 줄 높이 normal
+    final strong = AppTextStyles.bodyMd.bold.natural;
     final done = session.status == PtSessionStatus.completed;
     final detail = [
       session.trainerName,
@@ -943,7 +1067,12 @@ class _TodaySessionRow extends StatelessWidget {
                   children: [
                     Text('PT', style: strong),
                     const Gap(2),
-                    Text(detail, style: AppTextStyles.bodySm),
+                    Text(
+                      detail,
+                      style: AppTextStyles.bodySm.natural.copyWith(
+                        color: AppColors.caption,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1081,9 +1210,9 @@ class _CalendarGrid extends StatelessWidget {
                     child: Center(
                       child: Text(
                         label,
-                        style: AppTextStyles.bodySm.copyWith(
+                        style: AppTextStyles.bodySm.natural.copyWith(
                           fontSize: 12,
-                          height: 16 / 12,
+                          letterSpacing: 12 * -0.019,
                         ),
                       ),
                     ),
@@ -1190,7 +1319,8 @@ class _DayCell extends StatelessWidget {
                 style: AppTextStyles.bodyMd.copyWith(
                   color: numberColor,
                   height: 18 / 15,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                  // 시안 MemA-Home: 고른 날 숫자 500(Medium)
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
                 ),
               ),
             ),
@@ -1245,6 +1375,7 @@ class _DayRecords extends StatelessWidget {
   final VoidCallback onFeedbackTap;
 
   const _DayRecords({
+    super.key,
     required this.workouts,
     required this.ptReservations,
     required this.meals,
@@ -1262,17 +1393,24 @@ class _DayRecords extends StatelessWidget {
       return const AppEmptyLine('이 날의 기록이 없습니다');
     }
 
-    // 목록: 좌우 20 안쪽, 줄마다 아래 hairline
+    final rows = [
+      for (final workout in workouts) _workoutRow(context, workout),
+      for (final reservation in ptReservations) _reservationRow(reservation),
+      for (final meal in meals) _mealRow(meal),
+      for (final feedback in feedbacks) _feedbackRow(feedback),
+    ];
+    // 목록: 좌우 20 안쪽, 줄마다 아래 hairline.
+    // 줄은 왼쪽에서 차례로 밀려 들어온다 (시안 `slide` .4s, 줄마다 .06s 늦게).
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final workout in workouts) _workoutRow(context, workout),
-          for (final reservation in ptReservations)
-            _reservationRow(reservation),
-          for (final meal in meals) _mealRow(meal),
-          for (final feedback in feedbacks) _feedbackRow(feedback),
+          for (var i = 0; i < rows.length; i++)
+            AppEntrance.slide(
+              delay: Duration(milliseconds: 60 * i),
+              child: rows[i],
+            ),
         ],
       ),
     );
@@ -1389,8 +1527,9 @@ class _RecordRow extends StatelessWidget {
         Text(
           detail,
           style: longText ? AppTextStyles.note : AppTextStyles.bodySm,
-          maxLines: longText ? 3 : 2,
-          overflow: TextOverflow.ellipsis,
+          // 피드백 본문은 시안대로 줄 수를 자르지 않는다.
+          maxLines: longText ? null : 2,
+          overflow: longText ? null : TextOverflow.ellipsis,
         ),
       ],
     );

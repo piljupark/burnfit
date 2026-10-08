@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
@@ -30,19 +32,30 @@ class AppNavBar extends StatelessWidget {
     required this.items,
   });
 
-  /// 안전 영역을 뺀 탭 바 높이 (위 여백 10 + 줄 44). 탭 바 위에 띄우는 것의 위치 계산용.
-  static const double contentHeight = 54;
+  /// 위아래 여백 (위 10, 아래는 기기 안전 영역이 더 크면 그만큼)
+  static const double _edge = 10;
+
+  /// 안전 영역을 뺀 탭 바 높이 (위 여백 10 + 줄 44).
+  static const double contentHeight = _edge + 44;
+
+  /// 탭 바 아래 여백: 기기 안전 영역(홈 표시줄)이 있으면 그 높이, 없으면(웹·데스크톱) 위와 같은 10.
+  static double bottomInset(BuildContext context) =>
+      math.max(MediaQuery.paddingOf(context).bottom, _edge);
+
+  /// 화면 아래에서 탭 바 위 선까지의 높이. 탭 바 위에 띄우는 것의 위치 계산용.
+  static double totalHeight(BuildContext context) =>
+      contentHeight + bottomInset(context);
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).padding.bottom;
+    final bottom = bottomInset(context);
     return Container(
       decoration: BoxDecoration(
         color: AppColors.canvas,
-        border: Border(top: BorderSide(color: AppColors.hairline)),
+        border: Border(top: BorderSide(color: AppColors.navLine)),
       ),
-      // 시안: 위 10 여백 + 아이콘 26 + 4 + 글자 11/14 = 54, 그 아래는 기기 안전 영역
-      padding: EdgeInsets.only(top: 10, bottom: bottom),
+      // 시안: 위 10 + 아이콘 26 + 4 + 글자 11/14, 아래는 안전 영역(최소 10 — 위와 같게)
+      padding: EdgeInsets.only(top: _edge, bottom: bottom),
       child: SizedBox(
         height: 44,
         child: Row(

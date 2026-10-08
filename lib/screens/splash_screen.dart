@@ -81,12 +81,14 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 시안 Com-Splash: 가운데 브랜드 표시 + 이름, 아래쪽 로딩 점.
+    // 시안 Com-Splash: 브랜드 묶음은 위에서 300(844 화면) — 가운데보다 조금 위, 아래쪽 로딩 점(64).
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: Stack(
         children: [
-          Center(
+          Align(
+            // 묶음 중심이 화면 높이의 약 48.5% (시안 top 300 + 묶음 높이 218 / 844)
+            alignment: const Alignment(0, -0.03),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -101,10 +103,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  '피트니스 센터',
-                  style: AppTextStyles.bodyMd.copyWith(color: AppColors.mute),
-                ),
+                Text('피트니스 센터', style: AppTextStyles.eyebrow),
               ],
             ),
           ),

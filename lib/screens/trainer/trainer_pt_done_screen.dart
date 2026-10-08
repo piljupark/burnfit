@@ -134,7 +134,7 @@ class _TrainerPtDoneScreenState extends State<TrainerPtDoneScreen>
                               '기록 다시 보기 >',
                               style: AppTextStyles.bodyMd.copyWith(
                                 color: AppColors.onPrimary,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
@@ -164,7 +164,7 @@ class _TrainerPtDoneScreenState extends State<TrainerPtDoneScreen>
                           '확인',
                           style: AppTextStyles.bodyLg.copyWith(
                             color: AppColors.canvas,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),

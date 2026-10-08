@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_feedback.dart';
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
+import '../../core/app_spacing.dart';
+import '../../core/app_text_styles.dart';
 import '../../models/notice.dart';
 import '../../services/notice_read_store.dart';
 import '../../services/notice_service.dart';
@@ -82,8 +85,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   void _open(Notice n) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            NoticeDetailScreen(notice: n, centerName: _centerName),
+        builder: (_) => NoticeDetailScreen(notice: n, centerName: _centerName),
       ),
     );
   }
@@ -95,7 +97,8 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            // 시안 Nt-List: 뒤로 줄 56 + 큰 제목 28/500 + 보조 14 mute
+            AppScreenHeader.large(
               title: '공지사항',
               subtitle: _centerName.isEmpty ? null : '$_centerName에서 알려 드려요',
               onBack: () => Navigator.of(context).pop(),
@@ -116,7 +119,22 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                   items: _items,
                   newIds: _newIds,
                   onTap: _open,
+                  memberStyle: true,
                 ),
+              ),
+            ),
+            // 시안: 화면 아래 28 위에 13 faint 가운데 안내
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.md,
+                AppSpacing.screenH,
+                28,
+              ),
+              child: Text(
+                '트레이너에게는 트레이너 대상 공지도 함께 보여요',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySm.copyWith(color: AppColors.faint),
               ),
             ),
           ],

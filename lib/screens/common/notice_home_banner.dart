@@ -11,8 +11,11 @@ import 'notice_detail_screen.dart';
 
 /// 회원·트레이너 홈 헤더 아래 최신 공지 한 줄 + 중요 공지 시트(공지마다 한 번).
 /// 공지가 없거나 불러오지 못하면 아무것도 그리지 않는다.
+/// [showBanner]가 false면 줄은 숨기고 중요 공지 시트만 띄운다 (회원 홈 '오늘' 보기 — 시안 Main에 공지 줄이 없다).
 class NoticeHomeBanner extends StatefulWidget {
-  const NoticeHomeBanner({super.key});
+  final bool showBanner;
+
+  const NoticeHomeBanner({super.key, this.showBanner = true});
 
   @override
   State<NoticeHomeBanner> createState() => _NoticeHomeBannerState();
@@ -75,8 +78,7 @@ class _NoticeHomeBannerState extends State<NoticeHomeBanner> {
     final centerName = context.read<UserProvider>().user?.centerName ?? '';
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            NoticeDetailScreen(notice: n, centerName: centerName),
+        builder: (_) => NoticeDetailScreen(notice: n, centerName: centerName),
       ),
     );
   }
@@ -84,7 +86,7 @@ class _NoticeHomeBannerState extends State<NoticeHomeBanner> {
   @override
   Widget build(BuildContext context) {
     final latest = _latest;
-    if (latest == null) return const SizedBox.shrink();
+    if (latest == null || !widget.showBanner) return const SizedBox.shrink();
     return NoticeBanner(notice: latest, onTap: () => _open(latest));
   }
 }

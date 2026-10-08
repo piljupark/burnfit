@@ -16,9 +16,11 @@ import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
+import '../../widgets/app_hero.dart';
 import '../../widgets/theme_setting_row.dart';
 import '../../widgets/delete_account_sheet.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/app_motion.dart';
 import '../common/notice_menu_row.dart';
 import 'member_profile_detail_screen.dart';
 import 'member_share_settings_screen.dart';
@@ -115,18 +117,7 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: AppSize.navClearance),
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.lg,
-                  AppSpacing.screenH,
-                  0,
-                ),
-                child: Semantics(
-                  header: true,
-                  child: Text('마이', style: AppTextStyles.displayMd),
-                ),
-              ),
+              const AppHero(title: '마이'),
               _ProfileLine(
                 name: user.name,
                 subtitle: subtitle,
@@ -139,19 +130,21 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
               const _GroupLabel('내 몸'),
               AppPlainRow(
                 label: '신체 정보',
-                value: _bodySummary(user.profile),
+                trailing: _value(_bodySummary(user.profile)),
                 onTap: () => _push(const MemberProfileDetailScreen()),
               ),
               AppPlainRow(
                 label: '인바디 추이',
-                value: _inbodySummary(_inbodies),
+                trailing: _value(_inbodySummary(_inbodies)),
                 onTap: () => _push(const MemberProfileDetailScreen()),
               ),
               AppPlainRow(
                 label: '운동 통계',
-                value: _workoutDaysThisMonth == null
-                    ? null
-                    : '이번 달 $_workoutDaysThisMonth회',
+                trailing: _value(
+                  _workoutDaysThisMonth == null
+                      ? null
+                      : '이번 달 $_workoutDaysThisMonth회',
+                ),
                 onTap: () => _push(const MemberWorkoutStatsScreen()),
               ),
               const _Band(top: AppSpacing.md),
@@ -161,7 +154,9 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
               const NoticeMenuRow(plain: true),
               AppPlainRow(
                 label: '기록 공유',
-                value: '3개 중 ${_sharedCount(user.shareSettings)}개 공개',
+                trailing: _value(
+                  '3개 중 ${_sharedCount(user.shareSettings)}개 공개',
+                ),
                 onTap: () => _push(const MemberShareSettingsScreen()),
               ),
               const ThemeSettingRow(plain: true),
@@ -175,7 +170,7 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
                   ).pushReplacementNamed(AppRoutes.memberLogin);
                 },
               ),
-              const Gap(AppSpacing.xs),
+              // 시안: 로그아웃 아래 12 → 글자 버튼 자체 위 여백(약 14)으로 맞춘다
               const DeleteAccountLink(leading: true),
             ],
           ),
@@ -183,6 +178,14 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
       ),
     );
   }
+
+  /// 줄 오른쪽 요약 값: 15, Main 계열 캡션 색(#767676).
+  static Widget? _value(String? text) => text == null || text.isEmpty
+      ? null
+      : Text(
+          text,
+          style: AppTextStyles.eyebrow.copyWith(color: AppColors.caption),
+        );
 
   static int _sharedCount(ShareSettings s) =>
       [s.workout, s.meal, s.body].where((on) => on).length;
@@ -211,7 +214,7 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 }
 
-/// 프로필 줄: 이름 20/700 + 보조 줄 14 mute + 화살표. 최소 64 높이.
+/// 프로필 줄: 이름 20/700 + 보조 줄 14 캡션 + 화살표 20. 최소 64 높이.
 class _ProfileLine extends StatelessWidget {
   final String name;
   final String subtitle;
@@ -226,7 +229,8 @@ class _ProfileLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.base),
+      // 탭 제목(AppHero) 아래 16은 제목이 둔다
+      padding: EdgeInsets.zero,
       child: Semantics(
         button: true,
         child: InkWell(
@@ -243,13 +247,13 @@ class _ProfileLine extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(name, style: AppTextStyles.title),
+                      Text(name, style: AppTextStyles.title.bold),
                       if (subtitle.isNotEmpty) ...[
                         const Gap(2),
                         Text(
                           subtitle,
                           style: AppTextStyles.note.copyWith(
-                            color: AppColors.mute,
+                            color: AppColors.caption,
                           ),
                         ),
                       ],
@@ -258,7 +262,7 @@ class _ProfileLine extends StatelessWidget {
                 ),
                 Icon(
                   AppIcons.chevronRightBold,
-                  size: 18,
+                  size: 20,
                   color: AppColors.chevron,
                 ),
               ],
@@ -284,7 +288,7 @@ class _PtRemainingCard extends StatelessWidget {
     final used = total == 0
         ? 0.0
         : ((total - info.remainingSessions) / total).clamp(0.0, 1.0);
-    final big = AppTextStyles.displayMd.copyWith(
+    final big = AppTextStyles.displayMd.bold.copyWith(
       fontSize: 30,
       height: 36 / 30,
       letterSpacing: 30 * -0.019,
@@ -356,9 +360,18 @@ class _PtRemainingCard extends StatelessWidget {
                 child: Stack(
                   children: [
                     Container(color: fg.withValues(alpha: 0.15)),
+                    // 시안 `fill`: 1초 동안 왼쪽에서 차오름 (cubic-bezier(.2,.8,.2,1))
                     FractionallySizedBox(
                       widthFactor: used,
-                      child: Container(color: fg),
+                      child: AppGrow(
+                        duration: const Duration(milliseconds: 1000),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: fg,
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -387,7 +400,7 @@ class _Band extends StatelessWidget {
   }
 }
 
-/// 묶음 이름: 15 mute, 위 20 · 아래 4.
+/// 묶음 이름: 15 캡션 색, 위 20 · 아래 4.
 class _GroupLabel extends StatelessWidget {
   final String label;
 
@@ -404,7 +417,10 @@ class _GroupLabel extends StatelessWidget {
       ),
       child: Semantics(
         header: true,
-        child: Text(label, style: AppTextStyles.eyebrow),
+        child: Text(
+          label,
+          style: AppTextStyles.eyebrow.copyWith(color: AppColors.caption),
+        ),
       ),
     );
   }

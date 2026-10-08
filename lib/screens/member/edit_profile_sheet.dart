@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
-import '../../core/app_text_styles.dart';
 import '../../core/validators.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
@@ -91,19 +90,15 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     String unit,
     TextEditingController controller,
   ) {
+    // 시안: 값 16/500 + 칸 안 오른쪽 단위 16 mute
     return AppTextField(
       label: label,
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
       textInputAction: TextInputAction.next,
-      suffix: Padding(
-        padding: const EdgeInsets.only(right: AppSpacing.base),
-        child: Center(
-          widthFactor: 1,
-          child: Text(unit, style: AppTextStyles.counter),
-        ),
-      ),
+      unit: unit,
+      strongValue: true,
     );
   }
 
@@ -115,6 +110,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
         const AppBottomSheetHeader(
           title: '신체 정보 수정',
           subtitle: '트레이너와 공유되는 핵심 정보입니다.',
+          mutedSubtitle: true,
         ),
         Row(
           children: [
@@ -123,7 +119,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
             Expanded(child: _numberField('체중', 'kg', _weightCtrl)),
           ],
         ),
-        const SizedBox(height: AppSpacing.base),
+        const SizedBox(height: AppSpacing.md),
         Row(
           children: [
             Expanded(child: _numberField('골격근량', 'kg', _muscleCtrl)),
@@ -137,9 +133,10 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           hint: '예: 체지방 감량, 근육량 증가',
           controller: _goalCtrl,
           maxLines: 3,
+          minLines: 3,
           textInputAction: TextInputAction.done,
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: 28),
         AppButton(
           label: '저장',
           onPressed: _save,

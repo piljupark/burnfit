@@ -36,6 +36,9 @@ class AppScrollableChips extends StatelessWidget {
   final List<IconData>? icons;
   final EdgeInsetsGeometry padding;
 
+  /// 큰 칩 (높이 40, 15 글자 — [AppChip.large])
+  final bool large;
+
   const AppScrollableChips({
     super.key,
     required this.labels,
@@ -43,6 +46,7 @@ class AppScrollableChips extends StatelessWidget {
     required this.onSelected,
     this.icons,
     this.padding = EdgeInsets.zero,
+    this.large = false,
   });
 
   @override
@@ -58,6 +62,7 @@ class AppScrollableChips extends StatelessWidget {
               label: labels[i],
               selected: i == selectedIndex,
               icon: icons != null && i < icons!.length ? icons![i] : null,
+              large: large,
               onTap: () => onSelected(i),
             ),
           ],

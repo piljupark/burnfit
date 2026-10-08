@@ -83,9 +83,54 @@ void main() {
       _tourTheme == 'dark' ? AppThemeChoice.dark : AppThemeChoice.light,
     );
 
-    // ── 로그인 ──
+    // ── 로그인·가입 (시안 Com-*) ──
     await startApp(tester);
     await shot('00_login');
+    await step('center sheet', () async {
+      await tester.tap(find.text('센터를 선택해주세요').first);
+      await wait(tester, 1500);
+      await shot('01_center_sheet');
+      await back(tester);
+    });
+    await step('password reset sheet', () async {
+      await tester.tap(find.text('비밀번호를 잊으셨나요?').first);
+      await wait(tester, 1500);
+      await shot('02_password_reset');
+      await back(tester);
+    });
+    await step('trainer tab', () async {
+      await tester.tap(find.text('트레이너').first);
+      await wait(tester, 800);
+      await shot('03_login_trainer');
+      await tester.tap(find.text('회원').first);
+      await wait(tester, 800);
+    });
+    await step('register', () async {
+      await tester.tap(
+        find.textContaining('가입하기', findRichText: true).first,
+      );
+      await wait(tester);
+      await shot('04_register_member');
+      await back(tester);
+    });
+    await step('pending', () async {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: 'pending@burnfit.test',
+        password: _password,
+      );
+      await startApp(tester);
+      await shot('05_pending');
+      await FirebaseAuth.instance.signOut();
+    });
+    await step('onboarding', () async {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: 'newbie@burnfit.test',
+        password: _password,
+      );
+      await startApp(tester);
+      await shot('06_onboarding');
+      await FirebaseAuth.instance.signOut();
+    });
 
     // ── 회원 ──
     await FirebaseAuth.instance.signInWithEmailAndPassword(

@@ -250,13 +250,15 @@ Future<DateTime?> showAppDatePicker({
         mainAxisSize: MainAxisSize.min,
         children: [
           AppBottomSheetHeader(title: title),
-          const SizedBox(height: AppSpacing.sm),
+          // 시안 MemA-Sheet-DatePicker: 바퀴 높이 180 · 줄 36, 고른 줄은 회색 띠(48, 반경 14)
           SizedBox(
-            height: 216,
+            height: 180,
             child: CupertinoTheme(
               data: CupertinoThemeData(
                 textTheme: CupertinoTextThemeData(
-                  dateTimePickerTextStyle: AppTextStyles.bodyLg,
+                  dateTimePickerTextStyle: AppTextStyles.bodyLg.copyWith(
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
               child: CupertinoDatePicker(
@@ -265,11 +267,28 @@ Future<DateTime?> showAppDatePicker({
                 minimumDate: DateUtils.dateOnly(firstDate),
                 maximumDate: DateUtils.dateOnly(lastDate),
                 dateOrder: DatePickerDateOrder.ymd,
+                itemExtent: 36,
+                selectionOverlayBuilder:
+                    (context, {required columnCount, required selectedIndex}) {
+                      // 세 칸을 이어 한 줄 띠로 보이게 한다
+                      final first = selectedIndex == 0;
+                      final last = selectedIndex == columnCount - 1;
+                      return Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppColors.canvasCard.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.horizontal(
+                            left: Radius.circular(first ? AppRadius.field : 0),
+                            right: Radius.circular(last ? AppRadius.field : 0),
+                          ),
+                        ),
+                      );
+                    },
                 onDateTimeChanged: (d) => picked = DateUtils.dateOnly(d),
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.base),
+          const SizedBox(height: AppSpacing.lg),
           AppButton(
             label: '확인',
             size: AppButtonSize.lg,
@@ -282,7 +301,9 @@ Future<DateTime?> showAppDatePicker({
   );
 }
 
-/// 하단 고정 버튼 바: (선택) 보조 버튼 + 주 버튼, 같은 너비. 화면 맨 아래에 둔다.
+/// 하단 고정 버튼 바 (시안 Com-Register·Onboarding): 위 1px hairline, 안쪽 12 20 + 아래 안전 영역(최소 20).
+/// (선택) 보조 버튼 + 주 버튼, 같은 너비. 두 칸이면 글자 16.
+/// 화면 맨 아래에 둔다.
 class AppBottomActionBar extends StatelessWidget {
   final String primaryLabel;
   final VoidCallback? onPrimary;
@@ -304,13 +325,17 @@ class AppBottomActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
+    final twoButtons = secondaryLabel != null;
     return Container(
-      color: AppColors.canvas,
+      decoration: BoxDecoration(
+        color: AppColors.canvas,
+        border: Border(top: BorderSide(color: AppColors.hairline)),
+      ),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.screenH,
         AppSpacing.md,
         AppSpacing.screenH,
-        bottom + AppSpacing.md,
+        bottom > AppSpacing.lg ? bottom : AppSpacing.lg,
       ),
       child: Row(
         children: [
@@ -320,6 +345,7 @@ class AppBottomActionBar extends StatelessWidget {
                 label: secondaryLabel!,
                 variant: AppButtonVariant.secondary,
                 size: AppButtonSize.lg,
+                labelSize: 16,
                 fullWidth: true,
                 icon: secondaryIcon == null ? null : Icon(secondaryIcon),
                 onPressed: onSecondary,
@@ -331,6 +357,7 @@ class AppBottomActionBar extends StatelessWidget {
             child: AppButton(
               label: primaryLabel,
               size: AppButtonSize.lg,
+              labelSize: twoButtons ? 16 : null,
               fullWidth: true,
               isLoading: loading,
               onPressed: onPrimary,

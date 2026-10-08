@@ -81,42 +81,88 @@ class AppEmptyState extends StatelessWidget {
     this.description,
     this.actionLabel,
     this.onAction,
+    this.card = false,
+    this.illustration,
+    this.margin,
+    this.cardPadding = const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+    this.artGap = 18,
   });
+
+  /// 카드 안쪽 여백 (기본 40 28, 시안 MemB-FeedbackEmpty는 36 24)
+  final EdgeInsetsGeometry cardPadding;
+
+  /// 그림과 제목 사이 (카드형 기본 18)
+  final double artGap;
+
+  /// 회색 카드 안에 그린다 (시안 MemB-FeedbackEmpty·MemA-*-Empty·Com-Notifications-Empty):
+  /// 반경 20, 안쪽 40 28, 제목 16~17/500, 설명 14 mute 줄 높이 1.5.
+  final bool card;
+
+  /// 기본 원·상자 그림 대신 쓸 그림 (화면마다 다름)
+  final Widget? illustration;
+
+  /// 카드 바깥 여백 (기본 좌우 20, 위 24)
+  final EdgeInsetsGeometry? margin;
 
   @override
   Widget build(BuildContext context) {
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ExcludeSemantics(child: illustration ?? const _EmptyArt()),
+        SizedBox(height: card ? artGap : AppSpacing.xl),
+        Text(
+          message,
+          style: card ? AppTextStyles.section : AppTextStyles.title,
+          textAlign: TextAlign.center,
+        ),
+        if (description != null) ...[
+          SizedBox(height: card ? 6 : AppSpacing.sm),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 280),
+            child: Text(
+              description!,
+              style: card
+                  ? AppTextStyles.note.copyWith(
+                      color: AppColors.mute,
+                      height: 1.5,
+                    )
+                  : AppTextStyles.bodySm,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+        if (actionLabel != null && onAction != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: actionLabel!, onPressed: onAction),
+        ],
+      ],
+    );
+    if (card) {
+      return Container(
+        width: double.infinity,
+        margin:
+            margin ??
+            const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.xl,
+              AppSpacing.screenH,
+              0,
+            ),
+        padding: cardPadding,
+        decoration: BoxDecoration(
+          color: AppColors.canvasCard,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        child: column,
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xl,
         vertical: AppSpacing.xl3,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const _EmptyArt(),
-          const SizedBox(height: AppSpacing.xl),
-          Text(
-            message,
-            style: AppTextStyles.title,
-            textAlign: TextAlign.center,
-          ),
-          if (description != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 260),
-              child: Text(
-                description!,
-                style: AppTextStyles.bodySm,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: AppSpacing.xl),
-            AppButton(label: actionLabel!, onPressed: onAction),
-          ],
-        ],
-      ),
+      child: column,
     );
   }
 }

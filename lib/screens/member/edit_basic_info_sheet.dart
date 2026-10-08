@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
@@ -86,14 +85,15 @@ class _EditBasicInfoSheetState extends State<EditBasicInfoSheet> {
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           textInputAction: TextInputAction.done,
         ),
-        const SizedBox(height: AppSpacing.base),
-        Text('성별', style: AppTextStyles.bodySm.copyWith(color: AppColors.body)),
-        const SizedBox(height: AppSpacing.sm),
+        // 시안 MemB-EditBasicSheet: 성별 라벨 위 20 · 14 mute · 아래 6
+        const SizedBox(height: AppSpacing.lg),
+        Text('성별', style: AppTextStyles.fieldLabel),
+        const SizedBox(height: 6),
         GenderSelector(
           value: _gender,
           onChanged: (g) => setState(() => _gender = g),
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: 28),
         AppButton(
           label: '저장',
           onPressed: _save,

@@ -25,6 +25,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/app_motion.dart';
 import '../../widgets/rest_timer.dart';
 import 'member_workout_done_screen.dart';
 import 'workout_draft_models.dart';
@@ -820,7 +821,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     final media = MediaQuery.of(context);
     // 탭으로 쓸 때는 아래 탭 바 위에 버튼을 둔다.
     final barBottom = widget.showAsTab
-        ? media.padding.bottom + AppNavBar.contentHeight
+        ? AppNavBar.totalHeight(context)
         : 0.0;
     final buttonBottomPadding = widget.showAsTab
         ? AppSpacing.md
@@ -836,11 +837,26 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _WorkoutHeader(
-                    title: _title,
-                    onBack: widget.showAsTab ? null : _handleExit,
-                    onPickDate: _pickDate,
-                  ),
+                  // 탭으로 쓸 때는 다른 탭과 같은 제목(AppHero), 하위 화면일 때는 뒤로 머리
+                  if (widget.showAsTab)
+                    AppHero(
+                      title: _title,
+                      bottomGap: AppSpacing.sm,
+                      actions: [
+                        AppIconButton(
+                          icon: AppIcons.calendar,
+                          label: '날짜 선택',
+                          iconSize: 24,
+                          onPressed: _pickDate,
+                        ),
+                      ],
+                    )
+                  else
+                    _WorkoutHeader(
+                      title: _title,
+                      onBack: _handleExit,
+                      onPickDate: _pickDate,
+                    ),
                   Expanded(
                     child: _loading
                         ? const AppLoadingView()
@@ -931,15 +947,25 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                                   ),
                                   color: AppColors.canvasCard,
                                 ),
+                                // 시안: 17/500 제목 + 오른쪽 끝 개수(15 mute), 여백 20 20 4
                                 AppMonthHeader(
                                   label: '저장된 기록',
                                   count: '${_workouts.length}',
+                                  strong: true,
                                 ),
-                                for (final workout in _workouts)
-                                  SavedWorkoutCard(
-                                    workout: workout,
-                                    onEdit: () => _editWorkout(workout),
-                                    onDelete: () => _deleteWorkout(workout),
+                                // 시안 `slide`: 아래 12에서 올라오며 나타남 (.45s, 순번 × .08s)
+                                for (var i = 0; i < _workouts.length; i++)
+                                  AppEntrance(
+                                    key: ValueKey(_workouts[i].id),
+                                    offset: const Offset(0, 12),
+                                    duration: const Duration(milliseconds: 450),
+                                    delay: Duration(milliseconds: 80 * i),
+                                    child: SavedWorkoutCard(
+                                      workout: _workouts[i],
+                                      onEdit: () => _editWorkout(_workouts[i]),
+                                      onDelete: () =>
+                                          _deleteWorkout(_workouts[i]),
+                                    ),
                                   ),
                               ],
                             ],
@@ -957,14 +983,23 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    0,
-                    AppSpacing.screenH,
-                    AppSpacing.base,
+                // 시안: 휴식 막대는 아래 버튼 바 위로 4 떨어진다.
+                // 막대가 떠 있을 때는 뒤 내용이 틈으로 비치지 않게 흰 면을 깐다.
+                ListenableBuilder(
+                  listenable: RestTimer.instance,
+                  builder: (context, child) => Container(
+                    color: RestTimer.instance.isRunning
+                        ? AppColors.canvas
+                        : null,
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      RestTimer.instance.isRunning ? AppSpacing.sm : 0,
+                      AppSpacing.screenH,
+                      AppSpacing.xs,
+                    ),
+                    child: child,
                   ),
-                  child: RestTimerBar(),
+                  child: const RestTimerBar(),
                 ),
                 Container(
                   color: AppColors.canvas,
@@ -981,6 +1016,8 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                         ? '수정 저장'
                         : '운동 마치기',
                     size: AppButtonSize.lg,
+                    // 시안 Main 계열 Workout: 17/500 = Bold
+                    bold: true,
                     fullWidth: true,
                     isLoading: _saving,
                     // 운동을 하나도 추가하지 않았으면 마칠 것이 없으므로 비활성.
@@ -1023,7 +1060,7 @@ class _WorkoutHeader extends StatelessWidget {
               child: onBack == null
                   ? null
                   : AppIconButton(
-                      icon: AppIcons.back,
+                      icon: AppIcons.backBold,
                       label: '뒤로',
                       iconSize: 24,
                       onPressed: onBack,
@@ -1037,14 +1074,14 @@ class _WorkoutHeader extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.section,
+                  style: AppTextStyles.section.bold,
                 ),
               ),
             ),
             AppIconButton(
               icon: AppIcons.calendar,
               label: '날짜 선택',
-              iconSize: 22,
+              iconSize: 24,
               onPressed: onPickDate,
             ),
           ],
@@ -1072,47 +1109,54 @@ class _SessionStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget cell(String label, String value, String? suffix) {
+    // 시안 `up`: 아래 10에서 올라오며 나타남 (.5s, 칸마다 .08s 늦게)
+    Widget cell(int order, String label, String value, String? suffix) {
       return Expanded(
-        child: Semantics(
-          label: '$label $value${suffix ?? ''}',
-          excludeSemantics: true,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.canvasCard,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: AppTextStyles.bodySm.copyWith(
-                    fontSize: 12,
-                    height: 16 / 12,
+        child: AppEntrance(
+          delay: Duration(milliseconds: 80 * order),
+          child: Semantics(
+            label: '$label $value${suffix ?? ''}',
+            excludeSemantics: true,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.canvasCard,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTextStyles.bodySm.copyWith(
+                      fontSize: 12,
+                      height: 16 / 12,
+                      letterSpacing: 12 * -0.019,
+                      color: AppColors.caption,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: value),
-                      if (suffix != null)
-                        TextSpan(
-                          text: suffix,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.mute,
+                  const SizedBox(height: 2),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: value),
+                        if (suffix != null)
+                          TextSpan(
+                            text: suffix,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.mute,
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    // 시안 20/500(Bold), 줄 높이 기본(약 24)
+                    style: AppTextStyles.title.bold.copyWith(height: 24 / 20),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.title,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -1128,13 +1172,14 @@ class _SessionStats extends StatelessWidget {
       ),
       child: Row(
         children: [
-          cell('종목', '$doneExercises', ' / $totalExercises'),
+          cell(0, '종목', '$doneExercises', ' / $totalExercises'),
           const SizedBox(width: AppSpacing.sm),
-          cell('세트', '$doneSets', null),
+          cell(1, '세트', '$doneSets', null),
           const SizedBox(width: AppSpacing.sm),
           cardioMinutes != null
-              ? cell('시간', '$cardioMinutes', '분')
+              ? cell(2, '시간', '$cardioMinutes', '분')
               : cell(
+                  2,
                   '볼륨',
                   NumberFormat('#,##0').format(volumeKg.round()),
                   'kg',
@@ -1182,10 +1227,15 @@ class _CollapsedExercise extends StatelessWidget {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.listTitle,
+                      style: AppTextStyles.listTitle.bold,
                     ),
                   ),
-                  Text(status, style: AppTextStyles.bodySm),
+                  Text(
+                    status,
+                    style: AppTextStyles.bodySm.copyWith(
+                      color: AppColors.caption,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1221,7 +1271,7 @@ class _AddExerciseButton extends StatelessWidget {
           highlightColor: AppColors.canvasSoft,
           splashFactory: NoSplash.splashFactory,
           child: CustomPaint(
-            painter: _DashedBorderPainter(color: AppColors.outline),
+            painter: WorkoutDashedBorderPainter(color: AppColors.outline),
             child: Container(
               height: 52,
               alignment: Alignment.center,
@@ -1237,37 +1287,6 @@ class _AddExerciseButton extends StatelessWidget {
   }
 }
 
-/// 둥근 사각형 점선 (선 1.5, 반경 16, 대시 6 · 간격 4).
-class _DashedBorderPainter extends CustomPainter {
-  final Color color;
-
-  const _DashedBorderPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const stroke = 1.5;
-    final rect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      const Radius.circular(16),
-    ).deflate(stroke / 2);
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke;
-    for (final metric in (Path()..addRRect(rect)).computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        canvas.drawPath(metric.extractPath(distance, distance + 6), paint);
-        distance += 10;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
-      oldDelegate.color != color;
-}
-
 /// 오늘 운동이 아직 없을 때: 회색 둥근 카드 + 바벨 그림 + 안내 두 줄.
 class _WorkoutEmptyCard extends StatelessWidget {
   const _WorkoutEmptyCard();
@@ -1275,6 +1294,7 @@ class _WorkoutEmptyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      // 머리 아래 8 (탭 제목 아래 8과 합쳐 16)
       margin: const EdgeInsets.fromLTRB(
         AppSpacing.screenH,
         AppSpacing.sm,
@@ -1288,17 +1308,19 @@ class _WorkoutEmptyCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const _BarbellArt(),
-          const SizedBox(height: AppSpacing.lg),
+          const _LiftingBarbell(),
+          // 시안: 줄 간격 10 + 제목 위 8
+          const SizedBox(height: 18),
+          // 시안 MemA-Workout-Empty: 17/500(Medium)
           Text(
             '운동을 추가하고 바로 기록하세요',
-            style: AppTextStyles.title,
+            style: AppTextStyles.section,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 10),
           Text(
-            '무게, 횟수, 완료 체크를 한 화면에서 입력할 수 있습니다.',
-            style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+            '무게, 횟수, 완료 체크를 한 화면에서\n입력할 수 있습니다.',
+            style: AppTextStyles.note.copyWith(color: AppColors.mute),
             textAlign: TextAlign.center,
           ),
         ],
@@ -1307,55 +1329,84 @@ class _WorkoutEmptyCard extends StatelessWidget {
   }
 }
 
-/// 바벨 그림 (64×40): 검정 원판 + 회색 봉 + 가운데 강조색 손잡이.
-class _BarbellArt extends StatelessWidget {
-  const _BarbellArt();
+/// 바벨 그림 (64×40)이 위아래로 6씩 들렸다 내려간다 (시안 `lift`: 1.8s ease-in-out 반복).
+class _LiftingBarbell extends StatefulWidget {
+  const _LiftingBarbell();
+
+  @override
+  State<_LiftingBarbell> createState() => _LiftingBarbellState();
+}
+
+class _LiftingBarbellState extends State<_LiftingBarbell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    Widget plate(double w, double h) => Container(
-      width: w,
-      height: h,
-      decoration: BoxDecoration(
-        color: AppColors.ink,
-        borderRadius: BorderRadius.circular(2.5),
-      ),
-    );
     return ExcludeSemantics(
-      child: SizedBox(
-        width: 64,
-        height: 40,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.mute,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-            ),
-            Row(
-              children: [
-                plate(6, 16),
-                plate(7, 23),
-                const Spacer(),
-                plate(7, 23),
-                plate(6, 16),
-              ],
-            ),
-            Container(
-              width: 13,
-              height: 6,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-            ),
-          ],
+      child: AnimatedBuilder(
+        animation: _controller,
+        child: const CustomPaint(
+          size: Size(64, 40),
+          painter: _BarbellArtPainter(),
         ),
+        builder: (context, child) {
+          // 0%·100% → +6, 50% → −6
+          final v = _controller.value;
+          final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
+          final dy = 6 - 12 * Curves.easeInOut.transform(tri);
+          return Transform.translate(offset: Offset(0, dy), child: child);
+        },
       ),
     );
   }
+}
+
+/// 시안 SVG(viewBox 200×110)를 64×40에 비율 맞춰 그린 바벨:
+/// 회색 봉(#9A9AA0) + 검정 원판 넷 + 가운데 주황 손잡이.
+class _BarbellArtPainter extends CustomPainter {
+  const _BarbellArtPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = size.width / 200;
+    canvas.translate(0, (size.height - 110 * k) / 2);
+    canvas.scale(k);
+    void rrect(double x, double y, double w, double h, double r, Color c) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(r)),
+        Paint()..color = c,
+      );
+    }
+
+    rrect(40, 49, 120, 12, 6, AppColors.faint);
+    rrect(26, 23, 22, 64, 8, AppColors.ink);
+    rrect(8, 33, 18, 44, 7, AppColors.ink);
+    rrect(152, 23, 22, 64, 8, AppColors.ink);
+    rrect(174, 33, 18, 44, 7, AppColors.ink);
+    rrect(80, 46, 40, 18, 9, AppColors.primary);
+  }
+
+  @override
+  // 색이 테마를 따르므로 다시 그릴 때마다 칠한다 (그림이 작아 부담 없음).
+  bool shouldRepaint(_BarbellArtPainter oldDelegate) => true;
 }

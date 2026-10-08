@@ -2,14 +2,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 
+import '../core/app_colors.dart';
 import '../core/app_feedback.dart';
 import '../core/app_spacing.dart';
+import '../core/app_text_styles.dart';
 import '../core/validators.dart';
 import '../services/auth_service.dart';
 import 'app_bottom_sheet.dart';
-import 'app_toast.dart';
 import 'app_button.dart';
 import 'app_text_field.dart';
+import 'brand_marks.dart';
 
 /// 비밀번호 재설정 메일 발송 시트. 로그인 화면과 탈퇴 확인 시트에서 함께 쓴다.
 Future<void> showPasswordResetSheet(
@@ -48,19 +50,25 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
     super.dispose();
   }
 
+  /// 시트를 닫고 로그인 화면 위에 체크 토스트를 띄운다 (시안 Com-Login-ResetSent).
+  void _closeWithToast() {
+    final navigator = Navigator.of(context);
+    final overlayContext = navigator.context;
+    navigator.pop();
+    AppFeedback.showSuccessSnackBar(overlayContext, _sentMessage);
+  }
+
   Future<void> _send() async {
     if (_isSending || !_formKey.currentState!.validate()) return;
     setState(() => _isSending = true);
     try {
       await AuthService.sendPasswordReset(_emailController.text);
       if (!mounted) return;
-      Navigator.of(context).pop();
-      AppToast.show(null, message: _sentMessage);
+      _closeWithToast();
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       if (e.code == 'user-not-found') {
-        Navigator.of(context).pop();
-        AppToast.show(null, message: _sentMessage);
+        _closeWithToast();
         return;
       }
       AppFeedback.showErrorSnackBar(context, e);
@@ -83,10 +91,14 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
           const AppBottomSheetHeader(
             title: '비밀번호 재설정',
             subtitle: '가입한 이메일로 비밀번호 재설정 링크를 보내드려요.',
+            gap: 20,
           ),
+          // 시안: 회색 상자 안 봉투가 날아갔다 돌아온다
+          const ExcludeSemantics(child: EnvelopeMark()),
+          const Gap(20),
           AppTextField(
             label: '이메일',
-            hint: 'example@email.com',
+            hint: 'name@example.com',
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             validator: Validators.email,
@@ -95,7 +107,7 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
             autofocus:
                 widget.initialEmail == null || widget.initialEmail!.isEmpty,
           ),
-          const Gap(AppSpacing.lg),
+          const Gap(AppSpacing.xl),
           AppButton(
             label: '재설정 메일 보내기',
             onPressed: _send,
@@ -104,6 +116,43 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
             size: AppButtonSize.lg,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// '비밀번호를 잊으셨나요?' 글자 링크 (시안 Com-Login·Com-DeleteAccount):
+/// 오른쪽 끝에 붙은 44 높이, 14/400 mute. 누를 수 없으면 faint.
+class ForgotPasswordLink extends StatelessWidget {
+  final VoidCallback? onPressed;
+
+  const ForgotPasswordLink({super.key, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Semantics(
+        button: true,
+        enabled: enabled,
+        child: InkWell(
+          onTap: onPressed,
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+          child: SizedBox(
+            height: AppSize.touchMin,
+            child: Center(
+              widthFactor: 1,
+              child: Text(
+                '비밀번호를 잊으셨나요?',
+                style: AppTextStyles.fieldLabel.copyWith(
+                  color: enabled ? AppColors.mute : AppColors.faint,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -73,26 +73,24 @@ class AppFeedback {
     return '처리 중 오류가 발생했습니다. 다시 시도해주세요.';
   }
 
-  /// 오류 토스트 (화면 위쪽, [AppToast]): 카드 면 pill + 경고 아이콘. 빨간 바탕은 쓰지 않는다.
+  /// 오류 토스트 (화면 위쪽, [AppToast]): 검정 면 + 주황 원 '!'.
   static void showErrorSnackBar(BuildContext context, Object error) {
-    _showToast(context, errorMessage(error), icon: AppIcons.warning);
+    AppToast.show(context, message: errorMessage(error), kind: AppToastKind.error);
   }
 
-  /// 입력 확인·안내처럼 오류 객체가 없는 경고 문구 토스트.
+  /// 입력 확인·안내처럼 오류 객체가 없는 경고 문구 토스트 ('!').
   static void showWarning(BuildContext context, String message) {
-    _showToast(context, message, icon: AppIcons.warning);
+    AppToast.show(context, message: message, kind: AppToastKind.error);
   }
 
+  /// 완료 토스트 (체크가 그려지며 나타남).
   static void showSuccessSnackBar(BuildContext context, String message) {
-    _showToast(context, message);
+    AppToast.show(context, message: message, kind: AppToastKind.success);
   }
 
-  static void _showToast(
-    BuildContext context,
-    String message, {
-    IconData? icon,
-  }) {
-    AppToast.show(context, message: message, icon: icon);
+  /// 기다림 안내 토스트 (시계, 예: 승인 대기).
+  static void showWaiting(BuildContext context, String message) {
+    AppToast.show(context, message: message, kind: AppToastKind.wait);
   }
 }
 
