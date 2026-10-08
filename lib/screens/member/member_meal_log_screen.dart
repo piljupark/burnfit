@@ -14,16 +14,14 @@ import '../../models/meal.dart';
 import '../../services/firestore_service.dart';
 import '../../services/meal_service.dart';
 import '../../services/user_provider.dart';
-import '../../widgets/app_action_row.dart';
+import '../../widgets/app_bottom_sheet.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/app_confirm_dialog.dart';
-import '../../widgets/app_card.dart';
-import '../../widgets/app_filter_tabs.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_screen_header.dart';
-import '../../widgets/app_section.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/brand_marks.dart';
 import 'food_detail_sheet.dart';
 import 'meal_input_sheet.dart';
 import 'nutrition_guide_screen.dart';
@@ -42,15 +40,10 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   late DateTime _selectedDate = widget.initialDate ?? DateTime.now();
   List<Meal> _meals = [];
   bool _isLoading = false;
-  int _filterIndex = 0;
-
-  /// 이번 주에 기록이 있는 날짜(yyyy-MM-dd) — 주간 스트립 점 표시용.
-  Set<String> _weekRecordDates = {};
 
   /// 식단 id → 트레이너 피드백 (피드백 완료된 식단만).
   Map<String, fb.Feedback> _feedbacks = {};
 
-  static const _filterLabels = ['전체', '아침', '점심', '저녁', '간식'];
   static final _keyFormat = DateFormat('yyyy-MM-dd');
 
   String get _dateKey => _keyFormat.format(_selectedDate);
@@ -69,7 +62,6 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
     if (user == null) return;
     final loadId = ++_loadId;
     setState(() => _isLoading = true);
-    _loadWeekMarkers(user.centerId, user.uid);
     try {
       final list = await MealService.getMealsByDate(
         user.centerId,
@@ -86,26 +78,6 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-    }
-  }
-
-  /// 주간 스트립의 기록 점. 실패해도 화면은 그대로 둔다.
-  Future<void> _loadWeekMarkers(String centerId, String memberId) async {
-    final monday = _selectedDate.subtract(
-      Duration(days: _selectedDate.weekday - 1),
-    );
-    final sunday = monday.add(const Duration(days: 6));
-    try {
-      final meals = await MealService.getMealsByDateRange(
-        centerId,
-        memberId,
-        _keyFormat.format(monday),
-        _keyFormat.format(sunday),
-      );
-      if (!mounted) return;
-      setState(() => _weekRecordDates = meals.map((m) => m.mealDate).toSet());
-    } catch (e) {
-      AppLogger.debug('[식단 주간 표시 오류] $e');
     }
   }
 
@@ -140,18 +112,6 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
     } catch (e) {
       AppLogger.debug('[식단 피드백 조회 오류] $e');
     }
-  }
-
-  List<Meal> get _filtered {
-    if (_filterIndex == 0) return _meals;
-    final types = [
-      null,
-      MealType.breakfast,
-      MealType.lunch,
-      MealType.dinner,
-      MealType.snack,
-    ];
-    return _meals.where((m) => m.mealType == types[_filterIndex]).toList();
   }
 
   int get _totalCalories =>
@@ -238,17 +198,31 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
     }
   }
 
-  void _selectDate(DateTime d) {
-    setState(() => _selectedDate = d);
+  void _moveDay(int delta) {
+    setState(() => _selectedDate = _selectedDate.add(Duration(days: delta)));
     _load();
+  }
+
+  /// 끼니 줄을 누르면 그 끼니의 기록(사진·트레이너 피드백·삭제)을 시트로 연다.
+  Future<void> _openMealType(MealType type, List<Meal> meals) async {
+    final action = await showAppBottomSheet<_MealSheetAction>(
+      context: context,
+      padded: false,
+      child: _MealTypeSheet(type: type, meals: meals, feedbacks: _feedbacks),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _AddMeal():
+        await _openMealInput(initialMealType: type);
+      case _DeleteMeal(:final meal):
+        await _deleteMeal(meal);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filtered;
     final canPop = Navigator.of(context).canPop();
-    final kcal = NumberFormat('#,###').format(_totalCalories);
-    final mealCount = _meals.length;
+    final isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -257,112 +231,57 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
-              title: '식단 기록',
+            _DayNavHeader(
+              date: _selectedDate,
               onBack: canPop ? () => Navigator.of(context).pop() : null,
-              trailing: AppIconButton(
-                icon: AppIcons.add,
-                label: '식단 추가',
-                onPressed: _addMeal,
-              ),
+              onPrev: () => _moveDay(-1),
+              onNext: () => _moveDay(1),
+              onAdd: _addMeal,
             ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _load,
                 color: AppColors.ink,
                 backgroundColor: AppColors.canvasCard,
-                child: CustomScrollView(
+                child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: _WeekStrip(
-                        selected: _selectedDate,
-                        recordDates: _weekRecordDates,
-                        onSelect: _selectDate,
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: AppScrollableChips(
-                        labels: _filterLabels,
-                        selectedIndex: _filterIndex,
-                        onSelected: (i) => setState(() => _filterIndex = i),
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.screenH,
-                          AppSpacing.sm,
-                          AppSpacing.screenH,
-                          0,
-                        ),
-                      ),
-                    ),
-                    if (!_isLoading && mealCount > 0)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.screenH,
-                            AppSpacing.sm,
-                            AppSpacing.screenH,
-                            0,
-                          ),
-                          child: Semantics(
-                            label: '총 $kcal 킬로칼로리, $mealCount끼',
-                            excludeSemantics: true,
-                            child: Text(
-                              '${kcal}kcal · $mealCount끼',
-                              style: AppTextStyles.bodySm,
-                            ),
-                          ),
-                        ),
-                      ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.screenH,
-                          AppSpacing.md,
-                          AppSpacing.screenH,
-                          0,
-                        ),
-                        child: AppCard(
-                          padding: EdgeInsets.zero,
-                          child: AppActionRow(
-                            icon: AppIcons.meal,
-                            label: '뭐 먹을지 고민될 때',
-                            subtitle: '상황별 · 영양소별 추천 음식 보기',
-                            onTap: _openNutritionGuide,
-                          ),
-                        ),
-                      ),
+                  padding: const EdgeInsets.only(bottom: 120),
+                  children: [
+                    _IntakeCard(
+                      label: isToday ? '오늘 먹은 양' : '이 날 먹은 양',
+                      kcal: _isLoading ? null : _totalCalories,
                     ),
                     if (_isLoading)
-                      const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            vertical: AppSpacing.xl4,
-                          ),
-                          child: Center(
-                            child: AppLoader(semanticLabel: '식단 불러오는 중'),
-                          ),
-                        ),
-                      )
-                    else if (filtered.isEmpty)
-                      SliverToBoxAdapter(
-                        child: AppEmptyState(
-                          icon: AppIcons.meal,
-                          message: '기록된 식단이 없습니다',
-                          description: '먹은 음식을 사진과 함께 남기면 트레이너가 피드백을 드려요.',
-                          actionLabel: '식단 추가',
-                          onAction: _addMeal,
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: AppSpacing.xl3),
+                        child: Center(
+                          child: AppLoader(semanticLabel: '식단 불러오는 중'),
                         ),
                       )
                     else
-                      SliverList.builder(
-                        itemCount: filtered.length,
-                        itemBuilder: (_, i) => _MealEntry(
-                          meal: filtered[i],
-                          feedback: _feedbacks[filtered[i].id],
-                          onDelete: () => _deleteMeal(filtered[i]),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.screenH,
+                          AppSpacing.xl,
+                          AppSpacing.screenH,
+                          0,
+                        ),
+                        child: Column(
+                          children: [
+                            for (final type in _typeOrder)
+                              _MealTypeRow(
+                                type: type,
+                                meals: _meals
+                                    .where((m) => m.mealType == type)
+                                    .toList(),
+                                onOpen: (meals) => _openMealType(type, meals),
+                                onAdd: () =>
+                                    _openMealInput(initialMealType: type),
+                              ),
+                          ],
                         ),
                       ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                    _GuideCard(onTap: _openNutritionGuide),
                   ],
                 ),
               ),
@@ -372,95 +291,407 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
       ),
     );
   }
+
+  /// 시안 순서: 아침 · 점심 · 간식 · 저녁
+  static const _typeOrder = [
+    MealType.breakfast,
+    MealType.lunch,
+    MealType.snack,
+    MealType.dinner,
+  ];
 }
 
-// ── 주간 스트립: 요일 캡션 + 날짜 원. 선택 = 흰 원, 오늘 = 외곽선 원, 기록 있음 = 점 ──
-class _WeekStrip extends StatelessWidget {
-  final DateTime selected;
-  final Set<String> recordDates;
-  final ValueChanged<DateTime> onSelect;
+/// 머리 (56): 뒤로 · 가운데 '‹ 10월 8일 (목) ›' · 식단 추가.
+class _DayNavHeader extends StatelessWidget {
+  final DateTime date;
+  final VoidCallback? onBack;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final VoidCallback onAdd;
 
-  const _WeekStrip({
-    required this.selected,
-    required this.recordDates,
-    required this.onSelect,
+  const _DayNavHeader({
+    required this.date,
+    required this.onBack,
+    required this.onPrev,
+    required this.onNext,
+    required this.onAdd,
   });
-
-  static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
   @override
   Widget build(BuildContext context) {
-    final monday = selected.subtract(Duration(days: selected.weekday - 1));
-    final days = List.generate(7, (i) => monday.add(Duration(days: i)));
-    final today = DateUtils.dateOnly(DateTime.now());
-    final keyFormat = DateFormat('yyyy-MM-dd');
+    Widget arrow(IconData icon, String label, VoidCallback onTap) {
+      return Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: SizedBox(
+            width: 36,
+            height: AppSize.touchMin,
+            child: Icon(icon, size: 16, color: AppColors.mute),
+          ),
+        ),
+      );
+    }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.sm,
-        AppSpacing.sm,
-        AppSpacing.sm,
+    return SizedBox(
+      height: AppSize.appBar,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        child: Row(
+          children: [
+            SizedBox(
+              width: AppSize.touchMin,
+              child: onBack == null
+                  ? null
+                  : AppIconButton(
+                      icon: AppIcons.back,
+                      label: '뒤로',
+                      iconSize: 24,
+                      onPressed: onBack,
+                    ),
+            ),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  arrow(AppIcons.chevronLeftBold, '이전 날', onPrev),
+                  const SizedBox(width: 2),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      DateFormat('M월 d일 (E)', 'ko').format(date),
+                      style: AppTextStyles.section,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  arrow(AppIcons.chevronRightBold, '다음 날', onNext),
+                ],
+              ),
+            ),
+            AppIconButton(
+              icon: AppIcons.add,
+              label: '식단 추가',
+              iconSize: 24,
+              onPressed: onAdd,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 먹은 양 카드 (회색, 반경 20): '오늘 먹은 양' 14 body / '1,240kcal' 30.
+/// 시안의 목표 열량·탄단지 막대는 아직 데이터가 없어 그리지 않는다.
+class _IntakeCard extends StatelessWidget {
+  final String label;
+  final int? kcal;
+
+  const _IntakeCard({required this.label, required this.kcal});
+
+  @override
+  Widget build(BuildContext context) {
+    final big = AppTextStyles.displayMd.copyWith(
+      fontSize: 30,
+      height: 36 / 30,
+      letterSpacing: 30 * -0.019,
+    );
+    final value = kcal == null ? '–' : NumberFormat('#,##0').format(kcal);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
         AppSpacing.md,
+        AppSpacing.screenH,
+        0,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: 22,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Semantics(
+        label: '$label $value 킬로칼로리',
+        excludeSemantics: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: AppTextStyles.note),
+            const SizedBox(height: AppSpacing.xs),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: value),
+                  TextSpan(
+                    text: 'kcal',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.mute,
+                    ),
+                  ),
+                ],
+              ),
+              style: big,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 끼니 한 줄 (60): 끼니 이름(52 폭, 15/700) · 먹은 것(14 body) · kcal(15/700).
+/// 기록이 없으면 오른쪽에 '기록하기' pill.
+class _MealTypeRow extends StatelessWidget {
+  final MealType type;
+  final List<Meal> meals;
+  final ValueChanged<List<Meal>> onOpen;
+  final VoidCallback onAdd;
+
+  const _MealTypeRow({
+    required this.type,
+    required this.meals,
+    required this.onOpen,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final strong = AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w700);
+    final descriptions = meals
+        .map((m) => (m.description ?? '').trim())
+        .where((d) => d.isNotEmpty)
+        .join(', ');
+    final photoCount = meals.fold<int>(0, (n, m) => n + m.imageUrls.length);
+    final hasKcal = meals.any((m) => m.calories != null);
+    final kcal = meals.fold<int>(0, (sum, m) => sum + (m.calories ?? 0));
+    final empty = meals.isEmpty;
+    final summary = empty
+        ? ''
+        : descriptions.isNotEmpty
+        ? descriptions
+        : photoCount > 0
+        ? '사진 $photoCount장'
+        : '메모 없음';
+
+    final row = Container(
+      height: 60,
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.hairline)),
       ),
       child: Row(
-        children: days.map((day) {
-          final isSel = DateUtils.isSameDay(day, selected);
-          final isToday = DateUtils.isSameDay(day, today);
-          final isFuture = DateUtils.dateOnly(day).isAfter(today);
-          final hasRecord = recordDates.contains(keyFormat.format(day));
-          final weekday = _weekdays[day.weekday - 1];
-
-          return Expanded(
-            child: Semantics(
+        children: [
+          SizedBox(width: 52, child: Text(type.label, style: strong)),
+          Expanded(
+            child: Text(
+              summary,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.note,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          if (empty)
+            Semantics(
               button: true,
-              selected: isSel,
-              label:
-                  '${day.month}월 ${day.day}일 $weekday요일${hasRecord ? ', 기록 있음' : ''}',
+              label: '${type.label} 기록하기',
               excludeSemantics: true,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => onSelect(day),
-                child: Column(
-                  children: [
-                    Text(weekday, style: AppTextStyles.bodySm),
-                    const SizedBox(height: AppSpacing.xs),
-                    Container(
-                      width: AppSize.touchMin,
-                      height: AppSize.touchMin,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isSel ? AppColors.ink : Colors.transparent,
-                        border: isToday && !isSel
-                            ? Border.all(color: AppColors.outline)
-                            : null,
+              child: Material(
+                color: AppColors.canvasSoft,
+                shape: const StadiumBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onAdd,
+                  splashFactory: NoSplash.splashFactory,
+                  child: Container(
+                    height: 34,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Text(
+                      '기록하기',
+                      style: AppTextStyles.bodySm.copyWith(
+                        color: AppColors.ink,
+                        fontWeight: FontWeight.w700,
                       ),
-                      child: Text(
-                        '${day.day}',
-                        style: AppTextStyles.bodyMd.copyWith(
-                          color: isSel
-                              ? AppColors.canvas
-                              : isFuture
-                              ? AppColors.mute
-                              : AppColors.ink,
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else if (hasKcal)
+            Text('${NumberFormat('#,##0').format(kcal)}kcal', style: strong),
+        ],
+      ),
+    );
+    if (empty) return row;
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: () => onOpen(meals),
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: row,
+      ),
+    );
+  }
+}
+
+/// 영양 가이드 안내 카드: 위 150 연한 주황 + 그릇 그림, 아래 흰 칸에 한 줄 팁 + '알아보기'.
+class _GuideCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _GuideCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.lg,
+        AppSpacing.screenH,
+        0,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.noticeLine),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            height: 150,
+            color: AppColors.noticeBg,
+            alignment: Alignment.bottomCenter,
+            child: const ExcludeSemantics(child: MealBowlIllustration()),
+          ),
+          Container(
+            color: AppColors.canvas,
+            padding: const EdgeInsets.fromLTRB(18, AppSpacing.base, 18, 18),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('운동 직후엔 단백질 30g', style: AppTextStyles.listTitle),
+                      const SizedBox(height: 2),
+                      Text('닭가슴살 한 팩이면 충분해요', style: AppTextStyles.bodySm),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Semantics(
+                  button: true,
+                  label: '영양 가이드 알아보기',
+                  excludeSemantics: true,
+                  child: Material(
+                    color: Colors.transparent,
+                    shape: StadiumBorder(
+                      side: BorderSide(color: AppColors.outline),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: onTap,
+                      splashFactory: NoSplash.splashFactory,
+                      child: Container(
+                        height: 36,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text(
+                          '알아보기',
+                          style: AppTextStyles.bodySm.copyWith(
+                            color: AppColors.ink,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: hasRecord ? AppColors.ink : Colors.transparent,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          );
-        }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 끼니 시트가 돌려주는 행동.
+sealed class _MealSheetAction {
+  const _MealSheetAction();
+}
+
+class _AddMeal extends _MealSheetAction {
+  const _AddMeal();
+}
+
+class _DeleteMeal extends _MealSheetAction {
+  final Meal meal;
+
+  const _DeleteMeal(this.meal);
+}
+
+/// 끼니 시트: 그 끼니의 기록마다 사진 · 메모 · kcal · 피드백(+ 삭제), 아래 '추가' 버튼.
+class _MealTypeSheet extends StatelessWidget {
+  final MealType type;
+  final List<Meal> meals;
+  final Map<String, fb.Feedback> feedbacks;
+
+  const _MealTypeSheet({
+    required this.type,
+    required this.meals,
+    required this.feedbacks,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+            child: AppBottomSheetHeader(title: type.label),
+          ),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final meal in meals)
+                  _MealEntry(
+                    meal: meal,
+                    feedback: feedbacks[meal.id],
+                    onDelete: () =>
+                        Navigator.of(context).pop(_DeleteMeal(meal)),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.sm,
+              AppSpacing.screenH,
+              0,
+            ),
+            child: AppButton(
+              label: '${type.label} 추가',
+              variant: AppButtonVariant.secondary,
+              fullWidth: true,
+              onPressed: () => Navigator.of(context).pop(const _AddMeal()),
+            ),
+          ),
+        ],
       ),
     );
   }

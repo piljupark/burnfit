@@ -104,7 +104,7 @@ class AppButton extends StatelessWidget {
             style: AppTextStyles.buttonLabel.copyWith(
               color: fg,
               fontSize: fontSize,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),

@@ -280,7 +280,7 @@ class _SelectedCenter extends StatelessWidget {
               name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w500),
+              style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           AppIconButton(
@@ -327,7 +327,7 @@ class _CenterSearchResults extends StatelessWidget {
                             Text(
                               c.name,
                               style: AppTextStyles.bodyLg.copyWith(
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                             if ((c.address ?? '').isNotEmpty)

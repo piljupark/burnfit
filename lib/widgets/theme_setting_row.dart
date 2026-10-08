@@ -10,12 +10,25 @@ import 'app_action_row.dart';
 import 'app_bottom_sheet.dart';
 
 /// 마이 → 계정의 '화면 테마' 줄 (회원·트레이너·관리자 공통). 누르면 선택 시트.
+/// [plain]이면 아이콘 없는 글자 줄([AppPlainRow], 회원 마이).
 class ThemeSettingRow extends StatelessWidget {
-  const ThemeSettingRow({super.key});
+  final bool plain;
+
+  const ThemeSettingRow({super.key, this.plain = false});
+
+  void _open(BuildContext context) =>
+      showAppBottomSheet<void>(context: context, child: const _ThemeSheet());
 
   @override
   Widget build(BuildContext context) {
     final choice = context.watch<ThemeController>().choice;
+    if (plain) {
+      return AppPlainRow(
+        label: '화면 테마',
+        value: choice.label,
+        onTap: () => _open(context),
+      );
+    }
     return AppActionRow(
       icon: AppIcons.theme,
       label: '화면 테마',
@@ -27,10 +40,7 @@ class ThemeSettingRow extends StatelessWidget {
           Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
         ],
       ),
-      onTap: () => showAppBottomSheet<void>(
-        context: context,
-        child: const _ThemeSheet(),
-      ),
+      onTap: () => _open(context),
     );
   }
 }

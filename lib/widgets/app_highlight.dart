@@ -60,7 +60,7 @@ class AppAccentBar extends StatelessWidget {
                           title,
                           style: AppTextStyles.bodyLg.copyWith(
                             color: fg,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         if (subtitle != null)
@@ -229,7 +229,7 @@ class AppInlineNotice extends StatelessWidget {
                 message,
                 style: AppTextStyles.bodySmall.copyWith(
                   color: fg,
-                  fontWeight: neutral ? FontWeight.w400 : FontWeight.w500,
+                  fontWeight: neutral ? FontWeight.w400 : FontWeight.w700,
                 ),
               ),
             ),
@@ -288,7 +288,7 @@ class AppFloatingAction extends StatelessWidget {
                         label,
                         style: AppTextStyles.bodyLg.copyWith(
                           color: fg,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],

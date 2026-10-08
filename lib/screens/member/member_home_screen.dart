@@ -6,7 +6,9 @@ import '../../core/app_icons.dart';
 import '../../services/fcm_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/notification_target.dart';
+import '../../core/app_spacing.dart';
 import '../../widgets/app_nav_bar.dart';
+import '../../widgets/rest_timer.dart';
 import 'member_calendar_screen.dart';
 import 'member_profile_screen.dart';
 import 'member_pt_schedule_screen.dart';
@@ -25,9 +27,12 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
   int _currentIndex = 0;
   final _calendarKey = GlobalKey<MemberCalendarScreenState>();
   final _ptScheduleKey = GlobalKey<MemberPtScheduleScreenState>();
+  final _profileKey = GlobalKey<MemberProfileScreenState>();
 
   static const _homeTab = 0;
+  static const _workoutTab = 1;
   static const _ptTab = 2;
+  static const _myTab = 3;
 
   static const _navItems = [
     AppNavItem(label: '홈', icon: AppIcons.home, activeIcon: AppIcons.homeFill),
@@ -54,10 +59,17 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
   void initState() {
     super.initState();
     _pages = [
-      MemberCalendarScreen(key: _calendarKey, showGreeting: true),
-      const MemberWorkoutScreen(showAsTab: true),
+      MemberCalendarScreen(
+        key: _calendarKey,
+        onOpenWorkout: () => _selectTab(_workoutTab),
+        onOpenPt: () => _selectTab(_ptTab),
+      ),
+      MemberWorkoutScreen(
+        showAsTab: true,
+        onGoHome: () => _selectTab(_homeTab),
+      ),
       MemberPtScheduleScreen(key: _ptScheduleKey, showBackButton: false),
-      const MemberProfileScreen(),
+      MemberProfileScreen(key: _profileKey),
     ];
     FcmService.pendingTarget.addListener(_handleNotificationTarget);
     // 앱이 알림으로 실행된 경우: 첫 프레임 뒤 처리 (Navigator 준비 후)
@@ -101,6 +113,7 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
     if (index != _currentIndex) {
       if (index == _homeTab) _calendarKey.currentState?.refresh();
       if (index == _ptTab) _ptScheduleKey.currentState?.refresh();
+      if (index == _myTab) _profileKey.currentState?.refresh();
       // 관리자가 바꾼 담당 트레이너·승인 상태 등을 반영한다.
       context.read<UserProvider>().refreshQuietly();
     }
@@ -115,6 +128,17 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
         Positioned.fill(
           child: IndexedStack(index: _currentIndex, children: _pages),
         ),
+        // 휴식 타이머 막대: 운동 탭은 화면 안에서 직접 그린다. 다른 탭에서는 탭 바 위에 띄운다.
+        if (_currentIndex != _workoutTab)
+          Positioned(
+            left: AppSpacing.screenH,
+            right: AppSpacing.screenH,
+            bottom:
+                MediaQuery.of(context).padding.bottom +
+                AppNavBar.contentHeight +
+                AppSpacing.md,
+            child: const RestTimerBar(),
+          ),
         Positioned(
           left: 0,
           right: 0,

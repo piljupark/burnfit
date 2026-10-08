@@ -76,10 +76,7 @@ class _TrainerPtDoneScreenState extends State<TrainerPtDoneScreen>
                   child: FadeTransition(
                     opacity: fade,
                     child: ScaleTransition(
-                      scale: Tween(
-                        begin: 0.96,
-                        end: 1.0,
-                      ).animate(fade),
+                      scale: Tween(begin: 0.96, end: 1.0).animate(fade),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -137,7 +134,7 @@ class _TrainerPtDoneScreenState extends State<TrainerPtDoneScreen>
                               '기록 다시 보기 >',
                               style: AppTextStyles.bodyMd.copyWith(
                                 color: AppColors.onPrimary,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -167,7 +164,7 @@ class _TrainerPtDoneScreenState extends State<TrainerPtDoneScreen>
                           '확인',
                           style: AppTextStyles.bodyLg.copyWith(
                             color: AppColors.canvas,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),

@@ -132,3 +132,56 @@ class AppRowDivider extends StatelessWidget {
     color: AppColors.hairline,
   );
 }
+
+/// 글자만 있는 목록 줄 (시안 Main 계열 My): 56 높이, 왼쪽 16 라벨 · 오른쪽 15 mute 값.
+/// 아이콘 상자와 화살표를 두지 않는다. 좌우 20 여백을 스스로 둔다.
+class AppPlainRow extends StatelessWidget {
+  final String label;
+  final String? value;
+
+  /// 값 대신 오른쪽에 둘 위젯 (예: 새 글 점 + 글자)
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const AppPlainRow({
+    super.key,
+    required this.label,
+    this.value,
+    this.trailing,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: onTap != null,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: Container(
+          height: AppSize.listRow,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.listTitle.copyWith(
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+              if (trailing != null)
+                trailing!
+              else if (value != null && value!.isNotEmpty)
+                Text(value!, style: AppTextStyles.eyebrow),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

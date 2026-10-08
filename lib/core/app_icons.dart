@@ -34,6 +34,9 @@ class AppIcons {
   static const IconData add = PhosphorIconsRegular.plus;
   static const IconData remove = PhosphorIconsRegular.minus;
   static const IconData more = PhosphorIconsRegular.dotsThree;
+
+  /// 굵은 점 세 개 (시안 Workout 종목 메뉴)
+  static const IconData moreBold = PhosphorIconsBold.dotsThree;
   static const IconData edit = PhosphorIconsRegular.pencilSimple;
   static const IconData trash = PhosphorIconsRegular.trash;
   static const IconData search = PhosphorIconsRegular.magnifyingGlass;
@@ -72,6 +75,7 @@ class AppIcons {
   static const IconData feedback = PhosphorIconsRegular.chatText;
   static const IconData note = PhosphorIconsRegular.notePencil;
   static const IconData clipboard = PhosphorIconsRegular.clipboardText;
+  static const IconData nutrition = PhosphorIconsRegular.carrot;
   static const IconData chart = PhosphorIconsRegular.chartLine;
   static const IconData chartBar = PhosphorIconsRegular.chartBar;
   static const IconData dashboard = PhosphorIconsRegular.squaresFour;

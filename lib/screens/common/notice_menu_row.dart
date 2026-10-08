@@ -14,7 +14,10 @@ import 'notice_list_screen.dart';
 
 /// 마이 탭 '센터' 섹션의 공지사항 줄. 새 글이 있으면 점 + '새 글 n'.
 class NoticeMenuRow extends StatefulWidget {
-  const NoticeMenuRow({super.key});
+  /// 아이콘 없는 글자 줄([AppPlainRow], 회원 마이)
+  final bool plain;
+
+  const NoticeMenuRow({super.key, this.plain = false});
 
   @override
   State<NoticeMenuRow> createState() => _NoticeMenuRowState();
@@ -51,6 +54,34 @@ class _NoticeMenuRowState extends State<NoticeMenuRow> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.plain) {
+      return AppPlainRow(
+        label: '공지사항',
+        onTap: _open,
+        trailing: _unread > 0
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AppColors.newDot,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '새 글 $_unread',
+                    style: AppTextStyles.eyebrow.copyWith(
+                      color: AppColors.noticeText,
+                    ),
+                  ),
+                ],
+              )
+            : null,
+      );
+    }
     return AppActionRow(
       icon: AppIcons.clipboard,
       label: '공지사항',

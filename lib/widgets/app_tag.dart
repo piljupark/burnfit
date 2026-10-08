@@ -32,7 +32,7 @@ class AppTag extends StatelessWidget {
         : AppColors.mute;
     final style = AppTextStyles.bodySm.copyWith(
       color: fg,
-      fontWeight: strong ? FontWeight.w500 : FontWeight.w400,
+      fontWeight: strong ? FontWeight.w700 : FontWeight.w400,
     );
     return SizedBox(
       height: 22,
@@ -94,7 +94,7 @@ class AppChip extends StatelessWidget {
     final fg = selected ? AppColors.canvas : AppColors.body;
     final style = AppTextStyles.bodySmall.copyWith(
       color: fg,
-      fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+      fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
     );
     return Semantics(
       button: true,

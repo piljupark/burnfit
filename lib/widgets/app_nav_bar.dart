@@ -30,6 +30,9 @@ class AppNavBar extends StatelessWidget {
     required this.items,
   });
 
+  /// 안전 영역을 뺀 탭 바 높이 (위 여백 10 + 줄 44). 탭 바 위에 띄우는 것의 위치 계산용.
+  static const double contentHeight = 54;
+
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
@@ -70,7 +73,7 @@ class AppNavBar extends StatelessWidget {
                         style: AppTextStyles.badge.copyWith(
                           color: color,
                           fontWeight: active
-                              ? FontWeight.w500
+                              ? FontWeight.w700
                               : FontWeight.w400,
                         ),
                       ),

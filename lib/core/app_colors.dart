@@ -147,12 +147,25 @@ class AppColors {
   // 안내·경고 줄: 연한 주황 바탕 + 진한 주황 글자 (두 테마 공통)
   static const Color noticeBg = Color(0xFFFFF1E8);
   static const Color noticeText = Color(0xFFA8400E);
+  static const Color noticeLine = Color(0xFFF3E4D8); // 연한 주황 카드 테두리
 
   /// 새 소식 점 (알림 종, 바로가기)
   static const Color newDot = Color(0xFFFF5A1F);
 
   /// 스플래시 불꽃 안쪽 (두 테마 공통)
   static const Color flameCore = Color(0xFFFFD166);
+
+  // 일러스트 전용 (식단 그릇·운동 완료 꽃가루, 두 테마 공통). UI 컨트롤에는 쓰지 않는다.
+  static const Color illustSteam = Color(0xFFFFB27A);
+  static const Color illustYellow = Color(0xFFFFD43B);
+  static const Color illustGreen = Color(0xFF3DD68C);
+  static const Color illustBlue = Color(0xFF4DB3F5);
+
+  // 휴식 타이머 막대: 검정 막대 위 흰 글자 (두 테마 공통, 시안 Workout)
+  static const Color timerBar = Color(0xFF191919);
+  static const Color timerButton = Color(0xFF2C2C2E);
+  static const Color timerTrack = Color(0xFF3A3A3C);
+  static const Color timerCaption = Color(0xFFB8B8BD);
 
   /// 차트 계열 구분 색 (밝기 차이가 나는 순서).
   static List<Color> get chartSeries => _p.chartSeries;

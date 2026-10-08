@@ -10,6 +10,7 @@ import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/feedback.dart' as fb;
 import '../../models/meal.dart';
+import '../../models/pt_info.dart';
 import '../../models/pt_session.dart';
 import '../../models/workout.dart';
 import '../../services/firestore_service.dart';
@@ -18,24 +19,49 @@ import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_icon_box.dart';
+import '../../widgets/brand_marks.dart';
 import '../../widgets/calendar_marks.dart';
 import '../../widgets/notification_bell_button.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/rest_timer.dart';
 
 import '../common/notice_home_banner.dart';
+import 'member_profile_detail_screen.dart';
 import 'member_pt_workout_screen.dart';
 import 'member_routes.dart';
+import 'member_workout_stats_screen.dart';
+import 'nutrition_guide_screen.dart';
 
+/// 홈에서 고르는 보기 (시안 Main: 오늘 · 캘린더 · 기록).
+enum _HomeView {
+  today('오늘'),
+  calendar('캘린더'),
+  records('기록');
+
+  final String label;
+
+  const _HomeView(this.label);
+}
+
+/// 회원 홈 (시안 Main.html).
+/// - 오늘: PT 잔여 막대 → 바로가기 8칸 → 이번 주 운동 줄 → 오늘 일정
+/// - 캘린더: 한 달 달력 + 고른 날 기록
+/// - 기록: 이번 달 기록을 날짜별로
 class MemberCalendarScreen extends StatefulWidget {
-  final bool showGreeting;
+  /// 운동 탭으로 옮긴다 (바로가기 '운동 기록').
+  final VoidCallback? onOpenWorkout;
 
-  const MemberCalendarScreen({super.key, this.showGreeting = false});
+  /// PT 탭으로 옮긴다 (PT 막대 '예약', 바로가기 'PT 일정', 오늘 일정 줄).
+  final VoidCallback? onOpenPt;
+
+  const MemberCalendarScreen({super.key, this.onOpenWorkout, this.onOpenPt});
 
   @override
   State<MemberCalendarScreen> createState() => MemberCalendarScreenState();
 }
 
 class MemberCalendarScreenState extends State<MemberCalendarScreen> {
+  _HomeView _view = _HomeView.today;
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime _selectedDay = DateTime.now();
   List<Workout> _workouts = [];
@@ -52,15 +78,29 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
   String? _errorMessage;
   int _monthLoadId = 0;
 
+  // ── 오늘 보기 (달과 관계없이 오늘 기준) ──
+  PtInfo? _ptInfo;
+
+  /// 연속 운동 일수 계산용: 오늘부터 40일 전까지의 운동.
+  List<Workout> _recentWorkouts = [];
+
+  /// 이번 주(월~일) 세션 (취소 제외).
+  List<PtSession> _weekSessions = [];
+
   String _key(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
-  void refresh() => _loadMonth();
+  void refresh() {
+    _loadMonth();
+    _loadToday();
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadMonth();
+    refresh();
   }
+
+  Future<void> _refreshAll() => Future.wait([_loadMonth(), _loadToday()]);
 
   Future<void> _loadMonth() async {
     final user = context.read<UserProvider>().user;
@@ -141,6 +181,46 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
     }
   }
 
+  /// 오늘 보기: PT 잔여, 연속 운동(40일), 이번 주 세션. 실패하면 해당 칸만 비운다.
+  Future<void> _loadToday() async {
+    final user = context.read<UserProvider>().user;
+    if (user == null) return;
+    final today = _today();
+    final weekStart = today.subtract(Duration(days: today.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final results = await Future.wait<Object?>([
+      FirestoreService.getPtInfo(
+        user.uid,
+        centerId: user.centerId,
+      ).catchError((_) => null),
+      WorkoutService.getWorkoutsByDateRange(
+        user.centerId,
+        user.uid,
+        _key(today.subtract(const Duration(days: 40))),
+        _key(weekEnd),
+      ).catchError((_) => <Workout>[]),
+      FirestoreService.getPtSessionsByMember(
+        user.uid,
+        centerId: user.centerId,
+        from: weekStart,
+        to: DateTime(weekEnd.year, weekEnd.month, weekEnd.day, 23, 59, 59),
+      ).catchError((_) => <PtSession>[]),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _ptInfo = results[0] as PtInfo?;
+      _recentWorkouts = results[1] as List<Workout>;
+      _weekSessions = (results[2] as List<PtSession>)
+          .where((item) => item.status != PtSessionStatus.cancelled)
+          .toList();
+    });
+  }
+
+  static DateTime _today() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
   void _moveMonth(int delta) {
     setState(() {
       _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + delta);
@@ -149,124 +229,284 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
     _loadMonth();
   }
 
-  List<Workout> get _selectedWorkouts {
-    final key = _key(_selectedDay);
-    return _workouts.where((item) => item.workoutDate == key).toList();
+  /// 주간 줄에서 날짜를 누르면 캘린더 보기로 그날을 연다.
+  void _openDay(DateTime day) {
+    final month = DateTime(day.year, day.month);
+    final monthChanged = month != _focusedMonth;
+    setState(() {
+      _view = _HomeView.calendar;
+      _focusedMonth = month;
+      _selectedDay = day;
+    });
+    if (monthChanged) _loadMonth();
   }
 
-  List<PtSession> get _selectedPtReservations {
-    return _ptSessions
-        .where((item) => _sameDate(item.scheduledAt, _selectedDay))
-        .toList()
-      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+  List<Workout> _workoutsOn(String key) =>
+      _workouts.where((item) => item.workoutDate == key).toList();
+
+  List<PtSession> _reservationsOn(DateTime day) =>
+      _ptSessions.where((item) => _sameDate(item.scheduledAt, day)).toList()
+        ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+
+  List<Meal> _mealsOn(String key) =>
+      _meals.where((item) => item.mealDate == key).toList();
+
+  List<fb.Feedback> _feedbacksOn(String key) =>
+      _feedbacks.where((item) => item.targetDate == key).toList();
+
+  int _recordCount(DateTime day) {
+    final key = _key(day);
+    return _workoutsOn(key).length +
+        _reservationsOn(day).length +
+        _mealsOn(key).length +
+        _feedbacksOn(key).length;
   }
 
-  List<Meal> get _selectedMeals {
-    final key = _key(_selectedDay);
-    return _meals.where((item) => item.mealDate == key).toList();
+  /// 오늘(또는 오늘 아직 안 했으면 어제)부터 거꾸로 운동한 날이 이어진 일수.
+  int get _streakDays {
+    final days = _recentWorkouts.map((w) => w.workoutDate).toSet();
+    var day = _today();
+    if (!days.contains(_key(day))) {
+      day = day.subtract(const Duration(days: 1));
+    }
+    var count = 0;
+    while (days.contains(_key(day))) {
+      count++;
+      day = day.subtract(const Duration(days: 1));
+    }
+    return count;
   }
 
-  List<fb.Feedback> get _selectedFeedbacks {
-    final key = _key(_selectedDay);
-    return _feedbacks.where((item) => item.targetDate == key).toList();
+  /// 이번 주 날짜별 표시 하나 (PT 완료 > 개인운동 > PT 예약 순으로 하나만).
+  Map<String, CalendarMark> get _weekMarks {
+    final all = buildCalendarMarks(
+      sessions: _weekSessions,
+      workouts: _recentWorkouts,
+    );
+    return {
+      for (final entry in all.entries)
+        entry.key: [
+          CalendarMark.ptDone,
+          CalendarMark.personal,
+          CalendarMark.ptScheduled,
+        ].firstWhere(entry.value.contains),
+    };
   }
 
   // 하위 화면에서 기록을 바꾸거나 피드백을 읽을 수 있으므로 돌아오면 다시 불러온다.
+  Future<void> _push(Widget screen) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    if (mounted) refresh();
+  }
+
   Future<void> _openMealLog({DateTime? date}) async {
     await MemberRoutes.openMealLog(context, date: date);
-    if (mounted) _loadMonth();
+    if (mounted) refresh();
   }
 
   Future<void> _openFeedback() async {
     await MemberRoutes.openFeedback(context);
-    if (mounted) _loadMonth();
+    if (mounted) refresh();
   }
 
   @override
   Widget build(BuildContext context) {
-    final records =
-        _selectedWorkouts.length +
-        _selectedPtReservations.length +
-        _selectedMeals.length +
-        _selectedFeedbacks.length;
-    final userName = context.watch<UserProvider>().user?.name ?? '';
-
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
-          onRefresh: _loadMonth,
+          onRefresh: _refreshAll,
           color: AppColors.ink,
           backgroundColor: AppColors.canvasCard,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: AppSize.navClearance),
             children: [
-              _HomeHeader(
-                title: widget.showGreeting ? '$userName님' : '캘린더',
-                showBell: widget.showGreeting,
+              const _HomeHeader(title: '홈'),
+              _ViewTabs(
+                selected: _view,
+                onSelect: (view) => setState(() => _view = view),
               ),
-              if (widget.showGreeting) const NoticeHomeBanner(),
-              _RecordShortcuts(
-                unreadFeedbackCount: _unreadFeedbackCount,
-                onMealTap: () => _openMealLog(),
-                onFeedbackTap: _openFeedback,
-              ),
-              _MonthHeader(
-                month: _focusedMonth,
-                onPrev: () => _moveMonth(-1),
-                onNext: () => _moveMonth(1),
-              ),
-              _CalendarGrid(
-                focusedMonth: _focusedMonth,
-                selectedDay: _selectedDay,
-                marks: buildCalendarMarks(
-                  sessions: _activePtSessions,
-                  workouts: _workouts,
-                ),
-                onSelect: (day) => setState(() => _selectedDay = day),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  10,
-                  AppSpacing.screenH,
-                  0,
-                ),
-                child: CalendarLegend(),
-              ),
-              // 달력과 그날 기록 사이: 회색 띠 (선 대신 면으로 나눈다)
-              Container(
-                height: AppSpacing.sm,
-                margin: const EdgeInsets.only(top: AppSpacing.lg),
-                color: AppColors.canvasCard,
-              ),
-              _DayHeader(
-                label: _dayLabel(_selectedDay),
-                count: _isLoading || _errorMessage != null ? null : '$records건',
-              ),
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl3),
-                  child: Center(child: AppLoader.screen()),
-                )
-              else if (_errorMessage != null)
-                AppErrorCard(message: _errorMessage!, onRetry: _loadMonth)
-              else
-                _DayRecords(
-                  workouts: _selectedWorkouts,
-                  ptReservations: _selectedPtReservations,
-                  meals: _selectedMeals,
-                  feedbacks: _selectedFeedbacks,
-                  onMealTap: () => _openMealLog(date: _selectedDay),
-                  onFeedbackTap: _openFeedback,
-                ),
+              const NoticeHomeBanner(),
+              ...switch (_view) {
+                _HomeView.today => _todayChildren(),
+                _HomeView.calendar => _calendarChildren(),
+                _HomeView.records => _recordsChildren(),
+              },
             ],
           ),
         ),
       ),
     );
+  }
+
+  List<Widget> _todayChildren() {
+    final today = _today();
+    final todaySessions =
+        _weekSessions
+            .where((item) => _sameDate(item.scheduledAt, today))
+            .toList()
+          ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    final ptInfo = _ptInfo;
+    return [
+      if (ptInfo != null)
+        _PtBar(
+          remaining: ptInfo.remainingSessions,
+          onReserve: widget.onOpenPt,
+          onSchedule: () => setState(() => _view = _HomeView.calendar),
+        ),
+      _ShortcutGrid(
+        items: [
+          _Shortcut(AppIcons.workout, '운동 기록', widget.onOpenWorkout),
+          _Shortcut(AppIcons.meal, '식단', () => _openMealLog()),
+          _Shortcut(
+            AppIcons.feedback,
+            '피드백',
+            _openFeedback,
+            showDot: _unreadFeedbackCount > 0,
+          ),
+          _Shortcut(
+            AppIcons.nutrition,
+            '영양 가이드',
+            () => _push(const NutritionGuideScreen()),
+          ),
+          _Shortcut(AppIcons.calendarCheck, 'PT 일정', widget.onOpenPt),
+          _Shortcut(
+            AppIcons.chartBar,
+            '운동 통계',
+            () => _push(const MemberWorkoutStatsScreen()),
+          ),
+          _Shortcut(
+            AppIcons.clipboard,
+            '인바디',
+            () => _push(const MemberProfileDetailScreen()),
+          ),
+          _Shortcut(
+            AppIcons.clock,
+            '휴식 타이머',
+            () => showRestTimerSheet(context),
+          ),
+        ],
+      ),
+      _WeekCard(
+        today: today,
+        streakDays: _streakDays,
+        marks: _weekMarks,
+        onSelect: _openDay,
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          22,
+          AppSpacing.screenH,
+          0,
+        ),
+        child: Semantics(
+          header: true,
+          child: Text('오늘', style: AppTextStyles.section),
+        ),
+      ),
+      if (todaySessions.isEmpty)
+        const AppEmptyLine('오늘 예정된 일정이 없습니다')
+      else
+        for (final session in todaySessions)
+          _TodaySessionRow(session: session, onTap: widget.onOpenPt),
+    ];
+  }
+
+  List<Widget> _calendarChildren() {
+    return [
+      _MonthHeader(
+        month: _focusedMonth,
+        onPrev: () => _moveMonth(-1),
+        onNext: () => _moveMonth(1),
+      ),
+      _CalendarGrid(
+        focusedMonth: _focusedMonth,
+        selectedDay: _selectedDay,
+        marks: buildCalendarMarks(
+          sessions: _activePtSessions,
+          workouts: _workouts,
+        ),
+        onSelect: (day) => setState(() => _selectedDay = day),
+      ),
+      const Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          10,
+          AppSpacing.screenH,
+          0,
+        ),
+        child: CalendarLegend(),
+      ),
+      // 달력과 그날 기록 사이: 회색 띠 (선 대신 면으로 나눈다)
+      Container(
+        height: AppSpacing.sm,
+        margin: const EdgeInsets.only(top: AppSpacing.lg),
+        color: AppColors.canvasCard,
+      ),
+      _DayHeader(
+        label: _dayLabel(_selectedDay),
+        count: _isLoading || _errorMessage != null
+            ? null
+            : '${_recordCount(_selectedDay)}건',
+      ),
+      ..._dayBody(_selectedDay),
+    ];
+  }
+
+  /// 기록 보기: 고른 달에서 오늘까지, 기록이 있는 날을 최근 날부터 (앞으로의 예약은 빼고).
+  List<Widget> _recordsChildren() {
+    final header = _MonthHeader(
+      month: _focusedMonth,
+      onPrev: () => _moveMonth(-1),
+      onNext: () => _moveMonth(1),
+    );
+    if (_isLoading || _errorMessage != null) {
+      return [header, ..._dayBody(_selectedDay)];
+    }
+    final lastDay = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
+    final days = [
+      for (var d = lastDay.day; d >= 1; d--)
+        DateTime(_focusedMonth.year, _focusedMonth.month, d),
+    ].where((day) => !day.isAfter(_today()) && _recordCount(day) > 0).toList();
+    return [
+      header,
+      if (days.isEmpty)
+        const AppEmptyLine('이 달의 기록이 없습니다')
+      else
+        for (final day in days) ...[
+          _DayHeader(label: _dayLabel(day), count: '${_recordCount(day)}건'),
+          ..._dayBody(day),
+        ],
+    ];
+  }
+
+  /// 하루 기록 목록 (불러오는 중·오류 포함).
+  List<Widget> _dayBody(DateTime day) {
+    if (_isLoading) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.xl3),
+          child: Center(child: AppLoader.screen()),
+        ),
+      ];
+    }
+    if (_errorMessage != null) {
+      return [AppErrorCard(message: _errorMessage!, onRetry: _loadMonth)];
+    }
+    final key = _key(day);
+    return [
+      _DayRecords(
+        workouts: _workoutsOn(key),
+        ptReservations: _reservationsOn(day),
+        meals: _mealsOn(key),
+        feedbacks: _feedbacksOn(key),
+        onMealTap: () => _openMealLog(date: day),
+        onFeedbackTap: _openFeedback,
+      ),
+    ];
   }
 }
 
@@ -276,12 +516,11 @@ String _dayLabel(DateTime day) => DateFormat('M월 d일 (E)', 'ko').format(day);
 /// 볼륨 표시: 11440 → `11,440`.
 final _volumeFormat = NumberFormat('#,##0');
 
-/// 홈 머리: 28 제목과 알림 종을 한 줄에 (시안 MemA-Home: 위 20, 왼쪽 20, 오른쪽 8).
+/// 홈 머리: 28 제목과 알림 종을 한 줄에 (시안 Main: 위 20, 좌우 20).
 class _HomeHeader extends StatelessWidget {
   final String title;
-  final bool showBell;
 
-  const _HomeHeader({required this.title, required this.showBell});
+  const _HomeHeader({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +528,7 @@ class _HomeHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screenH,
         AppSpacing.lg,
-        AppSpacing.sm,
+        AppSpacing.screenH,
         0,
       ),
       child: SizedBox(
@@ -299,16 +538,423 @@ class _HomeHeader extends StatelessWidget {
             Expanded(
               child: Semantics(
                 header: true,
-                child: Text(
-                  title,
-                  style: AppTextStyles.displayMd,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Text(title, style: AppTextStyles.displayMd),
+              ),
+            ),
+            const NotificationBellButton(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 오늘 · 캘린더 · 기록 고르기: 40 높이 pill, 고른 것 = ink 채움 + 흰 15/700.
+class _ViewTabs extends StatelessWidget {
+  final _HomeView selected;
+  final ValueChanged<_HomeView> onSelect;
+
+  const _ViewTabs({required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.base,
+        AppSpacing.screenH,
+        0,
+      ),
+      child: Row(
+        children: [
+          for (final view in _HomeView.values) ...[
+            if (view != _HomeView.values.first) const Gap(AppSpacing.sm),
+            Semantics(
+              button: true,
+              selected: view == selected,
+              child: Material(
+                color: view == selected ? AppColors.ink : AppColors.canvasSoft,
+                shape: const StadiumBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => onSelect(view),
+                  splashFactory: NoSplash.splashFactory,
+                  child: Container(
+                    height: 40,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: Text(
+                      view.label,
+                      style: view == selected
+                          ? AppTextStyles.bodyMd.copyWith(
+                              color: AppColors.canvas,
+                              fontWeight: FontWeight.w700,
+                            )
+                          : AppTextStyles.bodyMd.copyWith(
+                              color: AppColors.body,
+                            ),
+                    ),
+                  ),
                 ),
               ),
             ),
-            if (showBell) const NotificationBellButton(),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// PT 잔여 막대: 64 높이 주황(반경 18), 왼쪽 'PT N회 남음', 오른쪽 '예약 | 일정'.
+class _PtBar extends StatelessWidget {
+  final int remaining;
+  final VoidCallback? onReserve;
+  final VoidCallback onSchedule;
+
+  const _PtBar({
+    required this.remaining,
+    required this.onReserve,
+    required this.onSchedule,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = AppColors.onPrimary;
+    final strong = AppTextStyles.section.copyWith(color: fg);
+    final action = AppTextStyles.bodyMd.copyWith(
+      color: fg,
+      fontWeight: FontWeight.w700,
+    );
+    Widget link(String label, String semantic, VoidCallback? onTap) {
+      return Semantics(
+        button: true,
+        label: semantic,
+        excludeSemantics: true,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            height: 64,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            child: Text(label, style: action),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.lg,
+        AppSpacing.screenH,
+        0,
+      ),
+      height: 64,
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, 13, 0),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              label: 'PT $remaining회 남음',
+              excludeSemantics: true,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text('PT', style: strong),
+                  const Gap(6),
+                  Text('$remaining회 남음', style: strong),
+                ],
+              ),
+            ),
+          ),
+          link('예약', 'PT 예약 보기', onReserve),
+          Container(width: 1, height: 14, color: fg.withValues(alpha: 0.2)),
+          link('일정', 'PT 일정 달력 보기', onSchedule),
+        ],
+      ),
+    );
+  }
+}
+
+class _Shortcut {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  /// 아이콘 오른쪽 위 새 소식 점 (피드백에 읽지 않은 글이 있을 때)
+  final bool showDot;
+
+  const _Shortcut(this.icon, this.label, this.onTap, {this.showDot = false});
+}
+
+/// 바로가기 8칸: 회색 카드(반경 20) 안 4열 × 2줄, 아이콘 30 + 13 글자.
+/// 새 소식이 있는 칸([_Shortcut.showDot])은 아이콘 오른쪽 위에 newDot.
+class _ShortcutGrid extends StatelessWidget {
+  final List<_Shortcut> items;
+
+  const _ShortcutGrid({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget cell(_Shortcut item) {
+      final showDot = item.showDot;
+      return Expanded(
+        child: Semantics(
+          button: true,
+          label: showDot ? '${item.label}, 새 소식 있음' : item.label,
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: item.onTap,
+            borderRadius: BorderRadius.circular(AppRadius.field),
+            highlightColor: AppColors.canvasSoft,
+            splashFactory: NoSplash.splashFactory,
+            child: Column(
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(item.icon, size: 30, color: AppColors.ink),
+                    if (showDot)
+                      Positioned(
+                        top: -2,
+                        right: -3,
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: AppColors.newDot,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const Gap(AppSpacing.sm),
+                Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.ink),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.md,
+        AppSpacing.screenH,
+        0,
+      ),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, 22, AppSpacing.sm, 14),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Column(
+        children: [
+          for (var row = 0; row * 4 < items.length; row++) ...[
+            if (row > 0) const Gap(18),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final item in items.skip(row * 4).take(4)) cell(item),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 이번 주 운동 카드: 불꽃 + 'N일째 운동 중' / 'M월 둘째 주', 아래 월~일 7칸.
+/// 칸마다 요일 12 · 날짜 32 원(오늘 = ink 채움) · 표시 점 6 하나.
+class _WeekCard extends StatelessWidget {
+  final DateTime today;
+  final int streakDays;
+  final Map<String, CalendarMark> marks;
+  final ValueChanged<DateTime> onSelect;
+
+  const _WeekCard({
+    required this.today,
+    required this.streakDays,
+    required this.marks,
+    required this.onSelect,
+  });
+
+  static const _ordinals = ['첫째', '둘째', '셋째', '넷째', '다섯째', '여섯째'];
+
+  @override
+  Widget build(BuildContext context) {
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    final weekStart = today.subtract(Duration(days: today.weekday - 1));
+    final firstOffset = DateTime(today.year, today.month).weekday - 1;
+    final weekOfMonth = (today.day + firstOffset - 1) ~/ 7;
+    final caption = AppTextStyles.bodySm;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.md,
+        AppSpacing.screenH,
+        0,
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, AppSpacing.base),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const ExcludeSemantics(child: FlameIcon(height: 26)),
+              const Gap(AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  streakDays > 0 ? '$streakDays일째 운동 중' : '이번 주 운동',
+                  style: AppTextStyles.listTitle,
+                ),
+              ),
+              Text(
+                '${today.month}월 ${_ordinals[weekOfMonth]} 주',
+                style: caption,
+              ),
+            ],
+          ),
+          const Gap(14),
+          Row(
+            children: [
+              for (var i = 0; i < 7; i++)
+                Expanded(
+                  child: _weekDay(
+                    weekStart.add(Duration(days: i)),
+                    weekdays[i],
+                    caption,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _weekDay(DateTime day, String weekday, TextStyle caption) {
+    final isToday = _sameDate(day, today);
+    final mark = marks[DateFormat('yyyy-MM-dd').format(day)];
+    return Semantics(
+      button: true,
+      label: [
+        DateFormat('M월 d일', 'ko').format(day),
+        if (isToday) '오늘',
+        if (mark != null) mark.label,
+      ].join(', '),
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => onSelect(day),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          children: [
+            Text(
+              weekday,
+              style: caption.copyWith(fontSize: 12, height: 16 / 12),
+            ),
+            const Gap(6),
+            Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isToday ? AppColors.ink : Colors.transparent,
+              ),
+              child: Text(
+                '${day.day}',
+                style: AppTextStyles.bodyMd.copyWith(
+                  color: isToday ? AppColors.canvas : AppColors.ink,
+                  height: 18 / 15,
+                  fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+            ),
+            const Gap(6),
+            SizedBox.square(
+              dimension: 6,
+              child: mark == null ? null : CalendarMarkIcon(mark, size: 6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 오늘 일정 한 줄: 왼쪽 44 폭 시각(15/700) + 'PT'(15/700) · 트레이너 · 분 + 화살표.
+class _TodaySessionRow extends StatelessWidget {
+  final PtSession session;
+  final VoidCallback? onTap;
+
+  const _TodaySessionRow({required this.session, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final strong = AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w700);
+    final done = session.status == PtSessionStatus.completed;
+    final detail = [
+      session.trainerName,
+      '${session.durationMinutes}분',
+      if (done) '완료',
+    ].join(' · ');
+    return Semantics(
+      button: onTap != null,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.screenH,
+            vertical: 14,
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 44,
+                child: Text(
+                  DateFormat('HH:mm').format(session.scheduledAt),
+                  style: strong,
+                ),
+              ),
+              const Gap(14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('PT', style: strong),
+                    const Gap(2),
+                    Text(detail, style: AppTextStyles.bodySm),
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                Icon(
+                  AppIcons.chevronRightBold,
+                  size: 18,
+                  color: AppColors.chevron,
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -544,7 +1190,7 @@ class _DayCell extends StatelessWidget {
                 style: AppTextStyles.bodyMd.copyWith(
                   color: numberColor,
                   height: 18 / 15,
-                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                 ),
               ),
             ),
@@ -770,7 +1416,10 @@ class _RecordRow extends StatelessWidget {
               ),
               if (onTap != null)
                 Positioned.fill(
-                  child: Align(alignment: Alignment.centerRight, child: chevron),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: chevron,
+                  ),
                 ),
             ],
           )
@@ -798,159 +1447,6 @@ class _RecordRow extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: row,
-      ),
-    );
-  }
-}
-
-/// 홈에서 식단 기록·트레이너 피드백으로 바로 가는 두 칸.
-/// 회색 둥근 카드 하나에 담고, 가운데는 짧은 세로 구분선으로 나눈다.
-class _RecordShortcuts extends StatelessWidget {
-  final int unreadFeedbackCount;
-  final VoidCallback onMealTap;
-  final VoidCallback onFeedbackTap;
-
-  const _RecordShortcuts({
-    required this.unreadFeedbackCount,
-    required this.onMealTap,
-    required this.onFeedbackTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.card);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.md,
-        AppSpacing.screenH,
-        0,
-      ),
-      child: Material(
-        color: AppColors.canvasCard,
-        borderRadius: radius,
-        clipBehavior: Clip.antiAlias,
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _ShortcutCell(
-                  icon: AppIcons.meal,
-                  label: '식단 기록',
-                  onTap: onMealTap,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                child: VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: AppColors.line,
-                ),
-              ),
-              Expanded(
-                child: _ShortcutCell(
-                  icon: AppIcons.feedback,
-                  label: '트레이너 피드백',
-                  badgeCount: unreadFeedbackCount,
-                  onTap: onFeedbackTap,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ShortcutCell extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final int badgeCount;
-  final VoidCallback onTap;
-
-  const _ShortcutCell({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.badgeCount = 0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final hasNew = badgeCount > 0;
-    final semanticLabel = hasNew ? '$label, 새 피드백 $badgeCount개' : label;
-    final countLabel = badgeCount > 99 ? '99+' : '$badgeCount';
-    return Semantics(
-      button: true,
-      label: semanticLabel,
-      onTap: onTap,
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        highlightColor: AppColors.canvasSoft,
-        splashFactory: NoSplash.splashFactory,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppSize.touchMin),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.base),
-            child: Row(
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Icon(icon, size: 26, color: AppColors.ink),
-                    if (hasNew)
-                      Positioned(
-                        top: -2,
-                        right: -3,
-                        child: Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: AppColors.newDot,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const Gap(AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodyMd.copyWith(
-                          color: AppColors.ink,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (hasNew) ...[
-                        const Gap(2),
-                        Text(
-                          '새 피드백 $countLabel개',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodySm.copyWith(
-                            color: AppColors.noticeText,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
