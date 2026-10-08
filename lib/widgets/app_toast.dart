@@ -12,7 +12,7 @@ final appNavigatorKey = GlobalKey<NavigatorState>();
 /// 화면 위쪽 토스트 (앱 전체에서 이것만 쓴다 — SnackBar 금지).
 ///
 /// - 위치: 상태 표시줄 바로 아래, 좌우 16 여백의 화면 폭. 화면·하단 탭·시트와 관계없이 폭이 같다.
-/// - 모양: 카드 면 pill + hairline, 선택 아이콘, 선택 제목, 선택 글자 행동 하나.
+/// - 모양: 검정 채움 + 둥근 사각형, 선택 아이콘(주황 원 배지), 선택 제목, 선택 글자 행동 하나(주황 글자).
 /// - 한 번에 하나: 새 토스트가 이전 것을 바로 바꾼다. 위로 밀면 닫힌다.
 /// - 스크린리더: live region으로 읽힌다. 움직임 줄이기면 애니메이션 없이 나타난다.
 class AppToast {
@@ -163,26 +163,35 @@ class _ToastViewState extends State<_ToastView>
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 52),
                   padding: EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
+                    AppSpacing.base,
                     AppSpacing.md,
-                    hasAction ? AppSpacing.sm : AppSpacing.lg,
+                    hasAction ? AppSpacing.sm : AppSpacing.base,
                     AppSpacing.md,
                   ),
                   decoration: ShapeDecoration(
-                    color: AppColors.canvasCard,
-                    shape: StadiumBorder(
-                      side: BorderSide(color: AppColors.hairline),
+                    color: AppColors.ink,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.button),
                     ),
                   ),
                   child: Row(
                     children: [
                       if (widget.icon != null) ...[
-                        Icon(
-                          widget.icon,
-                          size: AppSize.icon,
-                          color: AppColors.body,
+                        Container(
+                          width: 24,
+                          height: 24,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            widget.icon,
+                            size: 14,
+                            color: AppColors.ink,
+                          ),
                         ),
-                        const SizedBox(width: AppSpacing.md),
+                        const SizedBox(width: AppSpacing.sm),
                       ],
                       Expanded(
                         child: Column(
@@ -192,7 +201,9 @@ class _ToastViewState extends State<_ToastView>
                             if (widget.title != null)
                               Text(
                                 widget.title!,
-                                style: AppTextStyles.buttonLabel,
+                                style: AppTextStyles.buttonLabel.copyWith(
+                                  color: AppColors.canvas,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -200,9 +211,13 @@ class _ToastViewState extends State<_ToastView>
                               widget.message,
                               style: widget.title != null
                                   ? AppTextStyles.bodySm.copyWith(
-                                      color: AppColors.body,
+                                      color: AppColors.canvas.withValues(
+                                        alpha: 0.7,
+                                      ),
                                     )
-                                  : AppTextStyles.buttonLabel,
+                                  : AppTextStyles.buttonLabel.copyWith(
+                                      color: AppColors.canvas,
+                                    ),
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -216,7 +231,7 @@ class _ToastViewState extends State<_ToastView>
                             dismiss();
                           },
                           style: TextButton.styleFrom(
-                            foregroundColor: AppColors.ink,
+                            foregroundColor: AppColors.primary,
                             minimumSize: const Size(
                               AppSize.touchMin,
                               AppSize.touchMin,
