@@ -41,7 +41,22 @@
 3. ~~**`AppToast` 톤 교체**~~ — ✅ 완료(2026-10-08). 검정 채움+주황 배지로 교체.
 4. ~~**남은 경고 콜아웃 박스**~~ — ✅ 완료(2026-10-08). `AppWarningCallout` 위젯 신설, `showAppConfirmDialog`에 `warning` 파라미터 추가.
 5. ~~**`TrainerPtDone.html` 신규 구현**~~ — ✅ 완료(2026-10-08). `TrainerPtDoneScreen` 신설(주황 배경+흰 카드+잔여 횟수 롤 애니메이션), PT 기록 최초 저장 시 자동 표시.
-6. **남은 건 전부 화면별 개별 디테일**(🟡 28건) — 일러스트 박스, 레이아웃 세부 차이 등. `TrainerMember.html`(구 IA)은 이미 신버전 탭 구조로 대체 구현됨, 트레이너 A 구버전 3종(`TrainerHome/TrainerSchedule/TrainerReserve.html`)도 신버전으로 대체됨 — 둘 다 별도 작업 불필요.
+6. **남은 건 전부 화면별 개별 디테일**(🟡 25건) — 일러스트 박스, 레이아웃 세부 차이 등. `TrainerMember.html`(구 IA)은 이미 신버전 탭 구조로 대체 구현됨, 트레이너 A 구버전 3종(`TrainerHome/TrainerSchedule/TrainerReserve.html`)도 신버전으로 대체됨 — 둘 다 별도 작업 불필요.
+
+---
+
+## 작업 중단 지점 (2026-10-08) — 다음에 이어서 하려면
+
+공용 부품 레벨 작업(1~6번)은 여기서 일단 마무리. 전체 반영률 **78%(116/149)**, CI(analyze/test/build) 전부 통과 상태로 `master`에 push 완료.
+
+**다음에 손댈 만한 후보** (화면별 개별 디테일, 우선순위순 — 공용 이슈처럼 한 번에 여러 화면이 풀리진 않음):
+- **Admin**: `Ad-MemberDetail.html`의 `AppHighlightCard` 미사용(PT 잔여 강조 박스), `Ad-Requests.html`의 역할 필터 칩 없음 — Admin 카테고리에 🟡 9건 중 가장 눈에 띄는 2건.
+- **Nt(공지)**: `Nt-Admin-Detail.html`의 "대상/표시/알림 발송 여부" 요약 카드 없음(관리자가 공지 상태를 확인 못 함 — 기능적 공백), `Nt-Admin-Compose.html`의 글자수 카운터·대상 안내 문구.
+- **Tr-A**: `Tr-Reserve-Edit.html`(별도 화면 vs 인라인 시트), `Tr-Reserve-NoMember.html`(필드 흔들림 강조 없음) — 둘 다 경미.
+- **MemA**: `Done.html` 전용 운동 완료 화면 없음(현재 스낵바만) — `TrainerPtDone`과 비슷한 성격이라 패턴 재사용 가능.
+- **Com(공통)**: `Com-Register-Trainer.html` 오류 상태 강조색, `Com-PasswordReset.html` 일러스트 박스.
+
+전체 목록은 이 문서의 카테고리별 표에서 🟡 상태만 찾으면 됩니다. 새 세션에서 이어가려면 이 문서를 먼저 읽고, 위 "다음에 손보면 좋은 것" 섹션의 번호 이후부터 진행하면 됩니다.
 
 ---
 
