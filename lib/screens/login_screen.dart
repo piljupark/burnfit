@@ -11,12 +11,14 @@ import '../core/validators.dart';
 import '../models/center.dart' as center_model;
 import '../services/account_service.dart';
 import '../services/auth_service.dart';
+import '../services/center_search.dart';
 import '../services/firestore_service.dart';
 import '../services/user_provider.dart';
 import '../widgets/app_bottom_sheet.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_confirm_dialog.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/center_list_row.dart';
 import '../widgets/app_loader.dart';
 import '../widgets/app_motion.dart';
 import '../widgets/password_reset_sheet.dart';
@@ -493,8 +495,10 @@ class _CenterPickerSheet extends StatefulWidget {
 }
 
 class _CenterPickerSheetState extends State<_CenterPickerSheet> {
+  final _centerSearch = CenterSearch();
   List<center_model.Center> _centers = [];
   bool _loading = false;
+  bool _failed = false;
 
   @override
   void initState() {
@@ -505,9 +509,19 @@ class _CenterPickerSheetState extends State<_CenterPickerSheet> {
   Future<void> _search(String query) async {
     setState(() => _loading = true);
     try {
-      final centers = await FirestoreService.searchCenters(query.trim());
+      final centers = await _centerSearch.search(query);
+      // 입력이 그새 바뀌었으면 이 결과는 버린다 (최신 입력의 검색이 곧 반영된다).
+      if (!mounted || query != widget.controller.text) return;
+      setState(() {
+        _centers = centers;
+        _failed = false;
+      });
+    } catch (_) {
       if (!mounted) return;
-      setState(() => _centers = centers);
+      setState(() {
+        _centers = [];
+        _failed = true;
+      });
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -536,6 +550,25 @@ class _CenterPickerSheetState extends State<_CenterPickerSheet> {
             padding: EdgeInsets.symmetric(vertical: AppSpacing.xl2),
             child: Center(child: AppLoader.screen()),
           )
+        else if (_failed)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+            child: Column(
+              children: [
+                Text(
+                  '센터 목록을 불러오지 못했어요.\n네트워크를 확인해주세요.',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                ),
+                const Gap(AppSpacing.md),
+                AppButton(
+                  label: '다시 시도',
+                  variant: AppButtonVariant.secondary,
+                  onPressed: () => _search(widget.controller.text),
+                ),
+              ],
+            ),
+          )
         else if (_centers.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl2),
@@ -553,60 +586,13 @@ class _CenterPickerSheetState extends State<_CenterPickerSheet> {
               offset: const Offset(0, 8),
               duration: const Duration(milliseconds: 400),
               delay: Duration(milliseconds: 50 * (i + 1)),
-              child: _CenterRow(
+              child: CenterListRow(
                 center: _centers[i],
+                minHeight: 68,
                 onTap: () => Navigator.of(context).pop(_centers[i]),
               ),
             ),
       ],
-    );
-  }
-}
-
-class _CenterRow extends StatelessWidget {
-  final center_model.Center center;
-  final VoidCallback onTap;
-
-  const _CenterRow({required this.center, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final address = center.address ?? '';
-    return Semantics(
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        highlightColor: AppColors.canvasSoft,
-        splashFactory: NoSplash.splashFactory,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 68),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.hairline)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(center.name, style: AppTextStyles.listTitle),
-                    if (address.isNotEmpty) ...[
-                      const Gap(3),
-                      Text(address, style: AppTextStyles.bodySm),
-                    ],
-                  ],
-                ),
-              ),
-              Icon(
-                AppIcons.chevronRightBold,
-                size: 18,
-                color: AppColors.chevron,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -11,7 +11,7 @@ import '../../core/constants.dart';
 import '../../core/validators.dart';
 import '../../models/center.dart' as center_model;
 import '../../models/user.dart';
-import '../../services/firestore_service.dart';
+import '../../services/center_search.dart';
 import '../../services/registration_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
@@ -22,6 +22,7 @@ import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
+import '../../widgets/center_list_row.dart';
 
 /// 가입 화면 공통 몸체 (회원가입·트레이너 등록).
 /// 다른 점은 화면 제목과 가입 역할뿐이다.
@@ -45,6 +46,7 @@ class _RegisterFormState extends State<RegisterForm> {
   final _passwordController = TextEditingController();
   final _searchController = TextEditingController();
 
+  final _centerSearch = CenterSearch();
   center_model.Center? _selectedCenter;
   List<center_model.Center> _searchResults = [];
   bool _isSearching = false;
@@ -66,9 +68,14 @@ class _RegisterFormState extends State<RegisterForm> {
     }
     setState(() => _isSearching = true);
     try {
-      final results = await FirestoreService.searchCenters(q.trim());
-      if (!mounted) return;
+      final results = await _centerSearch.search(q);
+      // 입력이 그새 바뀌었으면 이 결과는 버린다 (최신 입력의 검색이 곧 반영된다).
+      if (!mounted || q != _searchController.text) return;
       setState(() => _searchResults = results);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _searchResults = []);
+      AppFeedback.showWarning(context, '센터 목록을 불러오지 못했어요. 네트워크를 확인해주세요.');
     } finally {
       if (mounted) {
         setState(() => _isSearching = false);
@@ -352,60 +359,12 @@ class _CenterSearchResults extends StatelessWidget {
             offset: const Offset(0, 8),
             duration: const Duration(milliseconds: 400),
             delay: Duration(milliseconds: 50 + 70 * i),
-            child: _CenterResultRow(
+            child: CenterListRow(
               center: results[i],
               onTap: () => onSelect(results[i]),
             ),
           ),
       ],
-    );
-  }
-}
-
-class _CenterResultRow extends StatelessWidget {
-  final center_model.Center center;
-  final VoidCallback onTap;
-
-  const _CenterResultRow({required this.center, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final address = center.address ?? '';
-    return Semantics(
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        highlightColor: AppColors.canvasSoft,
-        splashFactory: NoSplash.splashFactory,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 64),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.hairline)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(center.name, style: AppTextStyles.listTitle),
-                    if (address.isNotEmpty) ...[
-                      const Gap(3),
-                      Text(address, style: AppTextStyles.bodySm),
-                    ],
-                  ],
-                ),
-              ),
-              Icon(
-                AppIcons.chevronRightBold,
-                size: 18,
-                color: AppColors.chevron,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
