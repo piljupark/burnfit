@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
@@ -12,7 +10,6 @@ import '../core/app_routing.dart';
 import '../core/validators.dart';
 import '../models/center.dart' as center_model;
 import '../services/auth_service.dart';
-import '../services/fcm_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_provider.dart';
 import '../widgets/app_bottom_sheet.dart';
@@ -96,9 +93,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      // 알림 토큰 저장·계정 상태 구독도 함께 시작된다.
       context.read<UserProvider>().setUser(user);
-      // 로그아웃 때 지운 알림 토큰을 다시 저장한다 (승인된 사용자만).
-      if (user.isApproved) unawaited(FcmService.saveToken(user.uid));
       Navigator.of(context).pushReplacementNamed(route);
     } catch (e) {
       if (!mounted) return;

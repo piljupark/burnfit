@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'core/app_logger.dart';
 import 'core/app_theme.dart';
 import 'services/theme_controller.dart';
+import 'widgets/account_status_listener.dart';
 import 'widgets/app_toast.dart';
 import 'core/constants.dart';
 import 'firebase_options.dart';
@@ -97,6 +98,9 @@ class PtSolutionApp extends StatelessWidget {
           ],
           supportedLocales: const [Locale('ko', 'KR'), Locale('en', 'US')],
           locale: const Locale('ko', 'KR'),
+          // 로그인 중 승인·거절 등 계정 상태가 바뀌면 맞는 화면으로 옮긴다.
+          builder: (context, child) =>
+              AccountStatusListener(child: child ?? const SizedBox.shrink()),
           initialRoute: AppRoutes.splash,
           routes: {
             AppRoutes.splash: (_) => const SplashScreen(),

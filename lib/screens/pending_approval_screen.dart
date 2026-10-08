@@ -8,7 +8,7 @@ import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_feedback.dart';
-import '../core/app_routing.dart';
+import '../models/user.dart';
 import '../core/constants.dart';
 import '../services/user_provider.dart';
 import '../widgets/app_button.dart';
@@ -62,31 +62,23 @@ class PendingApprovalScreen extends StatelessWidget {
                 icon: const Icon(AppIcons.refresh),
                 fullWidth: true,
                 size: AppButtonSize.lg,
+                // 승인·거절은 실시간으로 반영되고 화면 이동은 AccountStatusListener가 한다.
+                // 여기서는 다시 읽기만 하고, 그대로 대기 중이면 안내만 띄운다.
                 onPressed: () async {
                   final provider = context.read<UserProvider>();
-                  await provider.loadUser();
+                  final ok = await provider.refreshQuietly();
                   if (!context.mounted) return;
                   final user = provider.user;
-                  if (user == null) return;
-                  final route = startRouteFor(user);
-                  if (route == null) {
+                  if (!ok || user == null) {
                     AppFeedback.showWarning(
                       context,
-                      '가입이 거절되었습니다. 센터에 문의해주세요.',
+                      '계정 정보를 불러오지 못했어요. 네트워크를 확인해주세요.',
                     );
-                    await provider.signOut();
-                    if (!context.mounted) return;
-                    Navigator.of(
-                      context,
-                    ).pushReplacementNamed(AppRoutes.memberLogin);
                     return;
                   }
-                  if (route == AppRoutes.pendingApproval) {
+                  if (user.status == UserStatus.pending) {
                     AppFeedback.showWaiting(context, '아직 승인 대기 중이에요.');
-                    return;
                   }
-                  // 승인됨 → 회원이면 온보딩부터 (스플래시·로그인과 같은 규칙)
-                  Navigator.of(context).pushReplacementNamed(route);
                 },
               ),
 

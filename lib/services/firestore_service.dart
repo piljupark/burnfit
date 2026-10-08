@@ -27,6 +27,23 @@ class FirestoreService {
     return AppUser.fromMap(doc.data()!);
   }
 
+  /// 사용자 문서를 실시간으로 받는다 (승인·거절 등 상태 변화 감지용). 문서가 없으면 null.
+  /// 이 기기에서 쓴 값이 서버에 확정되기 전 결과는 건너뛴다
+  /// (서버 시각(updatedAt)이 비어 있어 읽을 수 없고, 상태 변화는 늘 서버에서 온다).
+  static Stream<AppUser?> watchUser(String uid) {
+    ServiceValidator.requireText(uid, '사용자 ID');
+
+    return _db
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .where((doc) => !doc.metadata.hasPendingWrites)
+        .map((doc) {
+          final data = doc.data();
+          return data == null ? null : AppUser.fromMap(data);
+        });
+  }
+
   static Future<void> saveUser(AppUser user) async {
     _validateUser(user);
 
