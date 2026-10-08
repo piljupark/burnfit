@@ -71,7 +71,7 @@ class _AccountStatusListenerState extends State<AccountStatusListener> {
         _resetTo(AppRoutes.memberLogin);
         AppToast.show(
           null,
-          message: '가입이 거절되었습니다. 센터에 문의해주세요.',
+          message: '가입이 거절되었습니다. 다시 로그인하면 계정을 정리하고 새로 신청할 수 있어요.',
           kind: AppToastKind.error,
         );
     }

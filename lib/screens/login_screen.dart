@@ -9,11 +9,13 @@ import '../core/app_text_styles.dart';
 import '../core/app_routing.dart';
 import '../core/validators.dart';
 import '../models/center.dart' as center_model;
+import '../services/account_service.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_provider.dart';
 import '../widgets/app_bottom_sheet.dart';
 import '../widgets/app_button.dart';
+import '../widgets/app_confirm_dialog.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/app_loader.dart';
 import '../widgets/app_motion.dart';
@@ -59,10 +61,11 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
     setState(() => _isLoading = true);
+    final password = _passwordController.text;
     try {
       final cred = await AuthService.signIn(
         email: _emailController.text.trim(),
-        password: _passwordController.text,
+        password: password,
       );
 
       final user = await FirestoreService.getUser(cred.user!.uid);
@@ -88,8 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final route = startRouteFor(user);
       if (route == null) {
-        _showError('가입이 거절된 계정입니다.');
-        await AuthService.signOut();
+        await _offerRejectedAccountCleanup(user.uid, password);
         return;
       }
 
@@ -108,6 +110,34 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showError(String msg) => AppFeedback.showWarning(context, msg);
+
+  /// 거절된 계정: 그냥 로그아웃시키면 같은 이메일로 다시 가입할 수 없으므로
+  /// 계정 삭제(기존 탈퇴 서버 함수)를 안내한다. 삭제하지 않으면 로그아웃만 한다.
+  Future<void> _offerRejectedAccountCleanup(String uid, String password) async {
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '가입이 거절되었습니다',
+      message:
+          '센터에서 가입 신청을 거절했어요. 계정을 삭제하면 같은 이메일로 다시 가입 신청할 수 있어요. '
+          '거절 사유는 센터에 문의해주세요.',
+      confirmLabel: '계정 삭제',
+      cancelLabel: '닫기',
+    );
+    if (!confirmed || !mounted) {
+      await AuthService.signOut();
+      return;
+    }
+    try {
+      await AccountService.deleteMyAccount(uid: uid, password: password);
+      if (!mounted) return;
+      _passwordController.clear();
+      AppFeedback.showSuccessSnackBar(context, '계정을 삭제했어요. 다시 가입 신청할 수 있어요.');
+    } catch (e) {
+      await AuthService.signOut();
+      if (!mounted) return;
+      AppFeedback.showErrorSnackBar(context, e);
+    }
+  }
 
   /// 시안 `up`: 아래 12에서 올라오며 나타남 (.5s ease-out, 순번 × 0.05초 늦게)
   Widget _up(int index, Widget child) => AppEntrance(
