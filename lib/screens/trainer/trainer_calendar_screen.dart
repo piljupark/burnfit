@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
@@ -15,10 +17,11 @@ import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_calendar.dart';
+import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_highlight.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
-import '../../widgets/app_progress_bar.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/calendar_marks.dart';
 import '../../widgets/notification_bell_button.dart';
@@ -46,7 +49,8 @@ class TrainerCalendarScreen extends StatefulWidget {
   State<TrainerCalendarScreen> createState() => TrainerCalendarScreenState();
 }
 
-class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
+class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
+    with WidgetsBindingObserver {
   _HomeView _view = _HomeView.today;
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime _selectedDay = DateTime.now();
@@ -60,9 +64,19 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
   /// 오늘 보기: 이번 주(월~일) PT와 오늘 개인운동.
   List<PtSession> _weekSessions = [];
   List<Workout> _todayWorkouts = [];
+  bool _todayLoaded = false;
   bool _todayLoading = false;
   bool _todayFailed = false;
   int _todayLoadId = 0;
+
+  /// 오늘 데이터를 불러온 날 (자정이 지나면 다시 불러온다).
+  DateTime? _todayLoadedFor;
+
+  /// 1분마다 다시 그려 시작 시각이 지난 PT를 '기록하기'로 바꾼다.
+  Timer? _ticker;
+
+  /// 같은 새로고침 안에서 담당 회원 목록을 한 번만 읽는다.
+  Future<List<AppUser>>? _membersFuture;
 
   String _key(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
@@ -72,40 +86,76 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
   }
 
   static DateTime _weekStart(DateTime day) =>
-      day.subtract(Duration(days: day.weekday - 1));
+      DateTime(day.year, day.month, day.day - (day.weekday - 1));
 
   void refresh() {
+    _membersFuture = null;
     _loadMonth();
     _loadToday();
   }
 
-  Future<void> _refreshAll() => Future.wait([_loadMonth(), _loadToday()]);
+  Future<void> _refreshAll() {
+    _membersFuture = null;
+    return Future.wait([_loadMonth(), _loadToday()]);
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _ticker = Timer.periodic(const Duration(minutes: 1), (_) => _onTick());
     refresh();
   }
 
-  /// 담당 회원들의 [start]~[end] 운동 기록. 운동 공유를 끈 회원은 규칙이 조회를 막는다 →
-  /// 그 회원만 빼고 나머지는 보여준다.
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 앱으로 돌아오면 그사이 바뀐 일정·기록을 다시 불러온다.
+    if (state == AppLifecycleState.resumed && mounted) refresh();
+  }
+
+  void _onTick() {
+    if (!mounted) return;
+    if (_todayLoadedFor != null && _todayLoadedFor != _today()) {
+      // 자정이 지났다: 오늘·이번 주 기준이 바뀌었으니 다시 불러온다.
+      refresh();
+    } else {
+      setState(() {});
+    }
+  }
+
+  Future<List<AppUser>> _loadMembers(String centerId, String trainerId) =>
+      _membersFuture ??= FirestoreService.getMembersByTrainer(
+        centerId,
+        trainerId,
+      ).timeout(const Duration(seconds: 15));
+
+  /// 담당 회원들의 [start]~[end] 운동 기록. 운동 공유를 끈 회원은 트레이너 자신이 남긴
+  /// PT 기록만 담긴다. 공유 꺼짐이 아닌 오류(네트워크 등)는 그대로 던진다.
   static Future<List<Workout>> _memberWorkouts(
-    String centerId,
+    AppUser trainer,
     List<AppUser> members,
     String start,
     String end,
   ) async {
     final lists = await Future.wait(
       members.map(
-        (m) => WorkoutService.getWorkoutsByDateRange(
-          centerId,
-          m.uid,
-          start,
-          end,
-        ).catchError((_) => <Workout>[]),
+        (m) => WorkoutService.getMemberWorkoutsForTrainer(
+          centerId: trainer.centerId,
+          memberId: m.uid,
+          trainerId: trainer.uid,
+          startDate: start,
+          endDate: end,
+        ),
       ),
     );
-    return lists.expand((l) => l).toList();
+    return lists.expand((l) => l.workouts).toList();
   }
 
   Future<void> _loadMonth() async {
@@ -120,15 +170,11 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
       final start = DateTime(focusedMonth.year, focusedMonth.month);
       final end = DateTime(focusedMonth.year, focusedMonth.month + 1, 0);
 
-      final members = await FirestoreService.getMembersByTrainer(
-        user.centerId,
-        user.uid,
-      );
-
+      final members = await _loadMembers(user.centerId, user.uid);
       if (!mounted || loadId != _loadId) return;
 
       final results = await Future.wait([
-        _memberWorkouts(user.centerId, members, _key(start), _key(end)),
+        _memberWorkouts(user, members, _key(start), _key(end)),
         FirestoreService.getPtSessionsByTrainer(
           user.centerId,
           user.uid,
@@ -167,15 +213,16 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
     try {
       final today = _today();
       final weekStart = _weekStart(today);
-      final weekEnd = weekStart.add(const Duration(days: 6));
-      final members = await FirestoreService.getMembersByTrainer(
-        user.centerId,
-        user.uid,
+      final weekEnd = DateTime(
+        weekStart.year,
+        weekStart.month,
+        weekStart.day + 6,
       );
+      final members = await _loadMembers(user.centerId, user.uid);
       if (!mounted || loadId != _todayLoadId) return;
 
       final results = await Future.wait([
-        _memberWorkouts(user.centerId, members, _key(today), _key(today)),
+        _memberWorkouts(user, members, _key(today), _key(today)),
         FirestoreService.getPtSessionsByTrainer(
           user.centerId,
           user.uid,
@@ -193,6 +240,8 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
         _weekSessions = (results[1] as List<PtSession>)
             .where((s) => s.status != PtSessionStatus.cancelled)
             .toList();
+        _todayLoaded = true;
+        _todayLoadedFor = today;
         _todayFailed = false;
       });
     } catch (_) {
@@ -238,8 +287,17 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
       sessions.where((s) => DateUtils.isSameDay(s.scheduledAt, day)).toList()
         ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
 
+  /// 담당 회원 목록에 없으면(담당이 바뀐 회원) 안내만 하고 null.
+  AppUser? _memberOrWarn(String memberId) {
+    final member = _members.where((m) => m.uid == memberId).firstOrNull;
+    if (member == null) {
+      AppFeedback.showWarning(context, '지금 담당 회원이 아니어서 열 수 없습니다.');
+    }
+    return member;
+  }
+
   Future<void> _openPt(PtSession session) async {
-    final member = _members.where((m) => m.uid == session.memberId).firstOrNull;
+    final member = _memberOrWarn(session.memberId);
     if (member == null) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -251,7 +309,7 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
   }
 
   void _openMember(String memberId) {
-    final member = _members.where((m) => m.uid == memberId).firstOrNull;
+    final member = _memberOrWarn(memberId);
     if (member == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -299,37 +357,75 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
     final weekStart = _weekStart(today);
     final weekCounts = [
       for (var i = 0; i < 7; i++)
-        _sessionsOn(_weekSessions, weekStart.add(Duration(days: i))).length,
+        _sessionsOn(
+          _weekSessions,
+          DateTime(weekStart.year, weekStart.month, weekStart.day + i),
+        ).length,
     ];
+    // 자정 직후 다시 불러오기 전에도 어제 기록이 오늘로 보이지 않게 날짜로 거른다.
+    final todayKey = _key(today);
+    final todayWorkouts = _todayWorkouts
+        .where((w) => w.workoutDate == todayKey)
+        .toList();
+    // 처음 불러오는 중이거나 실패하면 '예약 없음'·0건이 사실처럼 보이지 않게 비워 둔다.
+    final known = _todayLoaded && !_todayFailed;
+    final done = todaySessions
+        .where((s) => s.status == PtSessionStatus.completed)
+        .length;
+    final total = todaySessions.length;
     final now = DateTime.now();
 
     return [
-      _TodayPtCard(
-        today: today,
-        done: todaySessions
-            .where((s) => s.status == PtSessionStatus.completed)
-            .length,
-        total: todaySessions.length,
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          AppSpacing.base,
+          AppSpacing.screenH,
+          0,
+        ),
+        child: AppHighlightCard(
+          label: '오늘 PT',
+          trailingLabel: appDayLabel(today),
+          value: !known
+              ? '-'
+              : total == 0
+              ? '예약 없음'
+              : '$done건 완료',
+          unit: known && total > 0 ? ' / $total건' : null,
+          progress: known && total > 0 ? done / total : 0,
+          bold: true,
+          semanticLabel: !known
+              ? '오늘 PT 불러오는 중'
+              : total == 0
+              ? '오늘 예약된 PT 없음'
+              : '오늘 PT $total건 중 $done건 완료',
+        ),
       ),
       _WeekCountCard(
         weekStart: weekStart,
         today: today,
-        counts: weekCounts,
+        counts: known ? weekCounts : null,
         onSelect: _openDay,
       ),
       if (_todayFailed)
         AppErrorCard(message: '오늘 일정을 불러오지 못했습니다', onRetry: () => _loadToday()),
-      const _SectionTitle('오늘 PT', top: 22),
-      if (_todayLoading && _weekSessions.isEmpty)
+      const AppMonthHeader(
+        label: '오늘 PT',
+        bold: true,
+        padding: _todayTitlePadding,
+      ),
+      if (!_todayLoaded && _todayLoading)
         const Padding(
           padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
           child: Center(child: AppLoader.screen()),
         )
+      else if (_todayFailed)
+        const SizedBox.shrink()
       else if (todaySessions.isEmpty)
         const AppEmptyLine('오늘 예정된 PT가 없습니다')
       else
         Padding(
-          padding: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.only(top: 2),
           child: Column(
             children: [
               for (final session in todaySessions)
@@ -342,9 +438,21 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
             ],
           ),
         ),
-      _SoloWorkoutSummary(workouts: _todayWorkouts, onOpenMember: _openMember),
+      if (known)
+        _SoloWorkoutSummary(
+          workouts: todayWorkouts,
+          // 회원별 기록은 캘린더 보기의 오늘 개인운동 줄에서 연다.
+          onOpen: () => _openDay(today),
+        ),
     ];
   }
+
+  static const _todayTitlePadding = EdgeInsets.fromLTRB(
+    AppSpacing.screenH,
+    22,
+    AppSpacing.screenH,
+    AppSpacing.xs,
+  );
 
   List<Widget> _calendarChildren() {
     final sessions = _sessionsOn(_ptSessions, _selectedDay);
@@ -375,8 +483,9 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
         ),
         child: CalendarLegend(),
       ),
-      const AppCalendarBand(),
-      AppDayHeader(
+      const AppSectionBand(top: AppSpacing.lg),
+      AppMonthHeader(
+        strong: true,
         label: appDayLabel(_selectedDay),
         count: _isLoading || _errorMessage != null
             ? null
@@ -419,124 +528,12 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
   }
 }
 
-/// 묶음 제목 17/700 (시안 TrainerHome '오늘 PT'), 좌우 20.
-class _SectionTitle extends StatelessWidget {
-  final String label;
-  final double top;
-  final String? trailing;
-
-  const _SectionTitle(this.label, {this.top = AppSpacing.lg, this.trailing});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        top,
-        AppSpacing.screenH,
-        0,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Semantics(
-              header: true,
-              child: Text(label, style: AppTextStyles.section.bold.natural),
-            ),
-          ),
-          if (trailing != null)
-            Text(trailing!, style: AppTextStyles.bodyMd.bold.natural),
-        ],
-      ),
-    );
-  }
-}
-
-/// 오늘 PT 카드 (주황, 반경 20, 안쪽 18 20): '오늘 PT' · 날짜(15) →
-/// '2건 완료 / 4건'(28) → 8 높이 막대 = 완료 비율.
-class _TodayPtCard extends StatelessWidget {
-  final DateTime today;
-  final int done;
-  final int total;
-
-  const _TodayPtCard({
-    required this.today,
-    required this.done,
-    required this.total,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = AppColors.onPrimary;
-    final label = AppTextStyles.bodyMd.bold.natural.copyWith(color: fg);
-    final big = AppTextStyles.displayMd.bold.natural.copyWith(color: fg);
-    return Semantics(
-      label: total == 0 ? '오늘 예약된 PT 없음' : '오늘 PT $total건 중 $done건 완료',
-      excludeSemantics: true,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(
-          AppSpacing.screenH,
-          AppSpacing.base,
-          AppSpacing.screenH,
-          0,
-        ),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          18,
-          AppSpacing.lg,
-          18,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(child: Text('오늘 PT', style: label)),
-                Text(appDayLabel(today), style: label),
-              ],
-            ),
-            const Gap(AppSpacing.xs),
-            if (total == 0)
-              Text('예약 없음', style: big)
-            else
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(text: '$done건 완료'),
-                    TextSpan(
-                      text: ' / $total건',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w400,
-                        color: fg.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ],
-                ),
-                style: big,
-              ),
-            const Gap(AppSpacing.md),
-            AppProgressBar(
-              value: total == 0 ? 0 : done / total,
-              height: 8,
-              color: fg,
-              trackColor: fg.withValues(alpha: 0.15),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 이번 주 줄 (회색 카드, 반경 20, 안쪽 16 12): 요일 12 · 날짜 32 원(오늘 = ink 채움) · 'N건' 11.
+/// 이번 주 줄 (회색 카드, 반경 20, 안쪽 16 12): 공용 날짜 칸(요일 · 32 원, 오늘 = ink 채움) + 'N건' 11.
+/// [counts]가 null이면(불러오는 중·실패) 개수 자리를 비워 둔다.
 class _WeekCountCard extends StatelessWidget {
   final DateTime weekStart;
   final DateTime today;
-  final List<int> counts;
+  final List<int>? counts;
   final ValueChanged<DateTime> onSelect;
 
   const _WeekCountCard({
@@ -548,8 +545,10 @@ class _WeekCountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-    final small = AppTextStyles.bodySm.natural;
+    final countStyle = AppTextStyles.captionSmall.natural.copyWith(
+      fontSize: 11,
+      letterSpacing: 11 * -0.019,
+    );
     return Container(
       margin: const EdgeInsets.fromLTRB(
         AppSpacing.screenH,
@@ -570,10 +569,9 @@ class _WeekCountCard extends StatelessWidget {
           for (var i = 0; i < 7; i++)
             Expanded(
               child: _day(
-                weekStart.add(Duration(days: i)),
-                weekdays[i],
-                counts[i],
-                small,
+                DateTime(weekStart.year, weekStart.month, weekStart.day + i),
+                counts?[i],
+                countStyle,
               ),
             ),
         ],
@@ -581,57 +579,22 @@ class _WeekCountCard extends StatelessWidget {
     );
   }
 
-  Widget _day(DateTime day, String weekday, int count, TextStyle small) {
+  Widget _day(DateTime day, int? count, TextStyle countStyle) {
     final isToday = DateUtils.isSameDay(day, today);
-    return Semantics(
-      button: true,
-      label: [
+    return AppWeekDay(
+      day: day,
+      selected: isToday,
+      semanticLabel: [
         DateFormat('M월 d일', 'ko').format(day),
         if (isToday) '오늘',
-        'PT $count건',
+        if (count != null) 'PT $count건',
       ].join(', '),
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: () => onSelect(day),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          children: [
-            Text(
-              weekday,
-              style: small.copyWith(fontSize: 12, letterSpacing: 12 * -0.019),
-            ),
-            const Gap(6),
-            Container(
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isToday ? AppColors.ink : Colors.transparent,
-              ),
-              child: Text(
-                '${day.day}',
-                style: AppTextStyles.bodyMd.natural.copyWith(
-                  color: isToday ? AppColors.canvas : AppColors.ink,
-                  fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-                ),
-              ),
-            ),
-            const Gap(6),
-            SizedBox(
-              height: 14,
-              child: count == 0
-                  ? null
-                  : Text(
-                      '$count건',
-                      style: small.copyWith(
-                        fontSize: 11,
-                        letterSpacing: 11 * -0.019,
-                      ),
-                    ),
-            ),
-          ],
-        ),
+      onTap: () => onSelect(day),
+      below: SizedBox(
+        height: 14,
+        child: count == null || count == 0
+            ? null
+            : Text('$count건', style: countStyle),
       ),
     );
   }
@@ -712,7 +675,8 @@ class _PtRow extends StatelessWidget {
                 DateFormat('HH:mm').format(session.scheduledAt),
                 style: w(AppTextStyles.bodyMd.natural).copyWith(
                   fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
-                  color: done ? AppColors.faint : AppColors.ink,
+                  // 끝난 시각은 흐리게 (faint는 글자에 쓰지 않는다 → mute)
+                  color: done ? AppColors.mute : AppColors.ink,
                 ),
               ),
             ),
@@ -834,21 +798,24 @@ class _WorkoutRow extends StatelessWidget {
 }
 
 /// 혼자 운동한 회원 (시안 TrainerHome): 제목 17 + 오른쪽 'N명', 아래 14 mute 한 줄
-/// '박지현 · 상체 4종목, 정민수 · 유산소 30분 외 1명'. 이름을 누르면 회원 상세.
+/// '박지현 · 상체 4종목, 정민수 · 유산소 30분 외 1명'. 줄을 누르면 캘린더 보기의 오늘(회원별 줄).
 class _SoloWorkoutSummary extends StatelessWidget {
   final List<Workout> workouts;
-  final ValueChanged<String> onOpenMember;
+  final VoidCallback onOpen;
 
-  const _SoloWorkoutSummary({
-    required this.workouts,
-    required this.onOpenMember,
-  });
+  const _SoloWorkoutSummary({required this.workouts, required this.onOpen});
 
   static const _shown = 2;
 
-  String _summary(Workout w) {
+  /// 유산소는 세트의 횟수 칸에 분을 담는다 (운동 시간 칸은 더 이상 쓰지 않는다).
+  static int _cardioMinutes(Workout w) => w.exercises.fold(
+    0,
+    (sum, e) => sum + e.sets.fold(0, (s, set) => s + set.reps),
+  );
+
+  static String _summary(Workout w) {
     if (w.category == WorkoutCategory.cardio) {
-      final minutes = (w.durationSeconds / 60).round();
+      final minutes = _cardioMinutes(w);
       return '${w.memberName} · 유산소${minutes > 0 ? ' $minutes분' : ''}';
     }
     return '${w.memberName} · ${w.category.label} ${w.exercises.length}종목';
@@ -863,42 +830,56 @@ class _SoloWorkoutSummary extends StatelessWidget {
     }
     final items = byMember.values.toList();
     final caption = AppTextStyles.note.natural.copyWith(color: AppColors.mute);
+    final text = items.isEmpty
+        ? '오늘은 아직 없습니다'
+        : [
+            items.take(_shown).map(_summary).join(', '),
+            if (items.length > _shown) ' 외 ${items.length - _shown}명',
+          ].join();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionTitle(
-          '혼자 운동한 회원',
-          trailing: items.isEmpty ? null : '${items.length}명',
-        ),
-        Padding(
+        AppMonthHeader(
+          label: '혼자 운동한 회원',
+          bold: true,
+          count: items.isEmpty ? null : '${items.length}명',
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.screenH,
-            6,
+            AppSpacing.lg,
             AppSpacing.screenH,
             0,
           ),
-          child: items.isEmpty
-              ? Text('오늘은 아직 없습니다', style: caption)
-              : Wrap(
-                  children: [
-                    for (final (i, w) in items.take(_shown).indexed)
-                      Semantics(
-                        button: true,
-                        child: GestureDetector(
-                          onTap: () => onOpenMember(w.memberId),
-                          behavior: HitTestBehavior.opaque,
-                          child: Text(
-                            '${i > 0 ? ', ' : ''}${_summary(w)}',
-                            style: caption,
-                          ),
-                        ),
-                      ),
-                    if (items.length > _shown)
-                      Text(' 외 ${items.length - _shown}명', style: caption),
-                  ],
-                ),
         ),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              6,
+              AppSpacing.screenH,
+              0,
+            ),
+            child: Text(text, style: caption),
+          )
+        else
+          // 터치 영역 44: 줄 전체를 누른다.
+          Semantics(
+            button: true,
+            hint: '회원별 기록 보기',
+            child: InkWell(
+              onTap: onOpen,
+              highlightColor: AppColors.canvasSoft,
+              splashFactory: NoSplash.splashFactory,
+              child: Container(
+                constraints: const BoxConstraints(minHeight: AppSize.touchMin),
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenH,
+                ),
+                child: Text(text, style: caption),
+              ),
+            ),
+          ),
       ],
     );
   }

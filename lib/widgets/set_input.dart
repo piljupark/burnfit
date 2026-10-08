@@ -224,6 +224,9 @@ class SetValueField extends StatelessWidget {
   /// [card] 상자에서 [highlighted]일 때 안쪽 1.5 ink 테두리 (시안 Tr-PtRecord 진행 중 줄).
   final bool outlineHighlighted;
 
+  /// 입력 글자 수 제한 (null이면 소수 입력 6자 · 정수 입력 4자 — 예: '1250.5', '9999').
+  final int? maxLength;
+
   const SetValueField({
     super.key,
     required this.controller,
@@ -235,6 +238,7 @@ class SetValueField extends StatelessWidget {
     this.card = false,
     this.bold = true,
     this.outlineHighlighted = false,
+    this.maxLength,
   });
 
   @override
@@ -280,6 +284,7 @@ class SetValueField extends StatelessWidget {
             FilteringTextInputFormatter.allow(
               decimal ? RegExp(r'^\d*\.?\d*') : RegExp(r'\d*'),
             ),
+            LengthLimitingTextInputFormatter(maxLength ?? (decimal ? 6 : 4)),
           ],
           onChanged: (_) => onChanged(),
           textAlign: TextAlign.center,

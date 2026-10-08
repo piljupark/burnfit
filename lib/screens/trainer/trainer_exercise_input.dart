@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/workout.dart';
+import '../../widgets/app_icon_button.dart';
 import '../../widgets/set_input.dart';
+import '../../widgets/workout_parts.dart';
 import 'trainer_workout_models.dart';
 
 /// 세트 표 치수 (시안 Tr-PtRecord: 열 40 | 1fr | 1fr | 48, 줄 52, 값 상자 좌우 6).
@@ -78,11 +79,7 @@ class TrainerExerciseInputCard extends StatelessWidget {
     // 진행 중 줄 = 아직 완료하지 않은 첫 세트
     final currentIndex = exercise.sets.indexWhere((s) => !s.done);
     final canRemove = exercise.sets.length > 1;
-    final header = AppTextStyles.bodySm.copyWith(
-      fontSize: 12,
-      height: 16 / 12,
-      letterSpacing: 12 * -0.019,
-    );
+    final header = AppTextStyles.captionSmall;
 
     return Semantics(
       container: true,
@@ -123,29 +120,18 @@ class TrainerExerciseInputCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // 메뉴: 44×36, 점 셋은 오른쪽 끝 (시안 margin-right −4)
+                  // 메뉴: 터치 44 단추. 점 셋은 시안처럼 카드 안쪽 오른쪽 끝(margin-right −4)에 맞추고
+                  // 예전 44×36 칸의 가운데 높이(18)를 지킨다.
                   Transform.translate(
-                    offset: const Offset(AppSpacing.xs, 0),
-                    child: Semantics(
-                      button: true,
+                    offset: const Offset(
+                      AppSpacing.xs + (AppSize.touchMin - AppSize.icon) / 2,
+                      -(AppSize.touchMin - 36) / 2,
+                    ),
+                    child: AppIconButton(
+                      icon: AppIcons.moreBold,
                       label: '${exercise.name} 메뉴',
-                      excludeSemantics: true,
-                      child: GestureDetector(
-                        onTap: onMenuTap,
-                        behavior: HitTestBehavior.opaque,
-                        child: SizedBox(
-                          width: AppSize.touchMin,
-                          height: 36,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Icon(
-                              AppIcons.moreBold,
-                              size: AppSize.icon,
-                              color: AppColors.dots,
-                            ),
-                          ),
-                        ),
-                      ),
+                      color: AppColors.dots,
+                      onPressed: onMenuTap,
                     ),
                   ),
                 ],
@@ -189,6 +175,8 @@ class TrainerExerciseInputCard extends StatelessWidget {
 
             for (var i = 0; i < exercise.sets.length; i++)
               _SetRow(
+                // 중간 세트를 지워도 아래 세트의 상태(완료 원 움직임·입력 칸)가 밀리지 않게
+                key: ObjectKey(exercise.sets[i]),
                 number: i + 1,
                 set: exercise.sets[i],
                 current: i == currentIndex,
@@ -205,12 +193,12 @@ class TrainerExerciseInputCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _SetTextButton(
-                  icon: PhosphorIconsBold.plus,
+                  icon: AppIcons.bold(AppIcons.add),
                   label: '세트 추가',
                   onTap: onAddSet,
                 ),
                 _SetTextButton(
-                  icon: PhosphorIconsBold.minus,
+                  icon: AppIcons.bold(AppIcons.remove),
                   label: '세트 삭제',
                   onTap: canRemove
                       ? () => onRemoveSet(exercise.sets.length - 1)
@@ -288,6 +276,7 @@ class _SetRow extends StatelessWidget {
   final VoidCallback onToggleDone;
 
   const _SetRow({
+    super.key,
     required this.number,
     required this.set,
     required this.current,
@@ -384,80 +373,7 @@ String trainerExerciseRowSummary(TrainerExerciseDraft exercise) {
   ];
   final max = exercise.maxWeight;
   if (max != null) {
-    parts.add(
-      '${trainerFormatMetricValue(max)}${exercise.primaryMetricSuffix}',
-    );
+    parts.add('${formatMetricValue(max)}${exercise.primaryMetricSuffix}');
   }
   return parts.join(' · ');
-}
-
-/// 접힌 운동 줄 (시안 Tr-PtRecord: 회색 64, 반경 20, 좌우 20):
-/// 이름 16/500 + 보조 줄 13 mute(위 2), 오른쪽 아래 화살표 18(chevron).
-class TrainerCollapsedExercise extends StatelessWidget {
-  final TrainerExerciseDraft exercise;
-  final VoidCallback onTap;
-
-  const TrainerCollapsedExercise({
-    super.key,
-    required this.exercise,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final summary = trainerExerciseRowSummary(exercise);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-      child: Semantics(
-        button: true,
-        label: '${exercise.name}, $summary, 펼치기',
-        excludeSemantics: true,
-        child: Material(
-          color: AppColors.canvasCard,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            splashFactory: NoSplash.splashFactory,
-            highlightColor: AppColors.canvasSoft,
-            child: Container(
-              height: 64,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          exercise.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.listTitle.natural,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          summary,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodySm.natural,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Icon(
-                    PhosphorIconsBold.caretDown,
-                    size: 18,
-                    color: AppColors.chevron,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

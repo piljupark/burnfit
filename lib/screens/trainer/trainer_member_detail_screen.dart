@@ -29,10 +29,12 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_calendar.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_highlight.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_inputs.dart';
+import '../../widgets/app_key_value_row.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
-import '../../widgets/app_progress_bar.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/feedback_sheet.dart';
 import 'trainer_inbody_sheet.dart';
@@ -59,6 +61,9 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   static const _cardioTab = 2;
   static const _infoTab = 3;
 
+  /// 인바디는 최근 이 건수까지만 읽는다.
+  static const _inbodyLimit = 20;
+
   late TabController _tabController;
 
   List<Meal> _meals = [];
@@ -74,6 +79,14 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   bool _loadingWorkouts = false;
   bool _loadingCardios = false;
   bool _loadingInbodies = false;
+
+  /// 운동 탭: 처음 읽기를 마쳤는지, 회원이 운동 공유를 켰는지(꺼져 있으면 내 PT 기록만), 읽기 오류.
+  bool _workoutsLoaded = false;
+  bool _workoutsShared = true;
+  String? _workoutsError;
+
+  /// 기록 줄을 빠르게 두 번 눌러 피드백 시트가 두 번 열리지 않게 한다.
+  bool _openingFeedback = false;
 
   @override
   void initState() {
@@ -99,7 +112,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
       case _mealTab:
         if (_meals.isEmpty && !_loadingMeals) _loadMeals();
       case _workoutTab:
-        if (_workouts.isEmpty && !_loadingWorkouts) _loadWorkouts();
+        if (!_workoutsLoaded && !_loadingWorkouts) _loadWorkouts();
       case _cardioTab:
         if (_cardios.isEmpty && !_loadingCardios) _loadCardios();
     }
@@ -143,13 +156,13 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   }
 
   Future<void> _loadInbodies() async {
-    if (!widget.member.shareSettings.body) return;
+    if (!mounted || !widget.member.shareSettings.body) return;
     setState(() => _loadingInbodies = true);
     try {
       final list = await FirestoreService.getInbodiesByMember(
         widget.member.uid,
         centerId: widget.member.centerId,
-        limit: 20,
+        limit: _inbodyLimit,
       );
       if (!mounted) return;
       setState(() => _inbodies = list);
@@ -164,7 +177,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   }
 
   Future<void> _loadMeals() async {
-    if (!widget.member.shareSettings.meal) return;
+    if (!mounted || !widget.member.shareSettings.meal) return;
     setState(() => _loadingMeals = true);
     try {
       final list = await MealService.getMealsByDateRange(
@@ -185,22 +198,38 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     }
   }
 
+  /// PT·개인 운동을 함께 읽는다. 회원이 운동 공유를 껐으면 내가 남긴 PT 기록만 온다.
   Future<void> _loadWorkouts() async {
-    if (!widget.member.shareSettings.workout) return;
-    setState(() => _loadingWorkouts = true);
+    if (!mounted) return;
+    final trainer = context.read<UserProvider>().user;
+    if (trainer == null) return;
+    setState(() {
+      _loadingWorkouts = true;
+      _workoutsError = null;
+    });
     try {
-      final list = await WorkoutService.getWorkoutsByDateRange(
-        widget.member.centerId,
-        widget.member.uid,
-        _rangeStart,
-        _rangeEnd,
-        workoutType: WorkoutType.personal,
+      final result = await WorkoutService.getMemberWorkoutsForTrainer(
+        centerId: widget.member.centerId,
+        memberId: widget.member.uid,
+        trainerId: trainer.uid,
+        startDate: _rangeStart,
+        endDate: _rangeEnd,
       );
       if (!mounted) return;
-      setState(() => _workouts = list);
+      setState(() {
+        _workouts = result.workouts;
+        _workoutsShared = result.shared;
+        _workoutsLoaded = true;
+      });
     } catch (e) {
       if (!mounted) return;
-      AppFeedback.showErrorSnackBar(context, e);
+      if (_workouts.isEmpty) {
+        // 빈 목록이면 탭 안에 오류 카드(다시 시도)로 보인다.
+        setState(() => _workoutsError = AppFeedback.errorMessage(e));
+      } else {
+        // 이미 보이는 목록은 두고 토스트로만 알린다.
+        AppFeedback.showErrorSnackBar(context, e);
+      }
     } finally {
       if (mounted) {
         setState(() => _loadingWorkouts = false);
@@ -209,7 +238,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   }
 
   Future<void> _loadCardios() async {
-    if (!widget.member.shareSettings.workout) return;
+    if (!mounted || !widget.member.shareSettings.workout) return;
     setState(() => _loadingCardios = true);
     try {
       final list = await CardioService.getCardiosByDateRange(
@@ -230,48 +259,58 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     }
   }
 
+  /// [targetLinked]: 대상 기록에 이미 피드백이 이어져 있는지 (hasFeedback).
+  /// 내 피드백 문서는 있는데 연결이 안 된 기록(앞서 연결만 실패)이면 고칠 때 연결도 다시 한다.
   Future<void> _writeFeedback({
     required fb.FeedbackTargetType type,
     String? targetId,
     String? targetDate,
+    bool targetLinked = true,
   }) async {
+    if (_openingFeedback) return;
     final trainer = context.read<UserProvider>().user;
     if (trainer == null) return;
 
-    fb.Feedback? existing;
+    _openingFeedback = true;
     try {
-      existing = targetId == null
-          ? null
-          : await FirestoreService.getFeedbackByTarget(
-              targetId,
-              centerId: widget.member.centerId,
-              memberId: widget.member.uid,
-              trainerId: trainer.uid,
-            );
-    } catch (e) {
+      fb.Feedback? existing;
+      try {
+        existing = targetId == null
+            ? null
+            : await FirestoreService.getFeedbackByTarget(
+                targetId,
+                centerId: widget.member.centerId,
+                memberId: widget.member.uid,
+                trainerId: trainer.uid,
+              );
+      } catch (e) {
+        if (!mounted) return;
+        AppFeedback.showErrorSnackBar(context, e);
+        return;
+      }
+
       if (!mounted) return;
-      AppFeedback.showErrorSnackBar(context, e);
-      return;
-    }
+      final result = await FeedbackSheet.show(
+        context,
+        centerId: widget.member.centerId,
+        trainerId: trainer.uid,
+        trainerName: trainer.name,
+        memberId: widget.member.uid,
+        memberName: widget.member.name,
+        targetType: type,
+        targetId: targetId,
+        targetDate: targetDate,
+        existing: existing,
+        relinkTarget: existing != null && !targetLinked,
+      );
 
-    if (!mounted) return;
-    final result = await FeedbackSheet.show(
-      context,
-      centerId: widget.member.centerId,
-      trainerId: trainer.uid,
-      trainerName: trainer.name,
-      memberId: widget.member.uid,
-      memberName: widget.member.name,
-      targetType: type,
-      targetId: targetId,
-      targetDate: targetDate,
-      existing: existing,
-    );
-
-    if (result == true) {
-      if (type == fb.FeedbackTargetType.meal) _loadMeals();
-      if (type == fb.FeedbackTargetType.workout) _loadWorkouts();
-      if (type == fb.FeedbackTargetType.cardio) _loadCardios();
+      if (result == true && mounted) {
+        if (type == fb.FeedbackTargetType.meal) _loadMeals();
+        if (type == fb.FeedbackTargetType.workout) _loadWorkouts();
+        if (type == fb.FeedbackTargetType.cardio) _loadCardios();
+      }
+    } finally {
+      _openingFeedback = false;
     }
   }
 
@@ -286,20 +325,22 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
       context: context,
       child: TrainerInbodyInputSheet(member: widget.member, trainer: trainer),
     );
-    if (saved == true) await _loadInbodies();
+    if (saved == true && mounted) await _loadInbodies();
   }
 
   Future<void> _deleteInbody(Inbody item) async {
     final confirmed = await showAppConfirmDialog(
       context,
       title: 'InBody 기록 삭제',
-      message: '${item.measurementDate} 측정 기록 1건을 삭제합니다. 되돌릴 수 없습니다.',
+      message:
+          '${inbodyDayLabel(item.measurementDate)} 측정 기록 1건을 삭제합니다. 되돌릴 수 없습니다.',
       confirmLabel: '삭제',
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     try {
       await FirestoreService.deleteInbody(item.id);
+      if (!mounted) return;
       await _loadInbodies();
     } catch (e) {
       if (!mounted) return;
@@ -308,7 +349,13 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   }
 
   Future<void> _showInbodyDetail(Inbody item) async {
-    final deleteRequested = await showTrainerInbodyDetailSheet(context, item);
+    // 규칙상 자기가 입력한 인바디만 지울 수 있다.
+    final myUid = context.read<UserProvider>().user?.uid;
+    final deleteRequested = await showTrainerInbodyDetailSheet(
+      context,
+      item,
+      canDelete: myUid != null && item.trainerId == myUid,
+    );
     if (deleteRequested == true && mounted) await _deleteInbody(item);
   }
 
@@ -331,7 +378,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   Widget build(BuildContext context) {
     final m = widget.member;
     final meta = _memberMeta(m);
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final pt = _ptInfo;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -398,7 +445,24 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(child: _PtSummaryCard(info: _ptInfo)),
+                    Expanded(
+                      // 시안 TrainerMember 주황 카드: 'PT 남은 횟수' · '6회 / 20회' · 쓴 비율 막대
+                      child: AppHighlightCard(
+                        label: 'PT 남은 횟수',
+                        value: pt == null ? '-' : '${pt.remainingSessions}회',
+                        unit: pt == null ? null : ' / ${pt.totalSessions}회',
+                        progress: pt == null || pt.totalSessions <= 0
+                            ? null
+                            : ((pt.totalSessions - pt.remainingSessions) /
+                                      pt.totalSessions)
+                                  .clamp(0.0, 1.0),
+                        bold: true,
+                        compact: true,
+                        semanticLabel: pt == null
+                            ? 'PT 남은 횟수 정보 없음'
+                            : 'PT 남은 횟수 ${pt.remainingSessions}회, 전체 ${pt.totalSessions}회',
+                      ),
+                    ),
                     const Gap(AppSpacing.sm),
                     Expanded(
                       child: _WeightSummaryCard(
@@ -428,11 +492,14 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                   TrainerWorkoutsTab(
                     workouts: _workouts,
                     isLoading: _loadingWorkouts,
-                    canView: m.shareSettings.workout,
+                    loaded: _workoutsLoaded,
+                    shared: _workoutsShared,
+                    errorMessage: _workoutsError,
                     onFeedback: (w) => _writeFeedback(
                       type: fb.FeedbackTargetType.workout,
                       targetId: w.id,
                       targetDate: w.workoutDate,
+                      targetLinked: w.hasFeedback,
                     ),
                     onRefresh: _loadWorkouts,
                   ),
@@ -444,6 +511,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                       type: fb.FeedbackTargetType.meal,
                       targetId: meal.id,
                       targetDate: meal.mealDate,
+                      targetLinked: meal.hasFeedback,
                     ),
                     onRefresh: _loadMeals,
                   ),
@@ -455,6 +523,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                       type: fb.FeedbackTargetType.cardio,
                       targetId: c.id,
                       targetDate: c.cardioDate,
+                      targetLinked: c.hasFeedback,
                     ),
                     onRefresh: _loadCardios,
                   ),
@@ -463,50 +532,23 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                     body: _body,
                     ptInfo: _ptInfo,
                     inbodies: _inbodies,
+                    inbodyLimit: _inbodyLimit,
                     loadingInbodies: _loadingInbodies,
-                    onAddInbody: _openInbodyInput,
                     onOpenInbody: _showInbodyDetail,
+                    onAddInbody: m.shareSettings.body ? _openInbodyInput : null,
                   ),
                 ],
               ),
             ),
-            // ── 아래 고정 2칸 버튼 ──────────────────────────────────────────
-            Container(
-              color: AppColors.canvas,
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.md,
-                AppSpacing.screenH,
-                bottomInset + AppSpacing.md,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      label: '인바디 입력',
-                      variant: AppButtonVariant.secondary,
-                      size: AppButtonSize.lg,
-                      labelSize: 16,
-                      bold: true,
-                      fullWidth: true,
-                      onPressed: m.shareSettings.body ? _openInbodyInput : null,
-                    ),
-                  ),
-                  const Gap(AppSpacing.sm),
-                  Expanded(
-                    child: AppButton(
-                      label: '피드백 쓰기',
-                      variant: AppButtonVariant.dark,
-                      size: AppButtonSize.lg,
-                      labelSize: 16,
-                      bold: true,
-                      fullWidth: true,
-                      onPressed: () =>
-                          _writeFeedback(type: fb.FeedbackTargetType.general),
-                    ),
-                  ),
-                ],
-              ),
+            // ── 아래 고정 2칸 버튼: 인바디 입력(회색) · 피드백 쓰기(검정) ────────
+            AppBottomActionBar(
+              secondaryLabel: '인바디 입력',
+              onSecondary: m.shareSettings.body ? _openInbodyInput : null,
+              primaryLabel: '피드백 쓰기',
+              onPrimary: () =>
+                  _writeFeedback(type: fb.FeedbackTargetType.general),
+              primaryVariant: AppButtonVariant.dark,
+              bold: true,
             ),
           ],
         ),
@@ -558,75 +600,9 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
 // 머리 2칸 카드 (시안 TrainerMember): 안쪽 16 · 반경 18
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// 주황 카드: 'PT 남은 횟수' 13 · '6회 / 20회' 22 · 10 아래 6 진행 막대(쓴 비율).
-class _PtSummaryCard extends StatelessWidget {
-  final PtInfo? info;
-
-  const _PtSummaryCard({required this.info});
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = AppColors.onPrimary;
-    final info = this.info;
-    final total = info?.totalSessions ?? 0;
-    final remaining = info?.remainingSessions ?? 0;
-    final used = total == 0 ? 0.0 : ((total - remaining) / total);
-    return Semantics(
-      label: info == null
-          ? 'PT 남은 횟수 정보 없음'
-          : 'PT 남은 횟수 $remaining회, 전체 $total회',
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.base),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(AppRadius.button),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'PT 남은 횟수',
-              style: AppTextStyles.bodySm.bold.natural.copyWith(color: fg),
-            ),
-            const Gap(AppSpacing.xs),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: info == null ? '-' : '$remaining회'),
-                  if (info != null)
-                    TextSpan(
-                      text: ' / $total회',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w400,
-                        color: fg.withValues(alpha: 0.6),
-                      ),
-                    ),
-                ],
-              ),
-              style: _cardValueStyle.copyWith(color: fg),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const Gap(10),
-            AppProgressBar(
-              value: used,
-              height: 6,
-              color: fg,
-              trackColor: fg.withValues(alpha: 0.15),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 22/700 카드 값.
-TextStyle get _cardValueStyle => AppTextStyles.title.bold.natural.copyWith(
-  fontSize: 22,
-  letterSpacing: 22 * -0.019,
-);
+/// 22/700 카드 값 (시트 제목과 같은 22 크기 토큰).
+TextStyle get _cardValueStyle =>
+    AppTextStyles.sheetTitle.bold.natural.copyWith(letterSpacing: 22 * -0.019);
 
 /// 회색 카드: 최근 체중 (최근 InBody, 없으면 신체 정보) + 직전 측정과의 차이 + 최근 체중 선.
 /// 시안의 '스쿼트 추정 1RM'은 계산 근거가 없어 체중으로 대신한다.
@@ -766,18 +742,22 @@ class _InfoTab extends StatelessWidget {
   final UserProfile? body;
   final PtInfo? ptInfo;
   final List<Inbody> inbodies;
+  final int inbodyLimit;
   final bool loadingInbodies;
-  final VoidCallback onAddInbody;
   final void Function(Inbody) onOpenInbody;
+
+  /// 인바디가 없을 때 '첫 기록 입력' (신체 정보 공유가 꺼져 있으면 null)
+  final VoidCallback? onAddInbody;
 
   const _InfoTab({
     required this.member,
     required this.body,
     required this.ptInfo,
     required this.inbodies,
+    required this.inbodyLimit,
     required this.loadingInbodies,
-    required this.onAddInbody,
     required this.onOpenInbody,
+    required this.onAddInbody,
   });
 
   @override
@@ -786,6 +766,10 @@ class _InfoTab extends StatelessWidget {
     final p = body;
     final shared = member.shareSettings.body;
     final fmt = DateFormat('yyyy.MM.dd');
+    // 체중은 머리의 '최근 체중' 카드와 같은 기준: 최근 인바디가 있으면 그 값, 없으면 신체 정보.
+    final latestInbody = shared && inbodies.isNotEmpty ? inbodies.first : null;
+    final weight = latestInbody?.weight ?? p?.weight;
+    final showMetrics = shared && (p != null || latestInbody != null);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
@@ -796,17 +780,15 @@ class _InfoTab extends StatelessWidget {
             top: 40,
             bottom: AppSpacing.xl2,
           )
-        else if (p != null) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
+        else if (showMetrics) ...[
+          const AppMonthHeader(
+            label: '체성분',
+            strong: true,
+            padding: EdgeInsets.fromLTRB(
               AppSpacing.screenH,
               AppSpacing.lg,
               AppSpacing.screenH,
               0,
-            ),
-            child: Semantics(
-              header: true,
-              child: Text('체성분', style: AppTextStyles.section),
             ),
           ),
           Padding(
@@ -818,18 +800,35 @@ class _InfoTab extends StatelessWidget {
             ),
             child: _MetricGrid(
               cells: [
-                ('키', p.height, 'cm'),
-                ('체중', p.weight, 'kg'),
-                ('골격근', p.muscleMass, 'kg'),
-                ('체지방', p.bodyFat, 'kg'),
-                ('BMI', p.bmi, ''),
+                ('키', p?.height, 'cm'),
+                ('체중', weight, 'kg'),
+                ('골격근', p?.muscleMass, 'kg'),
+                ('체지방', p?.bodyFat, 'kg'),
+                ('BMI', p?.bmi, ''),
               ],
             ),
           ),
+          if (latestInbody != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.sm,
+                AppSpacing.screenH,
+                0,
+              ),
+              child: Text(
+                '체중은 ${inbodyDayLabel(latestInbody.measurementDate)} InBody 측정값입니다.',
+                style: AppTextStyles.bodySm.natural,
+              ),
+            ),
         ],
         if (ptInfo != null) ...[
           // 남은 횟수는 머리의 주황 카드에 있으므로 여기서는 기간만 줄로 둔다.
-          AppDayHeader(label: 'PT 정보', count: _dDayLabel(ptInfo.endDate)),
+          AppMonthHeader(
+            strong: true,
+            label: 'PT 정보',
+            count: _dDayLabel(ptInfo.endDate),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.screenH,
@@ -839,20 +838,20 @@ class _InfoTab extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _KeyValueRow(
+                AppKeyValueRow(
                   label: '남은 횟수',
                   value:
                       '${ptInfo.remainingSessions} / ${ptInfo.totalSessions}회',
                   divider: true,
                 ),
-                _KeyValueRow(
+                AppKeyValueRow(
                   label: '시작일',
                   value: ptInfo.startDate != null
                       ? fmt.format(ptInfo.startDate!)
                       : '-',
                   divider: true,
                 ),
-                _KeyValueRow(
+                AppKeyValueRow(
                   label: '종료일',
                   value: ptInfo.endDate != null
                       ? fmt.format(ptInfo.endDate!)
@@ -863,10 +862,13 @@ class _InfoTab extends StatelessWidget {
           ),
         ],
         if (shared) ...[
-          if (p != null || ptInfo != null) const AppSectionBand(top: 12),
+          if (showMetrics || ptInfo != null) const AppSectionBand(top: 12),
           AppMonthHeader(
             label: '인바디',
-            count: '${inbodies.length}건',
+            // 최대 [inbodyLimit]건만 읽으므로 꽉 찼으면 전체 건수가 아님을 밝힌다.
+            count: inbodies.length >= inbodyLimit
+                ? '최근 $inbodyLimit건'
+                : '${inbodies.length}건',
             strong: true,
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.screenH,
@@ -883,12 +885,11 @@ class _InfoTab extends StatelessWidget {
               ),
             )
           else if (inbodies.isEmpty)
-            TrainerEmptyCard(
+            TrainerEmptyState(
               icon: AppIcons.inbody,
               message: 'InBody 기록이 없습니다.',
               actionLabel: '첫 기록 입력',
               onAction: onAddInbody,
-              vertical: 32,
               margin: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
                 AppSpacing.sm,
@@ -1009,42 +1010,6 @@ class _MetricCell extends StatelessWidget {
   }
 }
 
-/// 52 높이 키/값 줄 (시안 Tr-Member-Profile): 키 16 body, 값 16/500.
-class _KeyValueRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool divider;
-
-  const _KeyValueRow({
-    required this.label,
-    required this.value,
-    this.divider = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 52),
-      decoration: divider
-          ? BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.hairline)),
-            )
-          : null,
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.input.copyWith(color: AppColors.body),
-            ),
-          ),
-          Text(value, style: AppTextStyles.input.medium),
-        ],
-      ),
-    );
-  }
-}
-
 /// 인바디 한 줄 (시안 Tr-Member-Profile): 68 높이, 60 폭 날짜 칸, 체중 16/500 + 'kg' mute,
 /// 보조 13 mute(위 2), 오른쪽 20 화살표(chevron).
 class _InbodyRow extends StatelessWidget {
@@ -1066,7 +1031,7 @@ class _InbodyRow extends StatelessWidget {
     return Semantics(
       button: true,
       label:
-          '${item.measurementDate} 체중 ${_formatProfileValue(item.weight)}kg'
+          '${inbodyDayLabel(item.measurementDate)} 체중 ${_formatProfileValue(item.weight)}kg'
           '${meta.isEmpty ? '' : ', $meta'}',
       excludeSemantics: true,
       child: InkWell(

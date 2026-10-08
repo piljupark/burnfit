@@ -786,7 +786,15 @@ service cloud.firestore {
           resource.data.trainerId == request.auth.uid &&
           resource.data.workoutType == 'pt' &&
           isAssignedTrainer(resource.data.memberId) &&
-          canUpdateWorkoutContent()
+          (
+            canUpdateWorkoutContent() ||
+            // 자기가 남긴 PT 기록에는 회원 공유 설정과 관계없이 피드백을 잇는다 (읽기 규칙과 같은 범위).
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'hasFeedback',
+              'feedbackId',
+              'updatedAt'
+            ])
+          )
         );
       allow delete: if canWriteOwnMemberScoped(
         resource.data.centerId,

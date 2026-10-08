@@ -24,10 +24,13 @@ import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_inputs.dart';
 import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_section.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/brand_marks.dart';
 import '../../widgets/feedback_sheet.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
+import '../../widgets/workout_parts.dart';
 import 'trainer_exercise_input.dart';
 import 'trainer_pt_done_screen.dart';
 import 'trainer_saved_card.dart';
@@ -56,12 +59,24 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
   final _noteController = TextEditingController();
   final List<TrainerExerciseDraft> _exercises = [];
 
+  /// 이 세션(ptSessionId)의 저장된 기록만 둔다. 같은 날 다른 세션 기록을 고치거나 지워
+  /// 이 세션의 완료·잔여 횟수가 바뀌지 않게 한다.
   List<Workout> _savedWorkouts = [];
   List<CustomExercise> _customExercises = [];
   List<Workout> _previousWorkouts = [];
 
   WorkoutCategory _defaultCategory = WorkoutCategory.chest;
   String? _editingWorkoutId;
+
+  /// 아직 이 세션을 완료 처리(잔여 1회 차감)하지 않았는지.
+  /// 수정 중인 기록([_editingWorkoutId])과 따로 둔다: 기록은 저장됐는데 완료 처리만 실패했으면
+  /// 다시 저장할 때 같은 기록을 고치면서 완료 처리(와 완료 화면)를 이어서 한다.
+  late bool _awaitingCompletion =
+      widget.session.status == PtSessionStatus.scheduled;
+
+  /// 마지막 기록을 지웠는데 완료 취소(잔여 복구)가 실패한 세션 — 다시 시도 안내를 띄운다.
+  String? _restoreFailedSessionId;
+  bool _restoring = false;
 
   /// 펼쳐 보이는(현재) 운동 위치. 화면 표시 전용 상태다.
   int _focusedIndex = 0;
@@ -94,7 +109,14 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 
   Future<void> _load() async {
     final trainer = context.read<UserProvider>().user;
-    if (trainer == null) return;
+    if (trainer == null) {
+      // 로그인 정보가 아직 없거나 사라졌으면 빈 화면 대신 안내와 다시 시도를 보여 준다.
+      setState(() {
+        _loading = false;
+        _errorMessage = '사용자 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      });
+      return;
+    }
 
     setState(() => _loading = true);
     try {
@@ -118,10 +140,21 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 
       if (!mounted) return;
       setState(() {
-        _savedWorkouts = results[0] as List<Workout>;
+        _savedWorkouts = (results[0] as List<Workout>)
+            // 세션 연결값이 없는 예전 기록은 보여 주되, 지워도 세션 상태는 건드리지 않는다.
+            .where(
+              (w) =>
+                  w.ptSessionId == widget.session.id || w.ptSessionId == null,
+            )
+            .toList();
         _previousWorkouts = results[1] as List<Workout>;
         _customExercises = results[2] as List<CustomExercise>;
         _errorMessage = null;
+        // 그 사이 이 세션에 기록이 생겼으면 완료 취소를 다시 시도할 까닭이 없다.
+        if (_savedWorkouts.isNotEmpty &&
+            _restoreFailedSessionId == widget.session.id) {
+          _restoreFailedSessionId = null;
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -143,16 +176,15 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 
   int get _totalSetCount => _exercises.fold(0, (sum, e) => sum + e.sets.length);
 
-  double get _sessionVolume =>
-      _exercises.fold(0.0, (sum, e) => sum + e.totalVolume);
+  /// 근력 종목만의 볼륨(kg 환산). 유산소 여부는 종목마다 판단한다.
+  double get _sessionVolumeKg =>
+      _exercises.fold(0.0, (sum, e) => sum + e.volumeKg);
 
   bool get _isCardioSession =>
       _exercises.isNotEmpty && _exercises.every((e) => e.isCardio);
 
-  int get _cardioMinutes => _exercises.fold(0, (sum, e) {
-    if (!e.isCardio) return sum;
-    return sum + e.sets.fold(0, (s, set) => s + (set.reps ?? 0));
-  });
+  int get _cardioMinutes =>
+      _exercises.fold(0, (sum, e) => sum + e.cardioMinutes);
 
   Map<String, TrainerPreviousStats> get _previousStatsByName {
     final result = <String, TrainerPreviousStats>{};
@@ -172,11 +204,19 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     return result;
   }
 
+  /// 저장된 종목의 부위 (기록의 부위는 하나뿐이라 종목 이름으로 다시 찾는다).
+  WorkoutCategory _categoryOf(String name, WorkoutCategory fallback) =>
+      exerciseCategoryOf(name, customExercises: _customExercises) ?? fallback;
+
   // ── Exercise management ──
 
   Future<void> _showExercisePicker() async {
+    if (_saving) return;
     final trainer = context.read<UserProvider>().user;
-    if (trainer == null) return;
+    if (trainer == null) {
+      AppFeedback.showWarning(context, '사용자 정보를 불러오지 못했습니다. 다시 시도해 주세요.');
+      return;
+    }
 
     // 시안 Tr-ExercisePicker: 시트 위 끝이 화면 위 72 (844 중 772)
     final picked = await showAppBottomSheet<TrainerPickedExercise>(
@@ -192,7 +232,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       ),
     );
 
-    if (picked == null) return;
+    if (picked == null || !mounted || _saving) return;
     setState(() {
       _defaultCategory = picked.category;
       _exercises.add(
@@ -235,6 +275,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     setState(() {
       _exercises[index].dispose();
       _exercises.removeAt(index);
+      if (index < _focusedIndex) _focusedIndex--;
       if (_focusedIndex >= _exercises.length) {
         _focusedIndex = _exercises.isEmpty ? 0 : _exercises.length - 1;
       }
@@ -254,21 +295,22 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       context: context,
       child: TrainerExerciseMenuSheet(exercise: exercise),
     );
-    if (action == null) return;
+    if (action == null || !mounted || _saving) return;
 
     switch (action.type) {
       case TrainerMenuActionType.toggleUnit:
+        // 유산소는 무게가 아니므로 메뉴에 없다. 혹시 와도 바꾸지 않는다.
+        if (exercise.isCardio) return;
         setState(() {
           final nextUnit = exercise.unit == TrainerWeightUnit.kg
               ? TrainerWeightUnit.lbs
               : TrainerWeightUnit.kg;
+          // 손대지 않은 값은 원래 글자로 되돌려 kg ↔ lbs 왕복 오차를 없앤다.
           for (final set in exercise.sets) {
-            final value = set.weight;
-            if (value == null) continue;
-            final converted = exercise.unit == TrainerWeightUnit.kg
-                ? value * 2.2046226218
-                : value / 2.2046226218;
-            set.weightController.text = trainerFormatWeight(converted);
+            set.weightController.text = set.unitMemo.toggle(
+              set.weightController.text,
+              toLbs: nextUnit == TrainerWeightUnit.lbs,
+            );
           }
           exercise.unit = nextUnit;
         });
@@ -289,13 +331,43 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     _focusedIndex = 0;
   }
 
+  /// 입력 중인 내용이 있으면 버려도 되는지 묻는다 (없으면 바로 true).
+  Future<bool> _confirmDiscard({
+    required String title,
+    required String confirmLabel,
+  }) async {
+    if (!_hasContent) return true;
+    return showAppConfirmDialog(
+      context,
+      title: title,
+      message: '지금 입력한 운동 기록은 저장되지 않고 사라집니다.',
+      confirmLabel: confirmLabel,
+    );
+  }
+
+  Future<void> _handleBack() async {
+    if (!_hasContent) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final ok = await _confirmDiscard(
+      title: '저장하지 않고 나갈까요?',
+      confirmLabel: '나가기',
+    );
+    if (ok && mounted) Navigator.of(context).pop();
+  }
+
   // ── Save / Edit / Delete ──
 
   Future<void> _saveWorkout() async {
     if (_saving) return;
 
     final trainer = context.read<UserProvider>().user;
-    if (trainer == null) return;
+    if (trainer == null) {
+      AppFeedback.showWarning(context, '사용자 정보를 불러오지 못했습니다. 다시 시도해 주세요.');
+      return;
+    }
+    FocusScope.of(context).unfocus();
 
     final exercises = _exercises
         .map((d) => d.toExercise())
@@ -303,15 +375,72 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
         .toList();
 
     if (exercises.isEmpty) {
-      AppFeedback.showWarning(context, '운동명, 무게, 횟수를 입력해주세요.');
+      AppFeedback.showWarning(context, '운동명과 횟수를 입력해주세요. (맨몸 운동은 무게를 비워 두세요)');
       return;
     }
 
+    // 일부만 채운 세트·종목은 저장에서 빠지므로 미리 알린다.
+    final droppedExercises = _exercises
+        .where((d) => d.toExercise() == null)
+        .length;
+    final droppedSets = _exercises
+        .where((d) => d.toExercise() != null)
+        .fold<int>(0, (n, d) => n + d.droppedSetCount);
+    if (droppedExercises > 0 || droppedSets > 0) {
+      final parts = [
+        if (droppedExercises > 0) '종목 $droppedExercises개',
+        if (droppedSets > 0) '세트 $droppedSets개',
+      ].join(', ');
+      final ok = await showAppConfirmDialog(
+        context,
+        title: '빠지는 기록이 있습니다',
+        message: '횟수(유산소는 시간)가 비어 있는 $parts는 저장되지 않습니다. 이대로 저장할까요?',
+        confirmLabel: '저장',
+        destructive: false,
+      );
+      if (!ok || !mounted) return;
+    }
+
+    // 이번 저장으로 세션이 완료 처리(잔여 1회 차감)되는지.
+    final completing = _awaitingCompletion;
+    if (completing && widget.session.scheduledAt.isAfter(DateTime.now())) {
+      final ok = await showAppConfirmDialog(
+        context,
+        title: '시작 전인 PT',
+        message: '아직 시작 전인 PT입니다. 저장하면 완료 처리되고 1회 차감됩니다.',
+        confirmLabel: '저장',
+        destructive: false,
+      );
+      if (!ok || !mounted) return;
+    }
+
+    final wasEditing = _editingWorkoutId != null;
+    final note = _noteController.text.trim().isEmpty
+        ? null
+        : _noteController.text.trim();
+    final category = _exercises.first.category;
+    final summary = _doneSummary(exercises, category);
+
     setState(() => _saving = true);
     try {
-      final wasEditing = _editingWorkoutId != null;
-      Workout? saved;
+      // 완료 처리할 수 없으면(PT권 없음·잔여 0) 운동 기록부터 쓰지 않는다.
+      // 이미 쓴 기록을 고치며 완료 처리만 다시 시도할 때는 서버가 판단한다
+      // (앞선 완료 처리가 실제로는 됐는데 응답만 못 받았으면 잔여가 0이어도 막으면 안 된다).
+      if (completing && !wasEditing) {
+        try {
+          await FirestoreService.requireRemainingForCompletion(
+            centerId: widget.member.centerId,
+            memberId: widget.member.uid,
+          );
+        } on ArgumentError catch (e) {
+          if (mounted) {
+            AppFeedback.showWarning(context, AppFeedback.errorMessage(e));
+          }
+          return;
+        }
+      }
 
+      final String workoutId;
       if (_editingWorkoutId == null) {
         final newWorkout = await WorkoutService.saveWorkout(
           centerId: widget.member.centerId,
@@ -323,50 +452,69 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
           createdByRole: WorkoutCreatedByRole.trainer,
           ptSessionId: widget.session.id,
           workoutDate: _workoutDate,
-          category: _exercises.first.category,
+          category: category,
           exercises: exercises,
-          note: _noteController.text.trim().isEmpty
-              ? null
-              : _noteController.text.trim(),
+          note: note,
         );
-
-        saved = newWorkout;
+        workoutId = newWorkout.id;
 
         // 저장된 기록을 '수정 중'으로 잡아 두면, 아래 완료 처리가 실패해 다시 눌러도
         // 새 기록이 또 생기지 않고 같은 기록을 고친 뒤 완료 처리를 다시 시도한다.
+        _editingWorkoutId = newWorkout.id;
         if (mounted) {
-          setState(() {
-            _savedWorkouts = [newWorkout, ..._savedWorkouts];
-            _editingWorkoutId = newWorkout.id;
-          });
+          setState(() => _savedWorkouts = [newWorkout, ..._savedWorkouts]);
         }
       } else {
+        workoutId = _editingWorkoutId!;
         await WorkoutService.updateWorkout(
-          workoutId: _editingWorkoutId!,
-          category: _exercises.first.category,
+          workoutId: workoutId,
+          category: category,
           exercises: exercises,
-          note: _noteController.text.trim().isEmpty
-              ? null
-              : _noteController.text.trim(),
+          note: note,
         );
       }
 
-      // 기록이 있으면 세션은 완료 상태여야 한다. 서버가 처음 한 번만 잔여 1회를 차감하므로
-      // 저장·수정 때마다 불러도 안전하다 (이전에 완료 처리가 실패했어도 여기서 다시 시도된다).
-      await FirestoreService.updatePtSessionStatus(
-        widget.session.id,
-        PtSessionStatus.completed,
-      );
+      // 기록이 있으면 세션은 완료 상태여야 한다. 서버가 처음 한 번만 잔여 1회를 차감하고,
+      // 실제로 바뀌었을 때만(changed) 차감 뒤 잔여 횟수를 돌려준다.
+      PtStatusResult? status;
+      if (completing) {
+        try {
+          status = await FirestoreService.updatePtSessionStatus(
+            widget.session.id,
+            PtSessionStatus.completed,
+          );
+        } catch (e) {
+          if (!mounted) return;
+          AppFeedback.showWarning(
+            context,
+            '운동 기록은 저장했지만 PT 완료 처리에 실패했습니다. 다시 저장하면 완료 처리를 다시 시도합니다.',
+          );
+          return;
+        }
+        // 이미 완료돼 있었어도(changed == false) 더는 완료 처리를 기다리지 않는다.
+        _awaitingCompletion = false;
+      }
 
       if (!mounted) return;
-      setState(_clearSession);
+      setState(() {
+        _clearSession();
+        _restoreFailedSessionId = null;
+      });
       await _load();
 
       if (!mounted) return;
-      if (wasEditing) {
-        AppFeedback.showSuccessSnackBar(context, '운동 기록을 수정했습니다.');
+      if (status != null && status.changed) {
+        await _showPtDone(
+          trainer,
+          workoutId: workoutId,
+          remainingSessions: status.remainingSessions,
+          summary: summary,
+        );
       } else {
-        await _showPtDone(trainer, saved!);
+        AppFeedback.showSuccessSnackBar(
+          context,
+          wasEditing ? '운동 기록을 수정했습니다.' : '운동 기록을 저장했습니다.',
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -378,28 +526,50 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     }
   }
 
-  Future<void> _showPtDone(AppUser trainer, Workout saved) async {
-    final ptInfo = await FirestoreService.getPtInfo(
-      widget.member.uid,
-      centerId: widget.member.centerId,
+  /// PT 완료 화면 요약: 종목 수 · 세트 수 · 근력 볼륨(kg), 모두 유산소면 운동한 분.
+  /// 유산소 여부는 종목마다 이름으로 가린다.
+  _DoneSummary _doneSummary(
+    List<Exercise> exercises,
+    WorkoutCategory category,
+  ) {
+    var volume = 0.0;
+    var minutes = 0;
+    var allCardio = true;
+    for (final exercise in exercises) {
+      if (isCardioExercise(
+        exercise.name,
+        category,
+        customExercises: _customExercises,
+      )) {
+        minutes += exercise.sets.fold<int>(0, (s, set) => s + set.reps);
+      } else {
+        allCardio = false;
+        volume += exercise.totalVolume;
+      }
+    }
+    return _DoneSummary(
+      exerciseCount: exercises.length,
+      setCount: exercises.fold<int>(0, (n, e) => n + e.sets.length),
+      volumeKg: volume,
+      cardioMinutes: allCardio ? minutes : null,
     );
-    if (!mounted) return;
+  }
 
+  Future<void> _showPtDone(
+    AppUser trainer, {
+    required String workoutId,
+    required int? remainingSessions,
+    required _DoneSummary summary,
+  }) async {
     final action = await Navigator.of(context).push<TrainerPtDoneAction>(
       MaterialPageRoute(
         builder: (_) => TrainerPtDoneScreen(
           memberName: widget.member.name,
-          remainingSessions: ptInfo?.remainingSessions ?? 0,
-          exerciseCount: saved.exercises.length,
-          setCount: saved.totalSets,
-          totalVolumeKg: saved.totalVolume,
-          cardioMinutes: saved.category == WorkoutCategory.cardio
-              ? saved.exercises.fold<int>(
-                  0,
-                  (sum, e) =>
-                      sum + e.sets.fold<int>(0, (s, set) => s + set.reps),
-                )
-              : null,
+          remainingSessions: remainingSessions,
+          exerciseCount: summary.exerciseCount,
+          setCount: summary.setCount,
+          totalVolumeKg: summary.volumeKg,
+          cardioMinutes: summary.cardioMinutes,
         ),
       ),
     );
@@ -408,7 +578,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     fb.Feedback? existing;
     try {
       existing = await FirestoreService.getFeedbackByTarget(
-        saved.id,
+        workoutId,
         centerId: widget.member.centerId,
         memberId: widget.member.uid,
         trainerId: trainer.uid,
@@ -425,13 +595,20 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       memberId: widget.member.uid,
       memberName: widget.member.name,
       targetType: fb.FeedbackTargetType.workout,
-      targetId: saved.id,
-      targetDate: saved.workoutDate,
+      targetId: workoutId,
+      targetDate: _workoutDate,
       existing: existing,
     );
   }
 
-  void _editWorkout(Workout workout) {
+  Future<void> _editWorkout(Workout workout) async {
+    if (_saving) return;
+    final ok = await _confirmDiscard(
+      title: '이 기록을 불러올까요?',
+      confirmLabel: '불러오기',
+    );
+    if (!ok || !mounted) return;
+
     for (final e in _exercises) {
       e.dispose();
     }
@@ -442,11 +619,12 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       _defaultCategory = workout.category;
       _noteController.text = workout.note ?? '';
 
+      // 기록에는 부위가 하나만 있으므로 종목 이름으로 부위를 찾아 유산소 표·볼륨을 맞춘다.
       for (final exercise in workout.exercises) {
         _exercises.add(
           TrainerExerciseDraft.fromExercise(
             exercise: exercise,
-            category: workout.category,
+            category: _categoryOf(exercise.name, workout.category),
           ),
         );
       }
@@ -456,12 +634,12 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
   }
 
   Future<void> _deleteWorkout(Workout workout) async {
-    // 이 세션의 마지막 기록이면 PT 완료도 취소하고 잔여 1회를 되돌린다.
+    if (_saving) return;
+    // 이 기록이 속한 세션의 마지막 기록이면 PT 완료도 취소하고 잔여 1회를 되돌린다.
+    final sessionId = workout.ptSessionId;
     final isLastRecord =
-        _savedWorkouts
-            .where((w) => w.ptSessionId == widget.session.id)
-            .length <=
-        1;
+        sessionId != null &&
+        _savedWorkouts.where((w) => w.ptSessionId == sessionId).length <= 1;
     final ok = await showAppConfirmDialog(
       context,
       title: 'PT 기록 삭제',
@@ -472,25 +650,71 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
           : null,
       confirmLabel: '삭제',
     );
-    if (ok != true) return;
+    if (ok != true || !mounted) return;
 
     try {
       await WorkoutService.deleteWorkout(workout.id);
-      if (isLastRecord) {
-        await FirestoreService.updatePtSessionStatus(
-          widget.session.id,
-          PtSessionStatus.scheduled,
-        );
-      }
-      if (!mounted) return;
-
-      if (_editingWorkoutId == workout.id) {
-        setState(_clearSession);
-      }
-      await _load();
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
+      return;
+    }
+    if (!mounted) return;
+
+    if (_editingWorkoutId == workout.id) {
+      setState(_clearSession);
+    }
+
+    if (isLastRecord) {
+      final restored = await _restoreSession(sessionId);
+      if (!mounted) return;
+      if (!restored) {
+        AppFeedback.showWarning(
+          context,
+          '기록은 삭제했지만 PT 완료 취소에 실패했습니다. 아래 \'다시 시도\'를 눌러 주세요.',
+        );
+      }
+    }
+    // 완료 취소가 실패해도 지운 기록이 목록에 남아 보이지 않게 다시 불러온다.
+    await _load();
+  }
+
+  /// 세션을 예약 상태로 되돌린다 (잔여 1회 복구). 실패하면 다시 시도 안내를 띄울 수 있게 기억한다.
+  Future<bool> _restoreSession(String sessionId) async {
+    try {
+      await FirestoreService.updatePtSessionStatus(
+        sessionId,
+        PtSessionStatus.scheduled,
+      );
+      if (mounted) {
+        setState(() {
+          _restoreFailedSessionId = null;
+          if (sessionId == widget.session.id) _awaitingCompletion = true;
+        });
+      }
+      return true;
+    } catch (_) {
+      if (mounted) setState(() => _restoreFailedSessionId = sessionId);
+      return false;
+    }
+  }
+
+  Future<void> _retryRestore() async {
+    final sessionId = _restoreFailedSessionId;
+    if (sessionId == null || _restoring) return;
+    // 그 사이 이 세션에 새 기록이 저장됐으면 완료 상태가 맞다.
+    if (_savedWorkouts.any((w) => w.ptSessionId == sessionId)) {
+      setState(() => _restoreFailedSessionId = null);
+      return;
+    }
+    setState(() => _restoring = true);
+    final restored = await _restoreSession(sessionId);
+    if (!mounted) return;
+    setState(() => _restoring = false);
+    if (restored) {
+      AppFeedback.showSuccessSnackBar(context, 'PT 완료를 취소하고 잔여 횟수를 복구했습니다.');
+    } else {
+      AppFeedback.showWarning(context, '완료 취소에 다시 실패했습니다. 잠시 후 다시 시도해 주세요.');
     }
   }
 
@@ -504,14 +728,15 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     }
 
     final currentMax = exercise.maxWeight;
-    final previousMax = exercise.unit == TrainerWeightUnit.kg
+    final previousMax =
+        exercise.isCardio || exercise.unit == TrainerWeightUnit.kg
         ? previous.maxWeight
-        : previous.maxWeight * 2.2046226218;
+        : previous.maxWeight * kLbsPerKg;
     final suffix = exercise.primaryMetricSuffix;
 
     if (currentMax == null) {
       return TrainerExerciseComparison(
-        label: '지난 최고 ${trainerFormatMetricValue(previousMax)}$suffix',
+        label: '지난 최고 ${formatMetricValue(previousMax)}$suffix',
         tone: TrainerComparisonTone.muted,
       );
     }
@@ -519,13 +744,13 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     final diff = currentMax - previousMax;
     if (diff > 0) {
       return TrainerExerciseComparison(
-        label: '+${trainerFormatMetricValue(diff)}$suffix',
+        label: '+${formatMetricValue(diff)}$suffix',
         tone: TrainerComparisonTone.up,
       );
     }
     if (diff < 0) {
       return TrainerExerciseComparison(
-        label: '${trainerFormatMetricValue(diff)}$suffix',
+        label: '${formatMetricValue(diff)}$suffix',
         tone: TrainerComparisonTone.down,
       );
     }
@@ -542,36 +767,49 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     final editing = _editingWorkoutId != null;
     final canSave = _hasContent;
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // 시안 Tr-PtRecord: 56 머리 · 뒤로 24 · 가운데 17/500 · 오른쪽 '저장'(16/500, 내용이 있을 때만)
-            AppScreenHeader.centered(
-              title: 'PT 기록',
-              onBack: () => Navigator.of(context).pop(),
-              trailing: canSave
-                  ? _HeaderSaveButton(onTap: _saving ? null : _saveWorkout)
-                  : null,
-            ),
-            Expanded(child: _buildBody(editing)),
-            // 시작 단계 없이 바로 저장한다. 저장하면 예약된 PT가 완료 처리된다.
-            // 운동 내용이 없으면 저장할 것이 없으므로 비활성.
-            AppBottomActionBar(
-              primaryLabel: _saving
-                  ? '저장 중'
-                  : editing
-                  ? '수정 저장'
-                  : '기록 저장',
-              loading: _saving,
-              onPrimary: _saving || !canSave ? null : _saveWorkout,
-              secondaryLabel: '운동 추가',
-              secondaryIcon: AppIcons.add,
-              onSecondary: _showExercisePicker,
-            ),
-          ],
+    // 입력 중인 내용이 있으면 뒤로 가기 전에 확인한다 (기기 뒤로·머리 뒤로 모두).
+    return PopScope(
+      canPop: !_hasContent,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleBack();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.canvas,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // 시안 Tr-PtRecord: 56 머리 · 뒤로 24 · 가운데 17/500 · 오른쪽 '저장'(16/500, 내용이 있을 때만)
+              AppScreenHeader.centered(
+                title: 'PT 기록',
+                onBack: _handleBack,
+                trailing: canSave
+                    ? _HeaderSaveButton(onTap: _saving ? null : _saveWorkout)
+                    : null,
+              ),
+              // 저장하는 동안에는 입력·운동 추가·기록 수정을 막는다.
+              Expanded(
+                child: IgnorePointer(
+                  ignoring: _saving,
+                  child: _buildBody(editing),
+                ),
+              ),
+              // 시작 단계 없이 바로 저장한다. 저장하면 예약된 PT가 완료 처리된다.
+              // 운동 내용이 없으면 저장할 것이 없으므로 비활성.
+              AppBottomActionBar(
+                primaryLabel: _saving
+                    ? '저장 중'
+                    : editing
+                    ? '수정 저장'
+                    : '기록 저장',
+                loading: _saving,
+                onPrimary: _saving || !canSave ? null : _saveWorkout,
+                secondaryLabel: '운동 추가',
+                secondaryIcon: AppIcons.add,
+                onSecondary: _saving ? null : _showExercisePicker,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -601,19 +839,46 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
           subtitle: subtitle,
           editing: editing,
         ),
+        if (_restoreFailedSessionId != null)
+          AppErrorCard(
+            message: _restoring
+                ? 'PT 완료를 취소하는 중입니다.'
+                : '기록은 삭제했지만 PT 완료 취소(잔여 1회 복구)에 실패했습니다.',
+            onRetry: _retryRestore,
+          ),
         if (_exercises.isNotEmpty || editing)
-          _SessionStats(
-            cardioMinutes: _isCardioSession ? _cardioMinutes : null,
-            volumeKg: _sessionVolume,
-            doneSets: _completedSetCount,
-            totalSets: _totalSetCount,
-            exerciseCount: _exercises.length,
+          WorkoutSummaryStats(
+            top: AppSpacing.base,
+            cellPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            radius: AppRadius.field,
+            labelColor: AppColors.mute,
+            labelMaxLines: 1,
+            valueStyle: AppTextStyles.section.copyWith(
+              fontSize: 18,
+              height: 22 / 18,
+              letterSpacing: 18 * -0.019,
+            ),
+            stats: [
+              _isCardioSession
+                  ? WorkoutStat('유산소', '$_cardioMinutes', '분')
+                  : WorkoutStat(
+                      '총 볼륨',
+                      NumberFormat('#,##0').format(_sessionVolumeKg.round()),
+                      'kg',
+                    ),
+              WorkoutStat('완료세트', '$_completedSetCount', ' / $_totalSetCount'),
+              WorkoutStat('운동', '${_exercises.length}', '종목'),
+            ],
           ),
         if (_exercises.isEmpty)
           _PtEmptyCard(compact: _savedWorkouts.isNotEmpty)
         else ...[
           for (var i = 0; i < _exercises.length; i++)
             Padding(
+              key: ObjectKey(_exercises[i]),
               padding: EdgeInsets.only(
                 top: i == 0 ? AppSpacing.base : AppSpacing.md,
               ),
@@ -628,8 +893,13 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
                       onRemoveSet: (si) => _removeSet(i, si),
                       onToggleSetDone: (si) => _toggleSetDone(i, si),
                     )
-                  : TrainerCollapsedExercise(
-                      exercise: _exercises[i],
+                  : WorkoutCollapsedRow(
+                      name: _exercises[i].name,
+                      subtitle: trainerExerciseRowSummary(_exercises[i]),
+                      height: 64,
+                      nameStyle: AppTextStyles.listTitle.natural,
+                      chevron: true,
+                      highlightColor: AppColors.canvasSoft,
                       onTap: () => setState(() => _focusedIndex = i),
                     ),
             ),
@@ -670,6 +940,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
               delay: Duration(milliseconds: 80 * i),
               child: TrainerSavedWorkoutCard(
                 workout: _savedWorkouts[i],
+                customExercises: _customExercises,
                 onEdit: () => _editWorkout(_savedWorkouts[i]),
                 onDelete: () => _deleteWorkout(_savedWorkouts[i]),
               ),
@@ -679,6 +950,21 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       ],
     );
   }
+}
+
+/// PT 완료 화면에 넘길 요약 (저장 전에 입력에서 계산한다).
+class _DoneSummary {
+  final int exerciseCount;
+  final int setCount;
+  final double volumeKg;
+  final int? cardioMinutes;
+
+  const _DoneSummary({
+    required this.exerciseCount,
+    required this.setCount,
+    required this.volumeKg,
+    required this.cardioMinutes,
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -774,7 +1060,7 @@ class _MemberRow extends StatelessWidget {
               ),
               if (editing) ...[
                 Text(' · ', style: AppTextStyles.fieldLabel.natural),
-                _Blink(
+                AppBlink(
                   child: Text(
                     '수정 중',
                     style: AppTextStyles.fieldLabel.natural.medium.copyWith(
@@ -791,161 +1077,9 @@ class _MemberRow extends StatelessWidget {
   }
 }
 
-/// 시안 `blink`: 투명도 1 → .35 → 1 (1.4s ease-in-out 반복). 동작 줄이기면 멈춘다.
-class _Blink extends StatefulWidget {
-  final Widget child;
-
-  const _Blink({required this.child});
-
-  @override
-  State<_Blink> createState() => _BlinkState();
-}
-
-class _BlinkState extends State<_Blink> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (AppMotion.reduced(context)) {
-      _controller.stop();
-      _controller.value = 0;
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      child: widget.child,
-      builder: (context, child) {
-        final v = _controller.value;
-        final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
-        return Opacity(
-          opacity: 1 - 0.65 * Curves.easeInOut.transform(tri),
-          child: child,
-        );
-      },
-    );
-  }
-}
-
-/// 요약 3칸 (시안 Tr-PtRecord: 위 16 · 좌우 20 · 사이 8, 칸 회색 반경 14 · 안쪽 12 14):
-/// 라벨 12 mute + 값 18/500(단위 400 mute, 위 2). 총 볼륨(유산소만이면 유산소 분) · 완료세트 · 운동.
-class _SessionStats extends StatelessWidget {
-  final int? cardioMinutes;
-  final double volumeKg;
-  final int doneSets;
-  final int totalSets;
-  final int exerciseCount;
-
-  const _SessionStats({
-    required this.cardioMinutes,
-    required this.volumeKg,
-    required this.doneSets,
-    required this.totalSets,
-    required this.exerciseCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // 시안 `up`: 아래 10에서 올라오며 나타남 (.5s, 칸마다 .08s 늦게)
-    Widget cell(int order, String label, String value, String suffix) {
-      return Expanded(
-        child: AppEntrance(
-          delay: Duration(milliseconds: 80 * order),
-          child: Semantics(
-            label: '$label $value$suffix',
-            excludeSemantics: true,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.canvasCard,
-                borderRadius: BorderRadius.circular(AppRadius.field),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    maxLines: 1,
-                    style: AppTextStyles.bodySm.copyWith(
-                      fontSize: 12,
-                      height: 16 / 12,
-                      letterSpacing: 12 * -0.019,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: value),
-                        TextSpan(
-                          text: suffix,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.mute,
-                          ),
-                        ),
-                      ],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.section.copyWith(
-                      fontSize: 18,
-                      height: 22 / 18,
-                      letterSpacing: 18 * -0.019,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.base,
-        AppSpacing.screenH,
-        0,
-      ),
-      child: Row(
-        children: [
-          cardioMinutes != null
-              ? cell(0, '유산소', '$cardioMinutes', '분')
-              : cell(
-                  0,
-                  '총 볼륨',
-                  NumberFormat('#,##0').format(volumeKg.round()),
-                  'kg',
-                ),
-          const SizedBox(width: AppSpacing.sm),
-          cell(1, '완료세트', '$doneSets', ' / $totalSets'),
-          const SizedBox(width: AppSpacing.sm),
-          cell(2, '운동', '$exerciseCount', '종목'),
-        ],
-      ),
-    );
-  }
-}
-
-/// 운동이 아직 없을 때 (시안 Tr-PtRecord-Empty): 회색 카드(반경 18, 위 24 · 안쪽 40 28)에
-/// 바벨 그림(56×40, 들었다 내림) + 'PT 운동을 기록하세요'(16/500) + 안내(14 mute, 줄 1.5).
-/// 저장된 기록이 있으면 [compact] (시안 Tr-PtRecord-Saved): 위 20 · 안쪽 24, 그림 없이 두 줄(사이 8).
+/// 운동이 아직 없을 때 (시안 Tr-PtRecord-Empty): 회색 카드(위 24 · 안쪽 40 28)에
+/// 바벨 그림(56×40, 들었다 내림) + 'PT 운동을 기록하세요' + 안내(14 mute, 줄 1.5).
+/// 저장된 기록이 있으면 [compact] (시안 Tr-PtRecord-Saved): 위 20 · 안쪽 24, 그림 없이 두 줄.
 class _PtEmptyCard extends StatelessWidget {
   final bool compact;
 
@@ -953,123 +1087,31 @@ class _PtEmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final card = Container(
-      width: double.infinity,
+    final card = AppEmptyState(
+      card: true,
+      icon: AppIcons.workout,
+      illustration: compact
+          ? const SizedBox.shrink()
+          : LiftingBarbellMark(
+              size: const Size(56, 40),
+              outerPlates: false,
+              plateColor: AppColors.mute,
+            ),
+      // 시안: 줄 사이 10 + 제목 위 4
+      artGap: compact ? 0 : 14,
+      cardPadding: compact
+          ? const EdgeInsets.all(AppSpacing.xl)
+          : const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
       margin: EdgeInsets.fromLTRB(
         AppSpacing.screenH,
         compact ? AppSpacing.lg : AppSpacing.xl,
         AppSpacing.screenH,
         0,
       ),
-      padding: compact
-          ? const EdgeInsets.all(AppSpacing.xl)
-          : const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
-      decoration: BoxDecoration(
-        color: AppColors.canvasCard,
-        borderRadius: BorderRadius.circular(AppRadius.button),
-      ),
-      child: Column(
-        children: [
-          if (!compact) ...[
-            const _LiftingBarbell(),
-            // 시안: 줄 사이 10 + 제목 위 4
-            const SizedBox(height: 14),
-          ],
-          Text(
-            'PT 운동을 기록하세요',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.listTitle.natural,
-          ),
-          SizedBox(height: compact ? AppSpacing.sm : 10),
-          Text(
-            '아래 운동 추가로 운동을 고르고 세트, 중량, 횟수를 입력하세요.',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.fieldLabel.copyWith(height: 1.5),
-          ),
-        ],
-      ),
+      message: 'PT 운동을 기록하세요',
+      description: '아래 운동 추가로 운동을 고르고 세트, 중량, 횟수를 입력하세요.',
     );
     // 시안 `up`: 첫 빈 화면 카드만 아래 10에서 올라오며 나타남 (.5s)
     return compact ? card : AppEntrance(child: card);
   }
-}
-
-/// 바벨 그림 (56×40)이 위아래로 6씩 들렸다 내려간다 (시안 `lift`: 1.8s ease-in-out 반복).
-class _LiftingBarbell extends StatefulWidget {
-  const _LiftingBarbell();
-
-  @override
-  State<_LiftingBarbell> createState() => _LiftingBarbellState();
-}
-
-class _LiftingBarbellState extends State<_LiftingBarbell>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (AppMotion.reduced(context)) {
-      _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: AnimatedBuilder(
-        animation: _controller,
-        child: const CustomPaint(
-          size: Size(56, 40),
-          painter: _BarbellArtPainter(),
-        ),
-        builder: (context, child) {
-          // 0%·100% → +6, 50% → −6 (동작 줄이기면 0%에 멈춘다)
-          final v = _controller.value;
-          final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
-          final dy = 6 - 12 * Curves.easeInOut.transform(tri);
-          return Transform.translate(offset: Offset(0, dy), child: child);
-        },
-      ),
-    );
-  }
-}
-
-/// 시안 SVG(viewBox 200×64)를 56×40에 비율 맞춰 그린 바벨:
-/// 봉(faint) + 원판 둘(mute) + 가운데 주황 손잡이.
-class _BarbellArtPainter extends CustomPainter {
-  const _BarbellArtPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final k = size.width / 200;
-    canvas.translate(0, (size.height - 64 * k) / 2);
-    canvas.scale(k);
-    void rrect(double x, double y, double w, double h, double r, Color c) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(r)),
-        Paint()..color = c,
-      );
-    }
-
-    rrect(40, 26, 120, 12, 6, AppColors.faint);
-    rrect(26, 0, 22, 64, 8, AppColors.mute);
-    rrect(152, 0, 22, 64, 8, AppColors.mute);
-    rrect(80, 23, 40, 18, 9, AppColors.primary);
-  }
-
-  @override
-  // 색이 테마를 따르므로 다시 그릴 때마다 칠한다 (그림이 작아 부담 없음).
-  bool shouldRepaint(_BarbellArtPainter oldDelegate) => true;
 }

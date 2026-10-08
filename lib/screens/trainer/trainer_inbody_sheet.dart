@@ -7,14 +7,16 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
-import '../../core/app_text_styles.dart';
 import '../../models/inbody.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_calendar.dart';
+import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_inputs.dart';
+import '../../widgets/app_key_value_row.dart';
 import '../../widgets/app_text_field.dart';
 
 class TrainerInbodyInputSheet extends StatefulWidget {
@@ -75,22 +77,36 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
     return int.tryParse(value);
   }
 
-  String? _optionalNumber(String? value) {
+  /// 선택 항목: 비우면 통과, 쓰면 0보다 큰 숫자 (서버 saveInbody의 requireOptionalPositiveDouble과 같다).
+  String? _optionalPositive(String? value, {double? max}) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) return null;
-    return double.tryParse(trimmed) == null ? '숫자만 입력해주세요.' : null;
+    final number = double.tryParse(trimmed);
+    if (number == null) return '숫자만 입력해주세요.';
+    if (number <= 0) return '0보다 큰 값을 입력해주세요.';
+    if (max != null && number > max) {
+      return '${max.toStringAsFixed(0)} 이하로 입력해주세요.';
+    }
+    return null;
+  }
+
+  /// 오늘 (날짜만). 측정일은 미래를 고를 수 없다.
+  DateTime get _today {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
+    final today = _today;
+    final current = DateTime.tryParse(_dateCtrl.text);
     final selected = await showAppDatePicker(
       context: context,
-      initialDate: DateTime.tryParse(_dateCtrl.text) ?? now,
-      firstDate: DateTime(now.year - 5),
-      lastDate: DateTime(now.year + 1),
+      initialDate: current == null || current.isAfter(today) ? today : current,
+      firstDate: DateTime(today.year - 5),
+      lastDate: today,
       title: '측정일 선택',
     );
-    if (selected == null) return;
+    if (selected == null || !mounted) return;
     _dateCtrl.text = DateFormat('yyyy-MM-dd').format(selected);
   }
 
@@ -163,9 +179,12 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
               onPressed: _pickDate,
               color: AppColors.body,
             ),
-            validator: (v) => DateTime.tryParse(v?.trim() ?? '') == null
-                ? '측정일을 선택해주세요.'
-                : null,
+            validator: (v) {
+              final date = DateTime.tryParse(v?.trim() ?? '');
+              if (date == null) return '측정일을 선택해주세요.';
+              if (date.isAfter(_today)) return '오늘 이후 날짜는 고를 수 없습니다.';
+              return null;
+            },
           ),
           const _SheetSection(label: '체성분'),
           Row(
@@ -191,7 +210,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
                   controller: _muscleCtrl,
                   keyboardType: numberType,
                   inputFormatters: numberFormatters,
-                  validator: _optionalNumber,
+                  validator: _optionalPositive,
                 ),
               ),
             ],
@@ -205,7 +224,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
                   controller: _bodyFatCtrl,
                   keyboardType: numberType,
                   inputFormatters: numberFormatters,
-                  validator: _optionalNumber,
+                  validator: _optionalPositive,
                 ),
               ),
               const SizedBox(width: AppSpacing.md, height: AppSpacing.md),
@@ -215,7 +234,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
                   controller: _bodyFatPercentCtrl,
                   keyboardType: numberType,
                   inputFormatters: numberFormatters,
-                  validator: _optionalNumber,
+                  validator: (v) => _optionalPositive(v, max: 100),
                 ),
               ),
             ],
@@ -229,17 +248,17 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
                   controller: _bmiCtrl,
                   keyboardType: numberType,
                   inputFormatters: numberFormatters,
-                  validator: _optionalNumber,
+                  validator: _optionalPositive,
                 ),
               ),
               const SizedBox(width: AppSpacing.md, height: AppSpacing.md),
               Expanded(
                 child: AppTextField(
-                  label: 'BMR',
+                  label: '기초대사량 (kcal)',
                   controller: _bmrCtrl,
                   keyboardType: numberType,
                   inputFormatters: numberFormatters,
-                  validator: _optionalNumber,
+                  validator: _optionalPositive,
                 ),
               ),
             ],
@@ -253,7 +272,11 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
             validator: (v) {
               final trimmed = v?.trim() ?? '';
               if (trimmed.isEmpty) return null;
-              return int.tryParse(trimmed) == null ? '숫자만 입력해주세요.' : null;
+              final level = int.tryParse(trimmed);
+              if (level == null) return '숫자만 입력해주세요.';
+              // 서버 requireOptionalPositiveInt와 같이 0은 받지 않는다.
+              if (level <= 0) return '0보다 큰 값을 입력해주세요.';
+              return null;
             },
             textInputAction: TextInputAction.done,
           ),
@@ -272,6 +295,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
 }
 
 /// 시트 안 묶음 머리말 (시안 Tr-Inbody-Input): 15 mute, 위 18 (첫 묶음은 0) · 아래 8.
+/// 시트가 이미 좌우 20을 두므로 머리말 좌우 여백은 0.
 class _SheetSection extends StatelessWidget {
   final String label;
   final bool first;
@@ -280,19 +304,27 @@ class _SheetSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return AppMonthHeader(
+      label: label,
       padding: EdgeInsets.only(top: first ? 0 : 18, bottom: AppSpacing.sm),
-      child: Semantics(
-        header: true,
-        child: Text(label, style: AppTextStyles.eyebrow.natural),
-      ),
     );
   }
 }
 
+/// 'yyyy-MM-dd' 측정일을 '10월 7일 (수)'로. 형식이 다르면 원문.
+String inbodyDayLabel(String date) {
+  final parsed = DateTime.tryParse(date);
+  return parsed == null ? date : appDayLabel(parsed);
+}
+
 /// InBody 기록 상세 시트 (시안 Tr-Inbody-Detail): 측정일 보조 줄 → 회색 카드(반경 18, 줄 52)
 /// → '기록 삭제' 행. 삭제를 고르면 true를 돌려준다 (확인 창은 부른 쪽에서 띄운다).
-Future<bool?> showTrainerInbodyDetailSheet(BuildContext context, Inbody item) {
+/// 규칙상 자기가 입력한 기록만 지울 수 있으므로 [canDelete]가 false면 삭제 행을 두지 않는다.
+Future<bool?> showTrainerInbodyDetailSheet(
+  BuildContext context,
+  Inbody item, {
+  required bool canDelete,
+}) {
   final number = NumberFormat('#,##0.#');
   String fmt(num v) => number.format(v);
   final rows = <(String, String, String)>[
@@ -301,7 +333,7 @@ Future<bool?> showTrainerInbodyDetailSheet(BuildContext context, Inbody item) {
     if (item.bodyFat != null) ('체지방량', fmt(item.bodyFat!), 'kg'),
     if (item.bodyFatPercent != null) ('체지방률', fmt(item.bodyFatPercent!), '%'),
     if (item.bmi != null) ('BMI', fmt(item.bmi!), ''),
-    if (item.bmr != null) ('BMR', fmt(item.bmr!), 'kcal'),
+    if (item.bmr != null) ('기초대사량', fmt(item.bmr!), 'kcal'),
     if (item.visceralFat != null) ('내장지방 레벨', '${item.visceralFat}', ''),
   ];
   return showAppBottomSheet<bool>(
@@ -313,7 +345,7 @@ Future<bool?> showTrainerInbodyDetailSheet(BuildContext context, Inbody item) {
         children: [
           AppBottomSheetHeader(
             title: 'InBody 기록',
-            subtitle: item.measurementDate,
+            subtitle: inbodyDayLabel(item.measurementDate),
             mutedSubtitle: true,
             gap: AppSpacing.md,
           ),
@@ -326,77 +358,27 @@ Future<bool?> showTrainerInbodyDetailSheet(BuildContext context, Inbody item) {
             child: Column(
               children: [
                 for (var i = 0; i < rows.length; i++)
-                  _DetailRow(
+                  AppKeyValueRow(
                     label: rows[i].$1,
                     value: rows[i].$2,
                     unit: rows[i].$3,
                     divider: i < rows.length - 1,
+                    dividerColor: AppColors.line,
                   ),
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          AppSheetAction(
-            icon: AppIcons.trash,
-            label: '기록 삭제',
-            destructive: true,
-            onTap: () => Navigator.of(sheetContext).pop(true),
-          ),
+          if (canDelete) ...[
+            const SizedBox(height: AppSpacing.sm),
+            AppSheetAction(
+              icon: AppIcons.trash,
+              label: '기록 삭제',
+              destructive: true,
+              onTap: () => Navigator.of(sheetContext).pop(true),
+            ),
+          ],
         ],
       ),
     ),
   );
-}
-
-/// 상세 카드 한 줄: 52 높이, 라벨 15 body · 값 16/500 + 단위 400 mute, 아래 line 구분선.
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final String unit;
-  final bool divider;
-
-  const _DetailRow({
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.divider,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 52,
-      decoration: divider
-          ? BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.line)),
-            )
-          : null,
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
-            ),
-          ),
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(text: value),
-                if (unit.isNotEmpty)
-                  TextSpan(
-                    text: unit,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.mute,
-                    ),
-                  ),
-              ],
-            ),
-            style: AppTextStyles.input.medium,
-          ),
-        ],
-      ),
-    );
-  }
 }

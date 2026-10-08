@@ -36,29 +36,37 @@ class AppViewTabs extends StatelessWidget {
         children: [
           for (var i = 0; i < labels.length; i++) ...[
             if (i > 0) const Gap(AppSpacing.sm),
-            Semantics(
-              button: true,
-              selected: i == selectedIndex,
-              child: Material(
-                color: i == selectedIndex
-                    ? AppColors.ink
-                    : AppColors.canvasSoft,
-                shape: const StadiumBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => onSelect(i),
-                  splashFactory: NoSplash.splashFactory,
-                  child: Container(
-                    height: compact ? 38 : 40,
-                    alignment: Alignment.center,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 16 : 18,
-                    ),
-                    child: Text(
-                      labels[i],
-                      style: i == selectedIndex
-                          ? base.bold.copyWith(color: AppColors.canvas)
-                          : base.copyWith(color: AppColors.body),
+            // 터치 영역 44: pill 위아래로 비어 있는 누름 자리를 둔다
+            GestureDetector(
+              onTap: () => onSelect(i),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: compact ? 3 : 2),
+                child: Semantics(
+                  button: true,
+                  selected: i == selectedIndex,
+                  child: Material(
+                    color: i == selectedIndex
+                        ? AppColors.ink
+                        : AppColors.canvasSoft,
+                    shape: const StadiumBorder(),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => onSelect(i),
+                      splashFactory: NoSplash.splashFactory,
+                      child: Container(
+                        height: compact ? 38 : 40,
+                        alignment: Alignment.center,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 16 : 18,
+                        ),
+                        child: Text(
+                          labels[i],
+                          style: i == selectedIndex
+                              ? base.bold.copyWith(color: AppColors.canvas)
+                              : base.copyWith(color: AppColors.body),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -200,10 +208,7 @@ class AppCalendarGrid extends StatelessWidget {
                     child: Center(
                       child: Text(
                         label,
-                        style: AppTextStyles.bodySm.natural.copyWith(
-                          fontSize: 12,
-                          letterSpacing: 12 * -0.019,
-                        ),
+                        style: AppTextStyles.captionSmall.natural,
                       ),
                     ),
                   ),
@@ -321,46 +326,77 @@ class _DayCell extends StatelessWidget {
   }
 }
 
-/// 달력과 그날 기록 사이 8 회색 띠 (선 대신 면으로 나눈다). 위 24.
-class AppCalendarBand extends StatelessWidget {
-  const AppCalendarBand({super.key});
+/// 주간 날짜 칸 (회원 홈 이번 주 · 트레이너 홈 이번 주 · 트레이너 일정 주간 줄):
+/// 요일 12 → 6 → 32 원(고른 날 ink 채움 + canvas Bold, [outlined]면 ink 1px 외곽선) → 6 → [below].
+class AppWeekDay extends StatelessWidget {
+  final DateTime day;
+  final bool selected;
+  final bool outlined;
 
-  @override
-  Widget build(BuildContext context) => Container(
-    height: AppSpacing.sm,
-    margin: const EdgeInsets.only(top: AppSpacing.lg),
-    color: AppColors.canvasCard,
-  );
-}
+  /// 날짜 아래 자리 (표시 점, 'N건' 등). 높이는 부르는 쪽이 정한다.
+  final Widget below;
+  final String semanticLabel;
+  final VoidCallback onTap;
 
-/// 고른 날 머리말: 왼쪽 날짜(17/500), 오른쪽 끝 개수(15 mute). 위 20 · 아래 4.
-class AppDayHeader extends StatelessWidget {
-  final String label;
-  final String? count;
+  /// 요일 글자 색 (기본 mute, 기준 시안 Main은 caption)
+  final Color? labelColor;
 
-  const AppDayHeader({super.key, required this.label, this.count});
+  const AppWeekDay({
+    super.key,
+    required this.day,
+    required this.selected,
+    this.outlined = false,
+    required this.below,
+    required this.semanticLabel,
+    required this.onTap,
+    this.labelColor,
+  });
+
+  static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.lg,
-        AppSpacing.screenH,
-        AppSpacing.xs,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          Expanded(
-            child: Semantics(
-              header: true,
-              child: Text(label, style: AppTextStyles.section),
+    final number = AppTextStyles.bodyMd.natural;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: semanticLabel,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _weekdays[day.weekday - 1],
+              style: AppTextStyles.captionSmall.natural.copyWith(
+                color: labelColor,
+              ),
             ),
-          ),
-          if (count != null) Text(count!, style: AppTextStyles.eyebrow),
-        ],
+            const Gap(6),
+            Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? AppColors.ink : Colors.transparent,
+                border: outlined && !selected
+                    ? Border.all(color: AppColors.ink)
+                    : null,
+              ),
+              child: Text(
+                '${day.day}',
+                style: selected
+                    ? number.bold.copyWith(color: AppColors.canvas)
+                    : number.copyWith(color: AppColors.ink),
+              ),
+            ),
+            const Gap(6),
+            below,
+          ],
+        ),
       ),
     );
   }

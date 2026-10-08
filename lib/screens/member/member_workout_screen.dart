@@ -17,6 +17,7 @@ import '../../services/user_provider.dart';
 import '../../services/workout_draft_service.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_bottom_sheet.dart';
+import '../../widgets/brand_marks.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
@@ -27,6 +28,7 @@ import '../../widgets/app_text_field.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
 import '../../widgets/rest_timer.dart';
+import '../../widgets/workout_parts.dart';
 import 'member_workout_done_screen.dart';
 import 'workout_draft_models.dart';
 import 'workout_exercise_input.dart';
@@ -127,7 +129,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
       final volume = e.sets
           .where((set) => set.done)
           .fold<double>(0, (v, set) => v + (set.weight ?? 0) * (set.reps ?? 0));
-      return sum + (e.unit == WeightUnit.kg ? volume : volume / 2.2046226218);
+      return sum + (e.unit == WeightUnit.kg ? volume : volume / kLbsPerKg);
     });
   }
 
@@ -462,15 +464,12 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
               ? WeightUnit.lbs
               : WeightUnit.kg;
 
+          // 손대지 않은 값은 원래 글자로 되돌려 kg ↔ lbs 왕복 오차를 없앤다.
           for (final set in exercise.sets) {
-            final value = set.weight;
-            if (value == null) continue;
-
-            final converted = exercise.unit == WeightUnit.kg
-                ? value * 2.2046226218
-                : value / 2.2046226218;
-
-            set.weightController.text = formatWeight(converted);
+            set.weightController.text = set.unitMemo.toggle(
+              set.weightController.text,
+              toLbs: nextUnit == WeightUnit.lbs,
+            );
           }
 
           exercise.unit = nextUnit;
@@ -699,11 +698,17 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
       _defaultCategory = workout.category;
       _noteController.text = workout.note ?? '';
 
+      // 기록에는 부위가 하나만 있으므로 종목 이름으로 부위를 찾아 유산소 표를 맞춘다.
       for (final exercise in workout.exercises) {
         _sessionExercises.add(
           WorkoutExerciseDraft.fromExercise(
             exercise: exercise,
-            category: workout.category,
+            category:
+                exerciseCategoryOf(
+                  exercise.name,
+                  customExercises: _customExercises,
+                ) ??
+                workout.category,
           ),
         );
       }
@@ -759,7 +764,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
         ? previous.maxWeight
         : exercise.unit == WeightUnit.kg
         ? previous.maxWeight
-        : previous.maxWeight * 2.2046226218;
+        : previous.maxWeight * kLbsPerKg;
 
     final suffix = exercise.primaryMetricSuffix;
     final metricName = exercise.primaryMetricLabel;
@@ -820,9 +825,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
         : _activeIndex.clamp(0, _sessionExercises.length - 1);
     final media = MediaQuery.of(context);
     // 탭으로 쓸 때는 아래 탭 바 위에 버튼을 둔다.
-    final barBottom = widget.showAsTab
-        ? AppNavBar.totalHeight(context)
-        : 0.0;
+    final barBottom = widget.showAsTab ? AppNavBar.totalHeight(context) : 0.0;
     final buttonBottomPadding = widget.showAsTab
         ? AppSpacing.md
         : media.padding.bottom + AppSpacing.md;
@@ -868,14 +871,28 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                             ),
                             children: [
                               if (_sessionExercises.isNotEmpty)
-                                _SessionStats(
-                                  doneExercises: _doneExerciseCount,
-                                  totalExercises: _sessionExercises.length,
-                                  doneSets: _completedSetCount,
-                                  cardioMinutes: _isCardioSession
-                                      ? _sessionCardioMinutes
-                                      : null,
-                                  volumeKg: _completedVolumeKg,
+                                WorkoutSummaryStats(
+                                  stats: [
+                                    WorkoutStat(
+                                      '종목',
+                                      '$_doneExerciseCount',
+                                      ' / ${_sessionExercises.length}',
+                                    ),
+                                    WorkoutStat('세트', '$_completedSetCount'),
+                                    _isCardioSession
+                                        ? WorkoutStat(
+                                            '시간',
+                                            '$_sessionCardioMinutes',
+                                            '분',
+                                          )
+                                        : WorkoutStat(
+                                            '볼륨',
+                                            NumberFormat('#,##0').format(
+                                              _completedVolumeKg.round(),
+                                            ),
+                                            'kg',
+                                          ),
+                                  ],
                                 ),
                               if (_sessionExercises.isEmpty)
                                 const _WorkoutEmptyCard()
@@ -910,9 +927,9 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                                             onToggleSetDone: (setIndex) =>
                                                 _toggleSetDone(index, setIndex),
                                           )
-                                        : _CollapsedExercise(
+                                        : WorkoutCollapsedRow(
                                             name: _sessionExercises[index].name,
-                                            status: _collapsedStatus(
+                                            trailing: _collapsedStatus(
                                               _sessionExercises[index],
                                             ),
                                             onTap: () => setState(
@@ -1091,161 +1108,6 @@ class _WorkoutHeader extends StatelessWidget {
   }
 }
 
-/// 요약 3칸 (회색, 반경 16): 종목 완료/전체 · 완료 세트 · 볼륨(kg) — 유산소만이면 볼륨 대신 시간(분).
-class _SessionStats extends StatelessWidget {
-  final int doneExercises;
-  final int totalExercises;
-  final int doneSets;
-  final int? cardioMinutes;
-  final double volumeKg;
-
-  const _SessionStats({
-    required this.doneExercises,
-    required this.totalExercises,
-    required this.doneSets,
-    required this.cardioMinutes,
-    required this.volumeKg,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // 시안 `up`: 아래 10에서 올라오며 나타남 (.5s, 칸마다 .08s 늦게)
-    Widget cell(int order, String label, String value, String? suffix) {
-      return Expanded(
-        child: AppEntrance(
-          delay: Duration(milliseconds: 80 * order),
-          child: Semantics(
-            label: '$label $value${suffix ?? ''}',
-            excludeSemantics: true,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: AppColors.canvasCard,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: AppTextStyles.bodySm.copyWith(
-                      fontSize: 12,
-                      height: 16 / 12,
-                      letterSpacing: 12 * -0.019,
-                      color: AppColors.caption,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: value),
-                        if (suffix != null)
-                          TextSpan(
-                            text: suffix,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.mute,
-                            ),
-                          ),
-                      ],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    // 시안 20/500(Bold), 줄 높이 기본(약 24)
-                    style: AppTextStyles.title.bold.copyWith(height: 24 / 20),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.sm,
-        AppSpacing.screenH,
-        0,
-      ),
-      child: Row(
-        children: [
-          cell(0, '종목', '$doneExercises', ' / $totalExercises'),
-          const SizedBox(width: AppSpacing.sm),
-          cell(1, '세트', '$doneSets', null),
-          const SizedBox(width: AppSpacing.sm),
-          cardioMinutes != null
-              ? cell(2, '시간', '$cardioMinutes', '분')
-              : cell(
-                  2,
-                  '볼륨',
-                  NumberFormat('#,##0').format(volumeKg.round()),
-                  'kg',
-                ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 접힌 운동 한 줄 (회색 60, 반경 20): 이름 16/700 · 오른쪽 상태 13 mute.
-class _CollapsedExercise extends StatelessWidget {
-  final String name;
-  final String status;
-  final VoidCallback onTap;
-
-  const _CollapsedExercise({
-    required this.name,
-    required this.status,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-      child: Semantics(
-        button: true,
-        label: '$name, $status, 펼치기',
-        excludeSemantics: true,
-        child: Material(
-          color: AppColors.canvasCard,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            splashFactory: NoSplash.splashFactory,
-            child: Container(
-              height: 60,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.listTitle.bold,
-                    ),
-                  ),
-                  Text(
-                    status,
-                    style: AppTextStyles.bodySm.copyWith(
-                      color: AppColors.caption,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// '종목 추가': 52 높이 점선 테두리 상자 (반경 16).
 class _AddExerciseButton extends StatelessWidget {
   final VoidCallback onTap;
@@ -1308,7 +1170,7 @@ class _WorkoutEmptyCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const _LiftingBarbell(),
+          const LiftingBarbellMark(),
           // 시안: 줄 간격 10 + 제목 위 8
           const SizedBox(height: 18),
           // 시안 MemA-Workout-Empty: 17/500(Medium)
@@ -1327,86 +1189,4 @@ class _WorkoutEmptyCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 바벨 그림 (64×40)이 위아래로 6씩 들렸다 내려간다 (시안 `lift`: 1.8s ease-in-out 반복).
-class _LiftingBarbell extends StatefulWidget {
-  const _LiftingBarbell();
-
-  @override
-  State<_LiftingBarbell> createState() => _LiftingBarbellState();
-}
-
-class _LiftingBarbellState extends State<_LiftingBarbell>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (AppMotion.reduced(context)) {
-      _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: AnimatedBuilder(
-        animation: _controller,
-        child: const CustomPaint(
-          size: Size(64, 40),
-          painter: _BarbellArtPainter(),
-        ),
-        builder: (context, child) {
-          // 0%·100% → +6, 50% → −6
-          final v = _controller.value;
-          final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
-          final dy = 6 - 12 * Curves.easeInOut.transform(tri);
-          return Transform.translate(offset: Offset(0, dy), child: child);
-        },
-      ),
-    );
-  }
-}
-
-/// 시안 SVG(viewBox 200×110)를 64×40에 비율 맞춰 그린 바벨:
-/// 회색 봉(#9A9AA0) + 검정 원판 넷 + 가운데 주황 손잡이.
-class _BarbellArtPainter extends CustomPainter {
-  const _BarbellArtPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final k = size.width / 200;
-    canvas.translate(0, (size.height - 110 * k) / 2);
-    canvas.scale(k);
-    void rrect(double x, double y, double w, double h, double r, Color c) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(r)),
-        Paint()..color = c,
-      );
-    }
-
-    rrect(40, 49, 120, 12, 6, AppColors.faint);
-    rrect(26, 23, 22, 64, 8, AppColors.ink);
-    rrect(8, 33, 18, 44, 7, AppColors.ink);
-    rrect(152, 23, 22, 64, 8, AppColors.ink);
-    rrect(174, 33, 18, 44, 7, AppColors.ink);
-    rrect(80, 46, 40, 18, 9, AppColors.primary);
-  }
-
-  @override
-  // 색이 테마를 따르므로 다시 그릴 때마다 칠한다 (그림이 작아 부담 없음).
-  bool shouldRepaint(_BarbellArtPainter oldDelegate) => true;
 }

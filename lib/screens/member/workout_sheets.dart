@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
@@ -16,8 +15,9 @@ import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
-import '../../widgets/app_tag.dart';
+import '../../widgets/app_filter_tabs.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/workout_parts.dart';
 import 'workout_draft_models.dart';
 
 /// 운동 추가 시트 (시안 MemA-Sheet-ExercisePicker / ExerciseSearch).
@@ -99,17 +99,31 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
         .toList();
   }
 
+  /// 같은 이름(대소문자 무시)이 기본 운동·직접 추가한 운동의 어느 부위에도 없을 때만 새로 추가한다.
   bool get _canAddCustom {
-    final query = _searchController.text.trim();
+    final query = _searchController.text.trim().toLowerCase();
     if (query.isEmpty) return false;
 
-    final exact = _items.any((item) => item.name == query);
-    return !exact;
+    final defaults = ExerciseData.exercises.values.expand((names) => names);
+    final customs = widget.customExercises.map((exercise) => exercise.name);
+    return ![
+      ...defaults,
+      ...customs,
+    ].any((name) => name.trim().toLowerCase() == query);
   }
 
   Future<void> _addCustom() async {
+    if (_addingCustom) return;
+
     final name = _searchController.text.trim();
     if (name.isEmpty) return;
+
+    // '전체'에서는 어느 부위로 넣을지 알 수 없으므로 부위를 먼저 고르게 한다.
+    final category = _selectedCategory;
+    if (category == null) {
+      AppFeedback.showWarning(context, '부위를 먼저 고른 뒤 새 운동으로 추가하세요.');
+      return;
+    }
 
     setState(() => _addingCustom = true);
 
@@ -117,7 +131,7 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
       final exercise = await ExerciseService.addCustomExercise(
         memberId: widget.memberId,
         name: name,
-        category: _selectedCategory ?? widget.defaultCategory,
+        category: category,
       );
 
       widget.onCustomAdded(exercise);
@@ -178,29 +192,19 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
           ),
         ),
         // 칩 줄: 위아래 12 (큰 칩은 위아래 2 터치 여백을 스스로 둔다)
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        AppScrollableChips(
+          labels: labels,
+          selectedIndex: selectedChip,
+          large: true,
           padding: EdgeInsets.fromLTRB(
             AppSpacing.screenH,
             10,
             AppSpacing.screenH,
             _canAddCustom ? 0 : 10,
           ),
-          child: Row(
-            children: [
-              for (var i = 0; i < labels.length; i++) ...[
-                if (i > 0) const SizedBox(width: AppSpacing.sm),
-                AppChip(
-                  label: labels[i],
-                  selected: i == selectedChip,
-                  large: true,
-                  onTap: () => setState(() {
-                    _selectedCategory = i == 0 ? null : categories[i - 1];
-                  }),
-                ),
-              ],
-            ],
-          ),
+          onSelected: (i) => setState(() {
+            _selectedCategory = i == 0 ? null : categories[i - 1];
+          }),
         ),
         if (_canAddCustom)
           // 시안 `rise`: 아래 8에서 올라오며 나타남 (.35s)
@@ -232,9 +236,17 @@ class _ExercisePickerSheetState extends State<ExercisePickerSheet> {
               final item = items[index];
               final previous = widget.previousStatsByName[item.name];
 
-              return _PickerRow(
-                item: item,
-                previous: previous,
+              return WorkoutPickerRow(
+                name: item.name,
+                category: item.category,
+                custom: item.custom,
+                previous: previous == null
+                    ? null
+                    : previousRecordLabel(
+                        name: item.name,
+                        isCardio: item.category == WorkoutCategory.cardio,
+                        maxValue: previous.maxWeight,
+                      ),
                 onTap: () => Navigator.of(context).pop(item),
               );
             },
@@ -320,7 +332,11 @@ class _DashedAddButton extends StatelessWidget {
                 if (loading)
                   AppLoader.inline(color: AppColors.ink)
                 else
-                  Icon(PhosphorIconsBold.plus, size: 16, color: AppColors.ink),
+                  Icon(
+                    AppIcons.bold(AppIcons.add),
+                    size: 16,
+                    color: AppColors.ink,
+                  ),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
@@ -371,76 +387,8 @@ class WorkoutDashedBorderPainter extends CustomPainter {
       oldDelegate.color != color || oldDelegate.radius != radius;
 }
 
-class _PickerRow extends StatelessWidget {
-  final PickedExercise item;
-  final PreviousExerciseStats? previous;
-  final VoidCallback onTap;
-
-  const _PickerRow({
-    required this.item,
-    required this.previous,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        highlightColor: AppColors.canvasSoft,
-        splashFactory: NoSplash.splashFactory,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 60),
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.hairline)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.listTitle,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.custom
-                            ? '${item.category.label} · 직접 추가'
-                            : item.category.label,
-                        style: AppTextStyles.bodySm.copyWith(
-                          color: AppColors.body,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (previous != null) ...[
-                  const SizedBox(width: AppSpacing.md),
-                  Text(
-                    '지난 ${formatWeight(previous!.maxWeight)}kg',
-                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// 운동 메뉴 시트 (시안 MemA-Sheet-ExerciseMenu): 제목 22/500 + 보조 14 mute, 아래 12 띄우고
-/// 60 높이 행동 줄 셋(40 아이콘 상자). 위 두 줄 아래에만 선.
+/// 60 높이 행동 줄 셋(40 아이콘 상자). 위 두 줄 아래에만 선. 모양은 [WorkoutExerciseMenuSheet].
 class ExerciseMenuSheet extends StatelessWidget {
   final WorkoutExerciseDraft exercise;
 
@@ -448,29 +396,16 @@ class ExerciseMenuSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nextUnit = exercise.unit == WeightUnit.kg ? 'lbs' : 'kg';
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppBottomSheetHeader(
-          title: exercise.name,
-          subtitle: '${exercise.category.label} · 현재 단위 ${exercise.unit.label}',
-          mutedSubtitle: true,
-          gap: AppSpacing.md,
-        ),
-        AppSheetAction(
-          icon: PhosphorIconsRegular.arrowsLeftRight,
-          label: '무게 단위 변경',
-          value: '${exercise.unit.label} → $nextUnit',
-          onTap: () {
-            Navigator.of(context).pop(
-              const ExerciseMenuAction(type: ExerciseMenuActionType.toggleUnit),
-            );
-          },
-        ),
-        const AppRowDivider(),
+    return WorkoutExerciseMenuSheet(
+      name: exercise.name,
+      category: exercise.category,
+      isCardio: exercise.isCardio,
+      unitLabel: exercise.unit.label,
+      nextUnitLabel: exercise.unit == WeightUnit.kg ? 'lbs' : 'kg',
+      onToggleUnit: () => Navigator.of(
+        context,
+      ).pop(const ExerciseMenuAction(type: ExerciseMenuActionType.toggleUnit)),
+      extraActions: [
         AppSheetAction(
           icon: AppIcons.timer,
           label: '휴식 타이머',
@@ -492,19 +427,10 @@ class ExerciseMenuSheet extends StatelessWidget {
             );
           },
         ),
-        const AppRowDivider(),
-        AppSheetAction(
-          icon: AppIcons.trash,
-          label: '운동 삭제',
-          value: null,
-          destructive: true,
-          onTap: () {
-            Navigator.of(context).pop(
-              const ExerciseMenuAction(type: ExerciseMenuActionType.delete),
-            );
-          },
-        ),
       ],
+      onDelete: () => Navigator.of(
+        context,
+      ).pop(const ExerciseMenuAction(type: ExerciseMenuActionType.delete)),
     );
   }
 }

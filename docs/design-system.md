@@ -13,7 +13,7 @@
 6. **강조색은 주황 하나.** 주 행동 채움(`primary`)과 눈에 띄어야 할 데이터 점(캘린더 PT 표시, 토글 on, 그래프 최신값)에 쓴다. "새 글"·"새 알림" 점은 `newDot`(#FF5A1F). 안내·경고·PT 강조 줄은 연한 주황 면 `noticeBg` + 진한 주황 글자 `noticeText`. 역할·성별 같은 **선택 pill**은 주황이 아니라 검정(`ink`) 채움.
 7. **빨강(`danger`)은 되돌릴 수 없는 행동의 글자에만.** 빨간 채움 배경은 쓰지 않는다. 파괴적 확정 버튼은 검정 채움(`AppButtonVariant.dark`).
 8. **주 행동은 화면당 하나.** 주황 채움(`AppButton` primary)은 화면당 한 번. 나머지는 회색 채움(`secondary`)이나 글자(`ghost`).
-9. **움직임은 시안 키프레임대로.** 공용 도구 `lib/widgets/app_motion.dart`(`AppEntrance`·`AppEntrance.slide`·`AppPulse`·`AppGrow`·`AppPop`·`AppShake`, 곡선 `AppMotion.sheet/fill/dialog/pop/knob`)와 움직이는 그림 `brand_marks.dart`를 쓴다. 시트 450ms·확인 창 300ms·토스트 450ms. 로딩은 점 세 개(`AppLoader`). 시안의 시연용 무한 반복(토스트 오르내림, 자동 밀기 등)은 실제 동작으로 대신한다. 기기의 '동작 줄이기'가 켜져 있으면 모두 끝 상태로 멈춘다.
+9. **움직임은 시안 키프레임대로.** 공용 도구 `lib/widgets/app_motion.dart`(`AppEntrance`·`AppEntrance.slide`·`AppPulse`·`AppBlink`·`AppGrow`·`AppPop`·`AppShake`, 곡선 `AppMotion.sheet/fill/dialog/pop/knob`)와 움직이는 그림 `brand_marks.dart`를 쓴다. 시트 450ms·확인 창 300ms·토스트 450ms. 로딩은 점 세 개(`AppLoader`). 시안의 시연용 무한 반복(토스트 오르내림, 자동 밀기 등)은 실제 동작으로 대신한다. 기기의 '동작 줄이기'가 켜져 있으면 모두 끝 상태로 멈춘다.
 10. **아이콘은 Phosphor 하나.** `AppIcons.*` (없으면 `PhosphorIconsRegular.*`). 기본은 Regular(선 1.5 — 시안 아이콘 선 1.8~2에 가장 가깝다), 켜진 상태만 Fill, 줄 끝·월 이동 화살표와 작은 체크는 Bold. Material `Icons.*`·이모지 금지.
 
 ## 토큰 (`lib/core/`)
@@ -60,22 +60,24 @@
 | `AppMonthHeader` | 화면 폭 섹션 머리말: 라벨 + 개수. (시안은 17/700 ink 라벨 + 오른쪽 끝 15 mute 개수 — 회원 홈은 `_DayHeader`로 옮겼고, 다른 화면은 아직) |
 | `AppSectionHeader` | 여백 있는 열 안의 섹션 머리말 (+ 오른쪽 글자 행동) |
 | `AppActionRow` + `AppRowDivider` | 목록·메뉴 한 줄: 아이콘 상자 + 라벨 + 보조 줄 + 오른쪽(태그/화살표). 목록은 카드로 감싸지 말고 hairline으로 나눈다. `menu: true`는 마이 탭 메뉴 줄(60 · 16 Regular, 시안 Tr-My·Ad-My) |
-| `AppViewTabs` · `AppMonthNav` · `AppNavArrow` · `AppCalendarGrid` · `AppCalendarBand` · `AppDayHeader` (`app_calendar.dart`) | 회원·트레이너 홈 공용: 보기 고르기 pill(40, `compact` 38 — 회원 상세 탭), 월 이동, 월·주 이동 화살표, 한 달 달력(46 칸 · 32 원), 달력 아래 8 회색 띠, 고른 날 머리말(날짜 + 오른쪽 개수). 날짜 글자는 `appDayLabel` |
+| `AppViewTabs` · `AppMonthNav` · `AppNavArrow` · `AppCalendarGrid` · `AppWeekDay` (`app_calendar.dart`) | 회원·트레이너 공용: 보기 고르기 pill(40, `compact` 38 — 회원 상세 탭, 위아래 누름 자리로 터치 44), 월 이동, 월·주 이동 화살표(44), 한 달 달력(46 칸 · 32 원), 주간 날짜 칸(요일 12 · 32 원 · 아래 자리 바꿔 끼움 — 회원 홈 이번 주·트레이너 홈 이번 주·일정 주간 줄). 달력 아래 띠는 `AppSectionBand(top: 20)`, 고른 날 머리말은 `AppMonthHeader(strong: true)`. 날짜 글자는 `appDayLabel` |
 | `AppIconBox` | 40 둥근 사각형(반경 12) + `canvasCard` 면, 아이콘 20. PT 운동처럼 강조할 줄만 `noticeBg` + `noticeText` |
 | `AppTag` / `StatusBadge` | 상태 글자 (strong / 기본 / muted / danger) |
 | `AppChip` / `AppScrollableChips` / `AppFilterTabs` | 필터·선택 pill |
 | `AppCountBadge` | 사진 위 카운터 (`+2`) |
 | `SetValueField` · `SetDoneButton` (`set_input.dart`) | 세트 값 상자·완료 원. `card`(회색 카드 안 흰 상자), `bold: false`(상세 시안 Tr-PtRecord 17/500), `outlineHighlighted`(진행 중 줄 안쪽 1.5 ink 테두리) |
-| `AppButton` | primary(주황) / secondary(회색 채움) / ghost / dark(파괴적 확정) / danger / dangerText, sm 32 · md 40 · lg 56 |
+| `AppButton` | primary(주황) / secondary(회색 채움) / ghost / dark(파괴적 확정, 기준 시안의 검정 버튼 — 회원 상세 '피드백 쓰기') / danger / dangerText, sm 32 · md 40 · lg 56. 하단 고정 바 `AppBottomActionBar`(`primaryVariant`·`bold`), 빈 상태 행동 버튼 `AppEmptyState(actionVariant:)` |
 | `AppIconButton` | 44 터치 영역 아이콘 버튼 (`label` 필수, `showDot`, `iconSize` 기본 20 — 알림 종은 24) |
 | `AppTextField` | 라벨(13 body) 위 + 입력창 |
 | `AppCard` | canvasCard + hairline (그림자 없음). 목록 대신 한 덩어리 정보에만 |
 | `AppKpiCard` / `AppStatStrip` / `AppStatGrid` | 숫자 칸 |
-| `AppHighlightCard` | 주황 강조 카드 (PT 잔여 횟수 등) |
+| `AppHighlightCard` | 주황 강조 카드 (PT 잔여 횟수 등). `bold`(기준 시안 계열 — 회원 마이 · 트레이너 홈 오늘 PT), `compact`(2칸 작은 카드 — 트레이너 회원 상세), `semanticLabel`. 막대는 `AppProgressBar` |
 | `AppProfileRow` / `AppProfileCard` | 마이 탭 맨 위 프로필 줄 / 관리자 회원 상세 머리 |
 | `showAppBottomSheet` + `AppBottomSheetHeader` + `AppSheetAction` | 하단 시트, 시트 안 행동 줄 |
 | `AppEmptyState` | 그림 + 20 제목 + 설명 + (선택) 주 행동 — 화면 전체가 빈 경우 |
 | `AppEmptyLine` | 목록 자리의 짧은 빈 상태 한 줄: 52 높이, 14 mute ("이 날의 기록이 없습니다") |
+| `AppKeyValueRow` | 52 키/값 줄 (라벨 15 body · 값 16/500 + 단위 mute) — 회원 상세 PT 정보, 인바디 상세 |
+| `workout_parts.dart` | 회원·트레이너 운동 공용: `WorkoutPickerRow`(운동 고르기 줄) · `WorkoutExerciseMenuSheet` · `WorkoutSavedExerciseRow`(+ 유산소 요약 계산) · `WorkoutCollapsedRow` · `WorkoutSummaryStats`(요약 3칸) · 완료 화면 `DoneConfirmButton`·`DoneTextLink`. 차이는 매개변수(회원 모양이 기본) |
 | `showAppConfirmDialog` | 확인 다이얼로그: 제목 + 설명 (+ 선택 `warning` 주황 콜아웃) + 2열 전체폭 버튼(취소 회색 · 확정 주황, 파괴적이면 검정). `showDialog`를 직접 쓰지 않는다 |
 | `AppAsyncBody` / `AppLoadingView` / `AppLoader` | 로딩·오류·빈 상태. 로딩은 점 세 개(화면 6 / 줄 안 4) |
 | `AppErrorCard`·`AppFeedback.show*`(`core/app_feedback.dart`) → `AppToast` | 오류 카드, 토스트(검정 채움 + 주황 원 배지, **화면 위쪽**, 한 번에 하나). `SnackBar`·`ScaffoldMessenger`를 직접 쓰지 않는다 |
@@ -84,6 +86,7 @@
 | `AppNavBar` | 하단 탭: 위 10 + 아이콘 26 + 글자 11. 선택 = Fill + ink 700, 나머지 = Regular + `faint` |
 | `AppPlainRow` | 글자만 있는 목록 줄 (56, 16 라벨 · 15 mute 값, 아이콘·화살표 없음). 회원 마이 (`ThemeSettingRow(plain:)`·`NoticeMenuRow(plain:)`도 같은 모양) |
 | `RestTimer` / `RestTimerBar` / `showRestTimerSheet` | 앱 전체 휴식 타이머 하나. 세트 완료 시 그 운동의 휴식 시간으로 시작, 검정 64 막대(진행 고리 · '+30초' · '건너뛰기'). 운동 탭은 화면 안, 다른 탭은 탭 바 위에 뜬다 |
+| `LiftingBarbellMark` | 빈 기록 카드의 들었다 내리는 바벨 (회원 운동·PT 기록, 트레이너 PT 기록) |
 | `FlameIcon` · `MealBowlIllustration` | 홈 연속 운동 불꽃, 식단 안내 카드 그릇 그림 (`brand_marks.dart`) |
 
 ## 공용 부품 요약 (2026-10-08 시안 재대조 반영)
@@ -93,7 +96,7 @@
 - 확인 창 `showAppConfirmDialog`: 흰 면 · 제목 20/500 · 버튼 `AppButtonSize.dialog`(52 · 반경 14 · 16) · 커지며 나타남.
 - 토스트 `AppToast`: 좌우 16 · 최소 56 · #191919 · 15/500 흰 글자 · 주황 원 기호(`AppToastKind` success 체크 그리기 / error '!' / wait 시계).
 - 머리 `AppScreenHeader.centered`(MemA·MemB 하위 화면, 가운데 17/500) · `AppScreenHeader.large`(가입·알림·공지 목록, 28/500 큰 제목). 기본(왼쪽 20)은 트레이너·관리자 화면.
-- 목록: `AppActionRow`(68 · 아이콘 상자 40/12 · 16/500 · 화살표 18 chevron), `AppRowDivider.inset()`(좌우 20 안쪽), `AppSectionBand`(8 회색 띠), `AppMonthHeader`(개수 오른쪽 끝, `strong` 17/500), `AppEmptyState(card: true)`.
+- 목록: `AppActionRow`(68 · 아이콘 상자 40/12 · 16/500 · 화살표 18 chevron), `AppRowDivider.inset()`(좌우 20 안쪽), `AppSectionBand`(8 회색 띠), `AppMonthHeader`(개수 오른쪽 끝, `strong` 17/500, `bold` 17/700 + 개수 15/700), `AppEmptyState(card: true)`.
 - 아이콘 상자 안 아이콘은 `AppIcons.bold()`(같은 모양 Bold, 20에서 선 약 1.9).
 
 ## 화면 패턴

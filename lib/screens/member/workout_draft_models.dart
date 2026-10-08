@@ -1,84 +1,25 @@
 import 'package:flutter/material.dart';
 
-import '../../core/exercise_data.dart';
 import '../../models/workout.dart';
+import '../../widgets/workout_parts.dart';
+
+export '../../widgets/workout_parts.dart'
+    show
+        cardioPrimaryMetricLabel,
+        cardioPrimaryMetricSuffix,
+        formatMetricValue,
+        formatWeight,
+        kLbsPerKg;
 
 const double workoutCellHeight = 64;
 const double workoutCellRadius = 10;
 const double workoutGap = 8;
 
-String cardioPrimaryMetricLabel(String name) {
-  final n = name.replaceAll(' ', '');
-
-  if (n.contains('러닝머신') || n.contains('인터벌') || n.contains('조깅')) {
-    return '속도';
-  }
-
-  if (n.contains('인클라인')) {
-    return '경사';
-  }
-
-  if (n.contains('사이클') || n.contains('싸이클')) {
-    return '강도';
-  }
-
-  if (n.contains('스텝밀') || n.contains('천국의계단')) {
-    return '레벨';
-  }
-
-  if (n.contains('일립티컬')) {
-    return '강도';
-  }
-
-  if (n.contains('로잉')) {
-    return '거리';
-  }
-
-  if (n.contains('줄넘기') || n.contains('버피')) {
-    return '횟수';
-  }
-
-  return '강도';
-}
-
-String cardioPrimaryMetricSuffix(String name) {
-  final label = cardioPrimaryMetricLabel(name);
-
-  switch (label) {
-    case '속도':
-      return 'km/h';
-    case '경사':
-      return '%';
-    case '거리':
-      return 'm';
-    case '횟수':
-      return '회';
-    default:
-      return '';
-  }
-}
-
-String formatMetricValue(double value) {
-  if (value == value.roundToDouble()) return value.toStringAsFixed(0);
-  return value.toStringAsFixed(1);
-}
-
-String formatWeight(double value) {
-  if (value == value.roundToDouble()) return value.toStringAsFixed(0);
-  return value.toStringAsFixed(1);
-}
-
 String inferExerciseCategoryLabel(
   String exerciseName,
   WorkoutCategory fallback,
 ) {
-  for (final entry in ExerciseData.exercises.entries) {
-    if (entry.value.contains(exerciseName)) {
-      return entry.key.label;
-    }
-  }
-
-  return fallback.label;
+  return (exerciseCategoryOf(exerciseName) ?? fallback).label;
 }
 
 class WorkoutExerciseDraft {
@@ -191,8 +132,11 @@ class WorkoutExerciseDraft {
       if (reps == null || reps <= 0) continue;
       if (rawWeight != null && rawWeight < 0) continue;
 
-      final weight = rawWeight ?? 0;
-      final weightInKg = unit == WeightUnit.kg ? weight : weight / 2.2046226218;
+      final weightInKg = weightTextToKg(
+        set.weightController.text,
+        lbs: unit == WeightUnit.lbs,
+        memo: set.unitMemo,
+      );
 
       validSets.add(ExerciseSet(weight: weightInKg, reps: reps));
     }
@@ -223,6 +167,9 @@ class WorkoutSetDraft {
   final TextEditingController weightController;
   final TextEditingController repsController;
   bool done;
+
+  /// 무게 단위를 바꿀 때 원래 값을 기억한다 (왕복 오차 방지).
+  final WeightToggleMemo unitMemo = WeightToggleMemo();
 
   WorkoutSetDraft({String weight = '', String reps = '', this.done = false})
     : weightController = TextEditingController(text: weight),

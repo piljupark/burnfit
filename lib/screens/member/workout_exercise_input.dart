@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
@@ -76,10 +75,7 @@ class ExerciseInputCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // 진행 중 줄 = 아직 완료하지 않은 첫 세트
     final currentIndex = exercise.sets.indexWhere((set) => !set.done);
-    final header = AppTextStyles.bodySm.copyWith(
-      fontSize: 12,
-      height: 16 / 12,
-      letterSpacing: 12 * -0.019,
+    final header = AppTextStyles.captionSmall.copyWith(
       color: AppColors.caption,
     );
 
@@ -183,6 +179,8 @@ class ExerciseInputCard extends StatelessWidget {
             ),
             for (var i = 0; i < exercise.sets.length; i++)
               _WorkoutSetRow(
+                // 중간 세트를 지워도 아래 세트의 상태(완료 원 움직임·입력 칸)가 밀리지 않게
+                key: ObjectKey(exercise.sets[i]),
                 number: i + 1,
                 set: exercise.sets[i],
                 current: i == currentIndex,
@@ -209,7 +207,7 @@ class ExerciseInputCard extends StatelessWidget {
                     children: [
                       // 시안 선 2/24 → 16에서 1.33: Bold(1.5)가 가깝다
                       Icon(
-                        PhosphorIconsBold.plus,
+                        AppIcons.bold(AppIcons.add),
                         size: 16,
                         color: AppColors.body,
                       ),
@@ -245,6 +243,7 @@ class _WorkoutSetRow extends StatelessWidget {
   final VoidCallback onToggleDone;
 
   const _WorkoutSetRow({
+    super.key,
     required this.number,
     required this.set,
     required this.current,

@@ -4,7 +4,7 @@ import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
-import 'app_motion.dart';
+import 'app_progress_bar.dart';
 
 /// 강조 띠: 강조색 바탕 한 줄. 왼쪽 내용, 오른쪽 행동 글자 + 화살표.
 /// 화면당 하나만 둔다 (예: 관리자 홈 '가입 신청 n건').
@@ -95,6 +95,8 @@ class AppAccentBar extends StatelessWidget {
 /// 라벨 15 + 오른쪽 15/500 / (위 6) 값 30/500 + 단위 400 반투명 / (위 14) 8 높이 막대(1초 차오름) /
 /// (위 12) 보조 줄 14. 화면당 하나만 둔다.
 /// [muted]면 회색 카드(시안 MemA-PtSchedule-Empty): 라벨 body, 단위·보조 줄 mute, 막대 바탕 track.
+/// [bold]면 기준 시안 계열(Main·Trainer*)처럼 라벨·값을 Bold로 (회원 마이, 트레이너 홈 오늘 PT).
+/// [compact]면 2칸 작은 카드(시안 TrainerMember): 안쪽 16, 반경 18, 라벨 13, 값 22, 막대 6.
 class AppHighlightCard extends StatelessWidget {
   final String label;
   final String? trailingLabel;
@@ -105,6 +107,11 @@ class AppHighlightCard extends StatelessWidget {
   final double? progress;
   final String? footer;
   final bool muted;
+  final bool bold;
+  final bool compact;
+
+  /// 화면 읽기 프로그램용 한 문장 (주면 안쪽 글자 대신 이것만 읽는다).
+  final String? semanticLabel;
 
   const AppHighlightCard({
     super.key,
@@ -115,6 +122,9 @@ class AppHighlightCard extends StatelessWidget {
     this.progress,
     this.footer,
     this.muted = false,
+    this.bold = false,
+    this.compact = false,
+    this.semanticLabel,
   });
 
   @override
@@ -122,18 +132,28 @@ class AppHighlightCard extends StatelessWidget {
     // 주황 바탕은 두 테마 공통이라 글자는 늘 검정(onPrimary). 회색 카드는 테마 색을 따른다.
     final fg = muted ? AppColors.ink : AppColors.onPrimary;
     final soft = muted ? AppColors.mute : fg.withValues(alpha: 0.6);
-    final valueStyle = AppTextStyles.displayMd.copyWith(
-      fontSize: 30,
-      height: 36 / 30,
-      letterSpacing: 30 * -0.019,
+    final valueSize = compact ? 22.0 : 30.0;
+    final valueBase = AppTextStyles.displayMd.copyWith(
+      fontSize: valueSize,
+      height: compact ? 1.193 : 36 / 30,
+      letterSpacing: valueSize * -0.019,
       color: fg,
     );
-    final clamped = (progress ?? 0).clamp(0.0, 1.0);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+    final valueStyle = bold ? valueBase.bold : valueBase;
+    final labelBase = compact ? AppTextStyles.bodySm : AppTextStyles.bodyMd;
+    final labelStyle = (bold ? labelBase.bold.natural : labelBase).copyWith(
+      color: muted ? AppColors.body : fg,
+    );
+    final trailingStyle =
+        (bold ? AppTextStyles.bodyMd.bold.natural : AppTextStyles.bodyMd.medium)
+            .copyWith(color: fg);
+    final card = Container(
+      padding: EdgeInsets.all(compact ? AppSpacing.base : AppSpacing.lg),
       decoration: BoxDecoration(
         color: muted ? AppColors.canvasCard : AppColors.primary,
-        borderRadius: BorderRadius.circular(AppRadius.card),
+        borderRadius: BorderRadius.circular(
+          compact ? AppRadius.button : AppRadius.card,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,22 +162,12 @@ class AppHighlightCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTextStyles.bodyMd.copyWith(
-                    color: muted ? AppColors.body : fg,
-                  ),
-                ),
-              ),
+              Expanded(child: Text(label, style: labelStyle)),
               if (trailingLabel != null)
-                Text(
-                  trailingLabel!,
-                  style: AppTextStyles.bodyMd.medium.copyWith(color: fg),
-                ),
+                Text(trailingLabel!, style: trailingStyle),
             ],
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: compact ? AppSpacing.xs : 6),
           Text.rich(
             TextSpan(
               children: [
@@ -170,44 +180,18 @@ class AppHighlightCard extends StatelessWidget {
               ],
             ),
             style: valueStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           if (progress != null) ...[
-            const SizedBox(height: 14),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: SizedBox(
-                height: 8,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ColoredBox(
-                      color: muted
-                          ? AppColors.track
-                          : fg.withValues(alpha: 0.15),
-                    ),
-                    if (clamped > 0)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FractionallySizedBox(
-                          widthFactor: clamped,
-                          heightFactor: 1,
-                          // 시안 `fill`: 1초, cubic-bezier(.2,.8,.2,1)
-                          child: AppGrow(
-                            duration: const Duration(milliseconds: 1000),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: fg,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.pill,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+            SizedBox(height: compact ? 10 : 14),
+            // 시안 `fill`: 1초, cubic-bezier(.2,.8,.2,1)
+            AppProgressBar(
+              value: progress!,
+              height: compact ? 6 : 8,
+              color: fg,
+              trackColor: muted ? AppColors.track : fg.withValues(alpha: 0.15),
+              duration: const Duration(milliseconds: 1000),
             ),
           ],
           if (footer != null) ...[
@@ -222,6 +206,8 @@ class AppHighlightCard extends StatelessWidget {
         ],
       ),
     );
+    if (semanticLabel == null) return card;
+    return Semantics(label: semanticLabel, excludeSemantics: true, child: card);
   }
 }
 
@@ -237,7 +223,11 @@ class AppInlineNotice extends StatelessWidget {
     super.key,
     this.warning = true,
     this.neutral = false,
+    this.bold = false,
   });
+
+  /// 글자 Bold (기준 시안 TrainerReserve 겹침 안내)
+  final bool bold;
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +257,11 @@ class AppInlineNotice extends StatelessWidget {
                 message,
                 style: AppTextStyles.bodySmall.copyWith(
                   color: fg,
-                  fontWeight: neutral ? FontWeight.w400 : FontWeight.w500,
+                  fontWeight: neutral
+                      ? FontWeight.w400
+                      : bold
+                      ? FontWeight.w700
+                      : FontWeight.w500,
                 ),
               ),
             ),

@@ -7,6 +7,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../widgets/app_motion.dart';
+import '../../widgets/workout_parts.dart';
 
 /// 운동 완료 화면에서 고른 행동.
 /// - [home]: '확인' → 홈으로
@@ -107,28 +108,9 @@ class MemberWorkoutDoneScreen extends StatelessWidget {
                               ),
                             ),
                             // 시안 위 10: 44 터치 칸의 위 여백(11)이 그 몫을 한다.
-                            Semantics(
-                              button: true,
-                              child: InkWell(
-                                onTap: () =>
-                                    pop(MemberWorkoutDoneAction.detail),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.field,
-                                ),
-                                child: Container(
-                                  height: AppSize.touchMin,
-                                  alignment: Alignment.center,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.md,
-                                  ),
-                                  child: Text(
-                                    '기록 자세히 보기 >',
-                                    style: AppTextStyles.bodyMd.bold.copyWith(
-                                      color: ink,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            DoneTextLink(
+                              label: '기록 자세히 보기 >',
+                              onTap: () => pop(MemberWorkoutDoneAction.detail),
                             ),
                           ],
                         ),
@@ -144,25 +126,8 @@ class MemberWorkoutDoneScreen extends StatelessWidget {
                   AppSpacing.screenH,
                   AppSpacing.xl,
                 ),
-                child: SizedBox(
-                  height: 60,
-                  width: double.infinity,
-                  child: Material(
-                    color: ink,
-                    shape: const StadiumBorder(),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => pop(MemberWorkoutDoneAction.home),
-                      child: Center(
-                        child: Text(
-                          '확인',
-                          style: AppTextStyles.section.bold.copyWith(
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                child: DoneConfirmButton(
+                  onTap: () => pop(MemberWorkoutDoneAction.home),
                 ),
               ),
             ],
@@ -171,20 +136,6 @@ class MemberWorkoutDoneScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 키프레임 사이를 [curve]로 잇는다 (CSS처럼 구간마다 가속 곡선을 다시 적용).
-double _keyframes(double t, List<(double, double)> frames, Curve curve) {
-  for (var i = 0; i < frames.length - 1; i++) {
-    final (t0, v0) = frames[i];
-    final (t1, v1) = frames[i + 1];
-    if (t <= t1) {
-      if (t1 == t0) return v1;
-      final p = curve.transform(((t - t0) / (t1 - t0)).clamp(0.0, 1.0));
-      return v0 + (v1 - v0) * p;
-    }
-  }
-  return frames.last.$2;
 }
 
 /// 흰 카드(290×350, 가운데) + 화면 왼쪽 끝 불꽃 원 · 오른쪽 끝 체크 상자
@@ -244,7 +195,7 @@ class _DoneCardState extends State<_DoneCard> with TickerProviderStateMixin {
       builder: (context, child) {
         final t = (_float.value + phase) % 1;
         const frames = [(0.0, 0.0), (0.5, 1.0), (1.0, 0.0)];
-        final p = _keyframes(t, frames, Curves.easeInOut);
+        final p = keyframeValue(t, frames, Curves.easeInOut);
         return Transform.translate(
           offset: Offset(0, -10 * p),
           child: Transform.rotate(
@@ -397,7 +348,7 @@ class _BarbellPainter extends CustomPainter {
 
     // `shadow`: scaleX 1 → .6, 투명도 .18 → .08 (45~60%)
     const holdFrames = [(0.0, 0.0), (0.45, 1.0), (0.6, 1.0), (1.0, 0.0)];
-    final up = _keyframes(t, holdFrames, _liftCurve);
+    final up = keyframeValue(t, holdFrames, _liftCurve);
     canvas.drawOval(
       Rect.fromCenter(
         center: const Offset(100, 176),
@@ -408,14 +359,14 @@ class _BarbellPainter extends CustomPainter {
     );
 
     // `burst`: 0~40% 작고 투명 → 55% 크기 1 · 불투명 → 80~100% 1.25 · 투명 (ease-out)
-    final scale = _keyframes(t, const [
+    final scale = keyframeValue(t, const [
       (0.0, 0.2),
       (0.4, 0.2),
       (0.55, 1.0),
       (0.8, 1.25),
       (1.0, 1.25),
     ], Curves.easeOut);
-    final opacity = _keyframes(t, const [
+    final opacity = keyframeValue(t, const [
       (0.0, 0.0),
       (0.4, 0.0),
       (0.55, 1.0),

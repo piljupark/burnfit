@@ -67,13 +67,16 @@ class AppHero extends StatelessWidget {
 
 /// 묶음 머리말 (시안 공통): 왼쪽 라벨, 오른쪽 끝 개수(15 mute, 글자 바닥선 맞춤).
 /// - 기본: 15 mute 라벨 (시안 MemB-Feedback·Share 등)
-/// - [strong]: 17/500 ink 라벨, 여백 20 20 4 (시안 MemA-PtSchedule·Stats·Workout '저장된 기록' 등)
+/// - [strong]: 17/500 ink 라벨, 여백 20 20 4 (시안 MemA-PtSchedule·Stats·Workout '저장된 기록',
+///   회원·트레이너 캘린더의 고른 날 머리말 등)
+/// - [bold]: [strong]을 Bold로, 오른쪽 개수도 15 ink Bold (기준 시안 TrainerHome '혼자 운동한 회원 3명')
 class AppMonthHeader extends StatelessWidget {
   final String label;
   final String? count;
   final EdgeInsetsGeometry? padding;
   final Widget? trailing;
   final bool strong;
+  final bool bold;
 
   const AppMonthHeader({
     super.key,
@@ -82,15 +85,23 @@ class AppMonthHeader extends StatelessWidget {
     this.padding,
     this.trailing,
     this.strong = false,
+    this.bold = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = strong ? AppTextStyles.section : AppTextStyles.eyebrow;
+    final labelStyle = bold
+        ? AppTextStyles.section.bold.natural
+        : strong
+        ? AppTextStyles.section
+        : AppTextStyles.eyebrow;
+    final countStyle = bold
+        ? AppTextStyles.bodyMd.bold.natural
+        : AppTextStyles.eyebrow;
     return Padding(
       padding:
           padding ??
-          (strong
+          (strong || bold
               ? const EdgeInsets.fromLTRB(
                   AppSpacing.screenH,
                   AppSpacing.lg,
@@ -113,7 +124,7 @@ class AppMonthHeader extends StatelessWidget {
               child: Text(label, style: labelStyle),
             ),
           ),
-          if (count != null) Text(count!, style: AppTextStyles.eyebrow),
+          if (count != null) Text(count!, style: countStyle),
           if (trailing != null) ...[
             const SizedBox(width: AppSpacing.sm),
             trailing!,

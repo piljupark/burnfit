@@ -5,34 +5,58 @@ import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../models/custom_exercise.dart';
 import '../../models/workout.dart';
 import '../../widgets/app_icon_button.dart';
-import 'trainer_workout_models.dart';
+import '../../widgets/workout_parts.dart';
 
 /// 저장된 PT 기록 한 건 (시안 Tr-PtRecord-Saved): 좌우 20 안쪽 블록 + 아래 hairline(카드 없음).
 /// 위 4 아래 12. 머리: '하체'(14 ink 500) · '총 볼륨 7,520kg · 8세트'(14 mute) + 수정·삭제(44, 아이콘 20 body)
 /// → 운동 줄(15/500 이름 · 13 mute '4세트 · 최고 120kg', 위아래 6).
+/// 기록에는 부위가 하나만 저장되므로 유산소 여부·볼륨·부위 이름은 종목 이름으로 종목마다 가린다.
 class TrainerSavedWorkoutCard extends StatelessWidget {
   final Workout workout;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+
+  /// 직접 추가한 운동 (부위 찾기용)
+  final List<CustomExercise> customExercises;
 
   const TrainerSavedWorkoutCard({
     super.key,
     required this.workout,
     required this.onEdit,
     required this.onDelete,
+    this.customExercises = const [],
   });
 
-  bool get _isCardio => workout.category == WorkoutCategory.cardio;
+  bool _isCardio(Exercise exercise) => isCardioExercise(
+    exercise.name,
+    workout.category,
+    customExercises: customExercises,
+  );
 
   @override
   Widget build(BuildContext context) {
+    final allCardio =
+        workout.exercises.isNotEmpty && workout.exercises.every(_isCardio);
+    final volume = workoutStrengthVolumeKg(
+      workout,
+      customExercises: customExercises,
+    );
     final summary = [
-      if (!_isCardio)
-        '총 볼륨 ${NumberFormat('#,##0').format(workout.totalVolume.round())}kg',
+      if (!allCardio) '총 볼륨 ${NumberFormat('#,##0').format(volume.round())}kg',
       '${workout.totalSets}세트',
     ].join(' · ');
+    final categoryLabel = workout.exercises
+        .map(
+          (e) =>
+              (exerciseCategoryOf(e.name, customExercises: customExercises) ??
+                      workout.category)
+                  .label,
+        )
+        .toSet()
+        .join(' · ');
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
@@ -54,7 +78,9 @@ class TrainerSavedWorkoutCard extends StatelessWidget {
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: workout.category.label,
+                          text: categoryLabel.isEmpty
+                              ? workout.category.label
+                              : categoryLabel,
                           style: TextStyle(
                             color: AppColors.ink,
                             fontWeight: FontWeight.w500,
@@ -89,62 +115,17 @@ class TrainerSavedWorkoutCard extends StatelessWidget {
             for (final exercise in workout.exercises)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
-                child: _SavedExerciseRow(
+                child: WorkoutSavedExerciseRow(
                   exercise: exercise,
-                  isCardio: _isCardio,
+                  isCardio: _isCardio(exercise),
+                  nameStyle: AppTextStyles.bodyMd.medium.natural,
+                  gap: AppSpacing.md,
+                  showMax: true,
                 ),
               ),
           ],
         ),
       ),
     );
-  }
-}
-
-class _SavedExerciseRow extends StatelessWidget {
-  final Exercise exercise;
-  final bool isCardio;
-
-  const _SavedExerciseRow({required this.exercise, required this.isCardio});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        Expanded(
-          child: Text(
-            exercise.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodyMd.medium.natural,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Text(
-          isCardio ? _cardioSummary(exercise) : _strengthSummary(exercise),
-          style: AppTextStyles.bodySm.natural,
-        ),
-      ],
-    );
-  }
-
-  String _strengthSummary(Exercise exercise) {
-    if (exercise.sets.isEmpty) return '0세트';
-    final max = exercise.sets
-        .map((s) => s.weight)
-        .reduce((a, b) => a > b ? a : b);
-    return '${exercise.sets.length}세트 · 최고 ${trainerFormatWeight(max)}kg';
-  }
-
-  String _cardioSummary(Exercise exercise) {
-    final metricLabel = trainerCardioPrimaryMetricLabel(exercise.name);
-    final metricSuffix = trainerCardioPrimaryMetricSuffix(exercise.name);
-    final primaryMax = exercise.sets.isEmpty
-        ? 0.0
-        : exercise.sets.map((s) => s.weight).reduce((a, b) => a > b ? a : b);
-    final minutes = exercise.sets.fold<int>(0, (sum, s) => sum + s.reps);
-    return '$metricLabel ${trainerFormatMetricValue(primaryMax)}$metricSuffix · $minutes분';
   }
 }

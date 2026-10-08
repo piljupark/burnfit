@@ -18,6 +18,7 @@ import '../../services/meal_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_calendar.dart';
+import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_icon_box.dart';
@@ -480,8 +481,9 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
         child: CalendarLegend(),
       ),
       // 달력과 그날 기록 사이: 회색 띠 (선 대신 면으로 나눈다)
-      const AppCalendarBand(),
-      AppDayHeader(
+      const AppSectionBand(top: AppSpacing.lg),
+      AppMonthHeader(
+        strong: true,
         label: appDayLabel(_selectedDay),
         count: _isLoading || _errorMessage != null
             ? null
@@ -512,7 +514,11 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
         const AppEmptyLine('이 달의 기록이 없습니다')
       else
         for (final day in days) ...[
-          AppDayHeader(label: appDayLabel(day), count: '${_recordCount(day)}건'),
+          AppMonthHeader(
+            strong: true,
+            label: appDayLabel(day),
+            count: '${_recordCount(day)}건',
+          ),
           ..._dayBody(day),
         ],
     ];
@@ -853,7 +859,6 @@ class _WeekCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
     final weekStart = today.subtract(Duration(days: today.weekday - 1));
     final firstOffset = DateTime(today.year, today.month).weekday - 1;
     final weekOfMonth = (today.day + firstOffset - 1) ~/ 7;
@@ -895,13 +900,7 @@ class _WeekCard extends StatelessWidget {
           Row(
             children: [
               for (var i = 0; i < 7; i++)
-                Expanded(
-                  child: _weekDay(
-                    weekStart.add(Duration(days: i)),
-                    weekdays[i],
-                    caption,
-                  ),
-                ),
+                Expanded(child: _weekDay(weekStart.add(Duration(days: i)))),
             ],
           ),
         ],
@@ -909,54 +908,26 @@ class _WeekCard extends StatelessWidget {
     );
   }
 
-  Widget _weekDay(DateTime day, String weekday, TextStyle caption) {
+  Widget _weekDay(DateTime day) {
     final isToday = _sameDate(day, today);
     final mark = marks[DateFormat('yyyy-MM-dd').format(day)];
-    return Semantics(
-      button: true,
-      label: [
+    return AppWeekDay(
+      day: day,
+      selected: isToday,
+      labelColor: AppColors.caption,
+      semanticLabel: [
         DateFormat('M월 d일', 'ko').format(day),
         if (isToday) '오늘',
         if (mark != null) mark.label,
       ].join(', '),
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: () => onSelect(day),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          children: [
-            Text(
-              weekday,
-              style: caption.copyWith(fontSize: 12, letterSpacing: 12 * -0.019),
-            ),
-            const Gap(6),
-            Container(
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isToday ? AppColors.ink : Colors.transparent,
-              ),
-              child: Text(
-                '${day.day}',
-                style: AppTextStyles.bodyMd.natural.copyWith(
-                  color: isToday ? AppColors.canvas : AppColors.ink,
-                  fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-                ),
-              ),
-            ),
-            const Gap(6),
-            SizedBox.square(
-              dimension: 6,
-              child: mark == null
-                  ? null
-                  : isToday && pulseToday
-                  ? AppPulse(child: CalendarMarkIcon(mark, size: 6))
-                  : CalendarMarkIcon(mark, size: 6),
-            ),
-          ],
-        ),
+      onTap: () => onSelect(day),
+      below: SizedBox.square(
+        dimension: 6,
+        child: mark == null
+            ? null
+            : isToday && pulseToday
+            ? AppPulse(child: CalendarMarkIcon(mark, size: 6))
+            : CalendarMarkIcon(mark, size: 6),
       ),
     );
   }

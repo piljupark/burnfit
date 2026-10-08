@@ -17,10 +17,10 @@ import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_highlight.dart';
 import '../../widgets/theme_setting_row.dart';
 import '../../widgets/delete_account_sheet.dart';
 import '../../widgets/app_loader.dart';
-import '../../widgets/app_motion.dart';
 import '../common/notice_menu_row.dart';
 import 'member_profile_detail_screen.dart';
 import 'member_share_settings_screen.dart';
@@ -283,102 +283,28 @@ class _PtRemainingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = AppColors.onPrimary;
     final total = info.totalSessions;
     final used = total == 0
         ? 0.0
         : ((total - info.remainingSessions) / total).clamp(0.0, 1.0);
-    final big = AppTextStyles.displayMd.bold.copyWith(
-      fontSize: 30,
-      height: 36 / 30,
-      letterSpacing: 30 * -0.019,
-      color: fg,
-    );
     final endDate = info.endDate;
-    return Semantics(
-      label: 'PT 남은 횟수 ${info.remainingSessions}회, 전체 $total회',
-      excludeSemantics: true,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(
-          AppSpacing.screenH,
-          AppSpacing.md,
-          AppSpacing.screenH,
-          0,
-        ),
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Expanded(
-                  child: Text(
-                    'PT 남은 횟수',
-                    style: AppTextStyles.bodyMd.copyWith(
-                      color: fg,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                if (endDate != null)
-                  Text(
-                    DateFormat('M월 d일까지', 'ko').format(endDate),
-                    style: AppTextStyles.buttonLabel.copyWith(
-                      color: fg,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-              ],
-            ),
-            const Gap(6),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: '${info.remainingSessions}회'),
-                  TextSpan(
-                    text: ' / $total회',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w400,
-                      color: fg.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ),
-              style: big,
-            ),
-            const Gap(14),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: SizedBox(
-                height: 8,
-                child: Stack(
-                  children: [
-                    Container(color: fg.withValues(alpha: 0.15)),
-                    // 시안 `fill`: 1초 동안 왼쪽에서 차오름 (cubic-bezier(.2,.8,.2,1))
-                    FractionallySizedBox(
-                      widthFactor: used,
-                      child: AppGrow(
-                        duration: const Duration(milliseconds: 1000),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: fg,
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.md,
+        AppSpacing.screenH,
+        0,
+      ),
+      child: AppHighlightCard(
+        label: 'PT 남은 횟수',
+        trailingLabel: endDate == null
+            ? null
+            : DateFormat('M월 d일까지', 'ko').format(endDate),
+        value: '${info.remainingSessions}회',
+        unit: ' / $total회',
+        progress: used,
+        bold: true,
+        semanticLabel: 'PT 남은 횟수 ${info.remainingSessions}회, 전체 $total회',
       ),
     );
   }

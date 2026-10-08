@@ -38,7 +38,11 @@ import 'trainer_pt_workout_screen.dart';
 /// '일정' 제목 + '‹ 10월 2주 ›' → 주간 7칸 → 시간 타임라인(현재 시각 선) → 회원 운동 기록,
 /// 오른쪽 아래 검정 'PT 예약' 버튼.
 class TrainerScheduleScreen extends StatefulWidget {
-  const TrainerScheduleScreen({super.key});
+  /// true면 하단 탭 화면('일정' 제목 + 탭 바 위 버튼), false면 하위 화면(뒤로 + 제목).
+  /// 시트·대화상자가 떠 있을 때 `Navigator.canPop()`이 바뀌어 모양이 흔들리지 않도록 명시한다.
+  final bool asTab;
+
+  const TrainerScheduleScreen({super.key, this.asTab = true});
 
   @override
   State<TrainerScheduleScreen> createState() => TrainerScheduleScreenState();
@@ -53,6 +57,12 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   int _sessionsLoadId = 0;
+
+  /// 담당 회원 목록을 한 번이라도 불러왔는지. 아직이면 예약 시트를 열지 않는다.
+  bool _membersLoaded = false;
+
+  /// 예약 취소 진행 중 (그동안 ⋯·취소를 다시 누르면 무시).
+  bool _isCancelling = false;
 
   /// 현재 시각 선·진행 중 표시를 1분마다 다시 그린다.
   Timer? _clock;
@@ -75,15 +85,38 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
   /// 알림 등으로 탭에 들어올 때 최신 일정을 다시 불러온다.
   void refresh() => _loadSessions();
 
-  Future<void> _loadSessions() async {
+  /// 불러올 범위: 그 달 1일이 있는 주의 월요일 ~ 말일이 있는 주의 일요일.
+  /// 주 칸이 다른 달에 걸쳐도 표시 점이 빠지지 않게, 보이는 주(고른 날의 주)도 늘 포함한다.
+  static ({DateTime from, DateTime to}) _loadRange(
+    DateTime focusedDay,
+    DateTime selectedDay,
+  ) {
+    final first = DateTime(focusedDay.year, focusedDay.month, 1);
+    final last = DateTime(focusedDay.year, focusedDay.month + 1, 0);
+    var from = _mondayOf(first);
+    var to = DateTime(last.year, last.month, last.day + (7 - last.weekday));
+    final weekStart = _mondayOf(selectedDay);
+    final weekEnd = DateTime(
+      weekStart.year,
+      weekStart.month,
+      weekStart.day + 6,
+    );
+    if (weekStart.isBefore(from)) from = weekStart;
+    if (weekEnd.isAfter(to)) to = weekEnd;
+    return (from: from, to: DateTime(to.year, to.month, to.day, 23, 59, 59));
+  }
+
+  /// [silent]면 로딩 화면 없이 뒤에서 다시 불러온다 (저장·취소 직후).
+  Future<void> _loadSessions({bool silent = false}) async {
+    if (!mounted) return;
     final user = context.read<UserProvider>().user;
     if (user == null) return;
     final loadId = ++_sessionsLoadId;
-    setState(() => _isLoading = true);
+    if (!silent) setState(() => _isLoading = true);
     try {
-      final focusedDay = _focusedDay;
-      final from = DateTime(focusedDay.year, focusedDay.month, 1);
-      final to = DateTime(focusedDay.year, focusedDay.month + 1, 0, 23, 59, 59);
+      final range = _loadRange(_focusedDay, _selectedDay);
+      final from = range.from;
+      final to = range.to;
       final initialResults = await Future.wait([
         FirestoreService.getPtSessionsByTrainer(
           user.centerId,
@@ -94,25 +127,24 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
         FirestoreService.getMembersByTrainer(user.centerId, user.uid),
       ]).timeout(const Duration(seconds: 12));
       final members = initialResults[1] as List<AppUser>;
+      // 공유를 끈 회원은 트레이너 자신의 PT 기록만 돌아온다. 그 밖의 오류는 화면 오류로 보인다.
       final workoutResults = await Future.wait(
         members.map(
-          (member) =>
-              WorkoutService.getWorkoutsByDateRange(
-                user.centerId,
-                member.uid,
-                DateFormat('yyyy-MM-dd').format(from),
-                DateFormat('yyyy-MM-dd').format(to),
-              ).catchError((error) {
-                AppLogger.debug('[회원 운동 기록 조회 제외] ${member.uid}: $error');
-                return <Workout>[];
-              }),
+          (member) => WorkoutService.getMemberWorkoutsForTrainer(
+            centerId: user.centerId,
+            memberId: member.uid,
+            trainerId: user.uid,
+            startDate: DateFormat('yyyy-MM-dd').format(from),
+            endDate: DateFormat('yyyy-MM-dd').format(to),
+          ),
         ),
       ).timeout(const Duration(seconds: 12));
       if (!mounted || loadId != _sessionsLoadId) return;
       setState(() {
         _sessions = initialResults[0] as List<PtSession>;
         _members = members;
-        _workouts = workoutResults.expand((result) => result).toList();
+        _membersLoaded = true;
+        _workouts = workoutResults.expand((result) => result.workouts).toList();
         _errorMessage = null;
       });
     } catch (e) {
@@ -164,6 +196,7 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
 
   /// 예약 세션의 수정·취소 시트 (시안 Tr-Session-Actions).
   Future<void> _showSessionActions(PtSession session) async {
+    if (_isCancelling) return;
     await showAppBottomSheet<void>(
       context: context,
       child: Builder(
@@ -206,6 +239,17 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
   Future<void> _createSession() async {
     final trainer = context.read<UserProvider>().user;
     if (trainer == null) return;
+    // 담당 회원 목록을 아직 못 불러왔으면 '담당 회원이 없습니다'로 오해하지 않게 시트를 열지 않는다.
+    if (!_membersLoaded) {
+      AppFeedback.showWarning(
+        context,
+        _isLoading
+            ? '회원 목록을 불러오는 중입니다. 잠시 후 다시 눌러 주세요.'
+            : '회원 목록을 다시 불러옵니다. 잠시 후 다시 눌러 주세요.',
+      );
+      if (!_isLoading) _loadSessions();
+      return;
+    }
 
     final result = await showAppBottomSheet<PtSession>(
       context: context,
@@ -219,9 +263,10 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
       ),
     );
 
-    if (result != null) {
-      setState(() => _sessions.add(result));
-    }
+    if (result == null || !mounted) return;
+    setState(() => _sessions.add(result));
+    // 저장 전에 시작된 불러오기가 이 예약을 덮어쓰지 않도록 무효화하고 다시 불러온다.
+    _loadSessions(silent: true);
   }
 
   Future<void> _editSession(PtSession session) async {
@@ -251,6 +296,7 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
         _sessions[idx] = result;
       }
     });
+    _loadSessions(silent: true);
   }
 
   Future<void> _openPtWorkout(PtSession session) async {
@@ -269,11 +315,13 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
             TrainerPtWorkoutScreen(session: session, member: member),
       ),
     );
+    if (!mounted) return;
     await _loadSessions();
   }
 
   /// 예약 취소 확인 (시안 Tr-Session-CancelConfirm: 닫기 · 검정 '예약 취소').
   Future<void> _cancelSession(PtSession session) async {
+    if (_isCancelling) return;
     final confirm = await showAppConfirmDialog(
       context,
       title: '예약 취소',
@@ -282,8 +330,9 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
       confirmLabel: '예약 취소',
       cancelLabel: '닫기',
     );
-    if (confirm != true) return;
+    if (confirm != true || !mounted || _isCancelling) return;
 
+    _isCancelling = true;
     try {
       await FirestoreService.updatePtSessionStatus(
         session.id,
@@ -309,13 +358,16 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
           );
         }
       });
+      _loadSessions(silent: true);
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
+    } finally {
+      _isCancelling = false;
     }
   }
 
-  /// 제목 오른쪽 주 이동: '‹ 10월 2주 ›' (화살표 40×44 안 18, 글자 16/700).
+  /// 제목 오른쪽 주 이동: '‹ 10월 2주 ›' (화살표 44 터치 영역 안 18, 글자 16/700).
   Widget _weekNav() {
     final label = _weekLabel(_selectedDay);
     return Row(
@@ -325,7 +377,6 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
           icon: AppIcons.chevronLeftBold,
           label: '이전 주',
           onTap: () => _moveWeek(-1),
-          width: 40,
           size: 18,
         ),
         Semantics(
@@ -336,7 +387,6 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
           icon: AppIcons.chevronRightBold,
           label: '다음 주',
           onTap: () => _moveWeek(1),
-          width: 40,
           size: 18,
         ),
       ],
@@ -347,7 +397,8 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
   Widget build(BuildContext context) {
     final sessions = _selectedSessions;
     final workouts = _selectedWorkouts;
-    final canPop = Navigator.of(context).canPop();
+    // 시트·대화상자가 떠 있어도 바뀌지 않도록 생성자 표시로 판정한다.
+    final canPop = !widget.asTab;
     final now = DateTime.now();
 
     final List<Widget> content;
@@ -400,7 +451,7 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
             onManage: _showSessionActions,
           ),
         if (workouts.isNotEmpty) ...[
-          if (sessions.isNotEmpty) const AppCalendarBand(),
+          if (sessions.isNotEmpty) const AppSectionBand(top: AppSpacing.lg),
           AppMonthHeader(
             label: '운동 기록',
             count: '${workouts.length}',
@@ -513,9 +564,13 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
   static const double _fabHeight = 56;
 }
 
+/// 그 날이 있는 주의 월요일 (일광 절약 시간에도 어긋나지 않게 날짜 계산).
+DateTime _mondayOf(DateTime day) =>
+    DateTime(day.year, day.month, day.day - (day.weekday - 1));
+
 /// '10월 2주': 그 주(월~일)의 목요일이 속한 달과 그 달의 몇째 주.
 String _weekLabel(DateTime day) {
-  final monday = DateTime(day.year, day.month, day.day - (day.weekday - 1));
+  final monday = _mondayOf(day);
   final thursday = DateTime(monday.year, monday.month, monday.day + 3);
   return '${thursday.month}월 ${(thursday.day - 1) ~/ 7 + 1}주';
 }
@@ -543,11 +598,7 @@ class _WeekStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
-    final monday = DateTime(
-      selectedDay.year,
-      selectedDay.month,
-      selectedDay.day - (selectedDay.weekday - 1),
-    );
+    final monday = _mondayOf(selectedDay);
     final now = DateTime.now();
 
     return GestureDetector(
@@ -573,88 +624,29 @@ class _WeekStrip extends StatelessWidget {
                       monday.month,
                       monday.day + i,
                     );
-                    return _WeekDayCell(
+                    final isToday = isSameDay(day, now);
+                    final dayMarks =
+                        marks[DateFormat('yyyy-MM-dd').format(day)] ??
+                        const <CalendarMark>{};
+                    return AppWeekDay(
                       day: day,
-                      weekdayLabel: weekdayLabels[i],
-                      isSelected: isSameDay(day, selectedDay),
-                      isToday: isSameDay(day, now),
-                      marks:
-                          marks[DateFormat('yyyy-MM-dd').format(day)] ??
-                          const <CalendarMark>{},
-                      onTap: onSelect,
+                      selected: isSameDay(day, selectedDay),
+                      outlined: isToday,
+                      semanticLabel: [
+                        '${day.month}월 ${day.day}일 ${weekdayLabels[i]}요일',
+                        if (isToday) '오늘',
+                        if (dayMarks.isNotEmpty)
+                          calendarMarksSemantics(dayMarks),
+                      ].join(', '),
+                      onTap: () => onSelect(day),
+                      below: SizedBox(
+                        height: 6,
+                        child: Center(child: CalendarMarkRow(dayMarks)),
+                      ),
                     );
                   },
                 ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WeekDayCell extends StatelessWidget {
-  final DateTime day;
-  final String weekdayLabel;
-  final bool isSelected;
-  final bool isToday;
-  final Set<CalendarMark> marks;
-  final ValueChanged<DateTime> onTap;
-
-  const _WeekDayCell({
-    required this.day,
-    required this.weekdayLabel,
-    required this.isSelected,
-    required this.isToday,
-    required this.marks,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = [
-      '${day.month}월 ${day.day}일 $weekdayLabel요일',
-      if (isToday) '오늘',
-      if (marks.isNotEmpty) calendarMarksSemantics(marks),
-    ].join(', ');
-    final number = AppTextStyles.bodyMd.natural;
-
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      label: semantic,
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: () => onTap(day),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              weekdayLabel,
-              style: AppTextStyles.bodySm.natural.copyWith(fontSize: 12),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected ? AppColors.ink : Colors.transparent,
-                border: isToday && !isSelected
-                    ? Border.all(color: AppColors.ink)
-                    : null,
-              ),
-              child: Text(
-                '${day.day}',
-                style: isSelected
-                    ? number.bold.copyWith(color: AppColors.canvas)
-                    : number.copyWith(color: AppColors.ink),
-              ),
-            ),
-            const SizedBox(height: 6),
-            SizedBox(height: 6, child: Center(child: CalendarMarkRow(marks))),
           ],
         ),
       ),
@@ -686,8 +678,19 @@ class _SessionTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // sessions는 시간순으로 정렬돼 있다. 첫 세션 시각부터 마지막 세션 시각까지 빈 시간도 줄로 보여 준다.
+    // 마지막 줄은 가장 늦게 끝나는 세션의 종료 시각, 오늘이면 지금 시각까지 넓혀 진행 중 세션에도 현재 선이 보이게 한다.
     final firstHour = sessions.first.scheduledAt.hour;
-    final lastHour = sessions.last.scheduledAt.hour;
+    var lastHour = sessions.last.scheduledAt.hour;
+    for (final s in sessions) {
+      final start = s.scheduledAt;
+      // 정각에 끝나면 그 시각 줄은 필요 없다 (11:00 종료 → 10시 줄까지).
+      final endMark = start.add(
+        Duration(minutes: s.durationMinutes > 0 ? s.durationMinutes - 1 : 0),
+      );
+      final endHour = isSameDay(endMark, start) ? endMark.hour : 23;
+      if (endHour > lastHour) lastHour = endHour;
+    }
+    if (showNow && now.hour > lastHour) lastHour = now.hour;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -811,7 +814,7 @@ class _NowLine extends StatelessWidget {
       height: 9,
       child: Row(
         children: [
-          _Blink(
+          AppBlink(
             child: Container(
               width: 9,
               height: 9,
@@ -824,56 +827,6 @@ class _NowLine extends StatelessWidget {
           Expanded(child: Container(height: 2, color: AppColors.primary)),
         ],
       ),
-    );
-  }
-}
-
-/// 시안 `blink`: 불투명 1 → .35 → 1 (1.4s, ease-in-out) 반복. 동작 줄이기면 멈춘다.
-class _Blink extends StatefulWidget {
-  final Widget child;
-
-  const _Blink({required this.child});
-
-  @override
-  State<_Blink> createState() => _BlinkState();
-}
-
-class _BlinkState extends State<_Blink> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (AppMotion.reduced(context)) {
-      _controller.stop();
-      _controller.value = 0;
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      child: widget.child,
-      builder: (context, child) {
-        final v = _controller.value;
-        final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
-        return Opacity(
-          opacity: 1 - 0.65 * Curves.easeInOut.transform(tri),
-          child: child,
-        );
-      },
     );
   }
 }
@@ -1181,17 +1134,13 @@ class _SessionSheetState extends State<_SessionSheet> {
 
   bool get _isEditing => widget.existing != null;
 
-  List<int> get _durationValues {
-    final values = [
-      for (var m = _durationStep; m <= _durationMax; m += _durationStep) m,
-    ];
-    if (!values.contains(_durationMinutes)) {
-      values
-        ..add(_durationMinutes)
-        ..sort();
-    }
-    return values;
-  }
+  /// 진행 시간·시작 분 선택지. 시트를 열 때 한 번 만들어 고정한다 —
+  /// 휠을 돌리는 동안 목록이 바뀌면 휠 위치와 저장 값이 어긋난다.
+  late final List<int> _durationValues;
+  late final List<int> _minuteValues;
+
+  /// 저장 직전 서버에서 다시 조회한 그날 예약 (불러온 범위 밖 날짜의 겹침 안내용).
+  List<PtSession> _fetchedSessions = const [];
 
   @override
   void initState() {
@@ -1208,14 +1157,36 @@ class _SessionSheetState extends State<_SessionSheet> {
         }
       }
     } else {
-      _scheduledAt = DateTime(
-        widget.initialDate.year,
-        widget.initialDate.month,
-        widget.initialDate.day,
-        10,
-        0,
-      );
+      _scheduledAt = _defaultStart(widget.initialDate);
     }
+    _durationValues = _withValue([
+      for (var m = _durationStep; m <= _durationMax; m += _durationStep) m,
+    ], _durationMinutes);
+    _minuteValues = _withValue([
+      for (var m = 0; m < 60; m += _minuteStep) m,
+    ], _scheduledAt.minute);
+  }
+
+  /// 선택지에 [value]가 없으면 넣고 정렬한다.
+  static List<int> _withValue(List<int> values, int value) {
+    if (!values.contains(value)) {
+      values
+        ..add(value)
+        ..sort();
+    }
+    return List.unmodifiable(values);
+  }
+
+  /// 새 예약 기본 시작: 10:00. 고른 날이 오늘이고 10:00이 이미 지났으면 지금 이후 가장 가까운 5분 단위.
+  /// 그 시각이 자정을 넘으면 10:00 그대로 둔다 (저장할 때 지난 시각 확인 창으로 묻는다).
+  static DateTime _defaultStart(DateTime day) {
+    final base = DateTime(day.year, day.month, day.day, 10, 0);
+    final now = DateTime.now();
+    if (!isSameDay(day, now) || base.isAfter(now)) return base;
+    final next =
+        (now.hour * 60 + now.minute) ~/ _minuteStep * _minuteStep + _minuteStep;
+    if (next >= 24 * 60) return base;
+    return DateTime(day.year, day.month, day.day, next ~/ 60, next % 60);
   }
 
   @override
@@ -1239,8 +1210,37 @@ class _SessionSheetState extends State<_SessionSheet> {
       AppFeedback.showWarning(context, _conflictMessage(conflict));
       return;
     }
+    // 이미 지난 시각으로 새로 잡거나 옮기려 하면 한 번 묻는다.
+    final timeChanged = widget.existing?.scheduledAt != _scheduledAt;
+    if (timeChanged && _scheduledAt.isBefore(DateTime.now())) {
+      final ok = await showAppConfirmDialog(
+        context,
+        title: '지난 시각 예약',
+        message:
+            '${DateFormat('M월 d일 HH:mm', 'ko').format(_scheduledAt)}은 이미 지난 시각입니다. 이대로 ${_isEditing ? '수정' : '예약'}할까요?',
+        confirmLabel: _isEditing ? '예약 수정' : '예약하기',
+        destructive: false,
+      );
+      if (!ok || !mounted || _isSaving) return;
+    }
     setState(() => _isSaving = true);
     try {
+      // 불러온 범위 밖 날짜도 겹침을 막도록 저장 직전에 그날 예약을 다시 조회한다.
+      // 전날 밤 시작해 자정을 넘기는 예약도 겹칠 수 있으므로 전날부터 본다.
+      final day = _scheduledAt;
+      final daySessions = await FirestoreService.getPtSessionsByTrainer(
+        widget.centerId,
+        widget.trainerId,
+        from: DateTime(day.year, day.month, day.day - 1),
+        to: DateTime(day.year, day.month, day.day, 23, 59, 59),
+      );
+      if (!mounted) return;
+      final serverConflict = _findConflict(daySessions);
+      if (serverConflict != null) {
+        setState(() => _fetchedSessions = daySessions);
+        AppFeedback.showWarning(context, _conflictMessage(serverConflict));
+        return;
+      }
       final now = DateTime.now();
       final note = _noteController.text.trim().isEmpty
           ? null
@@ -1263,6 +1263,8 @@ class _SessionSheetState extends State<_SessionSheet> {
         );
         await FirestoreService.updatePtSessionSchedule(
           sessionId: updated.id,
+          centerId: updated.centerId,
+          memberId: updated.memberId,
           scheduledAt: updated.scheduledAt,
           durationMinutes: updated.durationMinutes,
           note: updated.note,
@@ -1305,11 +1307,14 @@ class _SessionSheetState extends State<_SessionSheet> {
   }
 
   /// 선택한 시간대(시작~시작+진행 시간)와 겹치는 다른 예약. 수정 중인 세션·취소된 예약은 제외.
-  PtSession? get _conflict {
+  PtSession? get _conflict =>
+      _findConflict(widget.bookedSessions) ?? _findConflict(_fetchedSessions);
+
+  PtSession? _findConflict(Iterable<PtSession> sessions) {
     final existingId = widget.existing?.id;
     final start = _scheduledAt;
     final end = start.add(Duration(minutes: _durationMinutes));
-    for (final s in widget.bookedSessions) {
+    for (final s in sessions) {
       if (s.id == existingId || s.status == PtSessionStatus.cancelled) continue;
       final otherEnd = s.scheduledAt.add(Duration(minutes: s.durationMinutes));
       if (start.isBefore(otherEnd) && s.scheduledAt.isBefore(end)) return s;
@@ -1470,10 +1475,10 @@ class _SessionSheetState extends State<_SessionSheet> {
                   onChanged: (i) => _setTime(i, _scheduledAt.minute),
                 ),
                 _WheelColumn(
-                  labels: [for (var m = 0; m < 60; m += _minuteStep) '$m분'],
-                  initialIndex: _scheduledAt.minute ~/ _minuteStep,
+                  labels: [for (final m in _minuteValues) '$m분'],
+                  initialIndex: _minuteValues.indexOf(_scheduledAt.minute),
                   onChanged: (i) =>
-                      _setTime(_scheduledAt.hour, i * _minuteStep),
+                      _setTime(_scheduledAt.hour, _minuteValues[i]),
                 ),
               ],
             ),
@@ -1502,7 +1507,10 @@ class _SessionSheetState extends State<_SessionSheet> {
               ? const SizedBox.shrink()
               : Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: AppInlineNotice(_conflictMessage(conflict)),
+                  child: AppInlineNotice(
+                    _conflictMessage(conflict),
+                    bold: true,
+                  ),
                 ),
         ),
         const SizedBox(height: AppSpacing.base),
@@ -1580,10 +1588,13 @@ class _SheetRow extends StatelessWidget {
     }
     final valueStyle = AppTextStyles.input.natural;
 
+    // 색·흔들림만으로 알리지 않도록 오류 문구를 읽어 준다.
     return Semantics(
       button: onTap != null,
       expanded: onTap != null ? isActive : null,
-      label: '$semanticLabel, $value',
+      label: isError
+          ? '$semanticLabel, 오류: $value. $label을 골라야 예약할 수 있습니다'
+          : '$semanticLabel, $value',
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
@@ -1822,7 +1833,14 @@ class _DateWheel extends StatelessWidget {
                   itemExtent: 36,
                   initialDateTime: initial,
                   minimumDate: DateTime(initial.year - 1),
-                  maximumDate: DateTime(DateTime.now().year + 2, 12, 31),
+                  // 마지막 날 23:59까지 — 그날 늦은 시각의 초기값이 최대값을 넘지 않게.
+                  maximumDate: DateTime(
+                    DateTime.now().year + 2,
+                    12,
+                    31,
+                    23,
+                    59,
+                  ),
                   // 기본 회색 띠 대신 뒤에 그린 흰 띠를 쓴다.
                   selectionOverlayBuilder:
                       (

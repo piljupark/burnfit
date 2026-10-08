@@ -1084,4 +1084,60 @@ describe('firestore feedback rules', () => {
 
     await assertSucceeds(batch.commit());
   });
+  it('담당 트레이너는 운동 공유가 꺼져도 자기 PT 기록에만 피드백을 이을 수 있다', async () => {
+    const base = {
+      centerId,
+      memberId,
+      memberName: '회원',
+      trainerId,
+      createdByRole: 'trainer',
+      ptSessionId: 'pt-session-a',
+      workoutDate: '2026-07-20',
+      category: 'chest',
+      exercises: [{ name: '벤치프레스', sets: [{ weight: 40, reps: 10 }] }],
+      note: null,
+      hasFeedback: false,
+      feedbackId: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      durationSeconds: 0,
+    };
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await updateDoc(doc(db, 'users', memberId), {
+        shareSettings: { workout: false, meal: false, body: false },
+      });
+      await setDoc(doc(db, 'workouts', 'workout-pt-own'), {
+        ...base,
+        id: 'workout-pt-own',
+        workoutType: 'pt',
+        createdById: trainerId,
+      });
+      await setDoc(doc(db, 'workouts', 'workout-personal'), {
+        ...base,
+        id: 'workout-personal',
+        workoutType: 'personal',
+        createdById: memberId,
+        createdByRole: 'member',
+        ptSessionId: null,
+      });
+    });
+    const db = authedDb(trainerId);
+    const link = {
+      hasFeedback: true,
+      feedbackId: 'feedback-new',
+      updatedAt: serverTimestamp(),
+    };
+
+    await assertSucceeds(updateDoc(doc(db, 'workouts', 'workout-pt-own'), link));
+    // 피드백 칸 말고 다른 칸(작성자 등)은 함께 바꿀 수 없다.
+    await assertFails(
+      updateDoc(doc(db, 'workouts', 'workout-pt-own'), {
+        ...link,
+        memberName: '바꾼 이름',
+      }),
+    );
+    // 공유를 끈 회원의 개인 운동에는 잇지 못한다.
+    await assertFails(updateDoc(doc(db, 'workouts', 'workout-personal'), link));
+  });
 });

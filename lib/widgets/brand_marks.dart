@@ -430,6 +430,113 @@ class _BowlPainter extends CustomPainter {
   bool shouldRepaint(_BowlPainter old) => true;
 }
 
+// ── 바벨 들기 ───────────────────────────────────────────────────────────
+
+/// 운동 빈 화면 바벨 그림 (시안 `lift`: 1.8s ease-in-out 반복, 위아래 [lift]씩 들렸다 내려감).
+/// 시안 SVG(viewBox 200×110) 좌표: 봉 + 안쪽 원판 둘 (+ [outerPlates]면 바깥 원판 둘) + 가운데 손잡이.
+///
+/// - 회원 운동(기본): 64×40 · 봉 faint · 원판 ink · 주황 손잡이 · 바깥 원판.
+/// - 트레이너 PT 기록: 56×40 · 원판 mute · 바깥 원판 없음.
+/// - 회원 PT 기록 빈 화면: 56×34 · 늘려 그림([stretch]) · 손잡이 없음 · 들기 5.
+///
+/// 동작 줄이기가 켜져 있으면 내려놓은 자세(+[lift])에 멈춘다.
+class LiftingBarbellMark extends StatelessWidget {
+  final Size size;
+  final double lift;
+  final bool outerPlates;
+
+  /// 그림 비율을 무시하고 [size]에 꽉 채운다 (회원 PT 기록 빈 화면).
+  final bool stretch;
+  final Color? barColor;
+  final Color? plateColor;
+
+  /// 가운데 손잡이 색 (null이면 주황). [showHandle]이 false면 그리지 않는다.
+  final Color? handleColor;
+  final bool showHandle;
+
+  const LiftingBarbellMark({
+    super.key,
+    this.size = const Size(64, 40),
+    this.lift = 6,
+    this.outerPlates = true,
+    this.stretch = false,
+    this.barColor,
+    this.plateColor,
+    this.handleColor,
+    this.showHandle = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final painter = _BarbellArtPainter(
+      bar: barColor ?? AppColors.faint,
+      plate: plateColor ?? AppColors.ink,
+      handle: showHandle ? (handleColor ?? AppColors.primary) : null,
+      outerPlates: outerPlates,
+      stretch: stretch,
+    );
+    return ExcludeSemantics(
+      child: _Loop(
+        builder: (context, s) => Transform.translate(
+          // 0%·100% → +lift, 50% → −lift
+          offset: Offset(0, lift - 2 * lift * _wave(_phase(s, 1.8))),
+          child: CustomPaint(size: size, painter: painter),
+        ),
+      ),
+    );
+  }
+}
+
+class _BarbellArtPainter extends CustomPainter {
+  final Color bar;
+  final Color plate;
+  final Color? handle;
+  final bool outerPlates;
+  final bool stretch;
+
+  const _BarbellArtPainter({
+    required this.bar,
+    required this.plate,
+    required this.handle,
+    required this.outerPlates,
+    required this.stretch,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (stretch) {
+      canvas.scale(size.width / 200, size.height / 110);
+    } else {
+      final k = size.width / 200;
+      canvas.translate(0, (size.height - 110 * k) / 2);
+      canvas.scale(k);
+    }
+    void rrect(double x, double y, double w, double h, double r, Color c) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(r)),
+        Paint()..color = c,
+      );
+    }
+
+    rrect(40, 49, 120, 12, 6, bar);
+    rrect(26, 23, 22, 64, 8, plate);
+    rrect(152, 23, 22, 64, 8, plate);
+    if (outerPlates) {
+      rrect(8, 33, 18, 44, 7, plate);
+      rrect(174, 33, 18, 44, 7, plate);
+    }
+    if (handle != null) rrect(80, 46, 40, 18, 9, handle!);
+  }
+
+  @override
+  bool shouldRepaint(_BarbellArtPainter old) =>
+      old.bar != bar ||
+      old.plate != plate ||
+      old.handle != handle ||
+      old.outerPlates != outerPlates ||
+      old.stretch != stretch;
+}
+
 // ── 비밀번호 재설정 봉투 ─────────────────────────────────────────────────
 
 /// 비밀번호 재설정 시트 그림 (시안 Com-PasswordReset): 회색 상자(88, 반경 18) 가운데 봉투 56×44.
@@ -514,7 +621,11 @@ class _EnvelopePainter extends CustomPainter {
         ..lineTo(50, 9),
       stroke,
     );
-    canvas.drawCircle(const Offset(46, 10), 6, Paint()..color = AppColors.primary);
+    canvas.drawCircle(
+      const Offset(46, 10),
+      6,
+      Paint()..color = AppColors.primary,
+    );
   }
 
   @override

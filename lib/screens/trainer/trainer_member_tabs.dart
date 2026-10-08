@@ -3,15 +3,19 @@ import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/cardio.dart';
 import '../../models/meal.dart';
 import '../../models/workout.dart';
-import '../../widgets/app_calendar.dart';
+import '../../widgets/app_hero.dart';
+import '../../widgets/app_highlight.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_section.dart';
 
 /// 회원이 공유를 꺼둔 항목 (시안 Tr-Member-Blocked): 30 눈 가림 아이콘(faint) + 12 + 15 mute 안내.
 /// 위 [top] (기록 탭 96, 정보 탭 40), 좌우 40.
@@ -49,93 +53,50 @@ class TrainerShareBlockedMessage extends StatelessWidget {
   }
 }
 
-/// 기록이 없을 때 회색 카드 (시안 Tr-Member-Empty·Tr-Member-Profile-Empty):
-/// 반경 18, 안쪽 [vertical] 28, 40 아이콘(faint) + 10 + 16/500 글자 (+ 선택 검정 44 버튼).
-class TrainerEmptyCard extends StatelessWidget {
+/// 기록이 없을 때 회색 카드 (시안 Tr-Member-Empty·Tr-Member-Profile-Empty).
+/// 일정 탭 빈 상태(시안 Tr-Schedule-Empty)와 같은 모양: 공용 [AppEmptyState] 카드형,
+/// 40 아이콘(faint) + 10 + 17/500 글자, 안쪽 36 28.
+class TrainerEmptyState extends StatelessWidget {
   final IconData icon;
   final String message;
+  final String? description;
+  final EdgeInsetsGeometry? margin;
+
+  /// 검정 행동 버튼 (시안 Tr-Member-Profile-Empty '첫 기록 입력')
   final String? actionLabel;
   final VoidCallback? onAction;
-  final EdgeInsetsGeometry margin;
-  final double vertical;
 
-  const TrainerEmptyCard({
+  const TrainerEmptyState({
     super.key,
     required this.icon,
     required this.message,
+    this.description,
+    this.margin,
     this.actionLabel,
     this.onAction,
-    this.margin = const EdgeInsets.fromLTRB(
-      AppSpacing.screenH,
-      AppSpacing.xl,
-      AppSpacing.screenH,
-      0,
-    ),
-    this.vertical = 36,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: margin,
-      padding: EdgeInsets.symmetric(horizontal: 28, vertical: vertical),
-      decoration: BoxDecoration(
-        color: AppColors.canvasCard,
-        borderRadius: BorderRadius.circular(AppRadius.button),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ExcludeSemantics(child: Icon(icon, size: 40, color: AppColors.faint)),
-          const Gap(10),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.listTitle.natural,
+    return AppEmptyState(
+      icon: icon,
+      card: true,
+      illustration: Icon(icon, size: 40, color: AppColors.faint),
+      artGap: 10,
+      cardPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+      margin:
+          margin ??
+          const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.lg,
+            AppSpacing.screenH,
+            0,
           ),
-          if (actionLabel != null && onAction != null) ...[
-            const Gap(16),
-            _DarkButton(label: actionLabel!, onTap: onAction!),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// 빈 카드 안 검정 버튼: 44 높이 · 반경 14 · 좌우 20 · 15/500 흰 글자.
-class _DarkButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _DarkButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      child: Material(
-        color: AppColors.ink,
-        borderRadius: BorderRadius.circular(AppRadius.field),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.field),
-          highlightColor: AppColors.canvas.withValues(alpha: 0.16),
-          splashFactory: NoSplash.splashFactory,
-          child: Container(
-            height: AppSize.touchMin,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            alignment: Alignment.center,
-            child: Text(
-              label,
-              style: AppTextStyles.bodyMd.medium.copyWith(
-                color: AppColors.canvas,
-              ),
-            ),
-          ),
-        ),
-      ),
+      message: message,
+      description: description,
+      actionLabel: actionLabel,
+      onAction: onAction,
+      actionVariant: AppButtonVariant.dark,
     );
   }
 }
@@ -161,7 +122,8 @@ class TrainerMealsTab extends StatelessWidget {
     if (!canView) {
       return const _BlockedList(message: '회원이 식단 기록 공유를 꺼두었습니다.');
     }
-    if (isLoading) return const AppLoadingView();
+    // 이미 보이는 목록이 있으면 당겨서 새로고침하는 동안 그대로 둔다.
+    if (isLoading && meals.isEmpty) return const AppLoadingView();
 
     return _RecordList(
       onRefresh: onRefresh,
@@ -189,10 +151,20 @@ class TrainerMealsTab extends StatelessWidget {
   }
 }
 
+/// 운동 탭: PT·개인 운동 모두. 회원이 운동 공유를 꺼도 트레이너 자신이 남긴 PT 기록은 보인다
+/// ([shared]가 false면 목록 위에 안내 한 줄, PT 기록도 없으면 공유 꺼짐 안내만).
 class TrainerWorkoutsTab extends StatelessWidget {
   final List<Workout> workouts;
   final bool isLoading;
-  final bool canView;
+
+  /// 처음 읽기를 마쳤는지 (마치기 전에는 공유 꺼짐 안내를 띄우지 않는다)
+  final bool loaded;
+
+  /// false면 회원이 운동 공유를 꺼서 내 PT 기록만 담겼다.
+  final bool shared;
+
+  /// 읽기 실패 문구 (목록이 비어 있을 때만 오류 카드로 보인다)
+  final String? errorMessage;
   final void Function(Workout) onFeedback;
   final Future<void> Function() onRefresh;
 
@@ -200,22 +172,34 @@ class TrainerWorkoutsTab extends StatelessWidget {
     super.key,
     required this.workouts,
     required this.isLoading,
-    required this.canView,
+    required this.loaded,
+    required this.shared,
     required this.onFeedback,
     required this.onRefresh,
+    this.errorMessage,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (!canView) {
-      return const _BlockedList(message: '회원이 운동 기록 공유를 꺼두었습니다.');
+    if (isLoading && workouts.isEmpty) return const AppLoadingView();
+    if (errorMessage != null && workouts.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.only(top: AppSpacing.sm),
+        children: [AppErrorCard(message: errorMessage!, onRetry: onRefresh)],
+      );
     }
-    if (isLoading) return const AppLoadingView();
+    if (loaded && !shared && workouts.isEmpty) {
+      return _BlockedList(
+        message: '회원이 운동 기록 공유를 꺼두었습니다.',
+        onRefresh: onRefresh,
+      );
+    }
 
     return _RecordList(
       onRefresh: onRefresh,
       emptyIcon: AppIcons.workout,
       emptyMessage: '최근 30일 운동 기록이 없습니다.',
+      notice: shared ? null : '회원이 개인 운동 공유를 꺼 두었습니다. 내가 남긴 PT 기록만 보입니다.',
       records: [
         for (final w in workouts)
           _Record(
@@ -257,7 +241,7 @@ class TrainerCardiosTab extends StatelessWidget {
     if (!canView) {
       return const _BlockedList(message: '회원이 운동 기록 공유를 꺼두었습니다.');
     }
-    if (isLoading) return const AppLoadingView();
+    if (isLoading && cardios.isEmpty) return const AppLoadingView();
 
     return _RecordList(
       onRefresh: onRefresh,
@@ -282,17 +266,28 @@ class TrainerCardiosTab extends StatelessWidget {
 
 String _number(num value) => NumberFormat('#,###').format(value);
 
-/// 공유가 꺼진 탭: 위에서 96 내려 안내 (당겨 새로고침 없이 스크롤만).
+/// 공유가 꺼진 탭: 위에서 96 내려 안내. [onRefresh]가 있으면 당겨서 다시 읽는다
+/// (운동 탭은 공유가 꺼져도 내 PT 기록이 새로 생길 수 있다).
 class _BlockedList extends StatelessWidget {
   final String message;
+  final Future<void> Function()? onRefresh;
 
-  const _BlockedList({required this.message});
+  const _BlockedList({required this.message, this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    final list = ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       children: [TrainerShareBlockedMessage(message: message)],
+    );
+    final onRefresh = this.onRefresh;
+    if (onRefresh == null) return list;
+    return RefreshIndicator(
+      color: AppColors.ink,
+      backgroundColor: AppColors.canvasCard,
+      onRefresh: onRefresh,
+      child: list,
     );
   }
 }
@@ -325,23 +320,38 @@ class _RecordList extends StatelessWidget {
   final String emptyMessage;
   final List<_Record> records;
 
+  /// 목록 위 안내 한 줄 (예: 공유가 꺼져 일부만 보일 때)
+  final String? notice;
+
   const _RecordList({
     required this.onRefresh,
     required this.emptyIcon,
     required this.emptyMessage,
     required this.records,
+    this.notice,
   });
 
   @override
   Widget build(BuildContext context) {
-    // 날짜 칸은 '일 + 요일'만 보이므로, 최근 30일이 두 달에 걸치면 달마다 머리말을 둔다.
-    final months = <String>{
-      for (final r in records)
-        if (r.date.length >= 7) r.date.substring(0, 7),
-    };
-    final withHeaders = months.length > 1;
+    // 날짜 칸은 '일 + 요일'만 보이므로, 이번 달이 아닌 기록이 하나라도 있으면
+    // (모두 지난달인 경우 포함) 달마다 머리말을 둬서 어느 달인지 알 수 있게 한다.
+    final thisMonth = DateFormat('yyyy-MM').format(DateTime.now());
+    final withHeaders = records.any(
+      (r) => r.date.length < 7 || r.date.substring(0, 7) != thisMonth,
+    );
 
-    final children = <Widget>[];
+    final children = <Widget>[
+      if (notice != null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.md,
+            AppSpacing.screenH,
+            0,
+          ),
+          child: AppInlineNotice(notice!, warning: false, neutral: true),
+        ),
+    ];
     String? currentMonth;
     for (var i = 0; i < records.length; i++) {
       final record = records[i];
@@ -351,7 +361,8 @@ class _RecordList extends StatelessWidget {
         final count = records.where((r) => r.date.startsWith(month)).length;
         final parsed = DateTime.tryParse('$month-01');
         children.add(
-          AppDayHeader(
+          AppMonthHeader(
+            strong: true,
             label: parsed == null ? month : '${parsed.month}월',
             count: '$count건',
           ),
@@ -376,7 +387,10 @@ class _RecordList extends StatelessWidget {
           bottom: AppSpacing.xl2,
         ),
         children: records.isEmpty
-            ? [TrainerEmptyCard(icon: emptyIcon, message: emptyMessage)]
+            ? [
+                ...children,
+                TrainerEmptyState(icon: emptyIcon, message: emptyMessage),
+              ]
             : children,
       ),
     );

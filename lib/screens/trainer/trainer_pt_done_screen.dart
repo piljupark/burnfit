@@ -7,6 +7,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../widgets/app_motion.dart';
+import '../../widgets/workout_parts.dart';
 
 /// PT 기록을 처음 저장해 세션이 '완료'로 바뀐 순간에만 뜨는 축하 화면.
 /// [TrainerPtWorkoutScreen._saveWorkout]에서 push하고, 사용자가 고른 행동을 반환한다.
@@ -17,14 +18,17 @@ enum TrainerPtDoneAction { confirm, feedback }
 /// 한 칸 위로 굴러 바뀌고(이전 숫자는 흐린 회색), 빛줄기가 퍼지며 주황 원 체크가 튀어나온다.
 /// 카드 양옆 달력·덤벨 배지가 떠다니고, 아래 '최도윤 회원\n6회 남았어요'(32) + 요약 줄(15)
 /// + '기록 다시 보기 >'(등장), 맨 아래 검정 60 pill '확인'과 밑줄 '바로 피드백 쓰기'.
+///
+/// [remainingSessions]는 서버가 완료 처리하며 돌려준 차감 뒤 잔여 횟수다. 모르면(null)
+/// 숫자 굴림 없이 체크만 보여 준다.
 class TrainerPtDoneScreen extends StatelessWidget {
   final String memberName;
-  final int remainingSessions;
+  final int? remainingSessions;
   final int exerciseCount;
   final int setCount;
   final double totalVolumeKg;
 
-  /// 유산소만 한 PT는 무게 대신 운동한 분.
+  /// 유산소만 한 PT는 무게 대신 운동한 분 (종목마다 유산소인지 가려 계산한다).
   final int? cardioMinutes;
 
   const TrainerPtDoneScreen({
@@ -49,6 +53,7 @@ class TrainerPtDoneScreen extends StatelessWidget {
           : '${NumberFormat('#,##0').format(totalVolumeKg.round())}kg',
     ].join(' · ');
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final remaining = remainingSessions;
 
     void pop(TrainerPtDoneAction action) => Navigator.of(context).pop(action);
 
@@ -70,8 +75,8 @@ class TrainerPtDoneScreen extends StatelessWidget {
                       // 시안: 카드 위 88 = 상태줄 47 + 41
                       const SizedBox(height: 41),
                       _DoneCard(
-                        from: remainingSessions + 1,
-                        to: remainingSessions,
+                        from: remaining == null ? null : remaining + 1,
+                        to: remaining,
                       ),
                       const SizedBox(height: 44),
                       // 시안 `appear`: 아래 14에서 올라오며 나타남 (.6s, .2s 뒤)
@@ -84,7 +89,9 @@ class TrainerPtDoneScreen extends StatelessWidget {
                             Semantics(
                               header: true,
                               child: Text(
-                                '$memberName 회원\n$remainingSessions회 남았어요',
+                                remaining == null
+                                    ? '$memberName 회원\nPT를 완료했어요'
+                                    : '$memberName 회원\n$remaining회 남았어요',
                                 textAlign: TextAlign.center,
                                 style: AppTextStyles.displayMd.bold.copyWith(
                                   fontSize: 32,
@@ -103,27 +110,10 @@ class TrainerPtDoneScreen extends StatelessWidget {
                               ),
                             ),
                             // 시안 위 10: 44 터치 칸의 위 여백(11)이 그 몫을 한다.
-                            Semantics(
-                              button: true,
-                              child: InkWell(
-                                onTap: () => pop(TrainerPtDoneAction.confirm),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.field,
-                                ),
-                                child: Container(
-                                  height: AppSize.touchMin,
-                                  alignment: Alignment.center,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.md,
-                                  ),
-                                  child: Text(
-                                    '기록 다시 보기 >',
-                                    style: AppTextStyles.bodyMd.bold.copyWith(
-                                      color: ink,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            DoneTextLink(
+                              label: '기록 다시 보기',
+                              chevron: true,
+                              onTap: () => pop(TrainerPtDoneAction.confirm),
                             ),
                           ],
                         ),
@@ -140,48 +130,14 @@ class TrainerPtDoneScreen extends StatelessWidget {
                   AppSpacing.screenH,
                   AppSpacing.md,
                 ),
-                child: SizedBox(
-                  height: 60,
-                  width: double.infinity,
-                  child: Material(
-                    color: ink,
-                    shape: const StadiumBorder(),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => pop(TrainerPtDoneAction.confirm),
-                      child: Center(
-                        child: Text(
-                          '확인',
-                          style: AppTextStyles.section.bold.copyWith(
-                            color: AppPalette.light.canvas,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                child: DoneConfirmButton(
+                  onTap: () => pop(TrainerPtDoneAction.confirm),
                 ),
               ),
-              Semantics(
-                button: true,
-                child: InkWell(
-                  onTap: () => pop(TrainerPtDoneAction.feedback),
-                  borderRadius: BorderRadius.circular(AppRadius.field),
-                  child: Container(
-                    height: AppSize.touchMin,
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                    ),
-                    child: Text(
-                      '바로 피드백 쓰기',
-                      style: AppTextStyles.fieldLabel.copyWith(
-                        color: ink,
-                        decoration: TextDecoration.underline,
-                        decorationColor: ink,
-                      ),
-                    ),
-                  ),
-                ),
+              DoneTextLink(
+                label: '바로 피드백 쓰기',
+                underline: true,
+                onTap: () => pop(TrainerPtDoneAction.feedback),
               ),
               SizedBox(height: math.max(bottomInset - 14, AppSpacing.sm)),
             ],
@@ -190,20 +146,6 @@ class TrainerPtDoneScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 키프레임 사이를 [curve]로 잇는다 (CSS처럼 구간마다 가속 곡선을 다시 적용).
-double _keyframes(double t, List<(double, double)> frames, Curve curve) {
-  for (var i = 0; i < frames.length - 1; i++) {
-    final (t0, v0) = frames[i];
-    final (t1, v1) = frames[i + 1];
-    if (t <= t1) {
-      if (t1 == t0) return v1;
-      final p = curve.transform(((t - t0) / (t1 - t0)).clamp(0.0, 1.0));
-      return v0 + (v1 - v0) * p;
-    }
-  }
-  return frames.last.$2;
 }
 
 /// 흰 카드(290×350) + 화면 왼쪽 끝 달력 배지 · 오른쪽 끝 덤벨 배지
@@ -215,8 +157,9 @@ double _keyframes(double t, List<(double, double)> frames, Curve curve) {
 /// - `float` 3.4s 반복 배지 떠다님 (덤벨 배지는 −1.6s 앞서 시작)
 /// 시안의 숫자 바뀜 반복은 시연용이라 한 번만 재생한다. 동작 줄이기면 끝 상태로 그린다.
 class _DoneCard extends StatefulWidget {
-  final int from;
-  final int to;
+  /// 차감 전 · 뒤 잔여 횟수 (모르면 null — 숫자 창과 '남은 횟수'를 그리지 않는다)
+  final int? from;
+  final int? to;
 
   const _DoneCard({required this.from, required this.to});
 
@@ -265,7 +208,7 @@ class _DoneCardState extends State<_DoneCard> with TickerProviderStateMixin {
       builder: (context, child) {
         final t = (_float.value + phase) % 1;
         const frames = [(0.0, 0.0), (0.5, 1.0), (1.0, 0.0)];
-        final p = _keyframes(t, frames, Curves.easeInOut);
+        final p = keyframeValue(t, frames, Curves.easeInOut);
         return Transform.translate(
           offset: Offset(0, -10 * p),
           child: Transform.rotate(
@@ -286,7 +229,7 @@ class _DoneCardState extends State<_DoneCard> with TickerProviderStateMixin {
       letterSpacing: 112 * -0.019,
     );
     return Semantics(
-      label: 'PT 완료. 남은 횟수 ${widget.to}회',
+      label: widget.to == null ? 'PT 완료' : 'PT 완료. 남은 횟수 ${widget.to}회',
       excludeSemantics: true,
       child: SizedBox(
         width: double.infinity,
@@ -321,50 +264,53 @@ class _DoneCardState extends State<_DoneCard> with TickerProviderStateMixin {
                     ),
                   ),
                   // 숫자 창 (위 130, 높이 120): 이전 숫자(흐림) → 남은 숫자(ink)
-                  Positioned(
-                    top: 130,
-                    left: 0,
-                    right: 0,
-                    height: 120,
-                    child: ClipRect(
-                      child: AnimatedBuilder(
-                        animation: _reveal,
-                        builder: (context, _) {
-                          final roll = _keyframes(_reveal.value, const [
-                            (0.0, 0.0),
-                            (0.3, 0.0),
-                            (0.55, 1.0),
-                            (1.0, 1.0),
-                          ], const Cubic(.6, 0, .3, 1));
-                          return OverflowBox(
-                            alignment: Alignment.topCenter,
-                            maxHeight: 240,
-                            child: Transform.translate(
-                              offset: Offset(0, -120 * roll),
-                              child: Column(
-                                children: [
-                                  for (final (value, color) in [
-                                    (widget.from, light.outline),
-                                    (widget.to, light.ink),
-                                  ])
-                                    SizedBox(
-                                      height: 120,
-                                      child: Center(
-                                        child: Text(
-                                          '$value',
-                                          maxLines: 1,
-                                          style: number.copyWith(color: color),
+                  if (widget.from != null && widget.to != null)
+                    Positioned(
+                      top: 130,
+                      left: 0,
+                      right: 0,
+                      height: 120,
+                      child: ClipRect(
+                        child: AnimatedBuilder(
+                          animation: _reveal,
+                          builder: (context, _) {
+                            final roll = keyframeValue(_reveal.value, const [
+                              (0.0, 0.0),
+                              (0.3, 0.0),
+                              (0.55, 1.0),
+                              (1.0, 1.0),
+                            ], const Cubic(.6, 0, .3, 1));
+                            return OverflowBox(
+                              alignment: Alignment.topCenter,
+                              maxHeight: 240,
+                              child: Transform.translate(
+                                offset: Offset(0, -120 * roll),
+                                child: Column(
+                                  children: [
+                                    for (final (value, color) in [
+                                      (widget.from, light.outline),
+                                      (widget.to, light.ink),
+                                    ])
+                                      SizedBox(
+                                        height: 120,
+                                        child: Center(
+                                          child: Text(
+                                            '$value',
+                                            maxLines: 1,
+                                            style: number.copyWith(
+                                              color: color,
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ),
-                  ),
                   // 빛줄기 + 주황 원 체크 (시안 SVG 290×350 좌표 그대로)
                   Positioned.fill(
                     child: AnimatedBuilder(
@@ -377,18 +323,19 @@ class _DoneCardState extends State<_DoneCard> with TickerProviderStateMixin {
                       ),
                     ),
                   ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 30,
-                    child: Text(
-                      '남은 횟수',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.bodyMd.natural.copyWith(
-                        color: light.mute,
+                  if (widget.to != null)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 30,
+                      child: Text(
+                        '남은 횟수',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyMd.natural.copyWith(
+                          color: light.mute,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -431,12 +378,12 @@ class _CelebratePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // `spark`: 55% .3배·투명 → 70% 불투명 → 100% 1.3배·투명 (ease-out)
-    final sparkScale = _keyframes(t, const [
+    final sparkScale = keyframeValue(t, const [
       (0.0, 0.3),
       (0.55, 0.3),
       (1.0, 1.3),
     ], Curves.easeOut);
-    final sparkOpacity = _keyframes(t, const [
+    final sparkOpacity = keyframeValue(t, const [
       (0.0, 0.0),
       (0.55, 0.0),
       (0.7, 1.0),
@@ -462,7 +409,7 @@ class _CelebratePainter extends CustomPainter {
     }
 
     // `pop`: 55% 0 → 70% 1.2 → 80% 1 (ease-out)
-    final pop = _keyframes(t, const [
+    final pop = keyframeValue(t, const [
       (0.0, 0.0),
       (0.55, 0.0),
       (0.7, 1.2),
@@ -476,7 +423,7 @@ class _CelebratePainter extends CustomPainter {
     canvas.drawCircle(Offset.zero, 20, Paint()..color = AppColors.primary);
 
     // `draw`: 65~85% 체크 선 (M189 228 l6 6 12-13, 선 3.5)
-    final draw = _keyframes(t, const [
+    final draw = keyframeValue(t, const [
       (0.0, 0.0),
       (0.65, 0.0),
       (0.85, 1.0),
@@ -516,7 +463,7 @@ class _CalendarBadgePainter extends CustomPainter {
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         const Rect.fromLTWH(8, 10, 56, 52),
-        const Radius.circular(14),
+        const Radius.circular(AppRadius.field),
       ),
       Paint()..color = light.canvas.withValues(alpha: 0.9),
     );

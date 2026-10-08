@@ -74,6 +74,10 @@ class AppEmptyState extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
 
+  /// 행동 버튼 종류·크기 (기본 주황 md, 시안 Tr-Member-Profile-Empty '첫 기록 입력'은 검정)
+  final AppButtonVariant actionVariant;
+  final AppButtonSize actionSize;
+
   const AppEmptyState({
     super.key,
     required this.icon,
@@ -81,6 +85,8 @@ class AppEmptyState extends StatelessWidget {
     this.description,
     this.actionLabel,
     this.onAction,
+    this.actionVariant = AppButtonVariant.primary,
+    this.actionSize = AppButtonSize.md,
     this.card = false,
     this.illustration,
     this.margin,
@@ -133,8 +139,13 @@ class AppEmptyState extends StatelessWidget {
           ),
         ],
         if (actionLabel != null && onAction != null) ...[
-          const SizedBox(height: AppSpacing.xl),
-          AppButton(label: actionLabel!, onPressed: onAction),
+          SizedBox(height: card ? AppSpacing.base : AppSpacing.xl),
+          AppButton(
+            label: actionLabel!,
+            onPressed: onAction,
+            variant: actionVariant,
+            size: actionSize,
+          ),
         ],
       ],
     );

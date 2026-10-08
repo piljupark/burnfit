@@ -13,6 +13,7 @@ class AppIcons {
 
   // ── 탭 (Regular / Fill 짝) ───────────────────────────────────────────────────
   static const IconData home = PhosphorIconsRegular.house;
+  static const IconData swapUnit = PhosphorIconsRegular.arrowsLeftRight; // 무게 단위 변경
   static const IconData homeFill = PhosphorIconsFill.house;
   static const IconData workout = PhosphorIconsRegular.barbell;
   static const IconData workoutFill = PhosphorIconsFill.barbell;

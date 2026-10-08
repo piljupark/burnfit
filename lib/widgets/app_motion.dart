@@ -347,3 +347,55 @@ class _AppShakeState extends State<AppShake>
     );
   }
 }
+
+/// 숨 쉬듯 흐려졌다 돌아오는 깜빡임 (시안 `blink`: 투명도 1 → .35 → 1, 1.4s).
+/// 현재 시각 점, '수정 중' 글자 등. 동작 줄이기면 또렷한 상태로 멈춘다.
+class AppBlink extends StatefulWidget {
+  final Widget child;
+
+  const AppBlink({super.key, required this.child});
+
+  @override
+  State<AppBlink> createState() => _AppBlinkState();
+}
+
+class _AppBlinkState extends State<AppBlink>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _controller.stop();
+      _controller.value = 0;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        final v = _controller.value;
+        final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
+        return Opacity(
+          opacity: 1 - 0.65 * Curves.easeInOut.transform(tri),
+          child: child,
+        );
+      },
+    );
+  }
+}

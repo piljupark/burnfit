@@ -439,12 +439,17 @@ class FirestoreService {
 
   static Future<void> updatePtSessionSchedule({
     required String sessionId,
+    required String centerId,
+    required String memberId,
     required DateTime scheduledAt,
     required int durationMinutes,
     String? note,
   }) async {
     ServiceValidator.requireText(sessionId, 'PT 세션 ID');
     ServiceValidator.requirePositiveInt(durationMinutes, 'PT 시간');
+    // 새로 잡을 때와 같이 PT권 종료일 뒤로는 옮기지 않는다.
+    final ptInfo = await getPtInfo(memberId, centerId: centerId);
+    if (ptInfo != null) _requireBeforePtEnd(ptInfo, scheduledAt);
     await _db.collection('pt_sessions').doc(sessionId).update({
       'scheduledAt': Timestamp.fromDate(scheduledAt),
       'durationMinutes': durationMinutes,
@@ -549,17 +554,37 @@ class FirestoreService {
   /// PT 세션 상태 변경 (완료 · 완료 취소 · 예약 취소).
   /// 잔여 횟수 차감·복구와 변경 기록은 서버 함수(setPtSessionStatus)가 한 트랜잭션으로 처리한다.
   /// 이미 그 상태면 아무 일도 없으므로 다시 불러도 안전하다.
-  static Future<void> updatePtSessionStatus(
+  static Future<PtStatusResult> updatePtSessionStatus(
     String sessionId,
     PtSessionStatus status,
   ) async {
     ServiceValidator.requireText(sessionId, 'PT 세션 ID');
-    await FirebaseFunctions.instance
+    final result = await FirebaseFunctions.instance
         .httpsCallable('setPtSessionStatus')
         .call<Map<String, dynamic>>({
           'sessionId': sessionId,
           'status': status.name,
         });
+    final data = result.data;
+    return PtStatusResult(
+      changed: data['changed'] == true,
+      remainingSessions: (data['remainingSessions'] as num?)?.toInt(),
+    );
+  }
+
+  /// 예약된 세션을 완료로 바꾸기 전 확인: PT권이 있고 잔여 횟수가 남아 있어야 한다.
+  /// (서버 함수도 같은 이유로 거부하지만, 운동 기록을 먼저 저장하기 전에 막으려고 미리 본다.)
+  static Future<void> requireRemainingForCompletion({
+    required String centerId,
+    required String memberId,
+  }) async {
+    final ptInfo = await getPtInfo(memberId, centerId: centerId);
+    if (ptInfo == null) {
+      throw ArgumentError('등록된 PT권이 없어 PT를 완료 처리할 수 없습니다.');
+    }
+    if (ptInfo.remainingSessions <= 0) {
+      throw ArgumentError('잔여 PT 횟수가 없어 PT를 완료 처리할 수 없습니다.');
+    }
   }
 
   // ---------- Inbodies ----------
@@ -864,17 +889,7 @@ class FirestoreService {
     if (ptInfo == null) {
       throw ArgumentError('등록된 PT권이 없어 일정을 생성할 수 없습니다.');
     }
-    final end = ptInfo.endDate;
-    if (end != null &&
-        DateTime(
-          scheduledAt.year,
-          scheduledAt.month,
-          scheduledAt.day,
-        ).isAfter(DateTime(end.year, end.month, end.day))) {
-      throw ArgumentError(
-        'PT권 종료일(${end.year}.${end.month}.${end.day}) 이후로는 예약할 수 없습니다.',
-      );
-    }
+    _requireBeforePtEnd(ptInfo, scheduledAt);
     final booked = await _db
         .collection('pt_sessions')
         .where('centerId', isEqualTo: centerId)
@@ -889,6 +904,20 @@ class FirestoreService {
         ptInfo.remainingSessions <= 0
             ? '잔여 PT 횟수가 없어 일정을 생성할 수 없습니다.'
             : '잔여 ${ptInfo.remainingSessions}회가 모두 예약돼 있어 더 잡을 수 없습니다.',
+      );
+    }
+  }
+
+  static void _requireBeforePtEnd(PtInfo ptInfo, DateTime scheduledAt) {
+    final end = ptInfo.endDate;
+    if (end != null &&
+        DateTime(
+          scheduledAt.year,
+          scheduledAt.month,
+          scheduledAt.day,
+        ).isAfter(DateTime(end.year, end.month, end.day))) {
+      throw ArgumentError(
+        'PT권 종료일(${end.year}.${end.month}.${end.day}) 이후로는 예약할 수 없습니다.',
       );
     }
   }
@@ -935,4 +964,15 @@ class FirestoreService {
       createdAt: DateTime.now(),
     );
   }
+}
+
+/// PT 세션 상태 변경 결과 (서버 함수 setPtSessionStatus).
+/// [changed]가 false면 이미 그 상태여서 잔여 횟수도 그대로다.
+class PtStatusResult {
+  final bool changed;
+
+  /// 바뀐 뒤 잔여 횟수 (PT권이 없거나 바뀌지 않았으면 null).
+  final int? remainingSessions;
+
+  const PtStatusResult({required this.changed, this.remainingSessions});
 }

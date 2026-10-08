@@ -13,6 +13,8 @@ import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_motion.dart';
+import '../../widgets/brand_marks.dart';
+import '../../widgets/workout_parts.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_loader.dart';
@@ -95,17 +97,26 @@ class _MemberPtWorkoutScreenState extends State<MemberPtWorkoutScreen> {
         ),
       ];
     } else if (_workouts.isEmpty) {
-      content = const [
+      content = [
         AppEmptyState(
           icon: AppIcons.workout,
           card: true,
-          margin: EdgeInsets.fromLTRB(
+          margin: const EdgeInsets.fromLTRB(
             AppSpacing.screenH,
             AppSpacing.xl4,
             AppSpacing.screenH,
             0,
           ),
-          illustration: _LiftingBarbell(),
+          // 시안 SVG(200×110)를 56×34에 늘려 그림: 봉 #C8C8CC + 양쪽 원판 faint 두 겹, 손잡이 없음,
+          // 위아래 5씩 들렸다 내려옴.
+          illustration: LiftingBarbellMark(
+            size: const Size(56, 34),
+            lift: 5,
+            stretch: true,
+            showHandle: false,
+            barColor: _barColor,
+            plateColor: AppColors.faint,
+          ),
           message: 'PT 운동 기록이 없습니다',
           description: '최근 3개월 동안 트레이너와 함께한 운동이\n여기에 표시됩니다.',
         ),
@@ -174,7 +185,10 @@ class _PtWorkoutRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = DateTime.tryParse(workout.workoutDate);
-    final volume = NumberFormat('#,###').format(workout.totalVolume.round());
+    // 유산소 종목(속도 × 분)은 볼륨에서 뺀다 (종목마다 판단).
+    final volume = NumberFormat(
+      '#,###',
+    ).format(workoutStrengthVolumeKg(workout).round());
     final names = workout.exercises.map((e) => e.name).join(', ');
     final note = workout.note?.trim() ?? '';
 
@@ -261,75 +275,5 @@ class _PtWorkoutRow extends StatelessWidget {
   }
 }
 
-/// 빈 화면 그림: 바벨 56×34가 위아래로 들렸다 내려옴 (시안 `lift`: 1.8s, 5 → -5 → 5).
-class _LiftingBarbell extends StatefulWidget {
-  const _LiftingBarbell();
-
-  @override
-  State<_LiftingBarbell> createState() => _LiftingBarbellState();
-}
-
-class _LiftingBarbellState extends State<_LiftingBarbell>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (AppMotion.reduced(context)) {
-      _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      child: const CustomPaint(size: Size(56, 34), painter: _BarbellPainter()),
-      builder: (context, child) {
-        final v = _controller.value;
-        final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
-        final dy = 5 - 10 * Curves.easeInOut.transform(tri);
-        return Transform.translate(offset: Offset(0, dy), child: child);
-      },
-    );
-  }
-}
-
-/// 시안 SVG(200×110): 가운데 봉 #C8C8CC + 양쪽 원판 #9A9AA0 두 겹.
-class _BarbellPainter extends CustomPainter {
-  const _BarbellPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width / 200, size.height / 110);
-    void rect(double x, double y, double w, double h, double r, Color c) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(r)),
-        Paint()..color = c,
-      );
-    }
-
-    const bar = Color(0xFFC8C8CC);
-    final plate = AppColors.faint;
-    rect(40, 49, 120, 12, 6, bar);
-    rect(26, 23, 22, 64, 8, plate);
-    rect(8, 33, 18, 44, 7, plate);
-    rect(152, 23, 22, 64, 8, plate);
-    rect(174, 33, 18, 44, 7, plate);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BarbellPainter oldDelegate) => false;
-}
+/// 빈 화면 바벨 봉 색 (시안 #C8C8CC).
+const Color _barColor = Color(0xFFC8C8CC);

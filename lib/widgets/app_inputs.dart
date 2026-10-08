@@ -312,6 +312,12 @@ class AppBottomActionBar extends StatelessWidget {
   final IconData? secondaryIcon;
   final VoidCallback? onSecondary;
 
+  /// 주 버튼 종류 (기본 주황 primary, 시안 TrainerMember '피드백 쓰기'는 검정 dark)
+  final AppButtonVariant primaryVariant;
+
+  /// 두 버튼 글자 Bold (기준 시안 계열)
+  final bool bold;
+
   const AppBottomActionBar({
     super.key,
     required this.primaryLabel,
@@ -320,6 +326,8 @@ class AppBottomActionBar extends StatelessWidget {
     this.secondaryLabel,
     this.secondaryIcon,
     this.onSecondary,
+    this.primaryVariant = AppButtonVariant.primary,
+    this.bold = false,
   });
 
   @override
@@ -346,6 +354,7 @@ class AppBottomActionBar extends StatelessWidget {
                 variant: AppButtonVariant.secondary,
                 size: AppButtonSize.lg,
                 labelSize: 16,
+                bold: bold,
                 fullWidth: true,
                 icon: secondaryIcon == null ? null : Icon(secondaryIcon),
                 onPressed: onSecondary,
@@ -356,6 +365,8 @@ class AppBottomActionBar extends StatelessWidget {
           Expanded(
             child: AppButton(
               label: primaryLabel,
+              variant: primaryVariant,
+              bold: bold,
               size: AppButtonSize.lg,
               labelSize: twoButtons ? 16 : null,
               fullWidth: true,

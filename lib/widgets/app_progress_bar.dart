@@ -14,6 +14,7 @@ class AppProgressBar extends StatelessWidget {
   final Color? trackColor;
   final bool animate;
   final Duration delay;
+  final Duration duration;
 
   const AppProgressBar({
     super.key,
@@ -24,11 +25,19 @@ class AppProgressBar extends StatelessWidget {
     this.trackColor,
     this.animate = true,
     this.delay = Duration.zero,
+    this.duration = const Duration(milliseconds: 900),
   });
 
   @override
   Widget build(BuildContext context) {
     final clamped = value.isNaN ? 0.0 : value.clamp(0.0, 1.0);
+    // 채움 끝도 둥글게 (시안 막대 채움 border-radius 999px)
+    final fill = DecoratedBox(
+      decoration: BoxDecoration(
+        color: color ?? AppColors.ink,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+    );
     return Semantics(
       label: semanticLabel,
       value: '${(clamped * 100).round()}%',
@@ -42,11 +51,8 @@ class AppProgressBar extends StatelessWidget {
             widthFactor: clamped,
             heightFactor: 1,
             child: animate
-                ? AppGrow(
-                    delay: delay,
-                    child: ColoredBox(color: color ?? AppColors.ink),
-                  )
-                : ColoredBox(color: color ?? AppColors.ink),
+                ? AppGrow(delay: delay, duration: duration, child: fill)
+                : fill,
           ),
         ),
       ),

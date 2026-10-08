@@ -7,6 +7,7 @@ import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/workout.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/workout_parts.dart';
 import 'workout_draft_models.dart';
 
 /// 저장된 운동 한 건 (시안 MemA-Workout-Saved): 화면 폭 블록 + 아래 hairline (카드로 감싸지 않는다).
@@ -24,8 +25,6 @@ class SavedWorkoutCard extends StatelessWidget {
     required this.onDelete,
   });
 
-  bool get _isCardio => workout.category == WorkoutCategory.cardio;
-
   @override
   Widget build(BuildContext context) {
     final labels = workout.exercises
@@ -35,7 +34,11 @@ class SavedWorkoutCard extends StatelessWidget {
         )
         .toSet()
         .toList();
-    final volume = NumberFormat('#,###').format(workout.totalVolume.round());
+    // 기록에는 부위가 하나만 있어 종목마다 유산소인지 가린다 (유산소 '속도 × 분'은 볼륨이 아니다).
+    final allCardio = workoutIsAllCardio(workout);
+    final volume = NumberFormat(
+      '#,###',
+    ).format(workoutStrengthVolumeKg(workout).round());
     final suffixStyle = TextStyle(
       fontWeight: FontWeight.w400,
       color: AppColors.mute,
@@ -88,16 +91,19 @@ class SavedWorkoutCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                       vertical: AppSpacing.xs,
                     ),
-                    child: _SavedExerciseRow(
+                    child: WorkoutSavedExerciseRow(
                       exercise: exercise,
-                      isCardio: _isCardio,
+                      isCardio: isCardioExercise(
+                        exercise.name,
+                        workout.category,
+                      ),
                     ),
                   ),
                 Padding(
                   padding: const EdgeInsets.only(top: 10, bottom: 16),
                   child: Text.rich(
                     TextSpan(
-                      children: _isCardio
+                      children: allCardio
                           ? [
                               TextSpan(text: '${workout.totalSets}'),
                               TextSpan(text: '세트', style: suffixStyle),
@@ -118,51 +124,6 @@ class SavedWorkoutCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SavedExerciseRow extends StatelessWidget {
-  final Exercise exercise;
-  final bool isCardio;
-
-  const _SavedExerciseRow({required this.exercise, required this.isCardio});
-
-  @override
-  Widget build(BuildContext context) {
-    final setCount = exercise.sets.length;
-    final String detail;
-
-    if (isCardio) {
-      final metricLabel = cardioPrimaryMetricLabel(exercise.name);
-      final metricSuffix = cardioPrimaryMetricSuffix(exercise.name);
-      final primaryMax = exercise.sets.isEmpty
-          ? 0.0
-          : exercise.sets
-                .map((set) => set.weight)
-                .reduce((a, b) => a > b ? a : b);
-      final minutes = exercise.sets.fold<int>(0, (sum, set) => sum + set.reps);
-      detail =
-          '$metricLabel ${formatMetricValue(primaryMax)}$metricSuffix · $minutes분';
-    } else {
-      detail = '$setCount세트';
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        Expanded(
-          child: Text(
-            exercise.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodyMd.natural,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(detail, style: AppTextStyles.bodySm.natural),
-      ],
     );
   }
 }
