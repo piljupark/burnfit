@@ -54,7 +54,7 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
   void initState() {
     super.initState();
     _pages = [
-      TrainerCalendarScreen(key: _calendarKey, showGreeting: true),
+      TrainerCalendarScreen(key: _calendarKey),
       TrainerScheduleScreen(key: _scheduleKey),
       const _TrainerProfileTab(),
     ];
@@ -126,11 +126,18 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 마이 탭: '나'에 대한 것만 — 프로필 줄 → 계정(비밀번호 재설정 메일 · 로그아웃) → 탈퇴 링크
+// 마이 탭 (시안 Tr-My): 프로필 줄 → 센터(공지사항) → 계정(비밀번호 재설정 메일 · 화면 테마 · 로그아웃) → 탈퇴 링크
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TrainerProfileTab extends StatelessWidget {
   const _TrainerProfileTab();
+
+  static const _sectionPadding = EdgeInsets.fromLTRB(
+    AppSpacing.screenH,
+    18,
+    AppSpacing.screenH,
+    AppSpacing.xs,
+  );
 
   Future<void> _signOut(BuildContext context) async {
     await context.read<UserProvider>().signOut();
@@ -155,26 +162,30 @@ class _TrainerProfileTab extends StatelessWidget {
           children: [
             const AppHero(title: '마이', divider: false),
             AppProfileRow(name: user?.name ?? '', subtitle: subtitle),
-            const AppMonthHeader(label: '센터'),
+            // 시안 Tr-My: 8 회색 띠 → '센터'(15 mute, 18 20 4) → 공지 줄
+            const AppSectionBand(),
+            const AppMonthHeader(label: '센터', padding: _sectionPadding),
             const NoticeMenuRow(),
-            const AppRowDivider(),
-            const AppMonthHeader(label: '계정'),
+            const AppSectionBand(top: AppSpacing.md),
+            const AppMonthHeader(label: '계정', padding: _sectionPadding),
             AppActionRow(
               icon: AppIcons.lock,
               label: '비밀번호 재설정 메일',
+              menu: true,
               onTap: () =>
                   showPasswordResetSheet(context, initialEmail: user?.email),
             ),
-            const AppRowDivider(),
+            const AppRowDivider.inset(),
             const ThemeSettingRow(),
-            const AppRowDivider(),
+            const AppRowDivider.inset(),
             AppActionRow(
               icon: AppIcons.signOut,
               label: '로그아웃',
+              menu: true,
               showChevron: false,
               onTap: () => _signOut(context),
             ),
-            const AppRowDivider(),
+            const AppRowDivider.inset(),
             const SizedBox(height: AppSpacing.xl),
             const DeleteAccountLink(),
           ],

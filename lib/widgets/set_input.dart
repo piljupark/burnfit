@@ -218,6 +218,12 @@ class SetValueField extends StatelessWidget {
   /// 회색 카드 안 흰 상자 모양 (높이 40, 반경 12, 17/700 Bold, 테두리 없음 — 시안 Main 계열 Workout).
   final bool card;
 
+  /// [card] 상자의 글자를 Bold(700)로 (기본). false면 Medium(500) — 상세 시안 Tr-PtRecord.
+  final bool bold;
+
+  /// [card] 상자에서 [highlighted]일 때 안쪽 1.5 ink 테두리 (시안 Tr-PtRecord 진행 중 줄).
+  final bool outlineHighlighted;
+
   const SetValueField({
     super.key,
     required this.controller,
@@ -227,6 +233,8 @@ class SetValueField extends StatelessWidget {
     required this.onChanged,
     this.textColor,
     this.card = false,
+    this.bold = true,
+    this.outlineHighlighted = false,
   });
 
   @override
@@ -234,7 +242,9 @@ class SetValueField extends StatelessWidget {
     final height = card ? 40.0 : kSetValueHeight;
     final lineHeight = card ? 24.0 : 22.0;
     final border = card ? 0.0 : 1.0;
-    final base = card ? AppTextStyles.section.bold : AppTextStyles.bodyMd;
+    final base = card
+        ? (bold ? AppTextStyles.section.bold : AppTextStyles.section)
+        : AppTextStyles.bodyMd;
     TextStyle valueStyle(Color color) => base.copyWith(
       color: color,
       leadingDistribution: TextLeadingDistribution.even,
@@ -245,6 +255,13 @@ class SetValueField extends StatelessWidget {
       child: Container(
         height: height,
         alignment: Alignment.center,
+        // 글자 자리를 밀지 않게 테두리는 위에 덧그린다
+        foregroundDecoration: card && outlineHighlighted && highlighted
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.iconBox),
+                border: Border.all(color: AppColors.ink, width: 1.5),
+              )
+            : null,
         decoration: BoxDecoration(
           color: card ? AppColors.canvas : AppColors.canvasSoft,
           borderRadius: BorderRadius.circular(

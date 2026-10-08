@@ -160,7 +160,9 @@ class AppColors {
   static const Color scrim = Color(0x8C000000); // 사진 위 배지 배경 (55%)
   static const Color dim = Color(0x59000000); // 비활성 덮개 (35%)
   static const Color select = Color(0x80000000); // 선택 덮개 (50%)
-  static const Color backdrop = Color(0x66000000); // 시트·다이얼로그 뒤 (40%, 시안 rgba(0,0,0,.4))
+  static const Color backdrop = Color(
+    0x66000000,
+  ); // 시트·다이얼로그 뒤 (40%, 시안 rgba(0,0,0,.4))
 
   static Color get danger => _p.danger; // 파괴적 행동 글자 전용
 
@@ -179,6 +181,9 @@ class AppColors {
   // 일러스트 전용 (식단 그릇·운동 완료 꽃가루, 두 테마 공통). UI 컨트롤에는 쓰지 않는다.
   static const Color illustSteam = Color(0xFFFFB27A);
   static const Color illustYellow = Color(0xFFFFD43B);
+  static const Color illustBurst = Color(
+    0xFFFFB020,
+  ); // 완료 화면 빛줄기 (Done·TrainerPtDone)
   static const Color illustGreen = Color(0xFF3DD68C);
   static const Color illustBlue = Color(0xFF4DB3F5);
 

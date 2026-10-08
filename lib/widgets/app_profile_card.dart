@@ -95,7 +95,11 @@ class AppProfileRow extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     subtitle,
-                    style: AppTextStyles.bodySm,
+                    // 시안 Tr-My·Ad-My: 14 mute
+                    style: AppTextStyles.bodySm.copyWith(
+                      fontSize: 14,
+                      letterSpacing: 14 * -0.019,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

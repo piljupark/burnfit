@@ -122,6 +122,9 @@ class AppBottomSheetHeader extends StatelessWidget {
   final double gap;
   final Widget? trailingTitle;
 
+  /// 제목을 Bold(700)로 — 기준 시안 계열 시트 (TrainerReserve)
+  final bool boldTitle;
+
   const AppBottomSheetHeader({
     super.key,
     required this.title,
@@ -131,6 +134,7 @@ class AppBottomSheetHeader extends StatelessWidget {
     this.mutedSubtitle = false,
     this.gap = AppSpacing.base,
     this.trailingTitle,
+    this.boldTitle = false,
   });
 
   @override
@@ -159,7 +163,12 @@ class AppBottomSheetHeader extends StatelessWidget {
                       Flexible(
                         child: Semantics(
                           header: true,
-                          child: Text(title, style: AppTextStyles.sheetTitle),
+                          child: Text(
+                            title,
+                            style: boldTitle
+                                ? AppTextStyles.sheetTitle.bold
+                                : AppTextStyles.sheetTitle,
+                          ),
                         ),
                       ),
                       if (trailingTitle != null) ...[

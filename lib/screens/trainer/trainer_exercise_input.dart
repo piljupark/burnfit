@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/workout.dart';
-import '../../widgets/app_button.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_tag.dart';
 import '../../widgets/set_input.dart';
 import 'trainer_workout_models.dart';
 
-/// 펼쳐진(현재) 운동 블록: 이름(17) + 부위 태그 + 메뉴 → 지난 PT 캡션 → 세트 표.
-///
-/// 카드로 감싸지 않는다. 위아래 구분은 화면 쪽 hairline이 맡는다.
-/// 세트 표: 줄 높이 48, 세트 번호, 값 상자 canvasSoft 36,
-/// 완료 = 흰 채운 원 + 굵은 체크, 진행 중 줄 = 흰 테두리, 미완료 = 외곽선 원.
+/// 세트 표 치수 (시안 Tr-PtRecord: 열 40 | 1fr | 1fr | 48, 줄 52, 값 상자 좌우 6).
+const double _setRowHeight = 52;
+const double _setNumberWidth = 40;
+const double _setCheckColumn = 48;
+const double _valueGap = 6;
+
+/// 펼쳐진(현재) 운동 카드 (시안 Tr-PtRecord · Tr-PtRecord-Cardio).
+/// 회색 카드(반경 20, 좌우 20 바깥 여백, 안쪽 16 16 6) 안에 이름(17/500) + 메뉴(점 셋 20),
+/// '부위 · 지난 PT 비교' 한 줄(13 mute, 비교 값은 ink 500), 세트 표(흰 값 상자 40 · 완료 원 36),
+/// 아래 '+ 세트 추가' · '− 세트 삭제'(15 body).
 class TrainerExerciseInputCard extends StatelessWidget {
   final int order;
   final TrainerExerciseDraft exercise;
@@ -38,160 +41,183 @@ class TrainerExerciseInputCard extends StatelessWidget {
     required this.onToggleSetDone,
   });
 
-  String get _caption => switch (comparison.tone) {
-    TrainerComparisonTone.up ||
-    TrainerComparisonTone.down => '지난 PT 대비 최고 ${comparison.label}',
-    TrainerComparisonTone.same => '지난 PT 최고와 동일',
-    TrainerComparisonTone.muted =>
-      comparison.label.startsWith('지난')
-          ? comparison.label.replaceFirst('지난', '지난 PT')
-          : comparison.label,
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final currentIndex = exercise.sets.indexWhere((s) => !s.done);
-    final canRemove = exercise.sets.length > 1;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // ── 운동 머리 ──
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screenH,
-            AppSpacing.base,
-            AppSpacing.screenH,
-            AppSpacing.xs,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      exercise.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodyLg,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  AppTag(exercise.category.label),
-                  if (exercise.unit == TrainerWeightUnit.lbs &&
-                      !exercise.isCardio) ...[
-                    const SizedBox(width: AppSpacing.xs),
-                    AppTag(exercise.unit.label, muted: true),
-                  ],
-                  const Spacer(),
-                  Transform.translate(
-                    offset: const Offset(12, 0),
-                    child: AppIconButton(
-                      icon: AppIcons.more,
-                      label: '${exercise.name} 메뉴',
-                      onPressed: onMenuTap,
-                    ),
-                  ),
-                ],
-              ),
-              Text(_caption, style: AppTextStyles.bodySm),
-            ],
-          ),
-        ),
-
-        // ── 세트 표 ──
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _HeaderRow(
-                primary: exercise.primaryMetricLabel,
-                secondary: exercise.isCardio
-                    ? exercise.secondaryMetricLabel
-                    : '회',
-              ),
-              for (var i = 0; i < exercise.sets.length; i++)
-                _SetRow(
-                  number: i + 1,
-                  set: exercise.sets[i],
-                  current: i == currentIndex,
-                  primaryLabel: exercise.primaryMetricLabel,
-                  secondaryLabel: exercise.secondaryMetricLabel,
-                  onChanged: onChanged,
-                  onRemove: () => onRemoveSet(i),
-                  onToggleDone: () => onToggleSetDone(i),
-                ),
-              Row(
-                children: [
-                  Transform.translate(
-                    offset: const Offset(-12, 0),
-                    child: AppButton(
-                      label: '세트 추가',
-                      variant: AppButtonVariant.ghost,
-                      size: AppButtonSize.sm,
-                      icon: const Icon(AppIcons.add),
-                      onPressed: onAddSet,
-                    ),
-                  ),
-                  const Spacer(),
-                  Transform.translate(
-                    offset: const Offset(12, 0),
-                    child: AppButton(
-                      label: '세트 삭제',
-                      variant: AppButtonVariant.ghost,
-                      size: AppButtonSize.sm,
-                      icon: const Icon(AppIcons.remove),
-                      onPressed: canRemove
-                          ? () => onRemoveSet(exercise.sets.length - 1)
-                          : null,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+  /// 부위 · 지난 PT 비교 (시안: '하체 · 지난 PT 대비 최고 +5kg', 값만 ink 500).
+  Widget _comparisonLine() {
+    final List<InlineSpan> tail = switch (comparison.tone) {
+      TrainerComparisonTone.up || TrainerComparisonTone.down => [
+        const TextSpan(text: '지난 PT 대비 최고 '),
+        TextSpan(
+          text: comparison.label,
+          style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w500),
         ),
       ],
-    );
-  }
-}
-
-const double _setNumberWidth = 32;
-const double _doneCellWidth = AppSize.touchMin;
-
-class _HeaderRow extends StatelessWidget {
-  final String primary;
-  final String secondary;
-
-  const _HeaderRow({required this.primary, required this.secondary});
-
-  Widget _label(String text, {TextAlign align = TextAlign.center}) {
-    return Text(
-      text,
-      textAlign: align,
-      style: AppTextStyles.bodySm.copyWith(fontSize: 11, height: 14 / 11),
+      TrainerComparisonTone.same => [const TextSpan(text: '지난 PT 최고와 동일')],
+      TrainerComparisonTone.muted => [
+        TextSpan(
+          text: comparison.label.startsWith('지난')
+              ? comparison.label.replaceFirst('지난', '지난 PT')
+              : comparison.label,
+        ),
+      ],
+    };
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '${exercise.category.label} · '),
+          ...tail,
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppTextStyles.bodySm,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: SizedBox(
-        height: 28,
-        child: Row(
+    // 진행 중 줄 = 아직 완료하지 않은 첫 세트
+    final currentIndex = exercise.sets.indexWhere((s) => !s.done);
+    final canRemove = exercise.sets.length > 1;
+    final header = AppTextStyles.bodySm.copyWith(
+      fontSize: 12,
+      height: 16 / 12,
+      letterSpacing: 12 * -0.019,
+    );
+
+    return Semantics(
+      container: true,
+      label: '$order번째 운동 ${exercise.name}',
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.base,
+          AppSpacing.base,
+          AppSpacing.base,
+          6,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.canvasCard,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(
-              width: _setNumberWidth,
-              child: _label('세트', align: TextAlign.start),
+            // ── 운동 머리 (좌우 4) ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          exercise.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.section,
+                        ),
+                        const SizedBox(height: 3),
+                        _comparisonLine(),
+                      ],
+                    ),
+                  ),
+                  // 메뉴: 44×36, 점 셋은 오른쪽 끝 (시안 margin-right −4)
+                  Transform.translate(
+                    offset: const Offset(AppSpacing.xs, 0),
+                    child: Semantics(
+                      button: true,
+                      label: '${exercise.name} 메뉴',
+                      excludeSemantics: true,
+                      child: GestureDetector(
+                        onTap: onMenuTap,
+                        behavior: HitTestBehavior.opaque,
+                        child: SizedBox(
+                          width: AppSize.touchMin,
+                          height: 36,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Icon(
+                              AppIcons.moreBold,
+                              size: AppSize.icon,
+                              color: AppColors.dots,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: _label(primary)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: _label(secondary)),
-            const SizedBox(width: AppSpacing.sm),
-            const SizedBox(width: _doneCellWidth),
+
+            // ── 표 머리 (12 mute, 위 12 아래 6) ──
+            ExcludeSemantics(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xs,
+                  AppSpacing.md,
+                  AppSpacing.xs,
+                  6,
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: _setNumberWidth,
+                      child: Text('세트', style: header),
+                    ),
+                    Expanded(
+                      child: Text(
+                        exercise.primaryMetricLabel,
+                        textAlign: TextAlign.center,
+                        style: header,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        exercise.secondaryMetricLabel,
+                        textAlign: TextAlign.center,
+                        style: header,
+                      ),
+                    ),
+                    const SizedBox(width: _setCheckColumn),
+                  ],
+                ),
+              ),
+            ),
+
+            for (var i = 0; i < exercise.sets.length; i++)
+              _SetRow(
+                number: i + 1,
+                set: exercise.sets[i],
+                current: i == currentIndex,
+                primaryLabel: exercise.primaryMetricLabel,
+                secondaryLabel: exercise.secondaryMetricLabel,
+                onChanged: onChanged,
+                onRemove: () => onRemoveSet(i),
+                onToggleDone: () => onToggleSetDone(i),
+              ),
+
+            // ── 세트 추가 · 세트 삭제 (위 2) ──
+            const SizedBox(height: 2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _SetTextButton(
+                  icon: PhosphorIconsBold.plus,
+                  label: '세트 추가',
+                  onTap: onAddSet,
+                ),
+                _SetTextButton(
+                  icon: PhosphorIconsBold.minus,
+                  label: '세트 삭제',
+                  onTap: canRemove
+                      ? () => onRemoveSet(exercise.sets.length - 1)
+                      : null,
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -199,6 +225,58 @@ class _HeaderRow extends StatelessWidget {
   }
 }
 
+/// 카드 아래 글자 단추: 높이 44 · 좌우 6 · 아이콘 16 + 6 + 15 body.
+class _SetTextButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _SetTextButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      excludeSemantics: true,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.4,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.field),
+          highlightColor: AppColors.canvasSoft,
+          splashFactory: NoSplash.splashFactory,
+          child: Container(
+            height: AppSize.touchMin,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 시안 선 2/24 → 16에서 1.33: Bold(1.5)가 가깝다
+                Icon(icon, size: 16, color: AppColors.body),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 세트 한 줄 (52, 좌우 4): 번호 '01'(15/500, 진행 중 ink · 그 외 mute) · 흰 값 상자 2개
+/// (진행 중 줄은 1.5 ink 테두리, 완료 줄 글자 body) · 36 완료 원.
+/// 세트 번호를 길게 누르면 그 세트를 지운다.
 class _SetRow extends StatelessWidget {
   final int number;
   final TrainerSetDraft set;
@@ -220,30 +298,49 @@ class _SetRow extends StatelessWidget {
     required this.onToggleDone,
   });
 
+  Widget _value(TextEditingController controller, bool decimal, String label) {
+    final field = SetValueField(
+      controller: controller,
+      decimal: decimal,
+      highlighted: current,
+      card: true,
+      bold: false,
+      outlineHighlighted: true,
+      textColor: set.done ? AppColors.body : AppColors.ink,
+      semanticLabel: '$number세트 $label',
+      onChanged: onChanged,
+    );
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: _valueGap),
+        child: field,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final textColor = set.done ? AppColors.body : AppColors.ink;
     return SizedBox(
-      height: 48,
-      child: Row(
-        children: [
-          // 세트 번호: 길게 누르면 이 세트 삭제
-          Semantics(
-            label: '$number세트',
-            onLongPressHint: '이 세트 삭제',
-            child: GestureDetector(
+      height: _setRowHeight,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        child: Row(
+          children: [
+            Semantics(
+              label: '$number세트. 길게 눌러 삭제',
               onLongPress: onRemove,
-              behavior: HitTestBehavior.opaque,
-              child: SizedBox(
-                width: _setNumberWidth,
-                height: 48,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: ExcludeSemantics(
+              excludeSemantics: true,
+              child: GestureDetector(
+                onLongPress: onRemove,
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  width: _setNumberWidth,
+                  height: _setRowHeight,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
                     child: Text(
                       number.toString().padLeft(2, '0'),
-                      style: AppTextStyles.eyebrow.copyWith(
-                        letterSpacing: 12 * 0.06,
+                      style: AppTextStyles.bodyMd.medium.copyWith(
                         color: current ? AppColors.ink : AppColors.mute,
                       ),
                     ),
@@ -251,37 +348,28 @@ class _SetRow extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: SetValueField(
-              controller: set.weightController,
-              decimal: true,
-              highlighted: current,
-              textColor: textColor,
-              semanticLabel: '$number세트 $primaryLabel',
-              onChanged: onChanged,
+            _value(set.weightController, true, primaryLabel),
+            _value(set.repsController, false, secondaryLabel),
+            SizedBox(
+              width: _setCheckColumn,
+              child: Align(
+                alignment: Alignment.centerRight,
+                // 터치 칸(44) 안 36 원을 열 오른쪽 끝에 붙인다 (시안 justify-content:flex-end)
+                child: Transform.translate(
+                  offset: const Offset(4, 0),
+                  child: SetDoneButton(
+                    number: number,
+                    done: set.done,
+                    current: current,
+                    size: 36,
+                    animate: true,
+                    onTap: onToggleDone,
+                  ),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: SetValueField(
-              controller: set.repsController,
-              decimal: false,
-              highlighted: current,
-              textColor: textColor,
-              semanticLabel: '$number세트 $secondaryLabel',
-              onChanged: onChanged,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          SetDoneButton(
-            number: number,
-            done: set.done,
-            current: current,
-            onTap: onToggleDone,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -301,4 +389,75 @@ String trainerExerciseRowSummary(TrainerExerciseDraft exercise) {
     );
   }
   return parts.join(' · ');
+}
+
+/// 접힌 운동 줄 (시안 Tr-PtRecord: 회색 64, 반경 20, 좌우 20):
+/// 이름 16/500 + 보조 줄 13 mute(위 2), 오른쪽 아래 화살표 18(chevron).
+class TrainerCollapsedExercise extends StatelessWidget {
+  final TrainerExerciseDraft exercise;
+  final VoidCallback onTap;
+
+  const TrainerCollapsedExercise({
+    super.key,
+    required this.exercise,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = trainerExerciseRowSummary(exercise);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      child: Semantics(
+        button: true,
+        label: '${exercise.name}, $summary, 펼치기',
+        excludeSemantics: true,
+        child: Material(
+          color: AppColors.canvasCard,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: AppColors.canvasSoft,
+            child: Container(
+              height: 64,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          exercise.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.listTitle.natural,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          summary,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodySm.natural,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Icon(
+                    PhosphorIconsBold.caretDown,
+                    size: 18,
+                    color: AppColors.chevron,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

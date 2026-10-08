@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
@@ -6,11 +7,11 @@ import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/workout.dart';
 import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_tag.dart';
 import 'trainer_workout_models.dart';
 
-/// 저장된 PT 기록 한 덩어리 (카드 없이 화면 폭, 아래 hairline).
-/// 머리: 부위 태그 + 요약 줄 + 수정/삭제 아이콘 버튼 → 운동 줄(이름 · 세트 요약).
+/// 저장된 PT 기록 한 건 (시안 Tr-PtRecord-Saved): 좌우 20 안쪽 블록 + 아래 hairline(카드 없음).
+/// 위 4 아래 12. 머리: '하체'(14 ink 500) · '총 볼륨 7,520kg · 8세트'(14 mute) + 수정·삭제(44, 아이콘 20 body)
+/// → 운동 줄(15/500 이름 · 13 mute '4세트 · 최고 120kg', 위아래 6).
 class TrainerSavedWorkoutCard extends StatelessWidget {
   final Workout workout;
   final VoidCallback onEdit;
@@ -28,58 +29,73 @@ class TrainerSavedWorkoutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final summary = [
-      if (!_isCardio) '총 볼륨 ${workout.totalVolume.toStringAsFixed(0)}kg',
+      if (!_isCardio)
+        '총 볼륨 ${NumberFormat('#,##0').format(workout.totalVolume.round())}kg',
       '${workout.totalSets}세트',
     ].join(' · ');
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.hairline)),
-      ),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.sm,
-        AppSpacing.screenH,
-        AppSpacing.md,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              AppTag(workout.category.label),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  summary,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodySm,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.hairline)),
+        ),
+        padding: const EdgeInsets.only(
+          top: AppSpacing.xs,
+          bottom: AppSpacing.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: workout.category.label,
+                          style: TextStyle(
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        TextSpan(text: ' · $summary'),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.fieldLabel,
+                  ),
                 ),
-              ),
-              AppIconButton(
-                icon: AppIcons.edit,
-                label: '기록 수정',
-                onPressed: onEdit,
-                color: AppColors.body,
-              ),
-              Transform.translate(
-                offset: const Offset(12, 0),
-                child: AppIconButton(
-                  icon: AppIcons.trash,
-                  label: '기록 삭제',
-                  onPressed: onDelete,
+                AppIconButton(
+                  icon: AppIcons.edit,
+                  label: '기록 수정',
+                  onPressed: onEdit,
                   color: AppColors.body,
                 ),
-              ),
-            ],
-          ),
-          for (final exercise in workout.exercises)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-              child: _SavedExerciseRow(exercise: exercise, isCardio: _isCardio),
+                // 시안 margin-right −12: 아이콘을 화면 오른쪽 20 선에 맞춘다
+                Transform.translate(
+                  offset: const Offset(AppSpacing.md, 0),
+                  child: AppIconButton(
+                    icon: AppIcons.trash,
+                    label: '기록 삭제',
+                    onPressed: onDelete,
+                    color: AppColors.body,
+                  ),
+                ),
+              ],
             ),
-        ],
+            for (final exercise in workout.exercises)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: _SavedExerciseRow(
+                  exercise: exercise,
+                  isCardio: _isCardio,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -102,13 +118,13 @@ class _SavedExerciseRow extends StatelessWidget {
             exercise.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodyMd,
+            style: AppTextStyles.bodyMd.medium.natural,
           ),
         ),
         const SizedBox(width: AppSpacing.md),
         Text(
           isCardio ? _cardioSummary(exercise) : _strengthSummary(exercise),
-          style: AppTextStyles.bodySm,
+          style: AppTextStyles.bodySm.natural,
         ),
       ],
     );

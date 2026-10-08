@@ -7,12 +7,12 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
+import '../../core/app_text_styles.dart';
 import '../../models/inbody.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
-import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_inputs.dart';
 import '../../widgets/app_text_field.dart';
@@ -148,6 +148,8 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
           AppBottomSheetHeader(
             title: 'InBody 입력',
             subtitle: '${widget.member.name} 회원의 측정 기록',
+            mutedSubtitle: true,
+            gap: AppSpacing.md,
           ),
           const _SheetSection(label: '날짜', first: true),
           AppTextField(
@@ -182,7 +184,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
                   },
                 ),
               ),
-              const SizedBox(width: AppSpacing.md, height: AppSpacing.base),
+              const SizedBox(width: AppSpacing.md, height: AppSpacing.md),
               Expanded(
                 child: AppTextField(
                   label: '골격근량 (kg)',
@@ -194,7 +196,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
               ),
             ],
           ),
-          const SizedBox(width: AppSpacing.md, height: AppSpacing.base),
+          const SizedBox(width: AppSpacing.md, height: AppSpacing.md),
           Row(
             children: [
               Expanded(
@@ -206,7 +208,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
                   validator: _optionalNumber,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md, height: AppSpacing.base),
+              const SizedBox(width: AppSpacing.md, height: AppSpacing.md),
               Expanded(
                 child: AppTextField(
                   label: '체지방률 (%)',
@@ -230,7 +232,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
                   validator: _optionalNumber,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md, height: AppSpacing.base),
+              const SizedBox(width: AppSpacing.md, height: AppSpacing.md),
               Expanded(
                 child: AppTextField(
                   label: 'BMR',
@@ -242,7 +244,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
               ),
             ],
           ),
-          const SizedBox(width: AppSpacing.md, height: AppSpacing.base),
+          const SizedBox(width: AppSpacing.md, height: AppSpacing.md),
           AppTextField(
             label: '내장지방 레벨',
             controller: _visceralFatCtrl,
@@ -255,7 +257,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
             },
             textInputAction: TextInputAction.done,
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
           AppButton(
             label: '저장',
             onPressed: _save,
@@ -269,7 +271,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
   }
 }
 
-/// 시트 안 묶음 머리말: 회색 라벨 (선 없음).
+/// 시트 안 묶음 머리말 (시안 Tr-Inbody-Input): 15 mute, 위 18 (첫 묶음은 0) · 아래 8.
 class _SheetSection extends StatelessWidget {
   final String label;
   final bool first;
@@ -278,11 +280,122 @@ class _SheetSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppMonthHeader(
-      label: label,
-      padding: EdgeInsets.only(
-        top: first ? 0 : AppSpacing.xl,
-        bottom: AppSpacing.md,
+    return Padding(
+      padding: EdgeInsets.only(top: first ? 0 : 18, bottom: AppSpacing.sm),
+      child: Semantics(
+        header: true,
+        child: Text(label, style: AppTextStyles.eyebrow.natural),
+      ),
+    );
+  }
+}
+
+/// InBody 기록 상세 시트 (시안 Tr-Inbody-Detail): 측정일 보조 줄 → 회색 카드(반경 18, 줄 52)
+/// → '기록 삭제' 행. 삭제를 고르면 true를 돌려준다 (확인 창은 부른 쪽에서 띄운다).
+Future<bool?> showTrainerInbodyDetailSheet(BuildContext context, Inbody item) {
+  final number = NumberFormat('#,##0.#');
+  String fmt(num v) => number.format(v);
+  final rows = <(String, String, String)>[
+    ('체중', fmt(item.weight), 'kg'),
+    if (item.muscleMass != null) ('골격근량', fmt(item.muscleMass!), 'kg'),
+    if (item.bodyFat != null) ('체지방량', fmt(item.bodyFat!), 'kg'),
+    if (item.bodyFatPercent != null) ('체지방률', fmt(item.bodyFatPercent!), '%'),
+    if (item.bmi != null) ('BMI', fmt(item.bmi!), ''),
+    if (item.bmr != null) ('BMR', fmt(item.bmr!), 'kcal'),
+    if (item.visceralFat != null) ('내장지방 레벨', '${item.visceralFat}', ''),
+  ];
+  return showAppBottomSheet<bool>(
+    context: context,
+    child: Builder(
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppBottomSheetHeader(
+            title: 'InBody 기록',
+            subtitle: item.measurementDate,
+            mutedSubtitle: true,
+            gap: AppSpacing.md,
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
+            decoration: BoxDecoration(
+              color: AppColors.canvasCard,
+              borderRadius: BorderRadius.circular(AppRadius.button),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < rows.length; i++)
+                  _DetailRow(
+                    label: rows[i].$1,
+                    value: rows[i].$2,
+                    unit: rows[i].$3,
+                    divider: i < rows.length - 1,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppSheetAction(
+            icon: AppIcons.trash,
+            label: '기록 삭제',
+            destructive: true,
+            onTap: () => Navigator.of(sheetContext).pop(true),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// 상세 카드 한 줄: 52 높이, 라벨 15 body · 값 16/500 + 단위 400 mute, 아래 line 구분선.
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final String unit;
+  final bool divider;
+
+  const _DetailRow({
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.divider,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 52,
+      decoration: divider
+          ? BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.line)),
+            )
+          : null,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+            ),
+          ),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: value),
+                if (unit.isNotEmpty)
+                  TextSpan(
+                    text: unit,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.mute,
+                    ),
+                  ),
+              ],
+            ),
+            style: AppTextStyles.input.medium,
+          ),
+        ],
       ),
     );
   }

@@ -383,6 +383,7 @@ class _AdminProfileTab extends StatelessWidget {
             AppActionRow(
               icon: AppIcons.lock,
               label: '비밀번호 재설정 메일',
+              menu: true,
               onTap: () =>
                   showPasswordResetSheet(context, initialEmail: user?.email),
             ),
@@ -392,6 +393,7 @@ class _AdminProfileTab extends StatelessWidget {
             AppActionRow(
               icon: AppIcons.signOut,
               label: '로그아웃',
+              menu: true,
               showChevron: false,
               onTap: () async {
                 await context.read<UserProvider>().signOut();

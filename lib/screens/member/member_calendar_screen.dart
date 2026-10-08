@@ -17,6 +17,7 @@ import '../../services/firestore_service.dart';
 import '../../services/meal_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
+import '../../widgets/app_calendar.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_icon_box.dart';
@@ -346,9 +347,10 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
             padding: const EdgeInsets.only(bottom: AppSize.navClearance),
             children: [
               const AppHero(title: '홈', actions: [NotificationBellButton()]),
-              _ViewTabs(
-                selected: _view,
-                onSelect: (view) => setState(() => _view = view),
+              AppViewTabs(
+                labels: [for (final view in _HomeView.values) view.label],
+                selectedIndex: _view.index,
+                onSelect: (i) => setState(() => _view = _HomeView.values[i]),
               ),
               // 오늘 보기(시안 Main)에는 공지 줄이 없다. 중요 공지 시트는 어느 보기에서든 뜬다.
               // 같은 자리에 두어 보기를 바꿔도 공지를 다시 불러오지 않는다.
@@ -451,7 +453,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
 
   List<Widget> _calendarChildren() {
     return [
-      _MonthHeader(
+      AppMonthNav(
         month: _focusedMonth,
         onPrev: () => _moveMonth(-1),
         onNext: () => _moveMonth(1),
@@ -459,7 +461,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
       // 조회 실패: 달력 표시가 조용히 비지 않게 달력 바로 위에 알린다.
       if (_errorMessage != null)
         AppErrorCard(message: _errorMessage!, onRetry: _loadMonth),
-      _CalendarGrid(
+      AppCalendarGrid(
         focusedMonth: _focusedMonth,
         selectedDay: _selectedDay,
         marks: buildCalendarMarks(
@@ -478,13 +480,9 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
         child: CalendarLegend(),
       ),
       // 달력과 그날 기록 사이: 회색 띠 (선 대신 면으로 나눈다)
-      Container(
-        height: AppSpacing.sm,
-        margin: const EdgeInsets.only(top: AppSpacing.lg),
-        color: AppColors.canvasCard,
-      ),
-      _DayHeader(
-        label: _dayLabel(_selectedDay),
+      const AppCalendarBand(),
+      AppDayHeader(
+        label: appDayLabel(_selectedDay),
         count: _isLoading || _errorMessage != null
             ? null
             : '${_recordCount(_selectedDay)}건',
@@ -495,7 +493,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
 
   /// 기록 보기: 고른 달에서 오늘까지, 기록이 있는 날을 최근 날부터 (앞으로의 예약은 빼고).
   List<Widget> _recordsChildren() {
-    final header = _MonthHeader(
+    final header = AppMonthNav(
       month: _focusedMonth,
       onPrev: () => _moveMonth(-1),
       onNext: () => _moveMonth(1),
@@ -514,7 +512,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
         const AppEmptyLine('이 달의 기록이 없습니다')
       else
         for (final day in days) ...[
-          _DayHeader(label: _dayLabel(day), count: '${_recordCount(day)}건'),
+          AppDayHeader(label: appDayLabel(day), count: '${_recordCount(day)}건'),
           ..._dayBody(day),
         ],
     ];
@@ -551,9 +549,6 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
     ];
   }
 }
-
-/// 섹션 머리말용 날짜: `10월 7일 (수)`.
-String _dayLabel(DateTime day) => DateFormat('M월 d일 (E)', 'ko').format(day);
 
 /// 볼륨 표시: 11440 → `11,440`.
 final _volumeFormat = NumberFormat('#,##0');
@@ -657,62 +652,6 @@ class _LineGlyphPainter extends CustomPainter {
   @override
   bool shouldRepaint(_LineGlyphPainter oldDelegate) =>
       oldDelegate.glyph != glyph || oldDelegate.color != color;
-}
-
-/// 오늘 · 캘린더 · 기록 고르기: 40 높이 pill, 고른 것 = ink 채움 + 흰 15/700.
-class _ViewTabs extends StatelessWidget {
-  final _HomeView selected;
-  final ValueChanged<_HomeView> onSelect;
-
-  const _ViewTabs({required this.selected, required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      // 탭 제목(AppHero) 아래 16은 제목이 둔다
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        0,
-        AppSpacing.screenH,
-        0,
-      ),
-      child: Row(
-        children: [
-          for (final view in _HomeView.values) ...[
-            if (view != _HomeView.values.first) const Gap(AppSpacing.sm),
-            Semantics(
-              button: true,
-              selected: view == selected,
-              child: Material(
-                color: view == selected ? AppColors.ink : AppColors.canvasSoft,
-                shape: const StadiumBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => onSelect(view),
-                  splashFactory: NoSplash.splashFactory,
-                  child: Container(
-                    height: 40,
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    child: Text(
-                      view.label,
-                      style: view == selected
-                          ? AppTextStyles.bodyMd.bold.copyWith(
-                              color: AppColors.canvas,
-                            )
-                          : AppTextStyles.bodyMd.copyWith(
-                              color: AppColors.body,
-                            ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }
 
 /// PT 잔여 막대: 64 높이 주황(반경 18), 왼쪽 'PT N회 남음', 오른쪽 '예약 | 일정'.
@@ -1085,282 +1024,6 @@ class _TodaySessionRow extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// 월 이동: 가운데 `2026년 10월`(17/500, 폭 130) + 양옆 44 버튼 안 16 화살표(mute).
-class _MonthHeader extends StatelessWidget {
-  final DateTime month;
-  final VoidCallback onPrev;
-  final VoidCallback onNext;
-
-  const _MonthHeader({
-    required this.month,
-    required this.onPrev,
-    required this.onNext,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.lg),
-      child: SizedBox(
-        height: 48,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _MonthArrow(
-              icon: AppIcons.chevronLeftBold,
-              label: '이전 달',
-              onTap: onPrev,
-            ),
-            SizedBox(
-              width: 130,
-              child: Semantics(
-                header: true,
-                child: Text(
-                  DateFormat('yyyy년 M월', 'ko').format(month),
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.section,
-                ),
-              ),
-            ),
-            _MonthArrow(
-              icon: AppIcons.chevronRightBold,
-              label: '다음 달',
-              onTap: onNext,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MonthArrow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _MonthArrow({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      child: InkResponse(
-        onTap: onTap,
-        radius: AppSize.touchMin / 2,
-        highlightColor: AppColors.canvasSoft,
-        splashFactory: NoSplash.splashFactory,
-        child: SizedBox.square(
-          dimension: AppSize.touchMin,
-          child: Icon(icon, size: 16, color: AppColors.mute),
-        ),
-      ),
-    );
-  }
-}
-
-class _CalendarGrid extends StatelessWidget {
-  final DateTime focusedMonth;
-  final DateTime selectedDay;
-  final Map<String, Set<CalendarMark>> marks;
-  final ValueChanged<DateTime> onSelect;
-
-  const _CalendarGrid({
-    required this.focusedMonth,
-    required this.selectedDay,
-    required this.marks,
-    required this.onSelect,
-  });
-
-  String _key(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
-
-  @override
-  Widget build(BuildContext context) {
-    // 월요일 시작 (트레이너 캘린더·일정·식단 주간 줄·통계와 같게)
-    const weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
-    final firstDay = DateTime(focusedMonth.year, focusedMonth.month);
-    final lastDay = DateTime(focusedMonth.year, focusedMonth.month + 1, 0);
-    final leading = firstDay.weekday - 1;
-    final cells = leading + lastDay.day;
-    final totalCells = (cells / 7).ceil() * 7;
-    final now = DateTime.now();
-    final todayBase = DateTime(now.year, now.month, now.day);
-
-    // 시안: 좌우 14, 위 6 / 요일 12 mute, 아래 6 / 날짜 칸 46, 줄 사이 2
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
-      child: Column(
-        children: [
-          ExcludeSemantics(
-            child: Row(
-              children: [
-                for (final label in weekdayLabels)
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        label,
-                        style: AppTextStyles.bodySm.natural.copyWith(
-                          fontSize: 12,
-                          letterSpacing: 12 * -0.019,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const Gap(6),
-          GridView.builder(
-            shrinkWrap: true,
-            padding: EdgeInsets.zero,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: totalCells,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              mainAxisExtent: 46,
-              mainAxisSpacing: 2,
-            ),
-            itemBuilder: (context, index) {
-              final dayNumber = index - leading + 1;
-              if (dayNumber < 1 || dayNumber > lastDay.day) {
-                return const SizedBox.shrink();
-              }
-
-              final day = DateTime(
-                focusedMonth.year,
-                focusedMonth.month,
-                dayNumber,
-              );
-              final key = _key(day);
-              return _DayCell(
-                day: day,
-                isToday: _sameDate(day, todayBase),
-                isSelected: _sameDate(day, selectedDay),
-                isFuture: day.isAfter(todayBase),
-                marks: marks[key] ?? const {},
-                onTap: () => onSelect(day),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 날짜 칸 (46 높이): 32 원 + 15 숫자, 아래 4 띄우고 표시 줄(5).
-/// 선택 = ink 채운 원 + canvas 500 숫자, 오늘 = ink 1px 외곽선 원, 미래 = body 색.
-/// 아래 표시: CalendarMarkRow (PT 완료 ● · PT 예약 ○ · 개인운동 ●).
-class _DayCell extends StatelessWidget {
-  final DateTime day;
-  final bool isToday;
-  final bool isSelected;
-  final bool isFuture;
-  final Set<CalendarMark> marks;
-  final VoidCallback onTap;
-
-  const _DayCell({
-    required this.day,
-    required this.isToday,
-    required this.isSelected,
-    required this.isFuture,
-    required this.marks,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = [
-      DateFormat('M월 d일', 'ko').format(day),
-      if (isToday) '오늘',
-      if (marks.isNotEmpty) calendarMarksSemantics(marks),
-    ].join(', ');
-    final numberColor = isSelected
-        ? AppColors.canvas
-        : isFuture
-        ? AppColors.body
-        : AppColors.ink;
-
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      label: semantic,
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected ? AppColors.ink : Colors.transparent,
-                border: !isSelected && isToday
-                    ? Border.all(color: AppColors.ink)
-                    : null,
-              ),
-              child: Text(
-                '${day.day}',
-                style: AppTextStyles.bodyMd.copyWith(
-                  color: numberColor,
-                  height: 18 / 15,
-                  // 시안 MemA-Home: 고른 날 숫자 500(Medium)
-                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
-                ),
-              ),
-            ),
-            const Gap(4),
-            CalendarMarkRow(marks),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 선택한 날 머리말: 왼쪽 날짜(17/500), 오른쪽 끝 개수(15 mute). 위 20 · 아래 4.
-class _DayHeader extends StatelessWidget {
-  final String label;
-  final String? count;
-
-  const _DayHeader({required this.label, this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.lg,
-        AppSpacing.screenH,
-        AppSpacing.xs,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          Expanded(
-            child: Semantics(
-              header: true,
-              child: Text(label, style: AppTextStyles.section),
-            ),
-          ),
-          if (count != null) Text(count!, style: AppTextStyles.eyebrow),
-        ],
       ),
     );
   }

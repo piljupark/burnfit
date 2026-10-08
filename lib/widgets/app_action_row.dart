@@ -26,6 +26,9 @@ class AppActionRow extends StatelessWidget {
   /// 화살표 크기 (기본 18, 시안 MemB-NutritionGuide는 16)
   final double chevronSize;
 
+  /// 마이 탭 메뉴 줄 (시안 Tr-My·Ad-My): 높이 60, 라벨 16 Regular
+  final bool menu;
+
   const AppActionRow({
     super.key,
     required this.icon,
@@ -39,6 +42,7 @@ class AppActionRow extends StatelessWidget {
     this.trailing,
     this.showChevron = true,
     this.chevronSize = 18,
+    this.menu = false,
   });
 
   @override
@@ -51,7 +55,7 @@ class AppActionRow extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 68),
+          constraints: BoxConstraints(minHeight: menu ? 60 : 68),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.screenH,
@@ -77,7 +81,10 @@ class AppActionRow extends StatelessWidget {
                             (isDestructive
                                     ? AppTextStyles.bodyMd
                                     : AppTextStyles.listTitle)
-                                .copyWith(color: fg),
+                                .copyWith(
+                                  color: fg,
+                                  fontWeight: menu ? FontWeight.w400 : null,
+                                ),
                       ),
                       if (subtitle != null) ...[
                         const SizedBox(height: 2),

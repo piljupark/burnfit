@@ -20,17 +20,14 @@ import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
-import '../../widgets/app_button.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_inputs.dart';
-import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
-import '../../widgets/app_section.dart';
-import '../../widgets/app_tag.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/feedback_sheet.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/app_motion.dart';
 import 'trainer_exercise_input.dart';
 import 'trainer_pt_done_screen.dart';
 import 'trainer_saved_card.dart';
@@ -181,8 +178,11 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
     final trainer = context.read<UserProvider>().user;
     if (trainer == null) return;
 
+    // 시안 Tr-ExercisePicker: 시트 위 끝이 화면 위 72 (844 중 772)
     final picked = await showAppBottomSheet<TrainerPickedExercise>(
       context: context,
+      heightFactor: 0.91,
+      padded: false,
       child: TrainerExercisePickerSheet(
         trainerId: trainer.uid,
         defaultCategory: _defaultCategory,
@@ -393,6 +393,13 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
           exerciseCount: saved.exercises.length,
           setCount: saved.totalSets,
           totalVolumeKg: saved.totalVolume,
+          cardioMinutes: saved.category == WorkoutCategory.cardio
+              ? saved.exercises.fold<int>(
+                  0,
+                  (sum, e) =>
+                      sum + e.sets.fold<int>(0, (s, set) => s + set.reps),
+                )
+              : null,
         ),
       ),
     );
@@ -541,15 +548,12 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
         bottom: false,
         child: Column(
           children: [
-            AppScreenHeader(
+            // 시안 Tr-PtRecord: 56 머리 · 뒤로 24 · 가운데 17/500 · 오른쪽 '저장'(16/500, 내용이 있을 때만)
+            AppScreenHeader.centered(
               title: 'PT 기록',
               onBack: () => Navigator.of(context).pop(),
               trailing: canSave
-                  ? AppButton(
-                      label: '저장',
-                      variant: AppButtonVariant.ghost,
-                      onPressed: _saving ? null : _saveWorkout,
-                    )
+                  ? _HeaderSaveButton(onTap: _saving ? null : _saveWorkout)
                   : null,
             ),
             Expanded(child: _buildBody(editing)),
@@ -592,65 +596,43 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.zero,
       children: [
-        _MemberRow(member: widget.member, subtitle: subtitle, editing: editing),
+        _MemberRow(
+          name: widget.member.name,
+          subtitle: subtitle,
+          editing: editing,
+        ),
         if (_exercises.isNotEmpty || editing)
-          AppStatStrip(
-            topBorder: true,
-            cells: [
-              AppKpiCard(
-                framed: false,
-                valueSize: 20,
-                label: _isCardioSession ? '유산소' : '총 볼륨',
-                value: _isCardioSession
-                    ? '$_cardioMinutes'
-                    : NumberFormat('#,##0').format(_sessionVolume.round()),
-                unit: _isCardioSession ? '분' : 'kg',
-              ),
-              AppKpiCard(
-                framed: false,
-                valueSize: 20,
-                label: '완료세트',
-                value: '$_completedSetCount/$_totalSetCount',
-                unit: '',
-              ),
-              AppKpiCard(
-                framed: false,
-                valueSize: 20,
-                label: '운동',
-                value: '${_exercises.length}',
-                unit: '종목',
-              ),
-            ],
+          _SessionStats(
+            cardioMinutes: _isCardioSession ? _cardioMinutes : null,
+            volumeKg: _sessionVolume,
+            doneSets: _completedSetCount,
+            totalSets: _totalSetCount,
+            exerciseCount: _exercises.length,
           ),
         if (_exercises.isEmpty)
-          const AppEmptyState(
-            icon: AppIcons.workout,
-            message: 'PT 운동을 기록하세요',
-            description: '아래 운동 추가로 운동을 고르고 세트, 중량, 횟수를 입력하세요.',
-          )
+          _PtEmptyCard(compact: _savedWorkouts.isNotEmpty)
         else ...[
-          for (var i = 0; i < _exercises.length; i++) ...[
-            if (i == focused) ...[
-              TrainerExerciseInputCard(
-                order: i + 1,
-                exercise: _exercises[i],
-                comparison: _comparisonFor(_exercises[i]),
-                onChanged: () => setState(() {}),
-                onAddSet: () => _addSet(i),
-                onMenuTap: () => _showExerciseMenu(i),
-                onRemoveSet: (si) => _removeSet(i, si),
-                onToggleSetDone: (si) => _toggleSetDone(i, si),
+          for (var i = 0; i < _exercises.length; i++)
+            Padding(
+              padding: EdgeInsets.only(
+                top: i == 0 ? AppSpacing.base : AppSpacing.md,
               ),
-              const SizedBox(height: AppSpacing.sm),
-            ] else
-              AppActionRow(
-                icon: AppIcons.workout,
-                label: _exercises[i].name,
-                subtitle: trainerExerciseRowSummary(_exercises[i]),
-                onTap: () => setState(() => _focusedIndex = i),
-              ),
-            const AppRowDivider(),
-          ],
+              child: i == focused
+                  ? TrainerExerciseInputCard(
+                      order: i + 1,
+                      exercise: _exercises[i],
+                      comparison: _comparisonFor(_exercises[i]),
+                      onChanged: () => setState(() {}),
+                      onAddSet: () => _addSet(i),
+                      onMenuTap: () => _showExerciseMenu(i),
+                      onRemoveSet: (si) => _removeSet(i, si),
+                      onToggleSetDone: (si) => _toggleSetDone(i, si),
+                    )
+                  : TrainerCollapsedExercise(
+                      exercise: _exercises[i],
+                      onTap: () => setState(() => _focusedIndex = i),
+                    ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.screenH,
@@ -668,24 +650,32 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
           ),
         ],
         if (_savedWorkouts.isNotEmpty) ...[
+          // 시안: 메모 아래 28 · 빈 카드 아래 24 띄운 8 회색 띠
+          AppSectionBand(top: _exercises.isEmpty ? AppSpacing.xl : 28),
           AppMonthHeader(
             label: '저장된 PT 기록',
             count: '${_savedWorkouts.length}',
+            strong: true,
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.screenH,
-              AppSpacing.xl2,
+              18,
               AppSpacing.screenH,
-              0,
+              AppSpacing.xs,
             ),
           ),
-          for (final workout in _savedWorkouts)
-            TrainerSavedWorkoutCard(
-              workout: workout,
-              onEdit: () => _editWorkout(workout),
-              onDelete: () => _deleteWorkout(workout),
+          // 시안 `slide`: 왼쪽 12에서 밀려 들어옴 (.4s, 순번 × .08s)
+          for (var i = 0; i < _savedWorkouts.length; i++)
+            AppEntrance.slide(
+              key: ValueKey(_savedWorkouts[i].id),
+              delay: Duration(milliseconds: 80 * i),
+              child: TrainerSavedWorkoutCard(
+                workout: _savedWorkouts[i],
+                onEdit: () => _editWorkout(_savedWorkouts[i]),
+                onDelete: () => _deleteWorkout(_savedWorkouts[i]),
+              ),
             ),
         ],
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.xl2),
       ],
     );
   }
@@ -695,14 +685,60 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 // Widgets
 // ─────────────────────────────────────────────
 
-/// 회원 줄: 아바타 + 이름(17) + 일정 보조 줄.
+/// 머리 오른쪽 '저장' (시안: 최소 44 · 좌우 12 · 16/500, 단추 끝이 화면 오른쪽 8).
+/// 가운데 머리의 오른쪽 칸(44, 가운데 정렬) 안에서 위치를 맞춘다.
+class _HeaderSaveButton extends StatelessWidget {
+  final VoidCallback? onTap;
+
+  const _HeaderSaveButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 120,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: const EdgeInsets.only(right: 38),
+          child: Semantics(
+            button: true,
+            enabled: onTap != null,
+            label: '저장',
+            excludeSemantics: true,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(AppRadius.field),
+              highlightColor: AppColors.canvasSoft,
+              splashFactory: NoSplash.splashFactory,
+              child: Container(
+                height: AppSize.touchMin,
+                constraints: const BoxConstraints(minWidth: AppSize.touchMin),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                alignment: Alignment.center,
+                child: Text(
+                  '저장',
+                  style: AppTextStyles.listTitle.copyWith(
+                    color: onTap == null ? AppColors.faint : AppColors.ink,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 회원 줄 (시안 Tr-PtRecord: 위 8 · 좌우 20): 이름 20/500 + 일정 14 mute(위 2).
+/// 수정 중이면 일정 뒤에 ' · 수정 중'(noticeText 500, 1.4s 깜빡임).
 class _MemberRow extends StatelessWidget {
-  final AppUser member;
+  final String name;
   final String subtitle;
   final bool editing;
 
   const _MemberRow({
-    required this.member,
+    required this.name,
     required this.subtitle,
     required this.editing,
   });
@@ -710,36 +746,330 @@ class _MemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.sm,
+        AppSpacing.screenH,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        member.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.bodyLg,
-                      ),
-                    ),
-                    if (editing) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      const AppTag('수정 중', strong: true),
-                    ],
-                  ],
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.title.natural,
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.fieldLabel.natural,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(subtitle, style: AppTextStyles.bodySm),
+              ),
+              if (editing) ...[
+                Text(' · ', style: AppTextStyles.fieldLabel.natural),
+                _Blink(
+                  child: Text(
+                    '수정 중',
+                    style: AppTextStyles.fieldLabel.natural.medium.copyWith(
+                      color: AppColors.noticeText,
+                    ),
+                  ),
+                ),
               ],
-            ),
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+/// 시안 `blink`: 투명도 1 → .35 → 1 (1.4s ease-in-out 반복). 동작 줄이기면 멈춘다.
+class _Blink extends StatefulWidget {
+  final Widget child;
+
+  const _Blink({required this.child});
+
+  @override
+  State<_Blink> createState() => _BlinkState();
+}
+
+class _BlinkState extends State<_Blink> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _controller.stop();
+      _controller.value = 0;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        final v = _controller.value;
+        final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
+        return Opacity(
+          opacity: 1 - 0.65 * Curves.easeInOut.transform(tri),
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+/// 요약 3칸 (시안 Tr-PtRecord: 위 16 · 좌우 20 · 사이 8, 칸 회색 반경 14 · 안쪽 12 14):
+/// 라벨 12 mute + 값 18/500(단위 400 mute, 위 2). 총 볼륨(유산소만이면 유산소 분) · 완료세트 · 운동.
+class _SessionStats extends StatelessWidget {
+  final int? cardioMinutes;
+  final double volumeKg;
+  final int doneSets;
+  final int totalSets;
+  final int exerciseCount;
+
+  const _SessionStats({
+    required this.cardioMinutes,
+    required this.volumeKg,
+    required this.doneSets,
+    required this.totalSets,
+    required this.exerciseCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // 시안 `up`: 아래 10에서 올라오며 나타남 (.5s, 칸마다 .08s 늦게)
+    Widget cell(int order, String label, String value, String suffix) {
+      return Expanded(
+        child: AppEntrance(
+          delay: Duration(milliseconds: 80 * order),
+          child: Semantics(
+            label: '$label $value$suffix',
+            excludeSemantics: true,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.canvasCard,
+                borderRadius: BorderRadius.circular(AppRadius.field),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    style: AppTextStyles.bodySm.copyWith(
+                      fontSize: 12,
+                      height: 16 / 12,
+                      letterSpacing: 12 * -0.019,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: value),
+                        TextSpan(
+                          text: suffix,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.mute,
+                          ),
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.section.copyWith(
+                      fontSize: 18,
+                      height: 22 / 18,
+                      letterSpacing: 18 * -0.019,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.base,
+        AppSpacing.screenH,
+        0,
+      ),
+      child: Row(
+        children: [
+          cardioMinutes != null
+              ? cell(0, '유산소', '$cardioMinutes', '분')
+              : cell(
+                  0,
+                  '총 볼륨',
+                  NumberFormat('#,##0').format(volumeKg.round()),
+                  'kg',
+                ),
+          const SizedBox(width: AppSpacing.sm),
+          cell(1, '완료세트', '$doneSets', ' / $totalSets'),
+          const SizedBox(width: AppSpacing.sm),
+          cell(2, '운동', '$exerciseCount', '종목'),
+        ],
+      ),
+    );
+  }
+}
+
+/// 운동이 아직 없을 때 (시안 Tr-PtRecord-Empty): 회색 카드(반경 18, 위 24 · 안쪽 40 28)에
+/// 바벨 그림(56×40, 들었다 내림) + 'PT 운동을 기록하세요'(16/500) + 안내(14 mute, 줄 1.5).
+/// 저장된 기록이 있으면 [compact] (시안 Tr-PtRecord-Saved): 위 20 · 안쪽 24, 그림 없이 두 줄(사이 8).
+class _PtEmptyCard extends StatelessWidget {
+  final bool compact;
+
+  const _PtEmptyCard({required this.compact});
+
+  @override
+  Widget build(BuildContext context) {
+    final card = Container(
+      width: double.infinity,
+      margin: EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        compact ? AppSpacing.lg : AppSpacing.xl,
+        AppSpacing.screenH,
+        0,
+      ),
+      padding: compact
+          ? const EdgeInsets.all(AppSpacing.xl)
+          : const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+      ),
+      child: Column(
+        children: [
+          if (!compact) ...[
+            const _LiftingBarbell(),
+            // 시안: 줄 사이 10 + 제목 위 4
+            const SizedBox(height: 14),
+          ],
+          Text(
+            'PT 운동을 기록하세요',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.listTitle.natural,
+          ),
+          SizedBox(height: compact ? AppSpacing.sm : 10),
+          Text(
+            '아래 운동 추가로 운동을 고르고 세트, 중량, 횟수를 입력하세요.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.fieldLabel.copyWith(height: 1.5),
+          ),
+        ],
+      ),
+    );
+    // 시안 `up`: 첫 빈 화면 카드만 아래 10에서 올라오며 나타남 (.5s)
+    return compact ? card : AppEntrance(child: card);
+  }
+}
+
+/// 바벨 그림 (56×40)이 위아래로 6씩 들렸다 내려간다 (시안 `lift`: 1.8s ease-in-out 반복).
+class _LiftingBarbell extends StatefulWidget {
+  const _LiftingBarbell();
+
+  @override
+  State<_LiftingBarbell> createState() => _LiftingBarbellState();
+}
+
+class _LiftingBarbellState extends State<_LiftingBarbell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: AnimatedBuilder(
+        animation: _controller,
+        child: const CustomPaint(
+          size: Size(56, 40),
+          painter: _BarbellArtPainter(),
+        ),
+        builder: (context, child) {
+          // 0%·100% → +6, 50% → −6 (동작 줄이기면 0%에 멈춘다)
+          final v = _controller.value;
+          final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
+          final dy = 6 - 12 * Curves.easeInOut.transform(tri);
+          return Transform.translate(offset: Offset(0, dy), child: child);
+        },
+      ),
+    );
+  }
+}
+
+/// 시안 SVG(viewBox 200×64)를 56×40에 비율 맞춰 그린 바벨:
+/// 봉(faint) + 원판 둘(mute) + 가운데 주황 손잡이.
+class _BarbellArtPainter extends CustomPainter {
+  const _BarbellArtPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = size.width / 200;
+    canvas.translate(0, (size.height - 64 * k) / 2);
+    canvas.scale(k);
+    void rrect(double x, double y, double w, double h, double r, Color c) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(r)),
+        Paint()..color = c,
+      );
+    }
+
+    rrect(40, 26, 120, 12, 6, AppColors.faint);
+    rrect(26, 0, 22, 64, 8, AppColors.mute);
+    rrect(152, 0, 22, 64, 8, AppColors.mute);
+    rrect(80, 23, 40, 18, 9, AppColors.primary);
+  }
+
+  @override
+  // 색이 테마를 따르므로 다시 그릴 때마다 칠한다 (그림이 작아 부담 없음).
+  bool shouldRepaint(_BarbellArtPainter oldDelegate) => true;
 }

@@ -15,7 +15,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:pt_solution_v2/main.dart';
 import 'package:pt_solution_v2/screens/member/workout_sheets.dart';
 import 'package:pt_solution_v2/services/theme_controller.dart';
-import 'package:pt_solution_v2/widgets/app_icon_button.dart';
+import 'package:pt_solution_v2/widgets/app_highlight.dart';
 import 'package:pt_solution_v2/widgets/app_nav_bar.dart';
 import 'package:pt_solution_v2/widgets/notification_bell_button.dart';
 
@@ -72,9 +72,6 @@ void main() {
     await wait(tester, 1200);
   }
 
-  Finder iconButton(bool Function(String label) match) =>
-      find.byWidgetPredicate((w) => w is AppIconButton && match(w.label));
-
   testWidgets('screen tour', (tester) async {
     await bootstrapApp(withMessaging: false);
     await FirebaseAuth.instance.signOut();
@@ -106,9 +103,7 @@ void main() {
       await wait(tester, 800);
     });
     await step('register', () async {
-      await tester.tap(
-        find.textContaining('가입하기', findRichText: true).first,
-      );
+      await tester.tap(find.textContaining('가입하기', findRichText: true).first);
       await wait(tester);
       await shot('04_register_member');
       await back(tester);
@@ -270,8 +265,16 @@ void main() {
       await shot('21_pt_record');
       await back(tester);
     });
+    await step('trainer calendar', () async {
+      // 홈 '캘린더' 보기: 한 달 달력 + 오늘 PT · 개인운동 줄
+      await tester.tap(find.text('캘린더').first);
+      await wait(tester);
+      await shot('20b_trainer_calendar');
+    });
     await step('member detail', () async {
-      // 개인운동 줄 → 회원 상세
+      // 캘린더 보기의 개인운동 줄(목록 맨 아래) → 회원 상세
+      await tester.ensureVisible(find.text('이민지').last);
+      await wait(tester);
       await tester.tap(find.text('이민지').last);
       await wait(tester);
       await shot('25_member_detail');
@@ -282,9 +285,8 @@ void main() {
       await shot('22_trainer_schedule');
     });
     await step('reserve sheet', () async {
-      await tester.tap(
-        iconButton((l) => l.contains('예약') || l.contains('추가')).first,
-      );
+      // 오른쪽 아래 떠 있는 'PT 예약' 버튼
+      await tester.tap(find.byType(AppFloatingAction).first);
       await wait(tester);
       await shot('23_reserve_sheet');
       // 진행 시간을 90분으로 늘려 11:00 예약과 겹치게 → 경고·저장 비활성 확인
@@ -395,9 +397,8 @@ void main() {
     await step('alt schedule', () async {
       await tapNav(tester, '일정');
       await shot('47_alt_trainer_schedule');
-      await tester.tap(
-        iconButton((l) => l.contains('예약') || l.contains('추가')).first,
-      );
+      // 오른쪽 아래 떠 있는 'PT 예약' 버튼
+      await tester.tap(find.byType(AppFloatingAction).first);
       await wait(tester);
       await shot('48_alt_reserve_sheet');
       await back(tester);

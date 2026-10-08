@@ -15,11 +15,13 @@ import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/app_motion.dart';
 import 'trainer_workout_models.dart';
 
 // ─────────────────────────────────────────────
-// Exercise Picker Sheet
-// showAppBottomSheet(child: TrainerExercisePickerSheet(...))로 연다.
+// Exercise Picker Sheet (시안 Tr-ExercisePicker · Tr-ExercisePicker-Custom)
+// showAppBottomSheet(heightFactor: 0.91, padded: false, child: TrainerExercisePickerSheet(...))로 연다.
+// 머리(22 제목 + 14 mute 보조 줄) · 검색창 · 큰 칩 줄(위아래 12) · 시트 폭 구분선 · 목록.
 // ─────────────────────────────────────────────
 
 class TrainerExercisePickerSheet extends StatefulWidget {
@@ -132,76 +134,106 @@ class _TrainerExercisePickerSheetState
   @override
   Widget build(BuildContext context) {
     final items = _items;
-    final listHeight = MediaQuery.sizeOf(context).height * 0.42;
+    final categories = WorkoutCategory.values;
+    final selectedChip = _selectedCategory == null
+        ? 0
+        : categories.indexOf(_selectedCategory!) + 1;
+    final labels = ['전체', ...categories.map((c) => c.label)];
+    final hasQuery = _searchController.text.isNotEmpty;
 
     return Column(
-      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppBottomSheetHeader(
-          title: '운동 추가',
-          subtitle: '목록에서 고르거나 이름을 직접 입력하세요.',
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AppBottomSheetHeader(
+                title: '운동 추가',
+                subtitle: '목록에서 고르거나 이름을 직접 입력하세요.',
+                mutedSubtitle: true,
+                gap: 14,
+              ),
+              AppTextField(
+                label: '',
+                hint: '운동명 검색 또는 직접 입력',
+                controller: _searchController,
+                prefix: Icon(
+                  AppIcons.search,
+                  color: hasQuery ? AppColors.ink : AppColors.mute,
+                ),
+                textInputAction: TextInputAction.search,
+              ),
+            ],
+          ),
         ),
-        AppTextField(
-          label: '',
-          hint: '운동명 검색 또는 직접 입력',
-          controller: _searchController,
-          prefix: const Icon(AppIcons.search),
-          textInputAction: TextInputAction.search,
-        ),
-        const SizedBox(height: AppSpacing.sm),
+        // 칩 줄: 위아래 12 (큰 칩은 위아래 2 터치 여백을 스스로 둔다)
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            10,
+            AppSpacing.screenH,
+            _canAddCustom ? 0 : 10,
+          ),
           child: Row(
             children: [
-              AppChip(
-                label: '전체',
-                selected: _selectedCategory == null,
-                onTap: () => setState(() => _selectedCategory = null),
-              ),
-              for (final c in WorkoutCategory.values) ...[
-                const SizedBox(width: AppSpacing.sm),
+              for (var i = 0; i < labels.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.sm),
                 AppChip(
-                  label: c.label,
-                  selected: _selectedCategory == c,
-                  onTap: () => setState(() => _selectedCategory = c),
+                  label: labels[i],
+                  selected: i == selectedChip,
+                  large: true,
+                  onTap: () => setState(() {
+                    _selectedCategory = i == 0 ? null : categories[i - 1];
+                  }),
                 ),
               ],
             ],
           ),
         ),
         if (_canAddCustom)
-          _addingCustom
-              ? SizedBox(
-                  height: 52,
-                  child: Row(
-                    children: [
-                      const AppLoader.inline(semanticLabel: '새 운동 추가 중'),
-                      const SizedBox(width: AppSpacing.base),
-                      Text('추가 중', style: AppTextStyles.bodyMd),
-                    ],
-                  ),
-                )
-              : AppSheetAction(
-                  icon: AppIcons.add,
-                  label: '"${_searchController.text.trim()}" 새 운동으로 추가',
-                  onTap: _addCustom,
-                ),
-        const SizedBox(height: AppSpacing.sm),
+          // 시안 `drop`: 위 6에서 내려오며 나타남 (.3s)
+          AppEntrance(
+            key: const ValueKey('custom-add'),
+            offset: const Offset(0, -6),
+            duration: const Duration(milliseconds: 300),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.sm,
+                AppSpacing.screenH,
+                AppSpacing.sm,
+              ),
+              child: _CustomAddRow(
+                label: '"${_searchController.text.trim()}" 새 운동으로 추가',
+                loading: _addingCustom,
+                onTap: _addingCustom ? null : _addCustom,
+              ),
+            ),
+          ),
         const AppRowDivider(),
-        SizedBox(
-          height: listHeight,
+        Expanded(
           child: items.isEmpty
-              ? Center(
-                  child: Text(
-                    '검색 결과가 없습니다.',
-                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+              ? Padding(
+                  // 시안: 남은 칸 가운데에서 위로 (아래 120)
+                  padding: const EdgeInsets.only(bottom: 120),
+                  child: Center(
+                    child: Text(
+                      '검색 결과가 없습니다.',
+                      style: AppTextStyles.fieldLabel.copyWith(
+                        color: AppColors.body,
+                      ),
+                    ),
                   ),
                 )
-              : ListView.separated(
-                  padding: EdgeInsets.zero,
+              : ListView.builder(
+                  padding: EdgeInsets.only(
+                    bottom:
+                        AppSpacing.xl + MediaQuery.of(context).padding.bottom,
+                  ),
                   itemCount: items.length,
-                  separatorBuilder: (_, _) => const AppRowDivider(),
                   itemBuilder: (_, index) {
                     final item = items[index];
                     return _PickerRow(
@@ -217,6 +249,70 @@ class _TrainerExercisePickerSheetState
   }
 }
 
+/// '"케이블 킥백" 새 운동으로 추가' (시안 Tr-ExercisePicker-Custom): 높이 60,
+/// 40 연한 주황 상자(+ 18 noticeText) + 14 + 16/500 글자.
+class _CustomAddRow extends StatelessWidget {
+  final String label;
+  final bool loading;
+  final VoidCallback? onTap;
+
+  const _CustomAddRow({
+    required this.label,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: loading ? '새 운동 추가 중' : label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.field),
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.noticeBg,
+                  borderRadius: BorderRadius.circular(AppRadius.iconBox),
+                ),
+                child: loading
+                    ? const AppLoader.inline(color: AppColors.noticeText)
+                    : const Icon(
+                        PhosphorIconsBold.plus,
+                        size: 18,
+                        color: AppColors.noticeText,
+                      ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.listTitle,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 고르기 목록 한 줄 (시안 Tr-ExercisePicker): 좌우 20 안쪽, 최소 64, 아래 hairline.
+/// 이름 16/500 + 부위 13 mute(위 2), 오른쪽 '지난 75kg' 14 body.
 class _PickerRow extends StatelessWidget {
   final TrainerPickedExercise item;
   final TrainerPreviousStats? previous;
@@ -236,38 +332,44 @@ class _PickerRow extends StatelessWidget {
         onTap: onTap,
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppSize.listRow),
-          child: Padding(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 64),
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.hairline)),
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         item.name,
-                        style: AppTextStyles.bodyMd,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.listTitle,
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         item.custom
                             ? '${item.category.label} · 직접 추가'
                             : item.category.label,
-                        style: AppTextStyles.bodySm.copyWith(
-                          color: AppColors.body,
-                        ),
+                        style: AppTextStyles.bodySm,
                       ),
                     ],
                   ),
                 ),
                 if (previous != null) ...[
-                  const SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: AppSpacing.md),
                   Text(
                     '지난 ${trainerFormatWeight(previous!.maxWeight)}kg',
-                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                    style: AppTextStyles.fieldLabel.copyWith(
+                      color: AppColors.body,
+                    ),
                   ),
                 ],
               ],
@@ -280,8 +382,9 @@ class _PickerRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// Exercise Menu Sheet
+// Exercise Menu Sheet (시안 Tr-ExerciseMenu)
 // showAppBottomSheet<TrainerMenuAction>(child: TrainerExerciseMenuSheet(...))로 연다.
+// 머리(제목 22 + '하체 · 현재 단위 kg' 14 mute, 아래 12) → 60 행동 줄 둘(파괴적 줄은 맨 아래).
 // ─────────────────────────────────────────────
 
 class TrainerExerciseMenuSheet extends StatelessWidget {
@@ -300,10 +403,13 @@ class TrainerExerciseMenuSheet extends StatelessWidget {
         AppBottomSheetHeader(
           title: exercise.name,
           subtitle: '${exercise.category.label} · 현재 단위 ${exercise.unit.label}',
+          mutedSubtitle: true,
+          gap: AppSpacing.md,
         ),
         AppSheetAction(
           icon: PhosphorIconsRegular.arrowsLeftRight,
-          label: '무게 단위 변경 (${exercise.unit.label} → $nextUnit)',
+          label: '무게 단위 변경',
+          value: '${exercise.unit.label} → $nextUnit',
           onTap: () => Navigator.of(context).pop(
             const TrainerMenuAction(type: TrainerMenuActionType.toggleUnit),
           ),

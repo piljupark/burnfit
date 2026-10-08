@@ -13,9 +13,6 @@ import '../../widgets/app_motion.dart';
 /// - [detail]: '기록 자세히 보기' → 운동 화면의 저장된 기록으로
 enum MemberWorkoutDoneAction { home, detail }
 
-/// 빛줄기 색 (시안 Done 일러스트 전용 #FFB020, 두 테마 공통).
-const Color _burstColor = Color(0xFFFFB020);
-
 /// 꽃가루 주황 (강조색과 같은 값, const 목록에 쓰려고 따로 둔다).
 const Color _confettiOrange = Color(0xFFFF7A33);
 
@@ -431,7 +428,7 @@ class _BarbellPainter extends CustomPainter {
       canvas.scale(scale);
       canvas.translate(-100, -100);
       final rays = Paint()
-        ..color = _burstColor.withValues(alpha: opacity)
+        ..color = AppColors.illustBurst.withValues(alpha: opacity)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 5
         ..strokeCap = StrokeCap.round;

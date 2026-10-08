@@ -10,10 +10,8 @@ import '../services/cardio_service.dart';
 import '../services/firestore_service.dart';
 import '../services/meal_service.dart';
 import '../services/workout_service.dart';
-import 'app_action_row.dart';
 import 'app_bottom_sheet.dart';
 import 'app_button.dart';
-import 'app_tag.dart';
 import 'app_text_field.dart';
 
 class FeedbackSheet extends StatefulWidget {
@@ -242,38 +240,43 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AppBottomSheetHeader(title: isEditing ? '피드백 수정' : '피드백 작성'),
-          // 대상: 회원 · 종류 + 날짜, 아래 hairline
-          Text(
-            '${widget.memberName} · ${widget.targetType.label}',
-            style: AppTextStyles.bodyLg,
-          ),
-          if (_dateMeta != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              _dateMeta!,
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+          AppBottomSheetHeader(title: isEditing ? '피드백 수정' : '피드백 작성', gap: 6),
+          // 대상 (시안 Tr-Feedback): 회원 · 종류 17/500 + 날짜 14 body, 아래 14 띄우고 hairline
+          Container(
+            padding: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.hairline)),
             ),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          const AppRowDivider(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${widget.memberName} · ${widget.targetType.label}',
+                  style: AppTextStyles.section.natural,
+                ),
+                if (_dateMeta != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(_dateMeta!, style: AppTextStyles.bodySmall.natural),
+                ],
+              ],
+            ),
+          ),
           const SizedBox(height: AppSpacing.base),
-          // 빠른 템플릿
-          Text('자주 쓰는 문구', style: AppTextStyles.bodySm),
+          // 빠른 문구: 14 mute 라벨 → 8 → 36 pill (사이 8)
+          // pill 위아래 터치 여백 4를 빼고 시안 간격(8 · 16)을 맞춘다.
+          Text('자주 쓰는 문구', style: AppTextStyles.fieldLabel.natural),
           const SizedBox(height: AppSpacing.xs),
           Wrap(
             spacing: AppSpacing.sm,
             children: [
               for (final template in _templates)
-                AppChip(
+                _TemplateChip(
                   label: template.label,
-                  selected: false,
-                  icon: AppIcons.add,
                   onTap: () => _applyTemplate(template.content),
                 ),
             ],
           ),
-          const SizedBox(height: AppSpacing.base),
+          const SizedBox(height: AppSpacing.md),
           AppTextField(
             label: '피드백',
             hint: '내용을 입력하세요.',
@@ -286,7 +289,7 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
               return null;
             },
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
           AppButton(
             label: isEditing ? '피드백 수정' : '피드백 남기기',
             onPressed: _submit,
@@ -295,6 +298,54 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
             size: AppButtonSize.lg,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 빠른 문구 pill (시안 Tr-Feedback): 36 높이 · 왼쪽 10 오른쪽 14 · canvasSoft,
+/// 14 더하기(body) + 4 + 14 글자(ink). 누르면 문구를 입력창 끝에 붙인다.
+class _TemplateChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _TemplateChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '$label 문구 넣기',
+      excludeSemantics: true,
+      child: Padding(
+        // 터치 영역 44를 위아래 4로 채운다
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Material(
+          color: AppColors.canvasSoft,
+          shape: const StadiumBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            highlightColor: AppColors.canvasMid,
+            splashFactory: NoSplash.splashFactory,
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.only(left: 10, right: 14),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    AppIcons.bold(AppIcons.add),
+                    size: AppSize.iconSm,
+                    color: AppColors.body,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(label, style: AppTextStyles.buttonLabel),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -324,10 +324,8 @@ class AppFloatingAction extends StatelessWidget {
                       const SizedBox(width: AppSpacing.sm),
                       Text(
                         label,
-                        style: AppTextStyles.bodyLg.copyWith(
-                          color: fg,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        // 시안 TrainerSchedule 'PT 예약': 16, 기준 시안이라 Bold
+                        style: AppTextStyles.listTitle.bold.copyWith(color: fg),
                       ),
                     ],
                   ],

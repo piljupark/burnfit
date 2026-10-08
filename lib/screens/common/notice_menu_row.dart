@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_logger.dart';
-import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../services/notice_read_store.dart';
 import '../../services/notice_service.dart';
@@ -82,10 +81,12 @@ class _NoticeMenuRowState extends State<NoticeMenuRow> {
             : null,
       );
     }
+    // 시안 Tr-My: 60 메뉴 줄, 확성기 아이콘, '● 새 글 N'(15/500 noticeText) + 18 화살표
     return AppActionRow(
-      icon: AppIcons.clipboard,
+      icon: AppIcons.megaphone,
       label: '공지사항',
       onTap: _open,
+      menu: true,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -98,14 +99,16 @@ class _NoticeMenuRowState extends State<NoticeMenuRow> {
                 shape: BoxShape.circle,
               ),
             ),
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: 6),
             Text(
               '새 글 $_unread',
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.noticeText),
+              style: AppTextStyles.eyebrow.medium.copyWith(
+                color: AppColors.noticeText,
+              ),
             ),
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: 6),
           ],
-          Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+          Icon(AppIcons.chevronRightBold, size: 18, color: AppColors.chevron),
         ],
       ),
     );

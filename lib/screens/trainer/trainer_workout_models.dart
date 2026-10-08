@@ -3,14 +3,6 @@ import 'package:flutter/material.dart';
 import '../../models/workout.dart';
 
 // ─────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────
-
-const double trainerCellHeight = 64;
-const double trainerCellRadius = 10;
-const double trainerCellGap = 8;
-
-// ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
 

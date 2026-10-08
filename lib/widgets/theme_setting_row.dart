@@ -30,15 +30,17 @@ class ThemeSettingRow extends StatelessWidget {
         onTap: () => _open(context),
       );
     }
+    // 시안 Tr-My·Ad-My: 60 메뉴 줄, 오른쪽 값 15 mute + 18 화살표
     return AppActionRow(
       icon: AppIcons.theme,
       label: '화면 테마',
+      menu: true,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(choice.label, style: AppTextStyles.bodySm),
+          Text(choice.label, style: AppTextStyles.eyebrow),
           const SizedBox(width: AppSpacing.xs),
-          Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+          Icon(AppIcons.chevronRightBold, size: 18, color: AppColors.chevron),
         ],
       ),
       onTap: () => _open(context),
