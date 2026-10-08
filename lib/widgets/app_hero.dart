@@ -23,7 +23,7 @@ class AppHero extends StatelessWidget {
     this.eyebrow,
     this.actions = const [],
     this.leading,
-    this.divider = true,
+    this.divider = false,
   });
 
   @override
@@ -94,8 +94,7 @@ class AppHero extends StatelessWidget {
   }
 }
 
-/// 섹션 구분 머리말: 라벨 + 카운터 + 남은 폭을 채우는 hairline.
-/// 영문·숫자 라벨은 모노 대문자, 한글 라벨은 sans 13.
+/// 묶음 머리말: 회색 15 라벨 + (선택) 개수 + (선택) 오른쪽 행동. 선은 긋지 않는다.
 class AppMonthHeader extends StatelessWidget {
   final String label;
   final String? count;
@@ -117,29 +116,17 @@ class AppMonthHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = monoOrSans(
-      label,
-      mono: AppTextStyles.eyebrow.copyWith(color: AppColors.ink),
-      sans: AppTextStyles.bodySm.copyWith(color: AppColors.ink),
-    );
+    final labelStyle = AppTextStyles.eyebrow;
     return Padding(
       padding: padding,
       child: Row(
         children: [
-          Text(monoCase(label), style: labelStyle),
+          Text(label, style: labelStyle),
           if (count != null) ...[
             const SizedBox(width: AppSpacing.sm),
-            Text(
-              monoCase(count!),
-              style: monoOrSans(
-                count!,
-                mono: AppTextStyles.eyebrow,
-                sans: AppTextStyles.bodySm,
-              ),
-            ),
+            Text(count!, style: AppTextStyles.eyebrow),
           ],
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: Divider(height: 1, color: AppColors.hairline)),
+          const Spacer(),
           if (trailing != null) ...[
             const SizedBox(width: AppSpacing.sm),
             trailing!,

@@ -136,7 +136,6 @@ class AppTheme {
         color: AppColors.canvasCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: AppColors.hairline),
           borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         margin: EdgeInsets.zero,
@@ -157,6 +156,11 @@ class AppTheme {
         modalBackgroundColor: AppColors.canvasCard,
         modalBarrierColor: AppColors.backdrop,
         elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheet),
+          ),
+        ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColors.ink,
@@ -166,13 +170,13 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
-              ? AppColors.onPrimary
-              : AppColors.mute,
+              ? AppColors.canvas
+              : AppColors.canvas,
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
-              ? AppColors.primary
-              : AppColors.canvasSoft,
+              ? AppColors.ink
+              : AppColors.canvasMid,
         ),
         trackOutlineColor: WidgetStatePropertyAll(AppColors.outline),
       ),
@@ -235,6 +239,6 @@ class AppTheme {
 
   static OutlineInputBorder _inputBorder(Color color) => OutlineInputBorder(
     borderSide: BorderSide(color: color),
-    borderRadius: BorderRadius.circular(AppRadius.card),
+    borderRadius: BorderRadius.circular(AppRadius.field),
   );
 }

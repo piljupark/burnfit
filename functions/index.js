@@ -12,6 +12,7 @@ const accountDeletion = require('./account_deletion');
 const retentionStore = require('./retention_store');
 const inbox = require('./notifications');
 const ptSessions = require('./pt_sessions');
+const notices = require('./notices');
 
 initializeApp();
 
@@ -247,6 +248,38 @@ exports.onFeedbackCreated = onDocumentCreated(
       { type: 'feedback_created', feedbackId: event.params.feedbackId },
       `${event.id}`,
     );
+  },
+);
+
+// ─────────────────────────────────────────────
+// 공지 등록 → (notify: true일 때) 같은 센터의 대상 사용자에게 알림
+// ─────────────────────────────────────────────
+exports.onNoticeCreated = onDocumentCreated(
+  'notices/{noticeId}',
+  async (event) => {
+    const notice = event.data?.data();
+    if (!notice || notice.notify !== true) return;
+    const roles = notices.noticeRecipientRoles(notice.audience);
+    if (roles.length === 0 || typeof notice.centerId !== 'string') return;
+
+    const snap = await db.collection('users')
+      .where('centerId', '==', notice.centerId)
+      .where('status', '==', 'approved')
+      .get();
+    const { title, body } = notices.buildNoticeMessage(notice);
+    const recipients = snap.docs
+      .filter((d) => notices.isNoticeRecipient({ uid: d.id, ...d.data() }, notice))
+      .map((d) => d.id);
+
+    const results = await Promise.allSettled(recipients.map((uid) => notifyUser(
+      uid,
+      title,
+      body,
+      { type: 'notice_created', noticeId: event.params.noticeId },
+      `${event.id}_${uid}`,
+    )));
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) console.error(`[onNoticeCreated] ${failed}/${recipients.length} 알림 실패`);
   },
 );
 

@@ -4,20 +4,20 @@ import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 
-final _hangul = RegExp(r'[ㄱ-ㅎㅏ-ㅣ가-힣]');
-
-/// 한글이 없으면 모노 대문자, 있으면 sans로 쓴다 (Galloway: 한글을 모노로 쓰지 않는다).
+/// 예전에는 영문을 모노 대문자로 썼다. 지금은 글꼴을 하나(sans)로 통일해 항상 [sans]를 돌려준다.
+/// 호출부를 바꾸지 않으려고 이름은 남겨 둔다.
 TextStyle monoOrSans(
   String text, {
   required TextStyle mono,
   required TextStyle sans,
-}) => _hangul.hasMatch(text) ? sans : mono;
+}) => sans;
 
-String monoCase(String text) =>
-    _hangul.hasMatch(text) ? text : text.toUpperCase();
+/// 글자를 그대로 돌려준다 (예전 모노 대문자 변환 자리).
+String monoCase(String text) => text;
 
-/// 상태·역할 태그. 외곽선 pill이 기본, [strong]은 흰 채움(완료·선택된 상태).
-/// 색으로 상태를 나타내지 않는다 — 다른 상태는 strong/외곽선/[muted]로 구분.
+/// 상태 글자. 배지(테두리·채움) 없이 글자만 쓴다 — 글자 배지는 쓰지 않는다.
+/// - [strong]: 500 진한 글자 (완료·새 글처럼 눈에 띄어야 할 상태)
+/// - 기본: 회색 글자 / [muted]: 흐린 글자 / [danger]: 위험 글자
 class AppTag extends StatelessWidget {
   final String label;
   final bool strong;
@@ -34,38 +34,29 @@ class AppTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = strong
-        ? AppColors.onPrimary
-        : danger
+    final fg = danger
         ? AppColors.danger
+        : strong
+        ? AppColors.noticeText
         : muted
-        ? AppColors.mute
-        : AppColors.body;
-    final style = monoOrSans(
-      label,
-      mono: AppTextStyles.counter,
-      sans: AppTextStyles.captionSmall,
-    ).copyWith(color: fg);
-    return Container(
+        ? AppColors.mute.withValues(alpha: 0.7)
+        : AppColors.mute;
+    final style = AppTextStyles.bodySm.copyWith(
+      color: fg,
+      fontWeight: strong ? FontWeight.w500 : FontWeight.w400,
+    );
+    return SizedBox(
       height: 22,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: strong ? AppColors.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: strong ? AppColors.primary : AppColors.outline,
-        ),
-      ),
       // 글자 폭만큼만 차지한다 (부모가 넓어도 늘어나지 않게)
       child: Center(
         widthFactor: 1,
-        child: Text(monoCase(label), style: style, maxLines: 1),
+        child: Text(label, style: style, maxLines: 1),
       ),
     );
   }
 }
 
-/// 숫자 카운터 배지 (사진 위·목록 위): scrim 배경 pill, 모노.
+/// 사진 위 숫자 (예: +2): 어두운 덮개 알약.
 class AppCountBadge extends StatelessWidget {
   final String label;
 
@@ -83,15 +74,16 @@ class AppCountBadge extends StatelessWidget {
       child: Center(
         widthFactor: 1,
         child: Text(
-          monoCase(label),
-          style: AppTextStyles.counter.copyWith(color: AppColors.ink),
+          label,
+          // 사진 위 어두운 덮개 위라 테마와 관계없이 흰 글자
+          style: AppTextStyles.counter.copyWith(color: Colors.white),
         ),
       ),
     );
   }
 }
 
-/// 필터·선택 pill. 선택되면 흰 채움, 아니면 외곽선.
+/// 필터·선택 알약. 선택되면 검정 채움 + 흰 글자, 아니면 회색 채움.
 class AppChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -110,12 +102,11 @@ class AppChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = selected ? AppColors.onPrimary : AppColors.ink;
-    final style = monoOrSans(
-      label,
-      mono: AppTextStyles.counter.copyWith(fontSize: 12),
-      sans: AppTextStyles.bodySm,
-    ).copyWith(color: fg);
+    final fg = selected ? AppColors.canvas : AppColors.body;
+    final style = AppTextStyles.bodySmall.copyWith(
+      color: fg,
+      fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+    );
     return Semantics(
       button: true,
       selected: selected,
@@ -132,11 +123,8 @@ class AppChip extends StatelessWidget {
               height: AppSize.buttonHeightSm,
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               decoration: BoxDecoration(
-                color: selected ? AppColors.primary : Colors.transparent,
+                color: selected ? AppColors.ink : AppColors.canvasSoft,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: Border.all(
-                  color: selected ? AppColors.primary : AppColors.outline,
-                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -145,7 +133,7 @@ class AppChip extends StatelessWidget {
                     Icon(icon, size: 16, color: fg),
                     const SizedBox(width: AppSpacing.xs),
                   ],
-                  Text(monoCase(label), style: style),
+                  Text(label, style: style),
                 ],
               ),
             ),

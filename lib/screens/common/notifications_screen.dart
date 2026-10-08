@@ -158,6 +158,8 @@ class _NotificationTile extends StatelessWidget {
         return AppIcons.calendar;
       case NotificationTarget.home:
         return AppIcons.home;
+      case NotificationTarget.notices:
+        return AppIcons.clipboard;
       case null:
         return AppIcons.bell;
     }

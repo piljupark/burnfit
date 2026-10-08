@@ -878,6 +878,53 @@ service cloud.firestore {
         );
     }
 
+    // 공지사항: 같은 센터의 승인된 사용자만 읽고, 대상(audience)이 맞아야 한다.
+    // 작성·수정·삭제는 그 센터의 승인된 관리자만.
+    function isApprovedSameCenter(centerId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        currentUser().status == 'approved' &&
+        currentUser().centerId == centerId;
+    }
+
+    function isValidNoticeContent() {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'centerId', 'title', 'body', 'audience', 'pinned', 'important',
+          'notify', 'authorId', 'createdAt', 'updatedAt'
+        ]) &&
+        d.keys().hasAll([
+          'centerId', 'title', 'body', 'audience', 'pinned', 'important',
+          'authorId', 'createdAt', 'updatedAt'
+        ]) &&
+        d.title is string && d.title.size() >= 1 && d.title.size() <= 40 &&
+        d.body is string && d.body.size() >= 1 && d.body.size() <= 2000 &&
+        d.audience in ['all', 'member', 'trainer'] &&
+        d.pinned is bool &&
+        d.important is bool &&
+        d.get('notify', false) is bool &&
+        d.updatedAt == request.time;
+    }
+
+    match /notices/{noticeId} {
+      allow read: if isApprovedSameCenter(resource.data.centerId) &&
+        (
+          isCenterAdmin(resource.data.centerId) ||
+          resource.data.audience == 'all' ||
+          resource.data.audience == currentUser().role
+        );
+      allow create: if isCenterAdmin(request.resource.data.centerId) &&
+        isValidNoticeContent() &&
+        request.resource.data.authorId == request.auth.uid &&
+        request.resource.data.createdAt == request.time;
+      allow update: if isCenterAdmin(resource.data.centerId) &&
+        isValidNoticeContent() &&
+        request.resource.data.centerId == resource.data.centerId &&
+        request.resource.data.authorId == resource.data.authorId &&
+        request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isCenterAdmin(resource.data.centerId);
+    }
+
     match /custom_exercises/{exerciseId} {
       allow create: if signedIn() &&
         hasOnlyCustomExerciseFields() &&

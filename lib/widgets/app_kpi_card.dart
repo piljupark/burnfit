@@ -4,11 +4,10 @@ import '../core/app_colors.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 
-import 'app_action_row.dart';
 import 'app_tag.dart';
 
-/// 숫자 칸: 라벨(13, mute) + 값(28) + 단위 + (선택) 모노 추세.
-/// 여러 칸을 hairline으로 나눠 붙이려면 [AppStatStrip]/[AppStatGrid]를 쓴다.
+/// 숫자 칸: 라벨(13) + 값·단위(같은 크기, 값 500 / 단위 400 회색) + (선택) 추세.
+/// 여러 칸을 나란히 두려면 [AppStatStrip]/[AppStatGrid]를 쓴다 (회색 칸, 사이 8).
 /// [icon]·[isHighlight]·[accentColor]는 기존 호출부 호환용 — 색과 아이콘으로 강조하지 않는다.
 class AppKpiCard extends StatelessWidget {
   final String label;
@@ -70,7 +69,12 @@ class AppKpiCard extends StatelessWidget {
                 const SizedBox(width: 2),
                 Text(
                   unit,
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                  style: AppTextStyles.displayMd.copyWith(
+                    fontSize: valueSize,
+                    height: 1.2,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.mute,
+                  ),
                 ),
               ],
             ],
@@ -95,15 +99,15 @@ class AppKpiCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.canvasCard,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline),
+        borderRadius: BorderRadius.circular(AppRadius.button),
       ),
       child: cell,
     );
   }
 }
 
-/// 가로 숫자 칸 줄: 칸 사이와 아래를 hairline으로 나눈다 (화면 폭).
+/// 가로 숫자 칸 줄: 회색 칸을 8 간격으로 나란히 (화면 폭에 두면 좌우 여백을 스스로 둔다).
+/// [bottomBorder]·[topBorder]는 호출부 호환용 — 선은 긋지 않는다.
 class AppStatStrip extends StatelessWidget {
   final List<Widget> cells;
   final bool bottomBorder;
@@ -118,38 +122,36 @@ class AppStatStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          top: topBorder
-              ? BorderSide(color: AppColors.hairline)
-              : BorderSide.none,
-          bottom: bottomBorder
-              ? BorderSide(color: AppColors.hairline)
-              : BorderSide.none,
-        ),
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < cells.length; i++) ...[
-              if (i > 0)
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: AppColors.hairline,
-                ),
-              Expanded(child: cells[i]),
-            ],
-          ],
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      child: _tiles(cells),
     );
   }
 }
 
-/// 2열 숫자 격자: 칸 사이를 1px hairline으로 나눈다 (관리자 홈 KPI).
+Widget _tiles(List<Widget> cells) {
+  return IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < cells.length; i++) ...[
+          if (i > 0) const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.canvasCard,
+                borderRadius: BorderRadius.circular(AppRadius.button),
+              ),
+              child: cells[i],
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+/// 2열 숫자 격자: 회색 칸, 가로·세로 사이 8 (관리자 홈 숫자 칸).
 class AppStatGrid extends StatelessWidget {
   final List<Widget> cells;
 
@@ -159,21 +161,21 @@ class AppStatGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = <Widget>[];
     for (var i = 0; i < cells.length; i += 2) {
-      if (i > 0) rows.add(const AppRowDivider());
+      if (i > 0) rows.add(const SizedBox(height: AppSpacing.sm));
       rows.add(
-        AppStatStrip(
-          bottomBorder: false,
-          cells: [
-            cells[i],
-            if (i + 1 < cells.length) cells[i + 1] else const SizedBox(),
-          ],
-        ),
+        i + 1 < cells.length
+            ? _tiles([cells[i], cells[i + 1]])
+            : Row(
+                children: [
+                  Expanded(child: _tiles([cells[i]])),
+                  const SizedBox(width: AppSpacing.sm),
+                  const Expanded(child: SizedBox()),
+                ],
+              ),
       );
     }
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.hairline)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
       child: Column(children: rows),
     );
   }

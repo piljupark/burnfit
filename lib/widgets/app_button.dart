@@ -50,11 +50,23 @@ class AppButton extends StatelessWidget {
       AppButtonSize.lg => AppSpacing.xl,
     };
     final fontSize = switch (size) {
-      AppButtonSize.sm => 13.0,
-      AppButtonSize.md => 14.0,
-      AppButtonSize.lg => 15.0,
+      AppButtonSize.sm => 14.0,
+      AppButtonSize.md => 15.0,
+      AppButtonSize.lg => 17.0,
     };
     final isPrimary = variant == AppButtonVariant.primary;
+    // 회색으로 채운 보조 버튼 (soft)
+    final isSoft = variant == AppButtonVariant.secondary;
+    // 큰 버튼은 모서리 18, 꽉 찬 중간 버튼은 14, 그 외(작은·내용 폭)는 알약
+    final OutlinedBorder shape = size == AppButtonSize.lg
+        ? RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.button),
+          )
+        : fullWidth
+        ? RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.field),
+          )
+        : const StadiumBorder();
     final fg = switch (variant) {
       AppButtonVariant.primary => AppColors.onPrimary,
       AppButtonVariant.danger ||
@@ -63,7 +75,6 @@ class AppButton extends StatelessWidget {
     };
     final borderColor = switch (variant) {
       AppButtonVariant.primary => AppColors.primary,
-      AppButtonVariant.secondary ||
       AppButtonVariant.danger => AppColors.outline,
       _ => Colors.transparent,
     };
@@ -90,6 +101,7 @@ class AppButton extends StatelessWidget {
             style: AppTextStyles.buttonLabel.copyWith(
               color: fg,
               fontSize: fontSize,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -111,15 +123,19 @@ class AppButton extends StatelessWidget {
               height: height,
               width: fullWidth ? double.infinity : null,
               child: Material(
-                color: isPrimary ? AppColors.primary : Colors.transparent,
-                shape: StadiumBorder(side: BorderSide(color: borderColor)),
+                color: isPrimary
+                    ? AppColors.primary
+                    : isSoft
+                    ? AppColors.canvasSoft
+                    : Colors.transparent,
+                shape: shape.copyWith(side: BorderSide(color: borderColor)),
                 child: InkWell(
-                  customBorder: const StadiumBorder(),
+                  customBorder: shape,
                   onTap: disabled ? null : onPressed,
                   // 눌림: 외곽선은 canvasSoft, primary는 body
                   highlightColor: isPrimary
-                      ? AppColors.body
-                      : AppColors.canvasSoft,
+                      ? AppColors.ink.withValues(alpha: 0.12)
+                      : AppColors.canvasMid,
                   splashFactory: NoSplash.splashFactory,
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: hPad),

@@ -14,6 +14,7 @@ import '../../widgets/app_profile_card.dart';
 import '../../widgets/theme_setting_row.dart';
 import '../../widgets/delete_account_sheet.dart';
 import '../../widgets/orb_loader.dart';
+import '../common/notice_menu_row.dart';
 import 'member_profile_detail_screen.dart';
 import 'member_share_settings_screen.dart';
 import 'member_workout_stats_screen.dart';
@@ -74,6 +75,11 @@ class MemberProfileScreen extends StatelessWidget {
               label: '운동 통계',
               onTap: () => _push(context, const MemberWorkoutStatsScreen()),
             ),
+            const AppRowDivider(),
+
+            // ── 센터 ──────────────────────────────────────────────────────
+            const AppMonthHeader(label: '센터'),
+            const NoticeMenuRow(),
             const AppRowDivider(),
 
             // ── 계정 ──────────────────────────────────────────────────────

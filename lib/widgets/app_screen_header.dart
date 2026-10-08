@@ -10,7 +10,7 @@ import 'app_icon_button.dart';
 /// 화면 폭에 그대로 놓는다 — 좌우 여백(16)과 아래 hairline을 스스로 그린다 (감싸지 않는다).
 ///
 /// - [subtitle]은 제목 아래 보조 줄(body-sm). 날짜는 넣지 않는다.
-/// - [divider]는 기본 true. 바로 아래가 날짜 줄·탭처럼 자체 경계가 있으면 false.
+/// - [divider]는 기본 false (선 없이 여백으로 나눈다). 꼭 필요할 때만 true.
 /// - 오른쪽 행동은 AppIconButton 최대 3개 또는 글자 버튼(AppButton ghost). 가장자리 정렬은 위젯이 맞춘다.
 class AppScreenHeader extends StatelessWidget {
   final String title;
@@ -25,7 +25,7 @@ class AppScreenHeader extends StatelessWidget {
     this.subtitle,
     this.onBack,
     this.trailing,
-    this.divider = true,
+    this.divider = false,
   });
 
   @override

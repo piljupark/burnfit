@@ -408,11 +408,9 @@ class _RestOption extends StatelessWidget {
       button: true,
       selected: selected,
       child: Material(
-        color: selected ? AppColors.primary : Colors.transparent,
+        color: selected ? AppColors.ink : Colors.transparent,
         shape: StadiumBorder(
-          side: BorderSide(
-            color: selected ? AppColors.primary : AppColors.outline,
-          ),
+          side: BorderSide(color: selected ? AppColors.ink : AppColors.outline),
         ),
         child: InkWell(
           customBorder: const StadiumBorder(),
@@ -423,7 +421,7 @@ class _RestOption extends StatelessWidget {
             child: Text(
               label,
               style: AppTextStyles.buttonLabel.copyWith(
-                color: selected ? AppColors.onPrimary : AppColors.ink,
+                color: selected ? AppColors.canvas : AppColors.ink,
               ),
             ),
           ),

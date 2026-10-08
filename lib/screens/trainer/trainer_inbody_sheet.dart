@@ -14,6 +14,7 @@ import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_inputs.dart';
 import '../../widgets/app_text_field.dart';
 
 class TrainerInbodyInputSheet extends StatefulWidget {
@@ -82,11 +83,12 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
-    final selected = await showDatePicker(
+    final selected = await showAppDatePicker(
       context: context,
       initialDate: DateTime.tryParse(_dateCtrl.text) ?? now,
       firstDate: DateTime(now.year - 5),
       lastDate: DateTime(now.year + 1),
+      title: '측정일 선택',
     );
     if (selected == null) return;
     _dateCtrl.text = DateFormat('yyyy-MM-dd').format(selected);
@@ -267,7 +269,7 @@ class _TrainerInbodyInputSheetState extends State<TrainerInbodyInputSheet> {
   }
 }
 
-/// 시트 안 묶음 머리말: 모노 라벨 + 남은 폭 hairline.
+/// 시트 안 묶음 머리말: 회색 라벨 (선 없음).
 class _SheetSection extends StatelessWidget {
   final String label;
   final bool first;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import 'app_button.dart';
@@ -125,49 +126,21 @@ class AppEmptyState extends StatelessWidget {
   }
 }
 
+/// 빈 상태 그림: 회색 원 안에 흐린 상자 아이콘. 색은 무채색만 쓴다.
 class _EmptyArt extends StatelessWidget {
   const _EmptyArt();
 
   @override
   Widget build(BuildContext context) {
     return ExcludeSemantics(
-      child: SizedBox(
-        width: 120,
+      child: Container(
+        width: 72,
         height: 72,
-        child: Stack(
-          children: [
-            Positioned(
-              left: 0,
-              top: 12,
-              child: Container(
-                width: 56,
-                height: 56,
-                color: AppColors.accentBreeze,
-              ),
-            ),
-            Positioned(
-              left: 58,
-              top: 12,
-              child: Container(
-                width: 56,
-                height: 56,
-                color: AppColors.canvasMid,
-              ),
-            ),
-            Positioned(
-              left: 28,
-              top: 0,
-              child: Container(
-                width: 64,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: AppColors.accentSunset,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-              ),
-            ),
-          ],
+        decoration: BoxDecoration(
+          color: AppColors.canvasCard,
+          shape: BoxShape.circle,
         ),
+        child: Icon(AppIcons.archive, size: 32, color: AppColors.mute),
       ),
     );
   }

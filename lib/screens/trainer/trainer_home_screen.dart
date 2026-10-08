@@ -17,6 +17,8 @@ import '../../widgets/password_reset_sheet.dart';
 import '../../widgets/delete_account_sheet.dart';
 import 'trainer_calendar_screen.dart';
 import 'trainer_schedule_screen.dart';
+import '../common/notice_list_screen.dart';
+import '../common/notice_menu_row.dart';
 
 class TrainerHomeScreen extends StatefulWidget {
   const TrainerHomeScreen({super.key});
@@ -79,6 +81,11 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
         Navigator.of(context).popUntil((route) => route.isFirst);
         setState(() => _currentIndex = 0);
         _calendarKey.currentState?.refresh();
+      case NotificationTarget.notices:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const NoticeListScreen()));
       // 트레이너에게는 피드백 알림이 오지 않는다.
       case NotificationTarget.feedback:
       case null:
@@ -148,6 +155,9 @@ class _TrainerProfileTab extends StatelessWidget {
           children: [
             const AppHero(title: '마이', divider: false),
             AppProfileRow(name: user?.name ?? '', subtitle: subtitle),
+            const AppMonthHeader(label: '센터'),
+            const NoticeMenuRow(),
+            const AppRowDivider(),
             const AppMonthHeader(label: '계정'),
             AppActionRow(
               icon: AppIcons.lock,

@@ -12,6 +12,7 @@ import 'member_profile_screen.dart';
 import 'member_pt_schedule_screen.dart';
 import 'member_routes.dart';
 import 'member_workout_screen.dart';
+import '../common/notice_list_screen.dart';
 
 class MemberHomeScreen extends StatefulWidget {
   const MemberHomeScreen({super.key});
@@ -85,6 +86,11 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
       case NotificationTarget.home:
         Navigator.of(context).popUntil((route) => route.isFirst);
         _selectTab(_homeTab);
+      case NotificationTarget.notices:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const NoticeListScreen()));
       case null:
         break;
     }

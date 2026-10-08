@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -18,6 +17,8 @@ import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_highlight.dart';
+import '../../widgets/app_inputs.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/app_screen_header.dart';
@@ -594,8 +595,11 @@ class _PtInfoSheet extends StatefulWidget {
 }
 
 class _PtInfoSheetState extends State<_PtInfoSheet> {
-  final _totalController = TextEditingController();
-  final _remainingController = TextEditingController();
+  /// 스테퍼 최대값. 저장된 값이 더 크면 그 값까지 허용한다.
+  static const _maxSessions = 999;
+
+  int _total = 0;
+  int _remaining = 0;
   final _noteController = TextEditingController();
   DateTime? _startDate;
   DateTime? _endDate;
@@ -609,8 +613,8 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
     super.initState();
     if (widget.existing != null) {
       final e = widget.existing!;
-      _totalController.text = e.totalSessions.toString();
-      _remainingController.text = e.remainingSessions.toString();
+      _total = e.totalSessions;
+      _remaining = e.remainingSessions;
       _startDate = e.startDate;
       _endDate = e.endDate;
       _renewalDate = e.renewalDate;
@@ -619,8 +623,6 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
 
   @override
   void dispose() {
-    _totalController.dispose();
-    _remainingController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -628,6 +630,7 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
   Future<void> _pickDate(
     BuildContext context,
     DateTime? current,
+    String label,
     void Function(DateTime) onPicked,
   ) async {
     // 범위는 오늘 기준 ±10년 (저장된 날짜가 범위 밖이어도 열리도록 그 날짜를 포함한다).
@@ -635,11 +638,12 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
     final initial = current ?? now;
     final first = DateTime(now.year - 10);
     final last = DateTime(now.year + 10, 12, 31);
-    final picked = await showDatePicker(
+    final picked = await showAppDatePicker(
       context: context,
       initialDate: initial,
       firstDate: initial.isBefore(first) ? initial : first,
       lastDate: initial.isAfter(last) ? initial : last,
+      title: '$label 선택',
     );
     if (picked != null) onPicked(picked);
   }
@@ -647,10 +651,14 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
   Future<void> _save() async {
     if (_isSaving) return;
 
-    final total = int.tryParse(_totalController.text.trim());
-    final remaining = int.tryParse(_remainingController.text.trim());
-    if (total == null || remaining == null || total < 0 || remaining < 0) {
+    final total = _total;
+    final remaining = _remaining;
+    if (total < 0 || remaining < 0) {
       AppFeedback.showWarning(context, '전체·잔여 횟수를 0 이상의 숫자로 입력해주세요.');
+      return;
+    }
+    if (total == 0) {
+      AppFeedback.showWarning(context, '전체 횟수를 1회 이상 입력해주세요.');
       return;
     }
     if (remaining > total) {
@@ -702,8 +710,11 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
     }
   }
 
+  int _maxFor(int value) => value > _maxSessions ? value : _maxSessions;
+
   @override
   Widget build(BuildContext context) {
+    final overTotal = _remaining > _total;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -711,55 +722,72 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
           title: _isEditing ? 'PT 정보 수정' : 'PT 정보 등록',
           subtitle: widget.memberName,
         ),
-        _DateRow(
-          label: '시작일',
-          value: _startDate,
-          onTap: () => _pickDate(
-            context,
-            _startDate,
-            (d) => setState(() => _startDate = d),
-          ),
-        ),
-        const AppRowDivider(),
-        _DateRow(
-          label: '종료일',
-          value: _endDate,
-          onTap: () =>
-              _pickDate(context, _endDate, (d) => setState(() => _endDate = d)),
-        ),
-        const AppRowDivider(),
-        _DateRow(
-          label: '갱신일',
-          value: _renewalDate,
-          onTap: () => _pickDate(
-            context,
-            _renewalDate,
-            (d) => setState(() => _renewalDate = d),
-          ),
-        ),
-        const AppRowDivider(),
         const SizedBox(height: AppSpacing.base),
-        Row(
+        // ── 날짜 묶음 (회색 면 하나에 세 줄) ──────────────────────
+        _SheetGroup(
           children: [
-            Expanded(
-              child: AppTextField(
-                label: '총 횟수',
-                controller: _totalController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            _DateRow(
+              label: '시작일',
+              value: _startDate,
+              onTap: () => _pickDate(
+                context,
+                _startDate,
+                '시작일',
+                (d) => setState(() => _startDate = d),
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: AppTextField(
-                label: '잔여 횟수',
-                controller: _remainingController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            _DateRow(
+              label: '종료일',
+              value: _endDate,
+              onTap: () => _pickDate(
+                context,
+                _endDate,
+                '종료일',
+                (d) => setState(() => _endDate = d),
+              ),
+            ),
+            _DateRow(
+              label: '갱신일',
+              value: _renewalDate,
+              onTap: () => _pickDate(
+                context,
+                _renewalDate,
+                '갱신일',
+                (d) => setState(() => _renewalDate = d),
               ),
             ),
           ],
         ),
+        const SizedBox(height: AppSpacing.md),
+        // ── 횟수 묶음 (− 값 +) ────────────────────────────────────
+        _SheetGroup(
+          children: [
+            _StepperRow(
+              label: '총 횟수',
+              child: AppStepper(
+                value: _total,
+                max: _maxFor(_total),
+                unit: '회',
+                semanticLabel: '총 횟수',
+                onChanged: (v) => setState(() => _total = v),
+              ),
+            ),
+            _StepperRow(
+              label: '잔여 횟수',
+              child: AppStepper(
+                value: _remaining,
+                max: _maxFor(_remaining),
+                unit: '회',
+                semanticLabel: '잔여 횟수',
+                onChanged: (v) => setState(() => _remaining = v),
+              ),
+            ),
+          ],
+        ),
+        if (overTotal) ...[
+          const SizedBox(height: AppSpacing.sm),
+          const AppInlineNotice('잔여 횟수는 전체 횟수보다 많을 수 없습니다.'),
+        ],
         const SizedBox(height: AppSpacing.base),
         AppTextField(
           label: _isEditing ? '수정 사유' : '등록 메모',
@@ -768,20 +796,27 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
           maxLines: 2,
           textInputAction: TextInputAction.done,
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
         Row(
-          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            AppButton(
-              label: '취소',
-              variant: AppButtonVariant.ghost,
-              onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+            Expanded(
+              child: AppButton(
+                label: '취소',
+                variant: AppButtonVariant.secondary,
+                size: AppButtonSize.lg,
+                fullWidth: true,
+                onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+              ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            AppButton(
-              label: '저장',
-              onPressed: _isSaving ? null : _save,
-              isLoading: _isSaving,
+            Expanded(
+              child: AppButton(
+                label: '저장',
+                size: AppButtonSize.lg,
+                fullWidth: true,
+                onPressed: _isSaving ? null : _save,
+                isLoading: _isSaving,
+              ),
             ),
           ],
         ),
@@ -790,9 +825,70 @@ class _PtInfoSheetState extends State<_PtInfoSheet> {
   }
 }
 
+// ── _SheetGroup ───────────────────────────────────────────────────────────────
+
+/// 시트 안 회색 묶음: canvasSoft 면(반경 18) 안에 줄들을 hairline으로 나눈다.
+class _SheetGroup extends StatelessWidget {
+  final List<Widget> children;
+
+  const _SheetGroup({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.button),
+      child: Material(
+        color: AppColors.canvasSoft,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (int i = 0; i < children.length; i++) ...[
+              if (i > 0) const AppRowDivider(),
+              children[i],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── _StepperRow ───────────────────────────────────────────────────────────────
+
+/// 횟수 줄 (높이 64): 왼쪽 라벨 + 오른쪽 스테퍼.
+class _StepperRow extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _StepperRow({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 64,
+      child: Padding(
+        padding: const EdgeInsets.only(
+          left: AppSpacing.base,
+          right: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: ExcludeSemantics(
+                child: Text(label, style: AppTextStyles.bodyLg),
+              ),
+            ),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ── _DateRow ──────────────────────────────────────────────────────────────────
 
-/// 시트 안 날짜 선택 줄 (높이 52): 라벨 + 값(미선택이면 '선택', mute) + 화살표.
+/// 회색 묶음 안 날짜 선택 줄 (높이 52): 라벨 + 값(미선택이면 '선택', mute) + 화살표.
 class _DateRow extends StatelessWidget {
   final String label;
   final DateTime? value;
@@ -812,17 +908,21 @@ class _DateRow extends StatelessWidget {
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
-        highlightColor: AppColors.canvasSoft,
+        highlightColor: AppColors.canvasMid,
         splashFactory: NoSplash.splashFactory,
-        child: SizedBox(
+        child: Container(
           height: 52,
+          padding: const EdgeInsets.only(
+            left: AppSpacing.base,
+            right: AppSpacing.md,
+          ),
           child: Row(
             children: [
               SizedBox(
-                width: 72,
+                width: 64,
                 child: Text(
                   label,
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+                  style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
                 ),
               ),
               Expanded(
@@ -830,6 +930,9 @@ class _DateRow extends StatelessWidget {
                   value == null ? '선택' : _fmt(value),
                   style: AppTextStyles.bodyMd.copyWith(
                     color: value == null ? AppColors.body : AppColors.ink,
+                    fontWeight: value == null
+                        ? FontWeight.w400
+                        : FontWeight.w500,
                   ),
                 ),
               ),

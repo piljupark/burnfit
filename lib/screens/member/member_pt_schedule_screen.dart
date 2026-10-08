@@ -13,10 +13,10 @@ import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_highlight.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_tag.dart';
 import '../../widgets/orb_loader.dart';
-import '../../widgets/app_progress_bar.dart';
 import 'member_pt_workout_screen.dart';
 
 class MemberPtScheduleScreen extends StatefulWidget {
@@ -131,8 +131,6 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                       )
                     : AppHero(title: 'PT 일정'),
               ),
-              if (widget.showBackButton)
-                const SliverToBoxAdapter(child: AppRowDivider()),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -153,7 +151,6 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                   padding: const EdgeInsets.only(top: AppSpacing.md),
                   child: Column(
                     children: [
-                      const AppRowDivider(),
                       AppActionRow(
                         icon: AppIcons.workout,
                         label: 'PT 운동 기록',
@@ -164,7 +161,7 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                           ),
                         ),
                       ),
-                      const AppRowDivider(),
+                      const _SectionBand(),
                     ],
                   ),
                 ),
@@ -212,6 +209,7 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
                     itemBuilder: (_, i) =>
                         _SessionRow(session: upcoming[i], isPast: false),
                   ),
+                const SliverToBoxAdapter(child: _SectionBand()),
                 SliverToBoxAdapter(
                   child: AppMonthHeader(
                     label: '지난 일정',
@@ -238,7 +236,7 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
   }
 }
 
-/// 잔여 횟수 카드: 모노 머리말 + 큰 숫자 + 2px 진행 막대 + 트레이너·갱신일 + D-N.
+/// 잔여 횟수 카드: 강조색 요약 카드 (남은 횟수 / 전체 + 진행 막대 + 트레이너·갱신일 + D-N).
 class _RemainingCard extends StatelessWidget {
   final PtInfo? info;
   final String? trainerName;
@@ -267,54 +265,28 @@ class _RemainingCard extends StatelessWidget {
     return Semantics(
       container: true,
       label: 'PT 잔여 $remaining회, 전체 $total회',
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.base),
-        decoration: BoxDecoration(
-          color: AppColors.canvasCard,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: AppColors.hairline),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '남은 횟수',
-                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-                  ),
-                ),
-                if (dDay != null) AppTag(dDay),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            ExcludeSemantics(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text('$remaining', style: AppTextStyles.displayLg),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    '/ $total회 남음',
-                    style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppProgressBar(value: ratio, semanticLabel: 'PT 잔여 비율'),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              metaParts.join(' · '),
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-            ),
-          ],
-        ),
+      child: AppHighlightCard(
+        label: '남은 횟수',
+        trailingLabel: dDay,
+        value: '$remaining',
+        unit: ' / $total회 남음',
+        progress: ratio,
+        footer: metaParts.join(' · '),
       ),
     );
   }
+}
+
+/// 묶음 사이 회색 띠 (선 대신 면으로 나눈다).
+class _SectionBand extends StatelessWidget {
+  const _SectionBand();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: AppSpacing.sm,
+    margin: const EdgeInsets.only(top: AppSpacing.md),
+    color: AppColors.canvasCard,
+  );
 }
 
 /// 일정 한 줄: 모노 날짜 칸(10.09 / 목) + 제목 + 시간 메타 + 상태 태그.

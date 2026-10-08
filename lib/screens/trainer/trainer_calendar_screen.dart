@@ -22,6 +22,7 @@ import '../../widgets/app_tag.dart';
 import '../../widgets/calendar_marks.dart';
 import '../../widgets/notification_bell_button.dart';
 import '../../widgets/orb_loader.dart';
+import '../common/notice_home_banner.dart';
 import 'trainer_member_detail_screen.dart';
 import 'trainer_pt_workout_screen.dart';
 
@@ -196,6 +197,7 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen> {
                 )
               else
                 const AppHero(title: '캘린더'),
+              if (widget.showGreeting) const NoticeHomeBanner(),
               _MonthNav(
                 month: _focusedMonth,
                 onPrev: () => _moveMonth(-1),
@@ -428,9 +430,7 @@ class _TrainerCalendarGrid extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isSelected
-                            ? AppColors.primary
-                            : Colors.transparent,
+                        color: isSelected ? AppColors.ink : Colors.transparent,
                         border: isToday && !isSelected
                             ? Border.all(color: AppColors.ink)
                             : null,
@@ -441,7 +441,7 @@ class _TrainerCalendarGrid extends StatelessWidget {
                           fontSize: 14,
                           height: 18 / 14,
                           color: isSelected
-                              ? AppColors.onPrimary
+                              ? AppColors.canvas
                               : isFuture
                               ? AppColors.body
                               : AppColors.ink,

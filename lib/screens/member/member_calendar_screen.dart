@@ -25,6 +25,7 @@ import '../../widgets/calendar_marks.dart';
 import '../../widgets/notification_bell_button.dart';
 import '../../widgets/orb_loader.dart';
 
+import '../common/notice_home_banner.dart';
 import 'member_pt_workout_screen.dart';
 import 'member_routes.dart';
 
@@ -212,6 +213,7 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
                 )
               else
                 const AppHero(title: '캘린더'),
+              if (widget.showGreeting) const NoticeHomeBanner(),
               _RecordShortcuts(
                 unreadFeedbackCount: _unreadFeedbackCount,
                 onMealTap: () => _openMealLog(),
@@ -239,6 +241,12 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
                   0,
                 ),
                 child: CalendarLegend(),
+              ),
+              // 달력과 그날 기록 사이: 회색 띠 (선 대신 면으로 나눈다)
+              Container(
+                height: AppSpacing.sm,
+                margin: const EdgeInsets.only(top: AppSpacing.lg),
+                color: AppColors.canvasCard,
               ),
               AppMonthHeader(
                 label: _dayLabel(_selectedDay),
@@ -435,7 +443,7 @@ class _DayCell extends StatelessWidget {
       if (marks.isNotEmpty) calendarMarksSemantics(marks),
     ].join(', ');
     final numberColor = isSelected
-        ? AppColors.onPrimary
+        ? AppColors.canvas
         : isFuture
         ? AppColors.body
         : AppColors.ink;
@@ -457,7 +465,7 @@ class _DayCell extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected ? AppColors.primary : Colors.transparent,
+                color: isSelected ? AppColors.ink : Colors.transparent,
                 border: !isSelected && isToday
                     ? Border.all(color: AppColors.ink)
                     : null,
@@ -505,7 +513,7 @@ class _DayRecords extends StatelessWidget {
       return const AppEmptyLine('이 날의 기록이 없습니다');
     }
 
-    // 화면 폭 목록: 줄마다 아래 hairline
+    // 목록: 줄마다 아래 hairline (좌우 20 안쪽)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -573,7 +581,8 @@ class _DayRecords extends StatelessWidget {
   }
 }
 
-/// 기록 한 줄: 아이콘 상자 + 17 제목 + 보조 줄 + 오른쪽(태그·화살표). 아래 hairline.
+/// 기록 한 줄: 아이콘 상자 + 17 제목 + 보조 줄 + 오른쪽(태그·화살표).
+/// 아래 hairline은 좌우 20 안쪽에서만 긋는다 (화면 끝까지 긋지 않음).
 /// AppActionRow와 같은 모양이지만 누를 수 없는 줄(운동·예약)도 그린다.
 class _RecordRow extends StatelessWidget {
   final IconData icon;
@@ -598,10 +607,8 @@ class _RecordRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final row = Container(
       constraints: const BoxConstraints(minHeight: AppSize.listRow),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.md,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.hairline)),
       ),
@@ -661,7 +668,8 @@ class _RecordRow extends StatelessWidget {
   }
 }
 
-/// 홈에서 식단 기록·트레이너 피드백으로 바로 가는 두 칸 (화면 폭, hairline으로 나눔).
+/// 홈에서 식단 기록·트레이너 피드백으로 바로 가는 두 칸.
+/// 회색 둥근 카드 하나에 담고, 가운데는 짧은 세로 구분선으로 나눈다.
 class _RecordShortcuts extends StatelessWidget {
   final int unreadFeedbackCount;
   final VoidCallback onMealTap;
@@ -675,31 +683,47 @@ class _RecordShortcuts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.hairline)),
+    final radius = BorderRadius.circular(AppRadius.card);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.md,
+        AppSpacing.screenH,
+        0,
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _ShortcutCell(
-                icon: AppIcons.meal,
-                label: '식단 기록',
-                onTap: onMealTap,
+      child: Material(
+        color: AppColors.canvasCard,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _ShortcutCell(
+                  icon: AppIcons.meal,
+                  label: '식단 기록',
+                  onTap: onMealTap,
+                ),
               ),
-            ),
-            VerticalDivider(width: 1, thickness: 1, color: AppColors.hairline),
-            Expanded(
-              child: _ShortcutCell(
-                icon: AppIcons.feedback,
-                label: '트레이너 피드백',
-                badgeCount: unreadFeedbackCount,
-                onTap: onFeedbackTap,
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: AppColors.canvasMid,
+                ),
               ),
-            ),
-          ],
+              Expanded(
+                child: _ShortcutCell(
+                  icon: AppIcons.feedback,
+                  label: '트레이너 피드백',
+                  badgeCount: unreadFeedbackCount,
+                  onTap: onFeedbackTap,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -721,7 +745,9 @@ class _ShortcutCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semanticLabel = badgeCount > 0 ? '$label, 새 피드백 $badgeCount개' : label;
+    final hasNew = badgeCount > 0;
+    final semanticLabel = hasNew ? '$label, 새 피드백 $badgeCount개' : label;
+    final countLabel = badgeCount > 99 ? '99+' : '$badgeCount';
     return Semantics(
       button: true,
       label: semanticLabel,
@@ -731,28 +757,63 @@ class _ShortcutCell extends StatelessWidget {
         onTap: onTap,
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.base,
-            vertical: AppSpacing.md,
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: AppSize.icon, color: AppColors.ink),
-              const Gap(AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodyMd,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppSize.touchMin),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.base),
+            child: Row(
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(icon, size: 26, color: AppColors.ink),
+                    if (hasNew)
+                      Positioned(
+                        top: -2,
+                        right: -3,
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: AppColors.newDot,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-              if (badgeCount > 0) ...[
-                const Gap(AppSpacing.xs),
-                AppTag(badgeCount > 99 ? '99+' : '$badgeCount', strong: true),
+                const Gap(AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodyMd.copyWith(
+                          color: AppColors.ink,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (hasNew) ...[
+                        const Gap(2),
+                        Text(
+                          '새 피드백 $countLabel개',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodySm.copyWith(
+                            color: AppColors.noticeText,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
-            ],
+            ),
           ),
         ),
       ),

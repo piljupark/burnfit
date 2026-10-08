@@ -8,6 +8,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
+import '../../core/app_text_styles.dart';
 import '../../models/custom_exercise.dart';
 import '../../models/user.dart';
 import '../../models/workout.dart';
@@ -17,13 +18,12 @@ import '../../services/workout_draft_service.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
-import '../../widgets/app_button.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/app_inputs.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
-import '../../widgets/app_section.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/orb_loader.dart';
 import 'workout_draft_models.dart';
@@ -318,14 +318,11 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     await _persistDraftNow();
     if (!mounted) return;
 
-    final picked = await showDatePicker(
+    final picked = await showAppDatePicker(
       context: context,
       initialDate: DateTime.parse(_selectedDate),
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(data: Theme.of(context), child: child!);
-      },
     );
 
     if (!mounted || picked == null) return;
@@ -797,11 +794,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                             ],
                           ),
                         if (_sessionExercises.isEmpty)
-                          const AppEmptyState(
-                            icon: AppIcons.workout,
-                            message: '운동을 추가하고 바로 기록하세요',
-                            description: '무게, 횟수, 완료 체크를 한 화면에서 입력할 수 있습니다.',
-                          )
+                          const _WorkoutEmptyCard()
                         else ...[
                           for (
                             var index = 0;
@@ -856,6 +849,12 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                           ),
                         ],
                         if (_workouts.isNotEmpty) ...[
+                          // 오늘 기록과 저장된 기록 사이: 회색 띠
+                          Container(
+                            height: AppSpacing.sm,
+                            margin: const EdgeInsets.only(top: AppSpacing.xl),
+                            color: AppColors.canvasCard,
+                          ),
                           AppMonthHeader(
                             label: '저장된 기록',
                             count: '${_workouts.length}',
@@ -876,12 +875,21 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
             left: 0,
             right: 0,
             bottom: widget.showAsTab ? 70 : 0,
-            child: _WorkoutBottomBar(
-              saving: _saving,
-              editing: _editingWorkoutId != null,
-              hasContent: _sessionExercises.isNotEmpty,
-              onAddExercise: _showExercisePicker,
-              onComplete: _completeWorkout,
+            child: AppBottomActionBar(
+              secondaryLabel: '운동 추가',
+              secondaryIcon: AppIcons.add,
+              onSecondary: _showExercisePicker,
+              // 시작 단계 없이 바로 저장한다 (운동 시간은 기록하지 않음).
+              primaryLabel: _saving
+                  ? '저장 중'
+                  : _editingWorkoutId != null
+                  ? '수정 저장'
+                  : '기록 저장',
+              loading: _saving,
+              // 운동을 하나도 추가하지 않았으면 저장할 것이 없으므로 비활성.
+              onPrimary: _saving || _sessionExercises.isEmpty
+                  ? null
+                  : _completeWorkout,
             ),
           ),
         ],
@@ -890,69 +898,93 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
   }
 }
 
-/// 아래 고정 버튼 줄: 외곽선 "운동 추가" + 주 행동(흰 채움) 하나.
-class _WorkoutBottomBar extends StatelessWidget {
-  final bool saving;
-  final bool editing;
-  final bool hasContent;
-  final VoidCallback onAddExercise;
-  final VoidCallback onComplete;
-
-  const _WorkoutBottomBar({
-    required this.saving,
-    required this.editing,
-    required this.hasContent,
-    required this.onAddExercise,
-    required this.onComplete,
-  });
+/// 오늘 운동이 아직 없을 때: 회색 둥근 카드 + 바벨 그림 + 안내 두 줄.
+class _WorkoutEmptyCard extends StatelessWidget {
+  const _WorkoutEmptyCard();
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).padding.bottom;
-
-    // 시작 단계 없이 바로 저장한다 (운동 시간은 기록하지 않음).
-    final primaryTitle = saving
-        ? '저장 중'
-        : editing
-        ? '수정 저장'
-        : '기록 저장';
-    // 운동을 하나도 추가하지 않았으면 저장할 것이 없으므로 비활성.
-    final VoidCallback? primaryTap = saving || !hasContent ? null : onComplete;
-
     return Container(
-      padding: EdgeInsets.fromLTRB(
+      margin: const EdgeInsets.fromLTRB(
         AppSpacing.screenH,
-        AppSpacing.md,
+        AppSpacing.sm,
         AppSpacing.screenH,
-        bottom + AppSpacing.md,
+        0,
       ),
+      padding: const EdgeInsets.fromLTRB(28, 44, 28, 40),
       decoration: BoxDecoration(
-        color: AppColors.canvas,
-        border: Border(top: BorderSide(color: AppColors.hairline)),
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: AppButton(
-              label: '운동 추가',
-              variant: AppButtonVariant.secondary,
-              size: AppButtonSize.lg,
-              fullWidth: true,
-              icon: const Icon(AppIcons.add),
-              onPressed: onAddExercise,
-            ),
+          const _BarbellArt(),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            '운동을 추가하고 바로 기록하세요',
+            style: AppTextStyles.title,
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: AppButton(
-              label: primaryTitle,
-              size: AppButtonSize.lg,
-              fullWidth: true,
-              isLoading: saving,
-              onPressed: primaryTap,
-            ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '무게, 횟수, 완료 체크를 한 화면에서 입력할 수 있습니다.',
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+            textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 바벨 그림 (64×40): 검정 원판 + 회색 봉 + 가운데 강조색 손잡이.
+class _BarbellArt extends StatelessWidget {
+  const _BarbellArt();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget plate(double w, double h) => Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(2.5),
+      ),
+    );
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: 64,
+        height: 40,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.mute,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+            ),
+            Row(
+              children: [
+                plate(6, 16),
+                plate(7, 23),
+                const Spacer(),
+                plate(7, 23),
+                plate(6, 16),
+              ],
+            ),
+            Container(
+              width: 13,
+              height: 6,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

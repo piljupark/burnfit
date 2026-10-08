@@ -46,8 +46,8 @@ class AppPalette {
     ink: Color(0xFFFFFFFF),
     body: Color(0xFFDADBDF),
     mute: Color(0xFF7D8187),
-    primary: Color(0xFFFFFFFF),
-    onPrimary: Color(0xFF0A0A0A),
+    primary: Color(0xFFFF7A33),
+    onPrimary: Color(0xFF191919),
     danger: Color(0xFFE5484D),
     chartSeries: [
       Color(0xFFFFFFFF),
@@ -62,33 +62,34 @@ class AppPalette {
   static const light = AppPalette(
     brightness: Brightness.light,
     canvas: Color(0xFFFFFFFF),
-    canvasCard: Color(0xFFF5F5F6),
-    canvasSoft: Color(0xFFEEEFF1),
-    canvasMid: Color(0xFFD4D6DA),
-    hairline: Color(0xFFE6E7EA),
-    outline: Color(0x380A0A0A),
-    ink: Color(0xFF0A0A0A),
-    body: Color(0xFF3B3E43),
-    mute: Color(0xFF6B6F76),
-    primary: Color(0xFF0A0A0A),
-    onPrimary: Color(0xFFFFFFFF),
+    canvasCard: Color(0xFFF6F6F7),
+    canvasSoft: Color(0xFFF3F3F5),
+    canvasMid: Color(0xFFD4D4D8),
+    hairline: Color(0xFFF0F0F2),
+    outline: Color(0xFFD4D4D8),
+    ink: Color(0xFF191919),
+    body: Color(0xFF4A4A4A),
+    mute: Color(0xFF6B6B70),
+    primary: Color(0xFFFF7A33),
+    onPrimary: Color(0xFF191919),
     danger: Color(0xFFD93036),
-    // 흰 바탕에서 구분되도록 진한 계열
+    // 흰 바탕에서 구분되도록 진한 계열 (둘째가 강조색)
     chartSeries: [
-      Color(0xFF0A0A0A),
+      Color(0xFF191919),
+      Color(0xFFFF7A33),
       Color(0xFF3E7BC4),
-      Color(0xFFD9822B),
       Color(0xFF7C5CE0),
       Color(0xFF6B6F76),
     ],
   );
 }
 
-/// Galloway 디자인 시스템 색 토큰. 지금 테마([AppPalette])의 값을 돌려준다.
+/// BurnFit 디자인 시스템 색 토큰 (미니멀 · 강조색 하나). 지금 테마([AppPalette])의 값을 돌려준다.
 ///
 /// 원칙
 /// - 캔버스는 하나: 모든 화면 바탕은 [canvas]. 라이트(기본)·다크는 같은 구조에서 색만 다르다.
-/// - UI는 무채색만. 상태는 색이 아니라 모양(채움/외곽선)으로 구분한다.
+/// - 강조색은 [primary](오렌지) 하나, 그 위 글자는 [onPrimary](검정). 나머지 UI는 무채색.
+/// - 상태는 색만이 아니라 모양(채움/외곽선)으로도 구분한다.
 /// - [danger]는 되돌릴 수 없는 행동의 글자에만.
 /// - accent* 는 일러스트·아바타·차트 계열 구분 전용. 버튼·아이콘 등 UI 컨트롤에는 쓰지 않는다.
 /// - 그림자 대신 [hairline] 테두리와 면 색(canvas → canvasCard)으로 층을 나눈다.
@@ -127,6 +128,13 @@ class AppColors {
   static const Color backdrop = Color(0x99000000); // 시트·다이얼로그 뒤 (60%)
 
   static Color get danger => _p.danger; // 파괴적 행동 글자 전용
+
+  // 안내·경고 줄: 연한 주황 바탕 + 진한 주황 글자 (두 테마 공통)
+  static const Color noticeBg = Color(0xFFFFF1E8);
+  static const Color noticeText = Color(0xFFA8400E);
+
+  /// 새 소식 점 (알림 종, 바로가기)
+  static const Color newDot = Color(0xFFFF5A1F);
 
   // 일러스트·차트 전용 (두 테마 공통)
   static const Color accentSunset = Color(0xFFFF7A17);

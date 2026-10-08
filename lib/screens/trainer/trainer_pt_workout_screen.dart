@@ -22,6 +22,7 @@ import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_inputs.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
@@ -497,12 +498,19 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
                   : null,
             ),
             Expanded(child: _buildBody(editing)),
-            _BottomBar(
-              saving: _saving,
-              editing: editing,
-              canSave: canSave,
-              onAddExercise: _showExercisePicker,
-              onSave: _saveWorkout,
+            // 시작 단계 없이 바로 저장한다. 저장하면 예약된 PT가 완료 처리된다.
+            // 운동 내용이 없으면 저장할 것이 없으므로 비활성.
+            AppBottomActionBar(
+              primaryLabel: _saving
+                  ? '저장 중'
+                  : editing
+                  ? '수정 저장'
+                  : '기록 저장',
+              loading: _saving,
+              onPrimary: _saving || !canSave ? null : _saveWorkout,
+              secondaryLabel: '운동 추가',
+              secondaryIcon: AppIcons.add,
+              onSecondary: _showExercisePicker,
             ),
           ],
         ),
@@ -673,72 +681,6 @@ class _MemberRow extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xxs),
                 Text(subtitle, style: AppTextStyles.bodySm),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 아래 고정 행동: 외곽선 '운동 추가' + 주 행동(기록 저장 / 수정 저장).
-class _BottomBar extends StatelessWidget {
-  final bool saving;
-  final bool editing;
-  final bool canSave;
-  final VoidCallback onAddExercise;
-  final VoidCallback onSave;
-
-  const _BottomBar({
-    required this.saving,
-    required this.editing,
-    required this.canSave,
-    required this.onAddExercise,
-    required this.onSave,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).padding.bottom;
-
-    // 시작 단계 없이 바로 저장한다. 저장하면 예약된 PT가 완료 처리된다 (기존과 같음).
-    final primaryTitle = saving
-        ? '저장 중'
-        : editing
-        ? '수정 저장'
-        : '기록 저장';
-    // 운동 내용이 없으면 저장할 것이 없으므로 비활성.
-    final VoidCallback? primaryTap = saving || !canSave ? null : onSave;
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.sm,
-        AppSpacing.screenH,
-        bottom + AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.canvas,
-        border: Border(top: BorderSide(color: AppColors.hairline)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: AppButton(
-              label: '운동 추가',
-              variant: AppButtonVariant.secondary,
-              icon: const Icon(AppIcons.add),
-              fullWidth: true,
-              onPressed: onAddExercise,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: AppButton(
-              label: primaryTitle,
-              fullWidth: true,
-              isLoading: saving,
-              onPressed: primaryTap,
             ),
           ),
         ],

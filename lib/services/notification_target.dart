@@ -9,7 +9,10 @@ enum NotificationTarget {
   ptSchedule,
 
   /// 홈 첫 탭 (가입 승인, 새 담당 회원 배정)
-  home;
+  home,
+
+  /// 센터 공지사항 목록
+  notices;
 
   static NotificationTarget? fromData(Map<String, dynamic> data) {
     switch (data['type']) {
@@ -21,6 +24,8 @@ enum NotificationTarget {
       case 'pt_remaining_warning':
       case 'trainer_assigned':
         return NotificationTarget.ptSchedule;
+      case 'notice_created':
+        return NotificationTarget.notices;
       case 'account_approved':
       case 'member_assigned':
         return NotificationTarget.home;

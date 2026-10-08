@@ -14,8 +14,8 @@ import '../../services/account_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
-import '../../widgets/app_card.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_highlight.dart';
 import '../../widgets/app_kpi_card.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
@@ -24,6 +24,7 @@ import '../../widgets/password_reset_sheet.dart';
 import '../../widgets/orb_loader.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_member_list_screen.dart';
+import 'admin_notice_list_screen.dart';
 import 'admin_requests_screen.dart';
 import 'admin_trainer_list_screen.dart';
 import 'admin_withdrawn_members_screen.dart';
@@ -173,7 +174,23 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                   ),
                 )
               else ...[
-                // ── KPI 2×2 (hairline 격자) ─────────────────────────────
+                // ── 가입 신청 (화면의 단 하나 강조 띠) ──────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.sm,
+                      AppSpacing.screenH,
+                      AppSpacing.base,
+                    ),
+                    child: _PendingRequestsCard(
+                      count: _pendingCount,
+                      onTap: () => _push(const AdminRequestsScreen()),
+                    ),
+                  ),
+                ),
+
+                // ── KPI 2×2 (회색 칸) ───────────────────────────────────
                 SliverToBoxAdapter(
                   child: AppStatGrid(
                     cells: [
@@ -211,22 +228,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                   ),
                 ),
 
-                // ── 가입 신청 카드 ──────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH,
-                      AppSpacing.xl,
-                      AppSpacing.screenH,
-                      0,
-                    ),
-                    child: _PendingRequestsCard(
-                      count: _pendingCount,
-                      onTap: () => _push(const AdminRequestsScreen()),
-                    ),
-                  ),
-                ),
-
                 // ── 관리 메뉴 ───────────────────────────────────────────
                 const SliverToBoxAdapter(child: AppMonthHeader(label: '관리')),
                 SliverPadding(
@@ -234,6 +235,13 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                   sliver: SliverToBoxAdapter(
                     child: Column(
                       children: [
+                        AppActionRow(
+                          icon: AppIcons.clipboard,
+                          label: '공지사항',
+                          subtitle: '센터 공지 작성 및 관리',
+                          onTap: () => _push(const AdminNoticeListScreen()),
+                        ),
+                        const AppRowDivider(indent: AppSpacing.screenH),
                         AppActionRow(
                           icon: AppIcons.chartBar,
                           label: '대시보드',
@@ -276,7 +284,8 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
   }
 }
 
-/// 가입 신청 요약 카드: 아이콘 + 건수 + 안내 + 화살표.
+/// 가입 신청 요약: 대기 신청이 있으면 강조 띠(AppAccentBar),
+/// 없으면 회색 줄(아이콘 + 안내 + 화살표).
 class _PendingRequestsCard extends StatelessWidget {
   final int count;
   final VoidCallback onTap;
@@ -285,36 +294,58 @@ class _PendingRequestsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasPending = count > 0;
+    if (count > 0) {
+      return AppAccentBar(
+        icon: AppIcons.userPlus,
+        title: '가입 신청 $count건',
+        subtitle: '승인을 기다리고 있어요',
+        actionLabel: '확인하기',
+        onTap: onTap,
+      );
+    }
     return Semantics(
       button: true,
-      child: AppCard(
-        onTap: onTap,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.base,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            Icon(AppIcons.userPlus, size: AppSize.icon, color: AppColors.ink),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: AppColors.canvasSoft,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.button),
+          highlightColor: AppColors.canvasMid,
+          splashFactory: NoSplash.splashFactory,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 64),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.base,
+                AppSpacing.md,
+              ),
+              child: Row(
                 children: [
-                  Text(
-                    hasPending ? '가입 신청 $count건' : '가입 신청',
-                    style: AppTextStyles.bodyLg,
+                  Icon(AppIcons.userPlus, size: 22, color: AppColors.body),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('가입 신청', style: AppTextStyles.bodyLg),
+                        Text(
+                          '대기 중인 신청이 없어요',
+                          style: AppTextStyles.bodySm.copyWith(
+                            color: AppColors.body,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  Text(
-                    hasPending ? '승인을 기다리고 있어요' : '대기 중인 신청이 없어요',
-                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-                  ),
+                  Icon(AppIcons.forward, size: 18, color: AppColors.body),
                 ],
               ),
             ),
-            Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.body),
-          ],
+          ),
         ),
       ),
     );

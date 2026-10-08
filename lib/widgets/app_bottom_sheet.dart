@@ -6,13 +6,13 @@ import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import 'app_icon_button.dart';
 
-/// 하단 시트: canvasCard 면, 위 모서리만 8, 위·옆 hairline, 손잡이 36×4.
+/// 하단 시트: 흰 면(canvas), 위 모서리 28, 테두리 없음, 손잡이 36×4.
 /// 뒤는 검정 60%로 덮는다. 모든 하단 시트는 이 함수로 연다.
 ///
 /// - 기본: 내용 높이만큼, 넘치면 시트 전체가 스크롤된다.
 /// - [heightFactor]: 화면 높이의 비율로 고정한다. 내용은 남은 높이를 채우므로
 ///   목록(ListView/Expanded)이 있는 시트에 쓴다 (내용이 스스로 스크롤을 맡는다).
-/// - [padded]: 좌우 24 여백. 화면 폭 hairline 목록을 그리는 시트는 false.
+/// - [padded]: 좌우 20 여백. 화면 폭 목록을 그리는 시트는 false.
 /// [memberStyle]은 기존 호출부 호환용이다 (테마는 하나).
 Future<T?> showAppBottomSheet<T>({
   required BuildContext context,
@@ -53,21 +53,16 @@ class _AppBottomSheetFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final fixed = heightFactor != null;
-    final horizontal = padded ? AppSpacing.xl : 0.0;
+    final horizontal = padded ? AppSpacing.screenH : 0.0;
     return Padding(
       padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: Container(
         height: fixed ? media.size.height * heightFactor! : null,
         constraints: BoxConstraints(maxHeight: media.size.height * 0.92),
         decoration: BoxDecoration(
-          color: AppColors.canvasCard,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadius.card),
-          ),
-          border: Border(
-            top: BorderSide(color: AppColors.hairline),
-            left: BorderSide(color: AppColors.hairline),
-            right: BorderSide(color: AppColors.hairline),
+          color: AppColors.canvas,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppRadius.sheet),
           ),
         ),
         padding: EdgeInsets.fromLTRB(

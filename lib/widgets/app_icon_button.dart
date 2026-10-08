@@ -33,11 +33,8 @@ class AppIconButton extends StatelessWidget {
         excludeSemantics: true,
         child: Material(
           color: Colors.transparent,
-          shape: CircleBorder(
-            side: outlined
-                ? BorderSide(color: AppColors.outline)
-                : BorderSide.none,
-          ),
+          // [outlined]는 호출부 호환용 — 외곽선은 그리지 않는다.
+          shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: onPressed,
@@ -62,7 +59,7 @@ class AppIconButton extends StatelessWidget {
                         width: 6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: AppColors.ink,
+                          color: AppColors.newDot,
                           shape: BoxShape.circle,
                         ),
                       ),

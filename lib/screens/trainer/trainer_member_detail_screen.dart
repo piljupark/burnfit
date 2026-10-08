@@ -335,12 +335,10 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                 ],
               ),
             ),
-            // ── 탭 칩 (위아래 hairline) ──────────────────────────────────────
+            // ── 탭 칩 (아래 hairline만) ──────────────────────────────────────
             Container(
               decoration: BoxDecoration(
-                border: Border.symmetric(
-                  horizontal: BorderSide(color: AppColors.hairline),
-                ),
+                border: Border(bottom: BorderSide(color: AppColors.hairline)),
               ),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: AnimatedBuilder(
@@ -668,7 +666,6 @@ class _PtInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.canvasCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline),
       ),
       child: Column(
         children: [

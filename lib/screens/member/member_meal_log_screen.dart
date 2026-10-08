@@ -281,7 +281,6 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
                         onSelect: _selectDate,
                       ),
                     ),
-                    const SliverToBoxAdapter(child: AppRowDivider()),
                     SliverToBoxAdapter(
                       child: AppScrollableChips(
                         labels: _filterLabels,
@@ -431,7 +430,7 @@ class _WeekStrip extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isSel ? AppColors.primary : Colors.transparent,
+                        color: isSel ? AppColors.ink : Colors.transparent,
                         border: isToday && !isSel
                             ? Border.all(color: AppColors.outline)
                             : null,
@@ -440,7 +439,7 @@ class _WeekStrip extends StatelessWidget {
                         '${day.day}',
                         style: AppTextStyles.bodyMd.copyWith(
                           color: isSel
-                              ? AppColors.onPrimary
+                              ? AppColors.canvas
                               : isFuture
                               ? AppColors.mute
                               : AppColors.ink,

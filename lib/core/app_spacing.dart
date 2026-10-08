@@ -14,25 +14,29 @@ class AppSpacing {
   static const double xl4 = 64;
   static const double section = 32;
 
-  static const double screenH = 16; // 화면 좌우 여백
+  static const double screenH = 20; // 화면 좌우 여백
   static const double itemV = 12;
 }
 
-/// 모서리는 세 가지뿐: 사진 0 · 카드/입력/시트 8 · 버튼/배지 pill
+/// 모서리: 아이콘 박스 12 · 입력/작은 버튼 14 · 버튼/숫자 칸 18 · 카드 20 · 시트 28 · 알약 pill
 class AppRadius {
   AppRadius._();
 
   static const double none = 0;
-  static const double card = 8;
+  static const double iconBox = 12;
+  static const double field = 14;
+  static const double button = 18;
+  static const double card = 20;
+  static const double sheet = 28;
   static const double pill = 9999;
 
-  // 기존 이름 — 모두 카드 반경(8)으로 통일
-  static const double xs = card;
-  static const double sm = card;
-  static const double md = card;
+  // 기존 이름
+  static const double xs = iconBox;
+  static const double sm = field;
+  static const double md = button;
   static const double lg = card;
   static const double xl = card;
-  static const double xxl = card;
+  static const double xxl = sheet;
   static const double full = pill;
 }
 
@@ -49,7 +53,7 @@ class AppSize {
   static const double navClearance = 120;
   static const double buttonHeight = 40;
   static const double buttonHeightSm = 32;
-  static const double buttonHeightLg = 52;
+  static const double buttonHeightLg = 56;
   static const double icon = 20;
   static const double iconSm = 14;
   static const double iconNav = 24;

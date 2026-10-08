@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -20,6 +21,7 @@ import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_highlight.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_tag.dart';
@@ -329,70 +331,121 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
             onManage: _showSessionActions,
           ),
         if (workouts.isNotEmpty) ...[
+          if (sessions.isNotEmpty)
+            Container(height: AppSpacing.sm, color: AppColors.canvasCard),
           AppMonthHeader(label: '운동 기록', count: '${workouts.length}'),
           for (final workout in workouts) _WorkoutRow(workout: workout),
         ],
       ];
     }
 
+    // 떠 있는 'PT 예약 등록' 버튼 위치: 탭 화면이면 하단 탭(56 + 기기 아래 여백) 위, 단독 화면이면 기기 아래 여백 위.
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final fabBottom =
+        (canPop ? 0.0 : _navBarHeight) + bottomInset + AppSpacing.screenH;
+
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          onRefresh: _loadSessions,
-          color: AppColors.ink,
-          backgroundColor: AppColors.canvasCard,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: AppSize.navClearance),
-            children: [
-              AppHero(
-                title: 'PT 일정',
-                actions: [
-                  if (canPop) ...[
-                    AppIconButton(
-                      icon: AppIcons.back,
-                      label: '뒤로',
-                      onPressed: () => Navigator.of(context).pop(),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: SafeArea(
+              bottom: false,
+              // 아래로 스크롤하면 떠 있는 버튼을 원으로 접고, 위로 올리거나 맨 위면 다시 편다.
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onScroll,
+                child: RefreshIndicator(
+                  onRefresh: _loadSessions,
+                  color: AppColors.ink,
+                  backgroundColor: AppColors.canvasCard,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    // 하단 탭 + 떠 있는 버튼(56)에 마지막 블록이 가리지 않게.
+                    padding: const EdgeInsets.only(
+                      bottom:
+                          AppSize.navClearance + _fabHeight + AppSpacing.base,
                     ),
-                    const Spacer(),
-                  ],
-                  AppIconButton(
-                    icon: AppIcons.add,
-                    label: 'PT 예약 등록',
-                    outlined: true,
-                    onPressed: _createSession,
+                    children: [
+                      AppHero(
+                        title: 'PT 일정',
+                        actions: [
+                          if (canPop) ...[
+                            AppIconButton(
+                              icon: AppIcons.back,
+                              label: '뒤로',
+                              onPressed: () => Navigator.of(context).pop(),
+                            ),
+                            const Spacer(),
+                          ],
+                        ],
+                      ),
+                      _WeekStrip(
+                        selectedDay: _selectedDay,
+                        marks: buildCalendarMarks(
+                          sessions: _sessions,
+                          workouts: _workouts,
+                        ),
+                        onSelect: _selectDay,
+                        onPrevWeek: () => _moveWeek(-1),
+                        onNextWeek: () => _moveWeek(1),
+                      ),
+                      AppMonthHeader(
+                        label: DateFormat(
+                          'M월 d일 (E)',
+                          'ko',
+                        ).format(_selectedDay),
+                        count: '${sessions.length}건',
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.screenH,
+                          AppSpacing.base,
+                          AppSpacing.screenH,
+                          AppSpacing.sm,
+                        ),
+                      ),
+                      ...content,
+                    ],
                   ),
-                ],
-              ),
-              _WeekStrip(
-                selectedDay: _selectedDay,
-                marks: buildCalendarMarks(
-                  sessions: _sessions,
-                  workouts: _workouts,
-                ),
-                onSelect: _selectDay,
-                onPrevWeek: () => _moveWeek(-1),
-                onNextWeek: () => _moveWeek(1),
-              ),
-              AppMonthHeader(
-                label: DateFormat('M월 d일 (E)', 'ko').format(_selectedDay),
-                count: '${sessions.length}건',
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.base,
-                  AppSpacing.screenH,
-                  AppSpacing.sm,
                 ),
               ),
-              ...content,
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            right: AppSpacing.screenH,
+            bottom: fabBottom,
+            child: AppFloatingAction(
+              label: 'PT 예약 등록',
+              icon: AppIcons.add,
+              onPressed: _createSession,
+              extended: _fabExtended,
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  bool _fabExtended = true;
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0) return false;
+    bool? next;
+    if (n.metrics.pixels <= 8) {
+      next = true;
+    } else if (n is UserScrollNotification) {
+      if (n.direction == ScrollDirection.reverse) next = false;
+      if (n.direction == ScrollDirection.forward) next = true;
+    }
+    if (next != null && next != _fabExtended) {
+      setState(() => _fabExtended = next!);
+    }
+    return false;
+  }
+
+  /// 하단 탭 높이 (AppNavBar, 기기 아래 여백 제외).
+  static const double _navBarHeight = 56;
+
+  /// AppFloatingAction 높이.
+  static const double _fabHeight = 56;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -534,7 +587,7 @@ class _WeekDayCell extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected ? AppColors.primary : Colors.transparent,
+                color: isSelected ? AppColors.ink : Colors.transparent,
                 border: isToday && !isSelected
                     ? Border.all(color: AppColors.ink)
                     : null,
@@ -542,7 +595,7 @@ class _WeekDayCell extends StatelessWidget {
               child: Text(
                 '${day.day}',
                 style: AppTextStyles.bodyMd.copyWith(
-                  color: isSelected ? AppColors.onPrimary : AppColors.ink,
+                  color: isSelected ? AppColors.canvas : AppColors.ink,
                 ),
               ),
             ),
@@ -679,10 +732,13 @@ class _SessionBlock extends StatelessWidget {
         AppSpacing.xs,
         AppSpacing.md,
       ),
+      // 완료 = 회색 면, 예약 = 흰 면 + 강조색 테두리 (모양으로도 구분).
       decoration: BoxDecoration(
-        color: AppColors.canvasCard,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.hairline),
+        color: isCompleted ? AppColors.canvasCard : AppColors.canvas,
+        borderRadius: BorderRadius.circular(AppRadius.field),
+        border: isCompleted
+            ? null
+            : Border.all(color: AppColors.primary, width: 1.5),
       ),
       child: Row(
         children: [
@@ -1123,25 +1179,7 @@ class _SessionSheetState extends State<_SessionSheet> {
           ),
         if (conflict != null) ...[
           const SizedBox(height: AppSpacing.sm),
-          Semantics(
-            liveRegion: true,
-            child: Row(
-              children: [
-                Icon(
-                  AppIcons.warning,
-                  size: AppSize.icon,
-                  color: AppColors.body,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    _conflictMessage(conflict),
-                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          AppInlineNotice(_conflictMessage(conflict)),
         ],
         const SizedBox(height: AppSpacing.base),
 

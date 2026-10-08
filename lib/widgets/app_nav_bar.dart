@@ -82,12 +82,3 @@ class AppNavBar extends StatelessWidget {
     );
   }
 }
-
-/// 기존 호출부 호환용 (쓰지 않음).
-class AppFloatingPlusButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const AppFloatingPlusButton({super.key, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
-}
