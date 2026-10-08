@@ -11,6 +11,7 @@ import '../models/user.dart';
 import '../services/account_service.dart';
 import '../services/user_provider.dart';
 import 'app_bottom_sheet.dart';
+import 'app_confirm_dialog.dart';
 import 'app_toast.dart';
 import 'app_button.dart';
 import 'app_text_field.dart';
@@ -135,11 +136,8 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
               style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
             ),
           ],
-          const Gap(AppSpacing.xs),
-          Text(
-            '삭제된 정보는 복구할 수 없습니다.',
-            style: AppTextStyles.bodyMd.copyWith(color: AppColors.danger),
-          ),
+          const Gap(AppSpacing.md),
+          const AppWarningCallout('삭제된 정보는 복구할 수 없습니다.'),
           const Gap(AppSpacing.lg),
           AppTextField(
             label: '비밀번호 확인',

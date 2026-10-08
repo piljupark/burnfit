@@ -406,8 +406,10 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       context,
       title: 'PT 기록 삭제',
       message:
-          '운동 ${workout.exercises.length}개, ${workout.totalSets}세트 기록이 삭제되며 되돌릴 수 없습니다.'
-          '${isLastRecord ? ' 이 PT의 마지막 기록이라 완료 처리도 취소되고 잔여 횟수 1회가 복구됩니다.' : ''}',
+          '운동 ${workout.exercises.length}개, ${workout.totalSets}세트 기록이 삭제되며 되돌릴 수 없습니다.',
+      warning: isLastRecord
+          ? '이 PT의 마지막 기록이라 완료 처리도 취소되고 잔여 횟수 1회가 복구됩니다.'
+          : null,
       confirmLabel: '삭제',
     );
     if (ok != true) return;

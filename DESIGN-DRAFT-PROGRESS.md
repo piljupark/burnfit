@@ -12,17 +12,21 @@
 | 관리자 (Admin) | 23 | 9 | 0 | 0 | 32 |
 | 공지사항 (Notice) | 2 | 7 | 0 | 0 | 9 |
 | 트레이너 A (홈/일정/예약) | 12 | 3 | 3 | 0 | 18 |
-| 트레이너 B (회원상세/PT기록/피드백/인바디) | 22 | 3 | 2 | 0 | 27 |
+| 트레이너 B (회원상세/PT기록/피드백/인바디) | 24 | 1 | 2 | 0 | 27 |
 | 회원 A (홈/운동/PT/통계) | 19 | 3 | 0 | 3 | 25 |
-| 회원 B (프로필/식단/공유) | 16 | 2 | 0 | 1 | 19 |
-| 공통 (로그인/온보딩/가입/알림/토스트) | 7 | 12 | 0 | 0 | 19 |
-| **합계 (판정 대상만)** | **101** | **39** | **5** | **4** | **149** |
+| 회원 B (프로필/식단/공유) | 18 | 0 | 0 | 1 | 19 |
+| 공통 (로그인/온보딩/가입/알림/토스트) | 14 | 5 | 0 | 0 | 19 |
+| **합계 (판정 대상만)** | **112** | **28** | **5** | **4** | **149** |
 
-**완전 반영률 ≈ 68%** (101/149, 2026-10-08 공용 이슈 1·2번 수정 반영). 체감상 "대부분 시안대로 안 됐을 것"이라는 예상과 달리, **기능·문구 단위로는 상당히 진행되어 있음** — 특히 Admin(72%)·Tr-B(81%)·MemA(76%)·MemB(84%)는 이미 꽤 완성도가 높습니다. 다만 🟡(부분 반영) 39건 중 상당수가 **몇 가지 반복되는 공용 패턴 문제**라서, 화면을 하나씩 손보는 것보다 아래 "공통 이슈"부터 고치는 게 훨씬 효율적입니다.
+**완전 반영률 ≈ 75%** (112/149, 2026-10-08 공용 이슈 1~4번 수정 반영). 체감상 "대부분 시안대로 안 됐을 것"이라는 예상과 달리, **기능·문구 단위로는 상당히 진행되어 있음** — Admin(72%)·Tr-B(89%)·MemA(76%)·MemB(95%)는 완성도가 매우 높습니다. 남은 🟡(부분 반영) 28건은 공용 패턴 문제가 아니라 화면별 개별 디테일(일러스트 박스, 레이아웃 세부 차이 등)입니다. ❌(미반영) 5건 중 4건은 구버전 시안이라 작업 불필요, 실제로 새로 만들어야 할 건 `TrainerPtDone.html` 하나뿐입니다.
 
 > **2026-10-08 업데이트 1**: 공용 이슈 1번("강조점" 주황색) 수정 완료 — 캘린더 PT 점, 토글 on, 알림/공지 새 글 점, InBody·영양소 그래프 강조, 공지 핀 아이콘에 주황(`primary`/`newDot`)을 적용해 9개 화면이 🟡→✅로 올라갔습니다. 반대로 `GenderSelector`는 다른 선택 pill들과 달리 주황 채움을 쓰고 있어서 검정(`ink`)으로 통일했습니다(Com-Onboarding-Basic). `docs/design-system.md` 원칙 6번에 예외 조항을 추가했습니다.
 >
-> **2026-10-08 업데이트 2**: 공용 이슈 2번(`showAppConfirmDialog` 재설계) 수정 완료 — 표준 `AlertDialog`(우측정렬 텍스트 버튼)를 2열 전체폭 버튼으로 교체하고, 파괴적 확정 버튼을 새 `AppButtonVariant.dark`(검정 채움+흰 글자)로 통일. 같은 변경을 `delete_account_sheet.dart`(탈퇴 시트)에도 적용. 4개 화면이 🟡→✅로 올라갔습니다. 다만 Tr-PtRecord/Inbody-DeleteConfirm의 주황빛 경고 콜아웃 박스, Com-DeleteAccount-*의 "복구 불가" 강조 박스는 아직 추가하지 않아 해당 화면들은 🟡로 남아있습니다. 3번(토스트)·4번은 2번에 흡수되어 완료(파괴적 버튼 색 통일).
+> **2026-10-08 업데이트 2**: 공용 이슈 2번(`showAppConfirmDialog` 재설계) 수정 완료 — 표준 `AlertDialog`(우측정렬 텍스트 버튼)를 2열 전체폭 버튼으로 교체하고, 파괴적 확정 버튼을 새 `AppButtonVariant.dark`(검정 채움+흰 글자)로 통일. 같은 변경을 `delete_account_sheet.dart`(탈퇴 시트)에도 적용. 4개 화면이 🟡→✅로 올라갔습니다. 다만 Tr-PtRecord/Inbody-DeleteConfirm의 주황빛 경고 콜아웃 박스, Com-DeleteAccount-*의 "복구 불가" 강조 박스는 아직 추가하지 않아 해당 화면들은 🟡로 남아있습니다.
+>
+> **2026-10-08 업데이트 3**: 공용 이슈 3번(`AppToast` 톤 교체) 수정 완료 — 밝은 카드 배경(canvasCard+hairline)을 검정 채움+둥근 사각형(radius 18)으로, 아이콘은 24px 주황 원 배지로, 제목·본문 글자는 흰색(본문은 70% 투명도), 행동 글자는 주황으로 교체. 8개 화면이 🟡→✅로 올라갔습니다.
+>
+> **2026-10-08 업데이트 4**: 공용 이슈 4번(경고 콜아웃 박스) 수정 완료 — `showAppConfirmDialog`에 선택적 `warning` 파라미터 추가, 재사용 가능한 `AppWarningCallout` 위젯 신설(주황 배경+경고 아이콘+글자). PT 기록 삭제(마지막 기록 시 잔여 횟수 복구 안내)와 탈퇴 시트("복구 불가" 안내)에 적용. 4개 화면이 🟡→✅로 올라갔습니다. 공용 이슈 1~4번 전부 완료.
 
 ## 다음에 손보면 좋은 것 (추천 순서)
 
@@ -30,8 +34,9 @@
 
 1. ~~**"강조점" 주황색 복원**~~ — ✅ 완료(2026-10-08).
 2. ~~**`showAppConfirmDialog` 재설계** + **파괴적 버튼 색상 통일**~~ — ✅ 완료(2026-10-08). `AppButtonVariant.dark` 신설, 다이얼로그·탈퇴 시트 모두 2열 버튼+검정 확정 버튼으로 교체.
-3. **`AppToast` 톤 교체** (다음 차례) — 시안은 검정 pill + 주황 아이콘뱃지인데 구현은 밝은 카드 배경. → 영향 범위: Com-Login-*, Com-Pending, Com-Toast-Push 등 5개+.
-4. **남은 경고 콜아웃 박스** — Tr-PtRecord/Inbody-DeleteConfirm의 주황빛 경고 박스(#FFF1E8), Com-DeleteAccount-*의 "복구 불가" 강조 박스는 다이얼로그 재설계에서 다루지 않음. 필요하면 `showAppConfirmDialog`에 선택적 `warning` 콜아웃 파라미터 추가 검토.
+3. ~~**`AppToast` 톤 교체**~~ — ✅ 완료(2026-10-08). 검정 채움+주황 배지로 교체.
+4. ~~**남은 경고 콜아웃 박스**~~ — ✅ 완료(2026-10-08). `AppWarningCallout` 위젯 신설, `showAppConfirmDialog`에 `warning` 파라미터 추가.
+5. **`TrainerPtDone.html` 신규 구현** (다음 차례) — PT 완료 축하 화면(롤링 카운터, 딥링크)이 아예 없음. 공용 부품 정리가 끝났으니 이제부터는 화면 단위 작업.
 5. **트레이너 B 구버전 → 신버전 전환**: `TrainerPtDone.html`(PT 완료 축하 화면)이 완전 미구현, `TrainerMember.html`(구 IA)은 신버전 탭 구조로 이미 교체됨 — 이 둘만 개별 대응.
 6. **트레이너 A 구버전 3종**(`TrainerHome/TrainerSchedule/TrainerReserve.html`)은 이미 신버전(Tr-Home/Tr-Schedule/Tr-Reserve 계열)으로 대체되어 구현됨 — 별도 작업 불필요, 시안 폴더 정리 시 구버전 삭제만 고려.
 
@@ -111,7 +116,7 @@
 | TrainerSchedule.html(구) | — | ❌ | 구버전, 신버전(Tr-Schedule)으로 대체됨 |
 | TrainerReserve.html(구) | — | ❌ | 구버전, 신버전(Tr-Reserve)으로 대체됨 |
 
-## 4. 트레이너 B — 회원상세/PT기록/피드백/인바디 — 22✅ / 3🟡 / 2❌
+## 4. 트레이너 B — 회원상세/PT기록/피드백/인바디 — 24✅ / 1🟡 / 2❌
 
 | 시안 파일 | 구현 | 상태 | 메모 |
 |---|---|---|---|
@@ -126,7 +131,7 @@
 | Tr-Member-Workouts.html | `trainer_member_tabs.dart` | ✅ | 일치 |
 | Tr-PtRecord.html | `trainer_pt_workout_screen.dart` | ✅ | 일치 |
 | Tr-PtRecord-Cardio.html | 동일 | ✅ | 일치 |
-| Tr-PtRecord-DeleteConfirm.html | `showAppConfirmDialog` | 🟡 | 2열 버튼·검정 확정 버튼은 적용됨(2026-10-08). 주황빛 경고 콜아웃 박스는 아직 없음 |
+| Tr-PtRecord-DeleteConfirm.html | `showAppConfirmDialog`(`warning` 파라미터) | ✅ | 주황 경고 콜아웃(`AppWarningCallout`) 조건부 표시 완료(2026-10-08) |
 | Tr-PtRecord-Editing.html | `trainer_pt_workout_screen.dart` | ✅ | 일치 |
 | Tr-PtRecord-Empty.html | 동일 | ✅ | 일치 |
 | Tr-PtRecord-Saved.html | 동일 | ✅ | 일치 |
@@ -136,7 +141,7 @@
 | Tr-Feedback-General.html | 동일 | ✅ | 일치 |
 | Tr-Inbody-Input.html | `trainer_inbody_sheet.dart` | ✅ | 일치 |
 | Tr-Inbody-Detail.html | `trainer_member_detail_screen.dart` | ✅ | 일치 |
-| Tr-Inbody-DeleteConfirm.html | `showAppConfirmDialog` | 🟡 | 2열 버튼·검정 확정 버튼은 적용됨(2026-10-08). 세부 스타일(커스텀 레이아웃)은 남음 |
+| Tr-Inbody-DeleteConfirm.html | `showAppConfirmDialog` | ✅ | 경고 콜아웃 없는 단순 버전 — 다이얼로그 재설계로 완전히 일치(2026-10-08) |
 | Tr-Inbody-Error.html | `trainer_inbody_sheet.dart` | ✅ | 일치 |
 | Tr-ExerciseMenu.html | `trainer_workout_sheets.dart` | ✅ | 일치 |
 | Tr-ExercisePicker.html | 동일 | ✅ | 일치 |
@@ -172,12 +177,12 @@
 | Main.html(구) | `member_calendar_screen.dart` | 참고 | 구버전, IA 자체가 다름(판정 보류) |
 | Workout.html(구) | `member_workout_screen.dart` | 참고 | 구버전, 신버전 기준으로 참고만 |
 
-## 6. 회원 B — 프로필/식단/공유 — 16✅ / 2🟡 / 1참고
+## 6. 회원 B — 프로필/식단/공유 — 18✅ / 0🟡 / 1참고
 
 | 시안 파일 | 구현 | 상태 | 메모 |
 |---|---|---|---|
 | MemB-DeleteSheet.html | `delete_account_sheet.dart` | ✅ | 탈퇴 버튼 검정 채움으로 변경 완료(2026-10-08) |
-| MemB-EditBasicSheet.html | `edit_basic_info_sheet.dart` | 🟡 | 토스트 톤 차이만 남음(공용 이슈 3번, 미착수). 성별 선택 색은 해결 |
+| MemB-EditBasicSheet.html | `edit_basic_info_sheet.dart` | ✅ | 토스트 톤 적용 완료(2026-10-08). 성별 선택 색도 이미 해결 |
 | MemB-EditBodySheet.html | `edit_profile_sheet.dart` | ✅ | 일치 |
 | MemB-Feedback.html | `member_feedback_screen.dart` | ✅ | 안읽음 점 주황 적용 완료(2026-10-08) |
 | MemB-FeedbackEmpty.html | 동일 | ✅ | 일치 |
@@ -185,7 +190,7 @@
 | MemB-FoodList.html | `food_list_screen.dart` | ✅ | 일치 |
 | MemB-MealDeleteDialog.html | `showAppConfirmDialog` | ✅ | 2열 전체폭 버튼으로 재설계 완료(2026-10-08) |
 | MemB-MealInput.html | `meal_input_sheet.dart` | ✅ | 일치 |
-| MemB-MealInputEmpty.html | 동일 | 🟡 | 토스트 톤 차이만 남음(공용 이슈 3번, 미착수) |
+| MemB-MealInputEmpty.html | 동일 | ✅ | 토스트 톤 적용 완료(2026-10-08) |
 | MemB-MealLog.html | `member_meal_log_screen.dart` | ✅ | 일치 |
 | MemB-MealLogEmpty.html | 동일 | ✅ | 일치 |
 | MemB-My.html | `member_profile_screen.dart` | ✅ | 공지 새 글 강조색 적용 완료(2026-10-08) |
@@ -196,14 +201,14 @@
 | MemB-ThemeSheet.html | `theme_setting_row.dart` | ✅ | 일치 |
 | My.html(구) | `member_profile_screen.dart` | 참고 | 구버전(PT카드 있음), 신버전(MemB-My)이 기준 |
 
-## 7. 공통 — 로그인/온보딩/가입/알림/토스트 — 7✅ / 12🟡
+## 7. 공통 — 로그인/온보딩/가입/알림/토스트 — 14✅ / 5🟡
 
 | 시안 파일 | 구현 | 상태 | 메모 |
 |---|---|---|---|
 | Com-Login.html | `login_screen.dart` | ✅ | 일치 |
-| Com-Login-Error.html | `AppToast` | 🟡 | 토스트 톤 차이(공통 이슈 3) |
-| Com-Login-ResetSent.html | 동일 | 🟡 | 동일 |
-| Com-Login-Deleted.html | 동일 | 🟡 | 동일 |
+| Com-Login-Error.html | `AppToast` | ✅ | 토스트 검정+주황 배지 스타일 적용 완료(2026-10-08) |
+| Com-Login-ResetSent.html | 동일 | ✅ | 동일 |
+| Com-Login-Deleted.html | 동일 | ✅ | 동일 |
 | Com-PasswordReset.html | `password_reset_sheet.dart` | 🟡 | 일러스트 박스 없음 |
 | Com-Splash.html | `splash_screen.dart` | 🟡 | OrbLoader로 브랜드 모티프 대체(의도적 변경 추정) |
 | Com-Pending.html | `pending_approval_screen.dart` | 🟡 | 동일 |
@@ -213,12 +218,12 @@
 | Com-CenterPicker.html | `login_screen.dart` 내부 | ✅ | 일치 |
 | Com-Onboarding-Basic.html | `onboarding_screens.dart` | ✅ | 성별 선택 색을 검정으로 통일 완료(2026-10-08, `gender_selector.dart`) |
 | Com-Onboarding-Body.html | 동일 | ✅ | 일치 |
-| Com-DeleteAccount-Member.html | `delete_account_sheet.dart` | 🟡 | 탈퇴 버튼 검정 채움 적용 완료(2026-10-08). "복구 불가" 경고를 강조 박스가 아닌 빨간 글자로만 표시하는 차이는 남음 |
-| Com-DeleteAccount-Trainer.html | 동일 | 🟡 | 동일 |
-| Com-Notifications.html | `notifications_screen.dart` | 🟡 | 새 알림 점 검정, 스와이프 배경 색 차이 |
+| Com-DeleteAccount-Member.html | `delete_account_sheet.dart` | ✅ | 탈퇴 버튼 검정 채움 + "복구 불가" 주황 경고 콜아웃(`AppWarningCallout`) 적용 완료(2026-10-08) |
+| Com-DeleteAccount-Trainer.html | 동일 | ✅ | 동일 |
+| Com-Notifications.html | `notifications_screen.dart` | ✅ | 새 알림 점 주황 적용 완료(2026-10-08). 스와이프 삭제 배경은 빨강 유지(파괴적 행동 글자 원칙에 부합, 실제 차이 아님) |
 | Com-Notifications-Empty.html | 동일 | 🟡 | 아이콘 고정(사소) |
 | Com-ConfirmDialog.html | `showAppConfirmDialog` | ✅ | 2열 전체폭 버튼(취소=회색, 확정=검정)으로 재설계 완료(2026-10-08) |
-| Com-Toast-Push.html | `AppToast`+`notification_bell_button.dart` | 🟡 | 토스트 톤 차이, 종 점은 일치 |
+| Com-Toast-Push.html | `AppToast`+`notification_bell_button.dart` | ✅ | 토스트 검정+주황 포인트 스타일 적용 완료(2026-10-08), 종 점은 기존부터 일치 |
 
 ## 부록: 컴포넌트/토큰 스펙 (C0~C4) 대조
 
