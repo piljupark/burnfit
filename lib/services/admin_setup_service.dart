@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
+import '../core/validators.dart';
 import 'auth_service.dart';
 
 /// 센터 관리자 가입.
@@ -10,7 +11,7 @@ class AdminSetupService {
   AdminSetupService._();
 
   /// 서버 검증 기준과 같다 (functions/admin_setup.js `LIMITS.passwordMin`).
-  static const int passwordMinLength = 8;
+  static const int passwordMinLength = Validators.passwordMinLength;
 
   static final HttpsCallable _registerCenterAdmin = FirebaseFunctions.instance
       .httpsCallable('registerCenterAdmin');

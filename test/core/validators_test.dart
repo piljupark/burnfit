@@ -20,4 +20,16 @@ void main() {
       throwsA(isA<ArgumentError>().having((e) => e.message, 'message', contains('20~300'))),
     );
   });
+
+  test('새 비밀번호는 공통 기준(8자) 이상이어야 한다', () {
+    expect(Validators.password(''), isNotNull);
+    expect(Validators.password('1234567'), contains('8자'));
+    expect(Validators.password('12345678'), isNull);
+  });
+
+  test('로그인 비밀번호는 비어 있는지만 본다 (예전에 만든 짧은 비밀번호 허용)', () {
+    expect(Validators.existingPassword(''), isNotNull);
+    expect(Validators.existingPassword(null), isNotNull);
+    expect(Validators.existingPassword('123456'), isNull);
+  });
 }

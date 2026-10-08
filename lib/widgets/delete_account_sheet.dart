@@ -8,6 +8,7 @@ import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import '../core/constants.dart';
+import '../core/validators.dart';
 import '../models/user.dart';
 import '../services/account_service.dart';
 import '../services/user_provider.dart';
@@ -135,7 +136,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
             controller: _passwordController,
             obscureText: true,
             enabled: !_isDeleting,
-            validator: (v) => (v == null || v.isEmpty) ? '비밀번호를 입력해주세요.' : null,
+            validator: Validators.existingPassword,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _delete(),
           ),

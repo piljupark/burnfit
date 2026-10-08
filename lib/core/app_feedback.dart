@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../widgets/app_button.dart';
 import '../widgets/app_toast.dart';
+import 'validators.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_spacing.dart';
@@ -32,17 +33,17 @@ class AppFeedback {
     if (error is FirebaseException) {
       switch (error.code) {
         // firebase_auth
+        // 가입 여부가 드러나지 않도록 없는 이메일과 틀린 비밀번호를 같은 문구로 안내한다.
         case 'wrong-password':
         case 'invalid-credential':
-          return '비밀번호가 올바르지 않습니다.';
+        case 'user-not-found':
+          return '이메일 또는 비밀번호가 올바르지 않습니다.';
         case 'invalid-email':
           return '이메일 형식이 올바르지 않습니다.';
         case 'email-already-in-use':
           return '이미 가입된 이메일입니다. 로그인하거나 비밀번호 재설정을 이용해주세요.';
         case 'weak-password':
-          return '비밀번호가 너무 약합니다. 6자 이상으로 입력해주세요.';
-        case 'user-not-found':
-          return '가입되지 않은 이메일입니다.';
+          return '비밀번호가 너무 약합니다. ${Validators.passwordMinLength}자 이상으로 입력해주세요.';
         case 'user-disabled':
           return '사용이 중지된 계정입니다. 센터에 문의해주세요.';
         case 'too-many-requests':
@@ -75,7 +76,11 @@ class AppFeedback {
 
   /// 오류 토스트 (화면 위쪽, [AppToast]): 검정 면 + 주황 원 '!'.
   static void showErrorSnackBar(BuildContext context, Object error) {
-    AppToast.show(context, message: errorMessage(error), kind: AppToastKind.error);
+    AppToast.show(
+      context,
+      message: errorMessage(error),
+      kind: AppToastKind.error,
+    );
   }
 
   /// 입력 확인·안내처럼 오류 객체가 없는 경고 문구 토스트 ('!').

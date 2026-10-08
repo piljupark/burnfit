@@ -10,9 +10,21 @@ class Validators {
     return null;
   }
 
-  static String? password(String? value, {int minLength = 6}) {
+  /// 새 비밀번호 최소 길이 (회원·트레이너·관리자 가입 공통).
+  /// 서버의 관리자 가입 검증(functions/admin_setup.js `LIMITS.passwordMin`)과 같다.
+  static const int passwordMinLength = 8;
+
+  /// 새 비밀번호(가입)용 검증.
+  static String? password(String? value, {int minLength = passwordMinLength}) {
     if (value == null || value.isEmpty) return '비밀번호를 입력해주세요.';
     if (value.length < minLength) return '비밀번호는 $minLength자 이상이어야 합니다.';
+    return null;
+  }
+
+  /// 로그인·본인 확인용: 이미 있는 비밀번호라 길이 기준은 따지지 않는다
+  /// (기준이 바뀌기 전에 만든 짧은 비밀번호도 로그인할 수 있어야 한다).
+  static String? existingPassword(String? value) {
+    if (value == null || value.isEmpty) return '비밀번호를 입력해주세요.';
     return null;
   }
 

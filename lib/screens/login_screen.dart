@@ -77,14 +77,16 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      // 비밀번호까지 맞은 본인이므로 무엇을 골라야 하는지 알려준다.
       if (user.centerId != _selectedCenter!.id) {
-        _showError('선택한 센터와 계정 정보가 일치하지 않습니다.');
+        _showError('이 계정은 \'${user.centerName}\' 소속이에요. 센터를 다시 선택해주세요.');
         await AuthService.signOut();
         return;
       }
 
       if (user.role.name != _roles[_roleIndex].role) {
-        _showError('올바른 로그인 경로를 선택해주세요.');
+        final label = _roles.firstWhere((r) => r.role == user.role.name).label;
+        _showError('이 계정은 $label 계정이에요. 위에서 \'$label\'을(를) 선택해주세요.');
         await AuthService.signOut();
         return;
       }
@@ -242,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             hint: '비밀번호',
                             controller: _passwordController,
                             obscureText: true,
-                            validator: Validators.password,
+                            validator: Validators.existingPassword,
                             textInputAction: TextInputAction.done,
                             onSubmitted: (_) => _login(),
                           ),
