@@ -9,6 +9,7 @@ const {
 const {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   orderBy,
@@ -745,20 +746,7 @@ describe('firestore feedback rules', () => {
     );
   });
 
-  it('회원은 허용된 프로필과 공유 설정만 수정할 수 있다', async () => {
-    await assertSucceeds(
-      updateDoc(doc(authedDb(memberId), 'users', memberId), {
-        profile: {
-          height: 175,
-          weight: 72,
-          muscleMass: 32,
-          bodyFat: 14,
-          goal: '근력 향상',
-        },
-        updatedAt: serverTimestamp(),
-      }),
-    );
-
+  it('회원은 공유 설정을 수정할 수 있고, 사용자 문서에 신체 정보(profile)는 지우기만 할 수 있다', async () => {
     await assertSucceeds(
       updateDoc(doc(authedDb(memberId), 'users', memberId), {
         shareSettings: {
@@ -770,12 +758,23 @@ describe('firestore feedback rules', () => {
       }),
     );
 
+    // 신체 정보는 body_profile 문서로 옮겼으므로 사용자 문서에 새로 쓸 수 없다.
     await assertFails(
       updateDoc(doc(authedDb(memberId), 'users', memberId), {
-        profile: {
-          height: 175,
-          role: 'admin',
-        },
+        profile: { height: 175, weight: 72 },
+        updatedAt: serverTimestamp(),
+      }),
+    );
+
+    // 예전 위치에 남은 값은 본인이 지울 수 있다 (앱이 새 위치로 옮긴 뒤 지운다).
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'users', memberId), {
+        profile: { height: 175 },
+      });
+    });
+    await assertSucceeds(
+      updateDoc(doc(authedDb(memberId), 'users', memberId), {
+        profile: deleteField(),
         updatedAt: serverTimestamp(),
       }),
     );
@@ -786,6 +785,84 @@ describe('firestore feedback rules', () => {
         updatedAt: serverTimestamp(),
       }),
     );
+  });
+
+  describe('신체 정보 (users/{uid}/body_profile/current)', () => {
+    const body = {
+      height: 175,
+      weight: 72,
+      muscleMass: 32,
+      bodyFat: 14,
+      goal: '근력 향상',
+    };
+    const bodyRef = (db, uid = memberId, id = 'current') =>
+      doc(db, 'users', uid, 'body_profile', id);
+    const seedBody = () =>
+      testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(bodyRef(context.firestore()), body);
+      });
+    const setShareBody = (value) =>
+      testEnv.withSecurityRulesDisabled(async (context) => {
+        await updateDoc(doc(context.firestore(), 'users', memberId), {
+          shareSettings: { workout: true, meal: true, body: value },
+        });
+      });
+
+    it('본인은 허용된 필드와 범위로만 쓸 수 있다', async () => {
+      const db = authedDb(memberId);
+      await assertSucceeds(
+        setDoc(bodyRef(db), { ...body, updatedAt: serverTimestamp() }),
+      );
+      await assertSucceeds(
+        setDoc(bodyRef(db), {
+          height: null,
+          weight: null,
+          muscleMass: null,
+          bodyFat: null,
+          goal: null,
+          updatedAt: serverTimestamp(),
+        }),
+      );
+      await assertFails(
+        setDoc(bodyRef(db), { ...body, role: 'admin', updatedAt: serverTimestamp() }),
+      );
+      await assertFails(
+        setDoc(bodyRef(db), { ...body, height: 999, updatedAt: serverTimestamp() }),
+      );
+      await assertFails(
+        setDoc(bodyRef(db), { ...body, weight: '72', updatedAt: serverTimestamp() }),
+      );
+      await assertFails(
+        setDoc(bodyRef(db, memberId, 'other'), { ...body, updatedAt: serverTimestamp() }),
+      );
+      await assertFails(deleteDoc(bodyRef(db)));
+    });
+
+    it('다른 사람은 쓸 수 없다 (담당 트레이너·관리자 포함)', async () => {
+      for (const uid of [trainerId, adminId, otherMemberId]) {
+        await assertFails(
+          setDoc(bodyRef(authedDb(uid)), { ...body, updatedAt: serverTimestamp() }),
+        );
+      }
+    });
+
+    it('담당 트레이너는 회원이 신체 정보 공유를 켰을 때만 읽는다', async () => {
+      await seedBody();
+      await assertSucceeds(getDoc(bodyRef(authedDb(trainerId))));
+
+      await setShareBody(false);
+      await assertFails(getDoc(bodyRef(authedDb(trainerId))));
+      // 공유를 꺼도 본인과 같은 센터 관리자는 읽는다.
+      await assertSucceeds(getDoc(bodyRef(authedDb(memberId))));
+      await assertSucceeds(getDoc(bodyRef(authedDb(adminId))));
+    });
+
+    it('비담당·다른 센터 트레이너와 다른 회원은 읽을 수 없다', async () => {
+      await seedBody();
+      for (const uid of [newTrainerId, otherTrainerId, otherMemberId]) {
+        await assertFails(getDoc(bodyRef(authedDb(uid))));
+      }
+    });
   });
 
   it('담당 트레이너는 인바디를 생성하고 측정값만 수정할 수 있다', async () => {

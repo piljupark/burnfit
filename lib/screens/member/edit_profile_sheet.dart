@@ -6,7 +6,7 @@ import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
 import '../../core/validators.dart';
 import '../../models/user.dart';
-import '../../services/firestore_service.dart';
+import '../../services/body_profile_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
@@ -67,9 +67,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
         bodyFat: m.bodyFat,
         goal: _goalCtrl.text.trim().isEmpty ? null : _goalCtrl.text.trim(),
       );
-      await FirestoreService.updateUser(widget.user.uid, {
-        'profile': profile.toMap(),
-      });
+      await BodyProfileService.save(widget.user.uid, profile);
       if (!mounted) return;
       context.read<UserProvider>().updateUserLocally(
         widget.user.copyWith(profile: profile),
@@ -132,6 +130,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           label: '목표',
           hint: '예: 체지방 감량, 근육량 증가',
           controller: _goalCtrl,
+          maxLength: UserProfile.goalMaxLength,
           maxLines: 3,
           minLines: 3,
           textInputAction: TextInputAction.done,

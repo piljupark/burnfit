@@ -5,6 +5,7 @@ import '../../core/app_colors.dart';
 import '../../core/birth_date.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
+import '../../core/app_logger.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
@@ -15,6 +16,7 @@ import '../../models/meal.dart';
 import '../../models/pt_info.dart';
 import '../../models/user.dart';
 import '../../models/workout.dart';
+import '../../services/body_profile_service.dart';
 import '../../services/cardio_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/meal_service.dart';
@@ -56,6 +58,9 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   List<Cardio> _cardios = [];
   PtInfo? _ptInfo;
 
+  /// 회원이 신체 정보 공유를 켠 경우에만 읽는다 (사용자 문서와 따로 저장됨).
+  UserProfile? _body;
+
   bool _loadingMeals = false;
   bool _loadingWorkouts = false;
   bool _loadingCardios = false;
@@ -66,6 +71,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
     _loadPtInfo();
+    _loadBody();
   }
 
   @override
@@ -111,6 +117,17 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
+    }
+  }
+
+  Future<void> _loadBody() async {
+    try {
+      final body = await BodyProfileService.loadShared(widget.member);
+      if (!mounted) return;
+      setState(() => _body = body);
+    } catch (e) {
+      // 신체 정보는 보조 정보라 실패해도 화면은 그대로 쓴다 ('-'로 보인다).
+      AppLogger.debug('[TrainerMemberDetail] 신체 정보 로드 실패: $e');
     }
   }
 
@@ -237,7 +254,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     final gender = m.gender == Gender.other ? null : m.gender?.label;
     final age = ageFromBirthDate(m.birthDate);
     // 신체 정보 공유를 끈 회원은 키도 보여주지 않는다.
-    final height = m.shareSettings.body ? m.profile?.height : null;
+    final height = m.shareSettings.body ? _body?.height : null;
     return [
       ?gender,
       if (age != null) '$age세',
@@ -357,7 +374,12 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _ProfileTab(key: _profileKey, member: m, ptInfo: _ptInfo),
+                  _ProfileTab(
+                    key: _profileKey,
+                    member: m,
+                    body: _body,
+                    ptInfo: _ptInfo,
+                  ),
                   TrainerMealsTab(
                     meals: _meals,
                     isLoading: _loadingMeals,
@@ -445,9 +467,10 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
 
 class _ProfileTab extends StatefulWidget {
   final AppUser member;
+  final UserProfile? body;
   final PtInfo? ptInfo;
 
-  const _ProfileTab({super.key, required this.member, this.ptInfo});
+  const _ProfileTab({super.key, required this.member, this.body, this.ptInfo});
 
   @override
   State<_ProfileTab> createState() => _ProfileTabState();
@@ -566,7 +589,7 @@ class _ProfileTabState extends State<_ProfileTab> {
   Widget build(BuildContext context) {
     final member = widget.member;
     final ptInfo = widget.ptInfo;
-    final p = member.profile;
+    final p = widget.body;
     final fmt = DateFormat('yyyy.MM.dd');
 
     return ListView(

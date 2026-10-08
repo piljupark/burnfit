@@ -184,16 +184,30 @@ service cloud.firestore {
       ]);
     }
 
-    function hasValidUserProfile() {
-      return !('profile' in request.resource.data) ||
-        request.resource.data.profile == null ||
-        request.resource.data.profile.keys().hasOnly([
-          'height',
-          'weight',
-          'muscleMass',
-          'bodyFat',
-          'goal'
-        ]);
+    // 신체 정보는 users/{uid}/body_profile/current에 따로 둔다 (공유 설정을 규칙으로 지키려고).
+    // 사용자 문서의 예전 'profile' 필드는 새로 쓸 수 없고 지우기만 한다.
+    function removesLegacyProfileOnly() {
+      return !('profile' in request.resource.data.diff(resource.data).affectedKeys()) ||
+        request.resource.data.get('profile', null) == null;
+    }
+
+    function isOptionalNumberIn(d, key, min, max) {
+      return d.get(key, null) == null ||
+        (d[key] is number && d[key] >= min && d[key] <= max);
+    }
+
+    // 앱 검증 범위(Validators.bodyMetrics)와 같다.
+    function hasValidBodyProfile() {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'height', 'weight', 'muscleMass', 'bodyFat', 'goal', 'updatedAt'
+        ]) &&
+        isOptionalNumberIn(d, 'height', 50, 250) &&
+        isOptionalNumberIn(d, 'weight', 20, 300) &&
+        isOptionalNumberIn(d, 'muscleMass', 5, 100) &&
+        isOptionalNumberIn(d, 'bodyFat', 1, 150) &&
+        (d.get('goal', null) == null || (d.goal is string && d.goal.size() <= 200)) &&
+        d.updatedAt == request.time;
     }
 
     function hasValidShareSettings() {
@@ -520,7 +534,7 @@ service cloud.firestore {
         'fcmTokenUpdatedAt',
         'updatedAt'
       ]) &&
-      hasValidUserProfile() &&
+      removesLegacyProfileOnly() &&
       hasValidShareSettings() &&
       hasValidBirthDateChange() &&
       (
@@ -549,7 +563,7 @@ service cloud.firestore {
         request.resource.data.centerName == centerDoc(request.resource.data.centerId).data.name &&
         request.resource.data.get('trainerId', null) == null &&
         request.resource.data.get('trainerName', null) == null &&
-        hasValidUserProfile() &&
+        request.resource.data.get('profile', null) == null &&
         hasValidShareSettings();
 
       allow get: if isOwner(uid) ||
@@ -587,6 +601,24 @@ service cloud.firestore {
         );
 
       // 계정 삭제는 탈퇴 서버 함수(deleteMyAccount)만 한다 (PT 이력 보관 절차를 거치도록).
+      allow delete: if false;
+    }
+
+    // 신체 정보: 본인·같은 센터 관리자, 그리고 회원이 신체 정보 공유를 켠 경우의 담당 트레이너만 읽는다.
+    // 쓰기는 본인만. 탈퇴 시 서버가 사용자 문서와 함께 지운다.
+    match /users/{uid}/body_profile/{docId} {
+      allow read: if docId == 'current' &&
+        (
+          isOwner(uid) ||
+          (
+            exists(/databases/$(database)/documents/users/$(uid)) &&
+            isCenterAdmin(userDoc(uid).data.centerId)
+          ) ||
+          shares(uid, 'body')
+        );
+      allow create, update: if docId == 'current' &&
+        isOwner(uid) &&
+        hasValidBodyProfile();
       allow delete: if false;
     }
 

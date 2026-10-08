@@ -11,6 +11,7 @@ import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
 import '../../core/validators.dart';
 import '../../models/user.dart';
+import '../../services/body_profile_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_button.dart';
@@ -165,7 +166,7 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
             ? null
             : _goalController.text.trim(),
       );
-      await FirestoreService.updateUser(user.uid, {'profile': profile.toMap()});
+      await BodyProfileService.save(user.uid, profile);
       if (!mounted) return;
       context.read<UserProvider>().updateUserLocally(
         user.copyWith(profile: profile),
@@ -277,6 +278,7 @@ class _OnboardingBodyScreenState extends State<OnboardingBodyScreen> {
               label: '목표',
               hint: '예) 체중 감량 5kg',
               controller: _goalController,
+              maxLength: UserProfile.goalMaxLength,
               maxLines: 3,
               minLines: 3,
               textInputAction: TextInputAction.done,

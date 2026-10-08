@@ -5,6 +5,7 @@ import '../core/app_logger.dart';
 import '../models/user.dart';
 import '../services/account_service.dart';
 import '../services/auth_service.dart';
+import '../services/body_profile_service.dart';
 import '../services/fcm_service.dart';
 import '../services/firestore_service.dart';
 
@@ -16,6 +17,10 @@ class UserProvider extends ChangeNotifier {
   /// (화면 이동은 AccountStatusListener가 맡는다).
   StreamSubscription<AppUser?>? _userSub;
   String? _watchingUid;
+
+  /// 회원 신체 정보 (사용자 문서와 따로 저장된다). [user]의 `profile`에 채워 보여준다.
+  UserProfile? _bodyProfile;
+  String? _bodyProfileUid;
 
   AppUser? get user => _user;
   bool get isLoading => _isLoading;
@@ -35,7 +40,7 @@ class UserProvider extends ChangeNotifier {
 
     try {
       final loaded = await FirestoreService.getUser(current.uid);
-      _user = loaded;
+      _user = _withBody(loaded);
       if (loaded != null) {
         _attach(loaded);
       } else {
@@ -59,7 +64,7 @@ class UserProvider extends ChangeNotifier {
     try {
       final fresh = await FirestoreService.getUser(uid);
       if (fresh == null || _user?.uid != uid) return false;
-      _user = fresh;
+      _user = _withBody(fresh);
       notifyListeners();
       return true;
     } catch (e) {
@@ -70,12 +75,17 @@ class UserProvider extends ChangeNotifier {
 
   /// 로그인·가입 직후 호출한다. 문서 구독과 알림 토큰 저장도 여기서 시작한다.
   void setUser(AppUser user) {
-    _user = user;
+    _user = _withBody(user);
     _attach(user);
     notifyListeners();
   }
 
+  /// 저장을 마친 값을 화면에 바로 반영한다. 신체 정보를 바꿨으면 `profile`에 담아 넘긴다.
   void updateUserLocally(AppUser updated) {
+    if (updated.profile != null) {
+      _bodyProfile = updated.profile;
+      _bodyProfileUid = updated.uid;
+    }
     _user = updated;
     notifyListeners();
   }
@@ -129,11 +139,12 @@ class UserProvider extends ChangeNotifier {
     if (_watchingUid == user.uid) return;
     _detach();
     _watchingUid = user.uid;
+    if (user.isMember) unawaited(_loadBodyProfile(user));
     _userSub = FirestoreService.watchUser(user.uid).listen(
       (fresh) {
         // 다른 계정으로 바뀌었거나, 문서가 지워지는 중(탈퇴)이면 무시한다.
         if (fresh == null || _user?.uid != fresh.uid) return;
-        _user = fresh;
+        _user = _withBody(fresh);
         notifyListeners();
       },
       onError: (Object e) {
@@ -146,5 +157,28 @@ class UserProvider extends ChangeNotifier {
     _userSub?.cancel();
     _userSub = null;
     _watchingUid = null;
+    _bodyProfile = null;
+    _bodyProfileUid = null;
+  }
+
+  Future<void> _loadBodyProfile(AppUser user) async {
+    try {
+      final body = await BodyProfileService.loadOwn(user);
+      if (body == null || _user?.uid != user.uid) return;
+      _bodyProfile = body;
+      _bodyProfileUid = user.uid;
+      _user = _withBody(_user);
+      notifyListeners();
+    } catch (e) {
+      AppLogger.debug('[UserProvider] 신체 정보 로드 실패: $e');
+    }
+  }
+
+  AppUser? _withBody(AppUser? user) {
+    final body = _bodyProfile;
+    if (user == null || body == null || _bodyProfileUid != user.uid) {
+      return user;
+    }
+    return user.copyWith(profile: body);
   }
 }

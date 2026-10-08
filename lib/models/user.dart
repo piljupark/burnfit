@@ -50,6 +50,9 @@ class ShareSettings {
 }
 
 class UserProfile {
+  /// 목표 글자 수 상한 (규칙은 여유 있게 200자까지 허용).
+  static const int goalMaxLength = 100;
+
   final double? height;
   final double? weight;
   final double? muscleMass;
