@@ -113,12 +113,23 @@ class FirestoreService {
   static Future<List<center_model.Center>> searchCenters(String query) async {
     final q = query.trim().toLowerCase();
 
+    // 센터 목록은 늘 서버에서 읽는다. 기본(서버 → 실패 시 기기 캐시)이면 서버에 닿지 못할 때
+    // 오류 대신 빈 캐시로 답해 '검색된 센터가 없습니다'로 보인다 → 오류로 올려 다시 시도하게 한다.
     final snap = await _db
         .collection('centers')
         .where('status', isEqualTo: 'active')
-        .get();
-    final all = snap.docs.map((d) => center_model.Center.fromMap(d.data()));
-    if (q.isEmpty) return all.toList();
+        .get(const GetOptions(source: Source.server));
+    // 형식이 어긋난 문서 하나 때문에 목록 전체가 실패하지 않게 그 문서만 건너뛴다.
+    final all = <center_model.Center>[];
+    for (final doc in snap.docs) {
+      try {
+        // 콘솔에서 직접 만든 문서처럼 'id' 칸이 없으면 문서 ID를 쓴다.
+        all.add(center_model.Center.fromMap({'id': doc.id, ...doc.data()}));
+      } catch (e) {
+        AppLogger.debug('[FirestoreService] 센터 문서 파싱 실패(${doc.id}): $e');
+      }
+    }
+    if (q.isEmpty) return all;
     return all.where((c) => c.name.toLowerCase().contains(q)).toList();
   }
 
