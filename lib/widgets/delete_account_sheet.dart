@@ -353,32 +353,25 @@ class _DeletingButtonState extends State<_DeletingButton>
 /// 마이 탭 맨 아래의 탈퇴 링크. 실수로 누르지 않게 눈에 덜 띄는 글자 버튼으로 둔다.
 /// [leading]이면 왼쪽 정렬 — 글자 시작을 화면 좌우 여백(20)에 맞춘다 (회원 마이, 시안 My).
 class DeleteAccountLink extends StatelessWidget {
-  final bool leading;
-
-  const DeleteAccountLink({super.key, this.leading = false});
+  const DeleteAccountLink({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final link = TextButton(
-      onPressed: () => startDeleteAccountFlow(context),
-      style: leading
-          ? TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screenH,
-              ),
-              alignment: Alignment.centerLeft,
-            )
-          : null,
-      child: Text(
-        '회원 탈퇴',
-        // 시안: 탈퇴는 로그아웃 아래 작은 밑줄 글자 (빨강은 확인 시트에서만)
-        style: AppTextStyles.bodySm.copyWith(
-          decoration: TextDecoration.underline,
-          decorationColor: AppColors.mute,
+    // 시안 MemB-My·Tr-My: 마지막 묶음 아래 가운데 작은 밑줄 글자 (빨강은 확인 시트에서만), 터치 44
+    return Center(
+      child: TextButton(
+        onPressed: () => startDeleteAccountFlow(context),
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, AppSize.touchMin),
+        ),
+        child: Text(
+          '회원 탈퇴',
+          style: AppTextStyles.bodySm.copyWith(
+            decoration: TextDecoration.underline,
+            decorationColor: AppColors.mute,
+          ),
         ),
       ),
     );
-    if (leading) return Align(alignment: Alignment.centerLeft, child: link);
-    return Center(child: link);
   }
 }

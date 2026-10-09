@@ -10,7 +10,6 @@ import '../../services/notification_target.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
-import '../../widgets/app_motion.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/theme_setting_row.dart';
@@ -127,18 +126,11 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 마이 탭 (시안 Tr-My): 프로필 줄 → 센터(공지사항) → 계정(비밀번호 재설정 메일 · 화면 테마 · 로그아웃) → 탈퇴 링크
+// 마이 탭 (회원·관리자와 같은 짜임): 프로필 줄 → 센터(공지사항) → 계정(비밀번호 재설정 메일 · 화면 테마 · 로그아웃) → 탈퇴 링크
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TrainerProfileTab extends StatelessWidget {
   const _TrainerProfileTab();
-
-  static const _sectionPadding = EdgeInsets.fromLTRB(
-    AppSpacing.screenH,
-    18,
-    AppSpacing.screenH,
-    AppSpacing.xs,
-  );
 
   Future<void> _signOut(BuildContext context) async {
     await context.read<UserProvider>().signOut();
@@ -153,12 +145,6 @@ class _TrainerProfileTab extends StatelessWidget {
       '트레이너',
       if ((user?.centerName ?? '').isNotEmpty) user!.centerName,
     ].join(' · ');
-    // 시안 Tr-My `slide`: 묶음마다 줄이 0.06초 간격으로 왼쪽에서 들어온다
-    Widget slide(int i, Widget child) => AppEntrance.slide(
-      delay: Duration(milliseconds: 60 * i),
-      child: child,
-    );
-
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
@@ -166,38 +152,33 @@ class _TrainerProfileTab extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.only(bottom: AppSize.navClearance),
           children: [
-            const AppHero(title: '마이', divider: false),
+            const AppHero(title: '마이'),
             AppProfileRow(name: user?.name ?? '', subtitle: subtitle),
-            // 시안 Tr-My: 8 회색 띠 → '센터'(15 mute, 18 20 4) → 공지 줄
-            const AppSectionBand(),
-            const AppMonthHeader(label: '센터', padding: _sectionPadding),
-            slide(0, const NoticeMenuRow()),
-            const AppSectionBand(top: AppSpacing.md),
-            const AppMonthHeader(label: '계정', padding: _sectionPadding),
-            slide(
-              0,
-              AppActionRow(
-                icon: AppIcons.lock,
-                label: '비밀번호 재설정 메일',
-                menu: true,
-                onTap: () =>
-                    showPasswordResetSheet(context, initialEmail: user?.email),
-              ),
+            const AppMenuGroup(label: '센터', children: [NoticeMenuRow()]),
+            AppMenuGroup(
+              label: '계정',
+              bandTop: AppSpacing.md,
+              entranceStart: 1,
+              children: [
+                AppActionRow(
+                  icon: AppIcons.lock,
+                  label: '비밀번호 재설정 메일',
+                  menu: true,
+                  onTap: () => showPasswordResetSheet(
+                    context,
+                    initialEmail: user?.email,
+                  ),
+                ),
+                const ThemeSettingRow(),
+                AppActionRow(
+                  icon: AppIcons.signOut,
+                  label: '로그아웃',
+                  menu: true,
+                  showChevron: false,
+                  onTap: () => _signOut(context),
+                ),
+              ],
             ),
-            const AppRowDivider.inset(),
-            slide(1, const ThemeSettingRow()),
-            const AppRowDivider.inset(),
-            slide(
-              2,
-              AppActionRow(
-                icon: AppIcons.signOut,
-                label: '로그아웃',
-                menu: true,
-                showChevron: false,
-                onTap: () => _signOut(context),
-              ),
-            ),
-            const AppRowDivider.inset(),
             const SizedBox(height: AppSpacing.xl),
             const DeleteAccountLink(),
           ],

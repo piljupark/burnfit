@@ -5,6 +5,7 @@ import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import 'app_icon_box.dart';
+import 'app_motion.dart';
 import 'app_tag.dart';
 
 /// 메뉴·목록 한 줄 (시안 공통): 최소 68, 좌우 20, 40 아이콘 상자 + 14 + 라벨 16/500 + 보조 13 mute(위 2)
@@ -29,6 +30,9 @@ class AppActionRow extends StatelessWidget {
   /// 마이 탭 메뉴 줄 (시안 Tr-My·Ad-My): 높이 60, 라벨 16 Regular
   final bool menu;
 
+  /// 오른쪽 요약 값 15 mute + 4 + 18 화살표 (예: 화면 테마 '라이트', 신체 정보 '180cm · 80kg')
+  final String? value;
+
   const AppActionRow({
     super.key,
     required this.icon,
@@ -43,6 +47,7 @@ class AppActionRow extends StatelessWidget {
     this.showChevron = true,
     this.chevronSize = 18,
     this.menu = false,
+    this.value,
   });
 
   @override
@@ -98,6 +103,10 @@ class AppActionRow extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                 ],
                 ?trailing,
+                if (value != null && value!.isNotEmpty && trailing == null) ...[
+                  Text(value!, style: AppTextStyles.eyebrow),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
                 if (showChevron && !isDestructive && trailing == null)
                   Icon(
                     AppIcons.chevronRightBold,
@@ -149,55 +158,49 @@ class AppSectionBand extends StatelessWidget {
   );
 }
 
-/// 글자만 있는 목록 줄 (시안 Main 계열 My): 56 높이, 왼쪽 16 라벨 · 오른쪽 15 mute 값.
-/// 아이콘 상자와 화살표를 두지 않는다. 좌우 20 여백을 스스로 둔다.
-class AppPlainRow extends StatelessWidget {
+/// 마이 탭 메뉴 묶음 (회원·트레이너·관리자 공통): 8 회색 띠(위 [bandTop]) → 머리말 15 mute(20 20 4) →
+/// 메뉴 줄들. 줄 사이에는 좌우 20 안쪽 선, 마지막 줄 아래는 없다.
+/// 줄은 왼쪽에서 차례로 들어온다 (시안 `slide` .4s, 0.06초 간격 — [entranceStart]부터).
+class AppMenuGroup extends StatelessWidget {
   final String label;
-  final String? value;
+  final List<Widget> children;
+  final double bandTop;
+  final int entranceStart;
 
-  /// 값 대신 오른쪽에 둘 위젯 (예: 새 글 점 + 글자)
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  const AppPlainRow({
+  const AppMenuGroup({
     super.key,
     required this.label,
-    this.value,
-    this.trailing,
-    this.onTap,
+    required this.children,
+    this.bandTop = 0,
+    this.entranceStart = 0,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: onTap != null,
-      child: InkWell(
-        onTap: onTap,
-        highlightColor: AppColors.canvasSoft,
-        splashFactory: NoSplash.splashFactory,
-        child: Container(
-          height: AppSize.listRow,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.listTitle.copyWith(
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ),
-              if (trailing != null)
-                trailing!
-              else if (value != null && value!.isNotEmpty)
-                Text(value!, style: AppTextStyles.eyebrow),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppSectionBand(top: bandTop),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.lg,
+            AppSpacing.screenH,
+            AppSpacing.xs,
+          ),
+          child: Semantics(
+            header: true,
+            child: Text(label, style: AppTextStyles.eyebrow),
           ),
         ),
-      ),
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const AppRowDivider.inset(),
+          AppEntrance.slide(
+            delay: Duration(milliseconds: 60 * (entranceStart + i)),
+            child: children[i],
+          ),
+        ],
+      ],
     );
   }
 }

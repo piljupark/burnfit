@@ -16,7 +16,6 @@ import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_highlight.dart';
 import '../../widgets/app_kpi_card.dart';
-import '../../widgets/app_motion.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/theme_setting_row.dart';
@@ -28,6 +27,7 @@ import 'admin_notice_list_screen.dart';
 import 'admin_requests_screen.dart';
 import 'admin_trainer_list_screen.dart';
 import 'admin_withdrawn_members_screen.dart';
+import '../common/notice_menu_row.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -363,12 +363,6 @@ class _AdminProfileTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<UserProvider>().user;
-    // 시안 `slide`: 줄마다 0.06초 간격으로 왼쪽에서 들어온다
-    Widget slide(int i, Widget child) => AppEntrance.slide(
-      delay: Duration(milliseconds: 60 * i),
-      child: child,
-    );
-
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
@@ -376,41 +370,42 @@ class _AdminProfileTab extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
           children: [
-            const AppHero(title: '마이', bottomGap: 0),
+            const AppHero(title: '마이'),
             AppProfileRow(
-              large: true,
               name: user?.name ?? '',
               subtitle: [
                 '센터 관리자',
                 if ((user?.centerName ?? '').isNotEmpty) user!.centerName,
               ].join(' · '),
             ),
-            // 시안 Ad-My: 8 띠 → '계정'(20 20 4) → 메뉴 줄 60 (사이 선은 좌우 20 안쪽, 마지막 줄 아래 없음)
-            // 관리자 탈퇴는 서버에서 막는다 (탈퇴 링크 없음).
-            const AppSectionBand(),
-            const AppMonthHeader(label: '계정', padding: _sectionPadding),
-            slide(
-              0,
-              AppActionRow(
-                icon: AppIcons.lock,
-                label: '비밀번호 재설정 메일',
-                menu: true,
-                onTap: () =>
-                    showPasswordResetSheet(context, initialEmail: user?.email),
-              ),
+            // 회원·트레이너 마이와 같은 짜임. 관리자 탈퇴는 서버에서 막는다 (탈퇴 링크 없음).
+            const AppMenuGroup(
+              label: '센터',
+              children: [NoticeMenuRow(admin: true)],
             ),
-            const AppRowDivider.inset(),
-            slide(1, const ThemeSettingRow()),
-            const AppRowDivider.inset(),
-            slide(
-              2,
-              AppActionRow(
-                icon: AppIcons.signOut,
-                label: '로그아웃',
-                menu: true,
-                showChevron: false,
-                onTap: () => _signOut(context),
-              ),
+            AppMenuGroup(
+              label: '계정',
+              bandTop: AppSpacing.md,
+              entranceStart: 1,
+              children: [
+                AppActionRow(
+                  icon: AppIcons.lock,
+                  label: '비밀번호 재설정 메일',
+                  menu: true,
+                  onTap: () => showPasswordResetSheet(
+                    context,
+                    initialEmail: user?.email,
+                  ),
+                ),
+                const ThemeSettingRow(),
+                AppActionRow(
+                  icon: AppIcons.signOut,
+                  label: '로그아웃',
+                  menu: true,
+                  showChevron: false,
+                  onTap: () => _signOut(context),
+                ),
+              ],
             ),
           ],
         ),

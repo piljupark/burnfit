@@ -10,12 +10,10 @@ import 'app_action_row.dart';
 import 'app_bottom_sheet.dart';
 import 'app_motion.dart';
 
-/// 마이 → 계정의 '화면 테마' 줄 (회원·트레이너·관리자 공통). 누르면 선택 시트.
-/// [plain]이면 아이콘 없는 글자 줄([AppPlainRow], 회원 마이).
+/// 마이 → 계정의 '화면 테마' 줄 (회원·트레이너·관리자 공통): 60 메뉴 줄, 오른쪽 지금 선택 + 화살표.
+/// 누르면 선택 시트.
 class ThemeSettingRow extends StatelessWidget {
-  final bool plain;
-
-  const ThemeSettingRow({super.key, this.plain = false});
+  const ThemeSettingRow({super.key});
 
   void _open(BuildContext context) =>
       showAppBottomSheet<void>(context: context, child: const _ThemeSheet());
@@ -23,26 +21,11 @@ class ThemeSettingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final choice = context.watch<ThemeController>().choice;
-    if (plain) {
-      return AppPlainRow(
-        label: '화면 테마',
-        value: choice.label,
-        onTap: () => _open(context),
-      );
-    }
-    // 시안 Tr-My·Ad-My: 60 메뉴 줄, 오른쪽 값 15 mute + 18 화살표
     return AppActionRow(
       icon: AppIcons.theme,
       label: '화면 테마',
       menu: true,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(choice.label, style: AppTextStyles.eyebrow),
-          const SizedBox(width: AppSpacing.xs),
-          Icon(AppIcons.chevronRightBold, size: 18, color: AppColors.chevron),
-        ],
-      ),
+      value: choice.label,
       onTap: () => _open(context),
     );
   }

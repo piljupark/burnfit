@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
-import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
 import '../../models/inbody.dart';
 import '../../models/pt_info.dart';
@@ -18,6 +16,8 @@ import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_highlight.dart';
+import '../../widgets/app_profile_card.dart';
+import '../../widgets/password_reset_sheet.dart';
 import '../../widgets/theme_setting_row.dart';
 import '../../widgets/delete_account_sheet.dart';
 import '../../widgets/app_loader.dart';
@@ -26,9 +26,9 @@ import 'member_profile_detail_screen.dart';
 import 'member_share_settings_screen.dart';
 import 'member_workout_stats_screen.dart';
 
-/// 회원 마이 탭 (시안 My.html): 28 제목 → 프로필 줄 → PT 남은 횟수 카드 →
-/// 내 몸(신체 정보 · 인바디 추이 · 운동 통계) → 계정(공지사항 · 기록 공유 · 화면 테마 · 로그아웃) → 탈퇴 링크.
-/// 줄은 아이콘 없이 글자만, 오른쪽에 요약 값.
+/// 회원 마이 탭: 28 제목 → 프로필 줄 → PT 남은 횟수 카드 → 내 몸(신체 정보 · 인바디 추이 · 운동 통계) →
+/// 센터(공지사항) → 계정(비밀번호 재설정 · 기록 공유 · 화면 테마 · 로그아웃) → 가운데 탈퇴 링크.
+/// 트레이너·관리자 마이와 같은 메뉴 줄(아이콘 상자 60 · 오른쪽 값 + 화살표)을 쓴다.
 class MemberProfileScreen extends StatefulWidget {
   const MemberProfileScreen({super.key});
 
@@ -118,74 +118,95 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
             padding: const EdgeInsets.only(bottom: AppSize.navClearance),
             children: [
               const AppHero(title: '마이'),
-              _ProfileLine(
+              AppProfileRow(
                 name: user.name,
                 subtitle: subtitle,
                 onTap: () => _push(const MemberProfileDetailScreen()),
               ),
               if (ptInfo != null) _PtRemainingCard(info: ptInfo),
-              const _Band(top: AppSpacing.xl),
-
               // ── 내 몸 ─────────────────────────────────────────────────
-              const _GroupLabel('내 몸'),
-              AppPlainRow(
-                label: '신체 정보',
-                trailing: _value(_bodySummary(user.profile)),
-                onTap: () => _push(const MemberProfileDetailScreen()),
+              AppMenuGroup(
+                label: '내 몸',
+                bandTop: ptInfo != null ? AppSpacing.xl : 0,
+                children: [
+                  AppActionRow(
+                    icon: AppIcons.profile,
+                    label: '신체 정보',
+                    menu: true,
+                    value: _bodySummary(user.profile),
+                    onTap: () => _push(const MemberProfileDetailScreen()),
+                  ),
+                  AppActionRow(
+                    icon: AppIcons.chart,
+                    label: '인바디 추이',
+                    menu: true,
+                    value: _inbodySummary(_inbodies),
+                    onTap: () => _push(const MemberProfileDetailScreen()),
+                  ),
+                  AppActionRow(
+                    icon: AppIcons.chartBar,
+                    label: '운동 통계',
+                    menu: true,
+                    value: _workoutDaysThisMonth == null
+                        ? null
+                        : '이번 달 $_workoutDaysThisMonth회',
+                    onTap: () => _push(const MemberWorkoutStatsScreen()),
+                  ),
+                ],
               ),
-              AppPlainRow(
-                label: '인바디 추이',
-                trailing: _value(_inbodySummary(_inbodies)),
-                onTap: () => _push(const MemberProfileDetailScreen()),
+              // ── 센터 ─────────────────────────────────────────────────
+              const AppMenuGroup(
+                label: '센터',
+                bandTop: AppSpacing.md,
+                entranceStart: 3,
+                children: [NoticeMenuRow()],
               ),
-              AppPlainRow(
-                label: '운동 통계',
-                trailing: _value(
-                  _workoutDaysThisMonth == null
-                      ? null
-                      : '이번 달 $_workoutDaysThisMonth회',
-                ),
-                onTap: () => _push(const MemberWorkoutStatsScreen()),
-              ),
-              const _Band(top: AppSpacing.md),
-
               // ── 계정 ─────────────────────────────────────────────────
-              const _GroupLabel('계정'),
-              const NoticeMenuRow(plain: true),
-              AppPlainRow(
-                label: '기록 공유',
-                trailing: _value(
-                  '3개 중 ${_sharedCount(user.shareSettings)}개 공개',
-                ),
-                onTap: () => _push(const MemberShareSettingsScreen()),
+              AppMenuGroup(
+                label: '계정',
+                bandTop: AppSpacing.md,
+                entranceStart: 4,
+                children: [
+                  AppActionRow(
+                    icon: AppIcons.lock,
+                    label: '비밀번호 재설정 메일',
+                    menu: true,
+                    onTap: () => showPasswordResetSheet(
+                      context,
+                      initialEmail: user.email,
+                    ),
+                  ),
+                  AppActionRow(
+                    icon: AppIcons.share,
+                    label: '기록 공유',
+                    menu: true,
+                    value: '3개 중 ${_sharedCount(user.shareSettings)}개 공개',
+                    onTap: () => _push(const MemberShareSettingsScreen()),
+                  ),
+                  const ThemeSettingRow(),
+                  AppActionRow(
+                    icon: AppIcons.signOut,
+                    label: '로그아웃',
+                    menu: true,
+                    showChevron: false,
+                    onTap: () async {
+                      await context.read<UserProvider>().signOut();
+                      if (!context.mounted) return;
+                      Navigator.of(
+                        context,
+                      ).pushReplacementNamed(AppRoutes.memberLogin);
+                    },
+                  ),
+                ],
               ),
-              const ThemeSettingRow(plain: true),
-              AppPlainRow(
-                label: '로그아웃',
-                onTap: () async {
-                  await context.read<UserProvider>().signOut();
-                  if (!context.mounted) return;
-                  Navigator.of(
-                    context,
-                  ).pushReplacementNamed(AppRoutes.memberLogin);
-                },
-              ),
-              // 시안: 로그아웃 아래 12 → 글자 버튼 자체 위 여백(약 14)으로 맞춘다
-              const DeleteAccountLink(leading: true),
+              const SizedBox(height: AppSpacing.xl),
+              const DeleteAccountLink(),
             ],
           ),
         ),
       ),
     );
   }
-
-  /// 줄 오른쪽 요약 값: 15, Main 계열 캡션 색(#767676).
-  static Widget? _value(String? text) => text == null || text.isEmpty
-      ? null
-      : Text(
-          text,
-          style: AppTextStyles.eyebrow.copyWith(color: AppColors.caption),
-        );
 
   static int _sharedCount(ShareSettings s) =>
       [s.workout, s.meal, s.body].where((on) => on).length;
@@ -212,66 +233,6 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
 
   static String _fmt(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
-}
-
-/// 프로필 줄: 이름 20/700 + 보조 줄 14 캡션 + 화살표 20. 최소 64 높이.
-class _ProfileLine extends StatelessWidget {
-  final String name;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _ProfileLine({
-    required this.name,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      // 탭 제목(AppHero) 아래 16은 제목이 둔다
-      padding: EdgeInsets.zero,
-      child: Semantics(
-        button: true,
-        child: InkWell(
-          onTap: onTap,
-          highlightColor: AppColors.canvasSoft,
-          splashFactory: NoSplash.splashFactory,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 64),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(name, style: AppTextStyles.title.bold),
-                      if (subtitle.isNotEmpty) ...[
-                        const Gap(2),
-                        Text(
-                          subtitle,
-                          style: AppTextStyles.note.copyWith(
-                            color: AppColors.caption,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                Icon(
-                  AppIcons.chevronRightBold,
-                  size: 20,
-                  color: AppColors.chevron,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// PT 남은 횟수 카드 (주황, 반경 20): 'PT 남은 횟수' / 'M월 d일까지',
@@ -305,48 +266,6 @@ class _PtRemainingCard extends StatelessWidget {
         progress: used,
         bold: true,
         semanticLabel: 'PT 남은 횟수 ${info.remainingSessions}회, 전체 $total회',
-      ),
-    );
-  }
-}
-
-/// 묶음 사이 8 회색 띠.
-class _Band extends StatelessWidget {
-  final double top;
-
-  const _Band({required this.top});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: AppSpacing.sm,
-      margin: EdgeInsets.only(top: top),
-      color: AppColors.canvasCard,
-    );
-  }
-}
-
-/// 묶음 이름: 15 캡션 색, 위 20 · 아래 4.
-class _GroupLabel extends StatelessWidget {
-  final String label;
-
-  const _GroupLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.lg,
-        AppSpacing.screenH,
-        AppSpacing.xs,
-      ),
-      child: Semantics(
-        header: true,
-        child: Text(
-          label,
-          style: AppTextStyles.eyebrow.copyWith(color: AppColors.caption),
-        ),
       ),
     );
   }

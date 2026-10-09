@@ -52,38 +52,29 @@ class AppProfileCard extends StatelessWidget {
   }
 }
 
-/// 마이 탭 맨 위 프로필 줄: 이름(20) + 보조 줄(센터·역할 등 글자) + 화살표.
-/// 이니셜 원·역할 태그를 쓰지 않는다. [onTap]이 없으면 화살표 없이 정보만 보인다.
-/// [large]: 시안 Ad-My — 위 20 · 아래 24, 이름 22, 보조 줄과 4 띄움.
+/// 마이 탭 맨 위 프로필 줄 (회원·트레이너·관리자 공통): 최소 72 · 좌우 20 · 위아래 12,
+/// 이름 20 Bold + (2) 보조 줄 14 mute (센터·역할·담당 글자). 이니셜 원·역할 태그 없음.
+/// [onTap]이 있으면 오른쪽 20 Bold 화살표(chevron)와 함께 누를 수 있다 (회원 → 내 프로필).
 class AppProfileRow extends StatelessWidget {
   final String name;
   final String subtitle;
   final VoidCallback? onTap;
-  final bool large;
 
   const AppProfileRow({
     super.key,
     required this.name,
     required this.subtitle,
     this.onTap,
-    this.large = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final content = Container(
       constraints: const BoxConstraints(minHeight: 72),
-      padding: large
-          ? const EdgeInsets.fromLTRB(
-              AppSpacing.screenH,
-              AppSpacing.lg,
-              AppSpacing.screenH,
-              AppSpacing.xl,
-            )
-          : const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenH,
-              vertical: AppSpacing.md,
-            ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenH,
+        vertical: AppSpacing.md,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -93,21 +84,15 @@ class AppProfileRow extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: large
-                      ? AppTextStyles.sheetTitle.natural
-                      : AppTextStyles.title,
+                  style: AppTextStyles.title.bold,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (subtitle.isNotEmpty) ...[
-                  SizedBox(height: large ? AppSpacing.xs : AppSpacing.xxs),
+                  const SizedBox(height: AppSpacing.xxs),
                   Text(
                     subtitle,
-                    // 시안 Tr-My·Ad-My: 14 mute
-                    style: AppTextStyles.bodySm.copyWith(
-                      fontSize: 14,
-                      letterSpacing: 14 * -0.019,
-                    ),
+                    style: AppTextStyles.fieldLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -116,7 +101,11 @@ class AppProfileRow extends StatelessWidget {
             ),
           ),
           if (onTap != null)
-            Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
+            Icon(
+              AppIcons.chevronRightBold,
+              size: AppSize.icon,
+              color: AppColors.chevron,
+            ),
         ],
       ),
     );
@@ -126,7 +115,12 @@ class AppProfileRow extends StatelessWidget {
       label: '$name, $subtitle',
       hint: '프로필 열기',
       excludeSemantics: true,
-      child: InkWell(onTap: onTap, child: content),
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: content,
+      ),
     );
   }
 }
