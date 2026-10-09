@@ -7,7 +7,7 @@
 
 1. **캔버스는 하나, 테마는 둘.** 모든 화면 바탕은 `AppColors.canvas`. 라이트(기본, #FFFFFF)와 다크(#0A0A0A)는 같은 구조에서 면·글자 색만 뒤집는다. 테마는 마이 → 계정 → '화면 테마'에서 시스템 설정 · 라이트 · 다크 중에 고르고 기기에 저장된다 (`ThemeController`).
 2. **모서리는 토큰으로만.** 아이콘 상자 12 · 입력창·안내 줄·꽉 찬 중간 버튼 14 · 큰 버튼·토스트 18 · 카드 20 · 시트 28 · 칩·태그·작은 버튼 pill (`AppRadius`).
-3. **굵기는 화면 계열을 따른다.** Wanted Sans 하나만 쓴다. 기본은 400·500(Medium) — 상세 시안(`MemA-*`·`MemB-*`·`Com-*`·`Nt-*`·`Tr-*`·`Ad-*`)의 500은 Medium이다. 기준 시안 `Main` 계열(회원 홈 오늘 보기·운동·운동 완료·식단·마이)과 트레이너 기준 시안 `Trainer*`(홈 오늘 보기·일정·PT 예약 시트·회원 상세·PT 완료)만 `font-weight:500` 자리에 Bold 글꼴을 묶어 두었으므로 그 화면 요소에만 `.bold`(700)를 붙인다. 시안의 `line-height: normal`은 `.natural`(1.193).
+3. **굵기는 화면 계열을 따른다.** Wanted Sans 하나만 쓴다. 기본은 400·500(Medium) — 상세 시안(`MemA-*`·`MemB-*`·`Com-*`·`Nt-*`·`Tr-*`·`Ad-*`)의 500은 Medium이다. 기준 시안 `Main` 계열(회원 홈 오늘 보기·운동·운동 완료·식단·마이), 트레이너 기준 시안 `Trainer*`(홈 오늘 보기·일정·PT 예약 시트·회원 상세·PT 완료), 관리자 기준 시안 `Admin*`(홈·가입 요청·회원·회원 상세·대시보드)만 `font-weight:500` 자리에 Bold 글꼴을 묶어 두었으므로 그 화면 요소에만 `.bold`(700)를 붙인다. 관리자 탭 제목(`AppHero`)도 Bold. 시안의 `line-height: normal`은 `.natural`(1.193).
 4. **화면 글자는 한글.** 영어 라벨(`DONE`, `10.07 WED`, `KCAL` 등)을 쓰지 않는다. 남기는 것: 단위(`kg`, `kcal`, `g` — 소문자), `PT`, `BMI`, `InBody`, 앱 이름. 날짜는 `10월 7일 (수)`, 달은 `2026년 10월`. 큰 수는 천 단위 쉼표(`11,440kg`).
 5. **그림자 대신 면과 선.** 층은 면 색(`canvas` → `canvasCard`)과 1px `hairline`으로 나눈다. `BoxShadow`, gradient, elevation 금지.
 6. **강조색은 주황 하나.** 주 행동 채움(`primary`)과 눈에 띄어야 할 데이터 점(캘린더 PT 표시, 토글 on, 그래프 최신값)에 쓴다. "새 글"·"새 알림" 점은 `newDot`(#FF5A1F). 안내·경고·PT 강조 줄은 연한 주황 면 `noticeBg` + 진한 주황 글자 `noticeText`. 역할·성별 같은 **선택 pill**은 주황이 아니라 검정(`ink`) 채움.
@@ -76,12 +76,18 @@
 | `showAppBottomSheet` + `AppBottomSheetHeader` + `AppSheetAction` | 하단 시트, 시트 안 행동 줄 |
 | `AppEmptyState` | 그림 + 20 제목 + 설명 + (선택) 주 행동 — 화면 전체가 빈 경우 |
 | `AppEmptyLine` | 목록 자리의 짧은 빈 상태 한 줄: 52 높이, 14 mute ("이 날의 기록이 없습니다") |
+| `AppEmptyState(compact:)` | 작은 빈 상태 (시안 Ad-*-Empty): 아이콘 48 faint가 떠다니고(-5, 2.6s) 12 아래 17/500 제목, 위 여백 `top` |
+| `AppListRow` · `AppDateCell` (`app_action_row.dart`) | 아이콘 상자 없는 두 줄 목록 줄 (관리자 회원·트레이너·탈퇴·이력): 68/64/60 · 제목 16/500 · 보조 13 mute(앞 강조 `subtitleLead`) · 셋째 줄 `note` · 오른쪽 상태 글자 또는 18 Bold 화살표, 아래 선은 좌우 20 안쪽(마지막 줄 포함). 왼쪽 날짜 칸 52(위 16/500 · 아래 12 mute) |
+| `AppAccentBar` | 강조 띠 64 (관리자 홈 '가입 요청 3건'): 주황 · 반경 18 · 아이콘 24 · 17/500 · '확인하기' 15/500 · 18 Bold 화살표. `muted`(회색, 할 일 없음) · `ring`(종 흔들림) · `bold` |
+| `AppRing` · `AppRankBar` · `AppColumnChart` (`app_charts.dart`) | 대시보드 그래프: 완료율 고리 112(선 12 · 1.4s 차오름), 순위 가로 막대(6 · 바탕 navLine), 주별 세로 막대(반경 10 · 이번 주 주황) |
+| `AppSwitch` · `AppSwitchRow` (`app_switch.dart`) | 시안 스위치 52×32(켜짐 primary), 스위치 줄 68(라벨 16 · 설명 13 mute, 줄 전체가 토글) — 회원 공유 설정·공지 작성 |
+| `AppFloat` · `AppRingShake` · `AppSpin` · `AppSway` (`app_motion.dart`) | 반복 움직임: 떠다님(빈 상태) · 종 흔들림 · 회전(다시 시도) · 좌우 기울임(공지 빈 상태 확성기) |
 | `FeedbackSheet` · `FeedbackQuote` (`feedback_sheet.dart`) | 트레이너 피드백 작성 시트(같은 기록에 다른 — 이전 담당 — 트레이너 피드백이 있으면 위에 읽기 전용 '이전 피드백'), 피드백 상자(회색 · 반경 14 — 회원 식단 기록과 공용). 기록 하나에 피드백이 여러 개 남을 수 있다 |
 | `AppKeyValueRow` | 52 키/값 줄 (라벨 15 body · 값 16/500 + 단위 mute) — 회원 상세 PT 정보, 인바디 상세 |
 | `workout_parts.dart` | 회원·트레이너 운동 공용: `WorkoutPickerRow`(운동 고르기 줄) · `WorkoutExerciseMenuSheet` · `WorkoutSavedExerciseRow`(+ 유산소 요약 계산) · `WorkoutCollapsedRow` · `WorkoutSummaryStats`(요약 3칸) · 완료 화면 `DoneConfirmButton`·`DoneTextLink`. 차이는 매개변수(회원 모양이 기본) |
 | `showAppConfirmDialog` | 확인 다이얼로그: 제목 + 설명 (+ 선택 `warning` 주황 콜아웃) + 2열 전체폭 버튼(취소 회색 · 확정 주황, 파괴적이면 검정). `showDialog`를 직접 쓰지 않는다 |
 | `AppAsyncBody` / `AppLoadingView` / `AppLoader` | 로딩·오류·빈 상태. 로딩은 점 세 개(화면 6 / 줄 안 4) |
-| `AppErrorCard`·`AppFeedback.show*`(`core/app_feedback.dart`) → `AppToast` | 오류 카드, 토스트(검정 채움 + 주황 원 배지, **화면 위쪽**, 한 번에 하나). `SnackBar`·`ScaffoldMessenger`를 직접 쓰지 않는다 |
+| `AppErrorCard`·`AppFeedback.show*`(`core/app_feedback.dart`) → `AppToast` | 오류 카드(시안 Ad-Home-Error — 회색 반경 18 · 경고 원 40 faint · 16/500 · 검정 44 '다시 시도' + 도는 새로고침, 모든 역할 공통), 토스트(검정 채움 + 주황 원 배지, **화면 위쪽**, 한 번에 하나). `SnackBar`·`ScaffoldMessenger`를 직접 쓰지 않는다 |
 | `NoticeBanner` | 홈 공지 한 줄: 48 높이 `noticeBg`(반경 14) + 확성기 18 + '공지' + 제목 15 + 화살표 16 |
 | `SplashFlameMark` / `PendingClockMark` | 스플래시 불꽃, 승인 대기 시계 (주황 원 브랜드 표시) |
 | `AppNavBar` | 하단 탭: 위 10 + 아이콘 26 + 글자 11. 선택 = Fill + ink 700, 나머지 = Regular + `faint` |
@@ -122,6 +128,10 @@
 - **차트**: 선 1.5px `ink`(여러 계열은 `chartSeries`), 격자 `hairline`, 축 라벨 `counter`. 막대는 `canvasMid` 트랙 + `ink` 채움.
 - **시트**: 제목 20, 메타 13, 행동 줄 52 높이, 파괴적 행은 맨 아래.
 
+- **관리자 홈** (기준 시안 `AdminHome`): 센터 이름 제목 → 가입 요청 강조 띠(없으면 회색) → 숫자 2×2(18 · 14 · 26 Bold) → 띠 → '관리' 60 메뉴 줄(대시보드 '완료율 87%' · 가입 요청 'n건' · 공지사항 · 탈퇴 회원 PT 이력, 화살표 없음).
+- **관리자 회원 상세** (`AdminMemberDetail`): 26 이름 · '가입 · 이메일' → 'PT' 회색 카드(총·남은 횟수 조절 68, 기간 56, 담당 트레이너 56 ›) → 13 안내('10회 추가 등록 · 남은 횟수도 함께 늘어나요') → '변경 기록' 52 줄 → 아래 고정 '저장'. 고친 값(담당 포함)은 '저장'으로만 반영된다.
+- **관리자 대시보드** (`AdminDashboard`): 큰 제목 오른쪽 '‹ 10월 ›' → 고리 카드 → 주별 PT → 트레이너별 → (띠) 지금 기준 잔여 3회 이하 · 만료 14일 이내.
+
 ## 접근성
 
 - 텍스트 대비 4.5:1 (`mute`는 캔버스 위에서만, 카드 위 보조 글자는 `body`). `faint`·`chevron`은 글자 본문에 쓰지 않는다 (비활성 탭·장식 화살표 전용).
@@ -144,6 +154,14 @@
 - 기준 시안의 캡션 회색은 #767676, 앱 `mute`는 #6B6B70 (상세 시안 값).
 - 스플래시·승인 대기 화면의 고리 퍼짐·불꽃 흔들림 애니메이션은 넣지 않았다 (정지 표시 + 로딩 점).
 - 시안의 탭 바 위 선은 #EDEDEF, 앱은 `hairline`(#F0F0F2).
+- 관리자 홈 메뉴: 기준 시안은 3줄이지만 공지사항 줄을 더 둔다 (관리자 마이에도 공지 진입이 없어 빼면 들어갈 길이 사라진다). '회원 관리'·'트레이너 관리' 줄은 탭과 겹쳐 뺐다.
+- 관리자 대시보드: '노쇼'는 수업 상태에 없어 넣지 않았다. 완료율은 기존 정의(취소 제외: 완료 / (완료 + 남은 예약))를 지켜 시안의 '342회 / 393회'(취소 포함)와 분모가 다르다. 잔여 3회 이하·만료 14일 이내 목록은 업무용이라 기준 시안 아래에 남겼다.
+- 관리자 회원 상세: 이미 있는 PT를 바꾸면 '변경 사유' 칸(필수)이 나타난다 (시안에 없음, 변경 기록 감사용). 기간은 줄을 눌러 시작일·종료일·갱신일 시트에서 고른다. 그래서 상세 시안 `Ad-PtInfoSheet-*`(시트로 수정)는 쓰지 않는다.
+- 관리자 '가입 요청'(받는 쪽) · 회원·트레이너 '가입 신청'(보내는 쪽): 시안대로 쪽마다 다르게 둔다.
+- 공지 상세의 작성자 이름('김관리')과 '134명에게 보냄': 공지에 작성자 ID만 있고 받은 사람 수는 서버만 알아 '보냄 / 보내지 않음'으로 보여 준다. 작성 화면의 인원은 승인된 회원·트레이너 수(개수 조회)다.
+- 공지 작성 스위치 켜짐은 시안(검정)과 달리 원칙 6대로 주황.
+- 등록 직후 새 공지 줄 배경이 연한 주황에서 흰색으로 바뀌는 효과(`Nt-Admin-Posted`)는 넣지 않았다.
+- 비밀번호 재설정·화면 테마 시트는 회원·관리자 시안끼리 수치가 달라 공용 모양(회원 시안)을 유지한다.
 
 ## 화면 확인 (화면 투어)
 

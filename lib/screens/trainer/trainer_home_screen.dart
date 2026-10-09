@@ -10,6 +10,7 @@ import '../../services/notification_target.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_motion.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/theme_setting_row.dart';
@@ -152,6 +153,11 @@ class _TrainerProfileTab extends StatelessWidget {
       '트레이너',
       if ((user?.centerName ?? '').isNotEmpty) user!.centerName,
     ].join(' · ');
+    // 시안 Tr-My `slide`: 묶음마다 줄이 0.06초 간격으로 왼쪽에서 들어온다
+    Widget slide(int i, Widget child) => AppEntrance.slide(
+      delay: Duration(milliseconds: 60 * i),
+      child: child,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -165,25 +171,31 @@ class _TrainerProfileTab extends StatelessWidget {
             // 시안 Tr-My: 8 회색 띠 → '센터'(15 mute, 18 20 4) → 공지 줄
             const AppSectionBand(),
             const AppMonthHeader(label: '센터', padding: _sectionPadding),
-            const NoticeMenuRow(),
+            slide(0, const NoticeMenuRow()),
             const AppSectionBand(top: AppSpacing.md),
             const AppMonthHeader(label: '계정', padding: _sectionPadding),
-            AppActionRow(
-              icon: AppIcons.lock,
-              label: '비밀번호 재설정 메일',
-              menu: true,
-              onTap: () =>
-                  showPasswordResetSheet(context, initialEmail: user?.email),
+            slide(
+              0,
+              AppActionRow(
+                icon: AppIcons.lock,
+                label: '비밀번호 재설정 메일',
+                menu: true,
+                onTap: () =>
+                    showPasswordResetSheet(context, initialEmail: user?.email),
+              ),
             ),
             const AppRowDivider.inset(),
-            const ThemeSettingRow(),
+            slide(1, const ThemeSettingRow()),
             const AppRowDivider.inset(),
-            AppActionRow(
-              icon: AppIcons.signOut,
-              label: '로그아웃',
-              menu: true,
-              showChevron: false,
-              onTap: () => _signOut(context),
+            slide(
+              2,
+              AppActionRow(
+                icon: AppIcons.signOut,
+                label: '로그아웃',
+                menu: true,
+                showChevron: false,
+                onTap: () => _signOut(context),
+              ),
             ),
             const AppRowDivider.inset(),
             const SizedBox(height: AppSpacing.xl),

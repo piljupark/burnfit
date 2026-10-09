@@ -64,7 +64,8 @@ class AppToast {
         key: viewKey,
         message: message,
         title: title,
-        kind: kind ?? (title != null ? AppToastKind.none : AppToastKind.success),
+        kind:
+            kind ?? (title != null ? AppToastKind.none : AppToastKind.success),
         actionLabel: actionLabel,
         onAction: onAction,
         onDismissed: () => _removeEntry(viewKey),

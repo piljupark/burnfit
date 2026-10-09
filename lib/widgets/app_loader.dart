@@ -23,12 +23,9 @@ class AppLoader extends StatefulWidget {
     this.semanticLabel = '불러오는 중',
   });
 
-  const AppLoader.screen({
-    super.key,
-    this.color,
-    this.semanticLabel = '불러오는 중',
-  }) : dotSize = 6,
-       gap = AppSpacing.sm;
+  const AppLoader.screen({super.key, this.color, this.semanticLabel = '불러오는 중'})
+    : dotSize = 6,
+      gap = AppSpacing.sm;
 
   const AppLoader.inline({super.key, this.color, this.semanticLabel = '처리 중'})
     : dotSize = 4,

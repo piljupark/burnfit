@@ -39,6 +39,9 @@ class AppKpiCard extends StatelessWidget {
   /// 값 글자색 (빈 값 '-'을 흐리게 그릴 때)
   final Color? valueColor;
 
+  /// 값 Bold — 기준 시안 계열(AdminHome 숫자 칸)
+  final bool bold;
+
   const AppKpiCard({
     super.key,
     required this.label,
@@ -57,16 +60,18 @@ class AppKpiCard extends StatelessWidget {
     this.trendSize = 13,
     this.trendGap = AppSpacing.xs,
     this.valueColor,
+    this.bold = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final valueStyle = AppTextStyles.displayMd.copyWith(
+    final valueBase = AppTextStyles.displayMd.copyWith(
       fontSize: valueSize,
       height: 1.2,
       letterSpacing: valueSize * -0.019,
       color: valueColor,
     );
+    final valueStyle = bold ? valueBase.bold : valueBase;
     final cell = Padding(
       padding: padding,
       child: Column(
@@ -141,12 +146,14 @@ class AppStatEntrance {
   });
 }
 
-/// 가로 숫자 칸 줄: 회색 칸을 8 간격으로 나란히 (화면 폭에 두면 좌우 여백을 스스로 둔다).
+/// 가로 숫자 칸 줄: 회색 칸을 8 간격으로 나란히. 화면 폭에 두면 좌우 20 여백을 스스로 둔다
+/// (시트처럼 이미 여백이 있는 곳은 [padded] false).
 /// [bottomBorder]·[topBorder]는 호출부 호환용 — 선은 긋지 않는다.
 class AppStatStrip extends StatelessWidget {
   final List<Widget> cells;
   final bool bottomBorder;
   final bool topBorder;
+  final bool padded;
 
   /// 칸 모서리 (기본 18, 작은 칸 14)
   final double radius;
@@ -161,12 +168,15 @@ class AppStatStrip extends StatelessWidget {
     this.topBorder = false,
     this.radius = AppRadius.button,
     this.entrance,
+    this.padded = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      padding: EdgeInsets.symmetric(
+        horizontal: padded ? AppSpacing.screenH : 0,
+      ),
       child: _tiles(cells, radius: radius, entrance: entrance),
     );
   }

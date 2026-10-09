@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_icons.dart';
@@ -14,6 +15,8 @@ import 'app_motion.dart';
 /// - [unit]: 칸 안 오른쪽 단위 글자(16 mute, 예: 'cm')
 /// - [showCounter]: [maxLength]가 있을 때 칸 아래 오른쪽 '8/8' (12 faint)
 /// - [showVisibilityToggle]: 비밀번호 보기 버튼 (시안에는 없어 기본 끔)
+/// - [dense]: 검색창 (시안 AdminMembers·Ad-Trainers): 높이 48, 아이콘 왼쪽 14, 안내 글자 dots
+/// - [labelCounter]: [maxLength]가 있을 때 라벨 줄 오른쪽 끝 '14 / 40' (14 mute, 천 단위 쉼표 — 시안 Nt-Admin-Compose)
 /// [fillColor]·[showEnabledBorder]·[labelAbove]는 기존 호출부 호환용이다.
 class AppTextField extends StatefulWidget {
   final String label;
@@ -47,6 +50,11 @@ class AppTextField extends StatefulWidget {
 
   /// 입력 글자를 500(Medium)으로 (시안의 숫자 값 칸)
   final bool strongValue;
+  final bool dense;
+  final bool labelCounter;
+
+  /// 여러 줄 입력칸의 고정 높이 (시안 Nt-Admin-Compose 내용 200). null이면 줄 수만큼.
+  final double? fieldHeight;
 
   const AppTextField({
     super.key,
@@ -79,6 +87,9 @@ class AppTextField extends StatefulWidget {
     this.helper,
     this.onTap,
     this.strongValue = false,
+    this.dense = false,
+    this.labelCounter = false,
+    this.fieldHeight,
   });
 
   @override
@@ -137,8 +148,14 @@ class _AppTextFieldState extends State<AppTextField> {
       readOnly: widget.readOnly,
       enabled: widget.enabled,
       onTap: widget.onTap,
-      maxLines: widget.obscureText ? 1 : widget.maxLines,
-      minLines: widget.obscureText ? null : widget.minLines,
+      maxLines: widget.fieldHeight != null
+          ? null
+          : widget.obscureText
+          ? 1
+          : widget.maxLines,
+      minLines: widget.fieldHeight != null || widget.obscureText
+          ? null
+          : widget.minLines,
       maxLength: widget.maxLength,
       inputFormatters: widget.inputFormatters,
       onChanged: widget.onChanged,
@@ -149,14 +166,21 @@ class _AppTextFieldState extends State<AppTextField> {
       style: widget.strongValue ? valueStyle.medium : valueStyle,
       cursorColor: AppColors.ink,
       errorBuilder: (context, errorText) => AppFieldError(errorText),
+      expands: widget.fieldHeight != null,
+      textAlignVertical: widget.fieldHeight != null
+          ? TextAlignVertical.top
+          : null,
       decoration: InputDecoration(
         hintText: widget.hint,
+        hintStyle: widget.dense
+            ? valueStyle.copyWith(color: AppColors.dots)
+            : null,
         counterText: '',
         prefixIcon: widget.prefix == null
             ? null
             : Padding(
-                padding: const EdgeInsets.only(
-                  left: AppSpacing.base,
+                padding: EdgeInsets.only(
+                  left: widget.dense ? 14 : AppSpacing.base,
                   right: 10,
                 ),
                 child: IconTheme(
@@ -174,7 +198,11 @@ class _AppTextFieldState extends State<AppTextField> {
             : null,
         contentPadding: EdgeInsets.symmetric(
           horizontal: AppSpacing.base,
-          vertical: multiline ? 14 : 15,
+          vertical: multiline
+              ? 14
+              : widget.dense
+              ? 13
+              : 15,
         ),
       ),
     );
@@ -183,27 +211,38 @@ class _AppTextFieldState extends State<AppTextField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.label.isNotEmpty) ...[
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(text: widget.label),
-                if (widget.labelHint != null)
+          Row(
+            children: [
+              Expanded(
+                child: Text.rich(
                   TextSpan(
-                    text: ' ${widget.labelHint}',
-                    style: TextStyle(color: AppColors.faint),
+                    children: [
+                      TextSpan(text: widget.label),
+                      if (widget.labelHint != null)
+                        TextSpan(
+                          text: ' ${widget.labelHint}',
+                          style: TextStyle(color: AppColors.faint),
+                        ),
+                    ],
                   ),
-              ],
-            ),
-            style: AppTextStyles.fieldLabel,
+                  style: AppTextStyles.fieldLabel,
+                ),
+              ),
+              if (widget.labelCounter && widget.maxLength != null)
+                _LabelCounter(
+                  controller: widget.controller,
+                  maxLength: widget.maxLength!,
+                ),
+            ],
           ),
           const SizedBox(height: 6),
         ],
-        field,
+        if (widget.fieldHeight != null)
+          SizedBox(height: widget.fieldHeight, child: field)
+        else
+          field,
         if (widget.showCounter && widget.maxLength != null)
-          _Counter(
-            controller: widget.controller,
-            maxLength: widget.maxLength!,
-          ),
+          _Counter(controller: widget.controller, maxLength: widget.maxLength!),
         if (widget.helper != null) ...[
           const SizedBox(height: 6),
           Text(widget.helper!, style: AppTextStyles.bodySm),
@@ -264,6 +303,30 @@ class _Counter extends StatelessWidget {
         ),
       ),
     );
+    if (c == null) return text(0);
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: c,
+      builder: (context, value, _) => text(value.text.characters.length),
+    );
+  }
+}
+
+/// '14 / 40' 글자 수 (라벨 줄 오른쪽 끝, 14 mute, 천 단위 쉼표).
+class _LabelCounter extends StatelessWidget {
+  final TextEditingController? controller;
+  final int maxLength;
+
+  const _LabelCounter({required this.controller, required this.maxLength});
+
+  static final _number = NumberFormat('#,###');
+
+  @override
+  Widget build(BuildContext context) {
+    Widget text(int n) => Text(
+      '${_number.format(n)} / ${_number.format(maxLength)}',
+      style: AppTextStyles.fieldLabel,
+    );
+    final c = controller;
     if (c == null) return text(0);
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: c,

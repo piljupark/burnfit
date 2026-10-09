@@ -109,11 +109,12 @@ class AppChip extends StatelessWidget {
         : (inkLabel || cell)
         ? AppColors.ink
         : AppColors.body;
-    final style = (large || cell ? AppTextStyles.bodyMd : AppTextStyles.bodySmall)
-        .copyWith(
-          color: fg,
-          fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
-        );
+    final style =
+        (large || cell ? AppTextStyles.bodyMd : AppTextStyles.bodySmall)
+            .copyWith(
+              color: fg,
+              fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+            );
     return Semantics(
       button: true,
       selected: selected,
@@ -125,9 +126,7 @@ class AppChip extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           child: Container(
             // 시각 높이 32, 터치 영역은 세로 여백으로 확보
-            padding: EdgeInsets.symmetric(
-              vertical: cell ? 0 : (large ? 2 : 6),
-            ),
+            padding: EdgeInsets.symmetric(vertical: cell ? 0 : (large ? 2 : 6)),
             child: Container(
               height: cell ? 44 : (large ? 40 : AppSize.buttonHeightSm),
               padding: EdgeInsets.symmetric(

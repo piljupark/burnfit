@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPicker;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:pt_solution_v2/core/app_icons.dart';
 import 'package:pt_solution_v2/main.dart';
 import 'package:pt_solution_v2/screens/member/workout_sheets.dart';
 import 'package:pt_solution_v2/services/theme_controller.dart';
@@ -314,20 +315,57 @@ void main() {
     await startApp(tester);
     await shot('30_admin_home');
     await step('requests', () async {
-      await tester.tap(find.textContaining('가입 신청').first);
+      await tester.tap(find.textContaining('가입 요청').first);
       await wait(tester);
       await shot('31_admin_requests');
       await back(tester);
     });
     await step('dashboard', () async {
       await tester.tap(find.text('대시보드').first);
-      await wait(tester);
+      await wait(tester, 2500);
       await shot('32_admin_dashboard');
+      await back(tester);
+    });
+    await step('notices', () async {
+      await tester.tap(find.text('공지사항').first);
+      await wait(tester, 2000);
+      await shot('32b_admin_notices');
+      await tester.tap(find.text('추석 연휴 운영 시간 안내').first);
+      await wait(tester);
+      await shot('32c_admin_notice_detail');
+      await back(tester);
+      await tester.tap(find.text('공지 작성').first);
+      await wait(tester);
+      await shot('32d_admin_notice_compose');
+      await back(tester);
+      await back(tester);
+    });
+    await step('withdrawn', () async {
+      await tester.tap(find.text('탈퇴 회원 PT 이력').first);
+      await wait(tester);
+      await shot('32e_admin_withdrawn');
       await back(tester);
     });
     await step('members tab', () async {
       await tapNav(tester, '회원');
       await shot('33_admin_members');
+    });
+    await step('member detail', () async {
+      await tester.tap(find.text('박서준').first);
+      await wait(tester);
+      await shot('33b_admin_member_detail');
+      // 총 횟수 '+' (조절 버튼 첫 '+'): 남은 횟수도 함께 늘고 안내·사유 칸이 나타난다
+      await tester.tap(find.byIcon(AppIcons.bold(AppIcons.add)).first);
+      await wait(tester, 600);
+      await shot('33c_admin_member_detail_edit');
+      await back(tester);
+      await wait(tester, 800);
+      // 저장하지 않고 나가기 확인 창이 뜨면 '나가기'
+      final leave = find.text('나가기');
+      if (leave.evaluate().isNotEmpty) {
+        await tester.tap(leave.first);
+        await wait(tester, 1200);
+      }
     });
     await step('trainers tab', () async {
       await tapNav(tester, '트레이너');

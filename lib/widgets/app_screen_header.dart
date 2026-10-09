@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
@@ -32,6 +33,21 @@ class AppScreenHeader extends StatelessWidget {
   final bool divider;
   final AppHeaderStyle style;
 
+  /// [AppHeaderStyle.large]: 제목 뒤 개수 28/400 mute (시안 Ad-Withdrawn '탈퇴 회원 PT 이력 5')
+  final String? count;
+
+  /// [AppHeaderStyle.large]: 제목 줄 오른쪽 끝 위젯 (기준 시안 AdminDashboard '‹ 10월 ›')
+  final Widget? titleTrailing;
+
+  /// [AppHeaderStyle.large]: 제목 크기 (기본 28, 시안 Ad-WithdrawnDetail 26)
+  final double titleSize;
+
+  /// [AppHeaderStyle.large]: 제목 Bold — 기준 시안 계열(Admin*)
+  final bool bold;
+
+  /// [AppHeaderStyle.centered]: 뒤로 대신 닫기(X 22) — 시안 Nt-Admin-Compose
+  final bool close;
+
   const AppScreenHeader({
     super.key,
     required this.title,
@@ -40,9 +56,13 @@ class AppScreenHeader extends StatelessWidget {
     this.trailing,
     this.divider = false,
     this.style = AppHeaderStyle.leading,
-  });
+  }) : count = null,
+       titleTrailing = null,
+       titleSize = 28,
+       bold = false,
+       close = false;
 
-  /// 가운데 17/500 제목 (시안 MemB-*·MemA-* 하위 화면).
+  /// 가운데 17/500 제목 (시안 MemB-*·MemA-* 하위 화면). [close]면 왼쪽이 닫기(X).
   const AppScreenHeader.centered({
     super.key,
     required this.title,
@@ -50,9 +70,14 @@ class AppScreenHeader extends StatelessWidget {
     this.onBack,
     this.trailing,
     this.divider = false,
-  }) : style = AppHeaderStyle.centered;
+    this.close = false,
+  }) : style = AppHeaderStyle.centered,
+       count = null,
+       titleTrailing = null,
+       titleSize = 28,
+       bold = false;
 
-  /// 뒤로 줄 아래 28/500 큰 제목 (시안 Com-Register·Com-Notifications·Nt-List).
+  /// 뒤로 줄 아래 28/500 큰 제목 (시안 Com-Register·Com-Notifications·Nt-List·Ad-*).
   const AppScreenHeader.large({
     super.key,
     required this.title,
@@ -60,10 +85,22 @@ class AppScreenHeader extends StatelessWidget {
     this.onBack,
     this.trailing,
     this.divider = false,
-  }) : style = AppHeaderStyle.large;
+    this.count,
+    this.titleTrailing,
+    this.titleSize = 28,
+    this.bold = false,
+  }) : style = AppHeaderStyle.large,
+       close = false;
 
   Widget _back() => onBack == null
       ? const SizedBox(width: AppSize.touchMin)
+      : close
+      ? AppIconButton(
+          icon: AppIcons.closeBold,
+          label: '닫기',
+          iconSize: 22,
+          onPressed: onBack,
+        )
       : AppIconButton(
           icon: AppIcons.backBold,
           label: '뒤로',
@@ -156,9 +193,35 @@ class AppScreenHeader extends StatelessWidget {
         if (title.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-            child: Semantics(
-              header: true,
-              child: Text(title, style: AppTextStyles.displayMd),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Semantics(
+                    header: true,
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(text: title),
+                          if (count != null) ...[
+                            const WidgetSpan(
+                              child: SizedBox(width: AppSpacing.sm),
+                            ),
+                            TextSpan(
+                              text: count,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.mute,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      style: _titleStyle,
+                    ),
+                  ),
+                ),
+                ?titleTrailing,
+              ],
             ),
           ),
         if (subtitle != null)
@@ -173,6 +236,17 @@ class AppScreenHeader extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  TextStyle get _titleStyle {
+    final base = titleSize == 28
+        ? AppTextStyles.displayMd
+        : AppTextStyles.displayMd.copyWith(
+            fontSize: titleSize,
+            height: 32 / titleSize,
+            letterSpacing: titleSize * -0.019,
+          );
+    return bold ? base.bold : base;
   }
 
   Widget _leadingBar() {

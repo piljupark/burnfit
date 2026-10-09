@@ -141,19 +141,27 @@ class _MemberFeedbackScreenState extends State<MemberFeedbackScreen> {
                     if (_isLoading)
                       const SliverFillRemaining(child: AppLoadingView())
                     else if (_feedbacks.isEmpty)
-                      const SliverToBoxAdapter(
+                      SliverToBoxAdapter(
                         child: AppEmptyState(
                           icon: AppIcons.feedback,
                           card: true,
                           // 시안: 화면 위 220 (머리 56 아래 164)
-                          margin: EdgeInsets.fromLTRB(
+                          margin: const EdgeInsets.fromLTRB(
                             AppSpacing.screenH,
                             164,
                             AppSpacing.screenH,
                             0,
                           ),
-                          illustration: _BobbingIcon(),
-                          cardPadding: EdgeInsets.symmetric(
+                          // 시안 `bob`: 말풍선 44 (faint)가 2.4초마다 -5 위아래로
+                          illustration: AppFloat(
+                            period: const Duration(milliseconds: 2400),
+                            child: Icon(
+                              AppIcons.feedback,
+                              size: 44,
+                              color: AppColors.faint,
+                            ),
+                          ),
+                          cardPadding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.xl,
                             vertical: 36,
                           ),
@@ -313,54 +321,6 @@ class _FeedbackRow extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// 빈 화면 그림: 말풍선 44 (faint, 선 1.5)가 위아래로 천천히 흔들림 (시안 `bob`: 2.4s, -5px).
-class _BobbingIcon extends StatefulWidget {
-  const _BobbingIcon();
-
-  @override
-  State<_BobbingIcon> createState() => _BobbingIconState();
-}
-
-class _BobbingIconState extends State<_BobbingIcon>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (AppMotion.reduced(context)) {
-      _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      child: Icon(AppIcons.feedback, size: 44, color: AppColors.faint),
-      builder: (context, child) {
-        final v = _controller.value;
-        final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
-        return Transform.translate(
-          offset: Offset(0, -5 * Curves.easeInOut.transform(tri)),
-          child: child,
-        );
-      },
     );
   }
 }

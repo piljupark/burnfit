@@ -10,13 +10,13 @@ import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../core/constants.dart';
 import '../../models/admin_stats.dart';
-import '../../services/account_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_highlight.dart';
 import '../../widgets/app_kpi_card.dart';
+import '../../widgets/app_motion.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/theme_setting_row.dart';
@@ -146,6 +146,22 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
     final monthLabel = DateFormat('M월').format(DateTime.now());
     final stats = _stats;
     final centerName = user?.centerName ?? '';
+    final rate = stats == null
+        ? null
+        : (stats.monthlyCompletionRate * 100).clamp(0, 100).round();
+
+    AppKpiCard kpi(String label, int? value, String unit) => AppKpiCard(
+      framed: false,
+      label: label,
+      value: '${value ?? '-'}',
+      unit: unit,
+      // 기준 시안 AdminHome: 안쪽 18 · 라벨 14 · 6 · 값 26 Bold
+      padding: const EdgeInsets.all(18),
+      labelSize: 14,
+      labelGap: 6,
+      valueSize: 26,
+      bold: true,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -168,111 +184,93 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                 )
               else if (_loadError != null)
                 SliverToBoxAdapter(
+                  // 시안 Ad-Home-Error: 제목 아래 24 (카드 바깥 16 + 8)
                   child: Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xl),
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
                     child: AppErrorCard(message: _loadError!, onRetry: _load),
                   ),
                 )
               else ...[
-                // ── 가입 신청 (화면의 단 하나 강조 띠) ──────────────────
+                // ── 가입 요청 (화면의 단 하나 강조 띠) ──────────────────
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH,
-                      AppSpacing.sm,
-                      AppSpacing.screenH,
-                      AppSpacing.base,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.screenH,
                     ),
-                    child: _PendingRequestsCard(
-                      count: _pendingCount,
-                      onTap: () => _push(const AdminRequestsScreen()),
-                    ),
+                    child: _pendingCount > 0
+                        ? AppAccentBar(
+                            icon: AppIcons.bell,
+                            ring: true,
+                            bold: true,
+                            title: '가입 요청 $_pendingCount건',
+                            actionLabel: '확인하기',
+                            onTap: () => _push(const AdminRequestsScreen()),
+                          )
+                        : AppAccentBar(
+                            icon: AppIcons.bell,
+                            muted: true,
+                            bold: true,
+                            title: '가입 요청',
+                            subtitle: '대기 중인 요청이 없어요',
+                            onTap: () => _push(const AdminRequestsScreen()),
+                          ),
                   ),
                 ),
 
-                // ── KPI 2×2 (회색 칸) ───────────────────────────────────
+                // ── 숫자 2×2 (회색 칸) ──────────────────────────────────
                 SliverToBoxAdapter(
-                  child: AppStatGrid(
-                    cells: [
-                      AppKpiCard(
-                        framed: false,
-                        label: '전체 회원',
-                        value: '${stats?.memberCount ?? '-'}',
-                        unit: '명',
-                      ),
-                      AppKpiCard(
-                        framed: false,
-                        label: '트레이너',
-                        value: '${stats?.trainerCount ?? '-'}',
-                        unit: '명',
-                      ),
-                      AppKpiCard(
-                        framed: false,
-                        label: '$monthLabel PT 완료',
-                        value: '${stats?.monthlyCompletedSessions ?? '-'}',
-                        unit: '회',
-                        trend: stats == null
-                            ? null
-                            : '${(stats.monthlyCompletionRate * 100).clamp(0, 100).toStringAsFixed(0)}% 완료',
-                      ),
-                      AppKpiCard(
-                        framed: false,
-                        label: '예정 세션',
-                        value: '${stats?.upcomingSessionCount ?? '-'}',
-                        unit: '건',
-                        trend: stats == null
-                            ? null
-                            : '오늘 ${stats.todayScheduledSessions}',
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── 관리 메뉴 ───────────────────────────────────────────
-                const SliverToBoxAdapter(child: AppMonthHeader(label: '관리')),
-                SliverPadding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
-                  sliver: SliverToBoxAdapter(
-                    child: Column(
-                      children: [
-                        AppActionRow(
-                          icon: AppIcons.clipboard,
-                          label: '공지사항',
-                          subtitle: '센터 공지 작성 및 관리',
-                          onTap: () => _push(const AdminNoticeListScreen()),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.md),
+                    child: AppStatGrid(
+                      entrance: const AppStatEntrance(),
+                      cells: [
+                        kpi('전체 회원', stats?.memberCount, '명'),
+                        kpi('트레이너', stats?.trainerCount, '명'),
+                        kpi(
+                          '$monthLabel PT 완료',
+                          stats?.monthlyCompletedSessions,
+                          '회',
                         ),
-                        const AppRowDivider(indent: AppSpacing.screenH),
-                        AppActionRow(
-                          icon: AppIcons.chartBar,
-                          label: '대시보드',
-                          subtitle: '센터 통계 및 분석',
-                          onTap: () => _push(const AdminDashboardScreen()),
-                        ),
-                        const AppRowDivider(indent: AppSpacing.screenH),
-                        AppActionRow(
-                          icon: AppIcons.members,
-                          label: '회원 관리',
-                          subtitle: '회원 목록 및 상세 정보',
-                          onTap: () => _push(const AdminMemberListScreen()),
-                        ),
-                        const AppRowDivider(indent: AppSpacing.screenH),
-                        AppActionRow(
-                          icon: AppIcons.trainers,
-                          label: '트레이너 관리',
-                          subtitle: '트레이너 목록 및 배정',
-                          onTap: () => _push(const AdminTrainerListScreen()),
-                        ),
-                        const AppRowDivider(indent: AppSpacing.screenH),
-                        AppActionRow(
-                          icon: AppIcons.archive,
-                          label: '탈퇴 회원 PT 이력',
-                          subtitle:
-                              '분쟁 대응용 · ${AccountService.ptRecordRetentionYears}년 보관 후 파기',
-                          onTap: () =>
-                              _push(const AdminWithdrawnMembersScreen()),
-                        ),
+                        kpi('예정 PT', stats?.upcomingSessionCount, '회'),
                       ],
                     ),
+                  ),
+                ),
+                const SliverToBoxAdapter(
+                  child: AppSectionBand(top: AppSpacing.xl),
+                ),
+
+                // ── 관리 메뉴 (60 줄 · 오른쪽 14 mute 값) ──────────────
+                const SliverToBoxAdapter(
+                  child: AppMonthHeader(label: '관리', padding: _sectionPadding),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
+                  sliver: SliverList.list(
+                    children: [
+                      _MenuRow(
+                        icon: AppIcons.chartBar,
+                        label: '대시보드',
+                        value: rate == null ? null : '완료율 $rate%',
+                        onTap: () => _push(const AdminDashboardScreen()),
+                      ),
+                      _MenuRow(
+                        icon: AppIcons.userPlus,
+                        label: '가입 요청',
+                        value: _pendingCount > 0 ? '$_pendingCount건' : null,
+                        onTap: () => _push(const AdminRequestsScreen()),
+                      ),
+                      _MenuRow(
+                        icon: AppIcons.megaphone,
+                        label: '공지사항',
+                        onTap: () => _push(const AdminNoticeListScreen()),
+                      ),
+                      _MenuRow(
+                        icon: AppIcons.archive,
+                        label: '탈퇴 회원 PT 이력',
+                        onTap: () => _push(const AdminWithdrawnMembersScreen()),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -284,70 +282,39 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
   }
 }
 
-/// 가입 신청 요약: 대기 신청이 있으면 강조 띠(AppAccentBar),
-/// 없으면 회색 줄(아이콘 + 안내 + 화살표).
-class _PendingRequestsCard extends StatelessWidget {
-  final int count;
+/// 섹션 머리말 여백 (시안 AdminHome·Ad-My: 띠 아래 20 20 4)
+const _sectionPadding = EdgeInsets.fromLTRB(
+  AppSpacing.screenH,
+  AppSpacing.lg,
+  AppSpacing.screenH,
+  AppSpacing.xs,
+);
+
+/// 관리 메뉴 한 줄 (기준 시안 AdminHome): 60 · 아이콘 상자 · 16 Regular · 오른쪽 14 mute 값, 화살표 없음.
+class _MenuRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? value;
   final VoidCallback onTap;
 
-  const _PendingRequestsCard({required this.count, required this.onTap});
+  const _MenuRow({
+    required this.icon,
+    required this.label,
+    this.value,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (count > 0) {
-      return AppAccentBar(
-        icon: AppIcons.userPlus,
-        title: '가입 신청 $count건',
-        subtitle: '승인을 기다리고 있어요',
-        actionLabel: '확인하기',
-        onTap: onTap,
-      );
-    }
-    return Semantics(
-      button: true,
-      child: Material(
-        color: AppColors.canvasSoft,
-        borderRadius: BorderRadius.circular(AppRadius.button),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.button),
-          highlightColor: AppColors.canvasMid,
-          splashFactory: NoSplash.splashFactory,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 64),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.base,
-                AppSpacing.md,
-              ),
-              child: Row(
-                children: [
-                  Icon(AppIcons.userPlus, size: 22, color: AppColors.body),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('가입 신청', style: AppTextStyles.bodyLg),
-                        Text(
-                          '대기 중인 신청이 없어요',
-                          style: AppTextStyles.bodySm.copyWith(
-                            color: AppColors.body,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(AppIcons.forward, size: 18, color: AppColors.body),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return AppActionRow(
+      icon: icon,
+      label: label,
+      menu: true,
+      showChevron: false,
+      trailing: value == null
+          ? null
+          : Text(value!, style: AppTextStyles.fieldLabel),
+      onTap: onTap,
     );
   }
 }
@@ -359,9 +326,20 @@ class _PendingRequestsCard extends StatelessWidget {
 class _AdminProfileTab extends StatelessWidget {
   const _AdminProfileTab();
 
+  Future<void> _signOut(BuildContext context) async {
+    await context.read<UserProvider>().signOut();
+    if (!context.mounted) return;
+    Navigator.of(context).pushReplacementNamed(AppRoutes.memberLogin);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<UserProvider>().user;
+    // 시안 `slide`: 줄마다 0.06초 간격으로 왼쪽에서 들어온다
+    Widget slide(int i, Widget child) => AppEntrance.slide(
+      delay: Duration(milliseconds: 60 * i),
+      child: child,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -370,40 +348,42 @@ class _AdminProfileTab extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
           children: [
-            const AppHero(title: '마이', divider: false),
+            const AppHero(title: '마이', bottomGap: 0),
             AppProfileRow(
+              large: true,
               name: user?.name ?? '',
               subtitle: [
                 '센터 관리자',
                 if ((user?.centerName ?? '').isNotEmpty) user!.centerName,
               ].join(' · '),
             ),
+            // 시안 Ad-My: 8 띠 → '계정'(20 20 4) → 메뉴 줄 60 (사이 선은 좌우 20 안쪽, 마지막 줄 아래 없음)
             // 관리자 탈퇴는 서버에서 막는다 (탈퇴 링크 없음).
-            const AppMonthHeader(label: '계정'),
-            AppActionRow(
-              icon: AppIcons.lock,
-              label: '비밀번호 재설정 메일',
-              menu: true,
-              onTap: () =>
-                  showPasswordResetSheet(context, initialEmail: user?.email),
+            const AppSectionBand(),
+            const AppMonthHeader(label: '계정', padding: _sectionPadding),
+            slide(
+              0,
+              AppActionRow(
+                icon: AppIcons.lock,
+                label: '비밀번호 재설정 메일',
+                menu: true,
+                onTap: () =>
+                    showPasswordResetSheet(context, initialEmail: user?.email),
+              ),
             ),
-            const AppRowDivider(),
-            const ThemeSettingRow(),
-            const AppRowDivider(),
-            AppActionRow(
-              icon: AppIcons.signOut,
-              label: '로그아웃',
-              menu: true,
-              showChevron: false,
-              onTap: () async {
-                await context.read<UserProvider>().signOut();
-                if (!context.mounted) return;
-                Navigator.of(
-                  context,
-                ).pushReplacementNamed(AppRoutes.memberLogin);
-              },
+            const AppRowDivider.inset(),
+            slide(1, const ThemeSettingRow()),
+            const AppRowDivider.inset(),
+            slide(
+              2,
+              AppActionRow(
+                icon: AppIcons.signOut,
+                label: '로그아웃',
+                menu: true,
+                showChevron: false,
+                onTap: () => _signOut(context),
+              ),
             ),
-            const AppRowDivider(),
           ],
         ),
       ),

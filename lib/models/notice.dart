@@ -30,6 +30,9 @@ class Notice {
   final NoticeAudience audience;
   final bool pinned;
   final bool important;
+
+  /// 등록할 때 푸시 알림을 요청했는지 (서버 함수가 대상에게 보낸다)
+  final bool notify;
   final String authorId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -42,6 +45,7 @@ class Notice {
     required this.audience,
     required this.pinned,
     required this.important,
+    this.notify = false,
     required this.authorId,
     this.createdAt,
     this.updatedAt,
@@ -61,6 +65,7 @@ class Notice {
       audience: NoticeAudience.parse(map['audience']),
       pinned: map['pinned'] as bool? ?? false,
       important: map['important'] as bool? ?? false,
+      notify: map['notify'] as bool? ?? false,
       authorId: map['authorId'] as String? ?? '',
       createdAt: _date(map['createdAt']),
       updatedAt: _date(map['updatedAt']),

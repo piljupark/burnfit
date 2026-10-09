@@ -9,8 +9,8 @@ import '../../core/app_text_styles.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_provider.dart';
-import '../../widgets/app_motion.dart';
 import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_switch.dart';
 import '../../widgets/app_loader.dart';
 
 /// 기록 공유 설정 (시안 MemB-Share): 가운데 17 머리 → 안내 15 → '공유 중  2 / 3' →
@@ -258,83 +258,8 @@ class _ShareRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                _ShareSwitch(value: value, introDelay: introDelay),
+                AppSwitch(value: value, introDelay: introDelay),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 시안 스위치: 트랙 52×32(켜짐 primary · 꺼짐 track), 흰 손잡이 26 + 그림자 0 1 3 18%.
-/// 처음 그릴 때 켜진 스위치는 손잡이가 왼쪽에서 제자리로 미끄러진다
-/// (시안 `knob`: .35s, [introDelay] 뒤, cubic-bezier(.3,1.3,.5,1)).
-class _ShareSwitch extends StatefulWidget {
-  final bool value;
-  final Duration introDelay;
-
-  const _ShareSwitch({required this.value, required this.introDelay});
-
-  @override
-  State<_ShareSwitch> createState() => _ShareSwitchState();
-}
-
-class _ShareSwitchState extends State<_ShareSwitch> {
-  bool _intro = true;
-  bool _started = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_started) return;
-    _started = true;
-    if (AppMotion.reduced(context)) {
-      _intro = false;
-      return;
-    }
-    Future.delayed(widget.introDelay, () {
-      if (mounted) setState(() => _intro = false);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final on = widget.value;
-    final knobOn = on && !_intro;
-    return SizedBox(
-      width: 52,
-      height: AppSize.touchMin,
-      child: Center(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 52,
-          height: 32,
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            color: on ? AppColors.primary : AppColors.track,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-          ),
-          child: AnimatedAlign(
-            duration: const Duration(milliseconds: 350),
-            curve: AppMotion.knob,
-            alignment: knobOn ? Alignment.centerRight : Alignment.centerLeft,
-            child: Container(
-              width: 26,
-              height: 26,
-              decoration: const BoxDecoration(
-                // 손잡이는 테마와 관계없이 흰색
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x2E000000),
-                    blurRadius: 3,
-                    offset: Offset(0, 1),
-                  ),
-                ],
-              ),
             ),
           ),
         ),

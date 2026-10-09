@@ -201,3 +201,185 @@ class AppPlainRow extends StatelessWidget {
     );
   }
 }
+
+/// 글자만 있는 두 줄 목록 줄 (시안 AdminMembers·Ad-Trainers·Ad-Withdrawn·Ad-PtInfoLog):
+/// 아이콘 상자 없이 제목 16/500 + (3) 보조 줄 13 mute + 오른쪽([trailing] 또는 18 Bold 화살표).
+/// 좌우 20 안쪽에 놓이고 아래 1px hairline도 그 안쪽에만 긋는다 (마지막 줄 포함).
+/// - [height]: 최소 높이 (68 · 64 · 60, 글자가 커지면 늘어난다)
+/// - [subtitleLead]: 보조 줄 앞 강조 글자 (noticeText 500, 예: '승인 대기 · ')
+/// - [note]: 셋째 줄 13 body (예: 변경 사유)
+/// - [leading]: 왼쪽 칸 (예: 날짜 52) — 있으면 줄을 위로 붙이고 위아래 [verticalPadding]
+/// - [dimmed]: 제목을 faint로 (만료·취소)
+/// - [bold]: 제목 Bold — 기준 시안 계열(Admin*)
+/// - [padded]: false면 좌우 여백 없이 (시트 안)
+class AppListRow extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final String? subtitleLead;
+  final Color? subtitleColor;
+  final String? note;
+
+  /// [note] 글자색 (기본 body)
+  final Color? noteColor;
+  final Widget? leading;
+  final Widget? trailing;
+  final bool chevron;
+  final VoidCallback? onTap;
+  final double height;
+  final double verticalPadding;
+  final bool dimmed;
+  final bool bold;
+  final bool padded;
+  final bool divider;
+  final TextStyle? titleStyle;
+
+  const AppListRow({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.subtitleLead,
+    this.subtitleColor,
+    this.note,
+    this.noteColor,
+    this.leading,
+    this.trailing,
+    this.chevron = false,
+    this.onTap,
+    this.height = 68,
+    this.verticalPadding = AppSpacing.sm,
+    this.dimmed = false,
+    this.bold = false,
+    this.padded = true,
+    this.divider = true,
+    this.titleStyle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final titleBase = titleStyle ?? AppTextStyles.listTitle;
+    final top = leading != null;
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: (bold ? titleBase.bold : titleBase).copyWith(
+            color: dimmed ? AppColors.faint : null,
+          ),
+        ),
+        if (subtitle != null || subtitleLead != null) ...[
+          const SizedBox(height: 3),
+          Text.rich(
+            TextSpan(
+              children: [
+                if (subtitleLead != null)
+                  TextSpan(
+                    text: subtitleLead,
+                    style: const TextStyle(
+                      color: AppColors.noticeText,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                if (subtitle != null) TextSpan(text: subtitle),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodySm.copyWith(color: subtitleColor),
+          ),
+        ],
+        if (note != null && note!.trim().isNotEmpty) ...[
+          const SizedBox(height: 3),
+          Text(
+            note!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodySm.copyWith(
+              color: noteColor ?? AppColors.body,
+            ),
+          ),
+        ],
+      ],
+    );
+    final row = Container(
+      constraints: BoxConstraints(minHeight: height),
+      padding: EdgeInsets.symmetric(vertical: verticalPadding),
+      decoration: divider
+          ? BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.hairline)),
+            )
+          : null,
+      child: Row(
+        crossAxisAlignment: top
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
+        children: [
+          if (leading != null) ...[leading!, const SizedBox(width: 12)],
+          Expanded(child: text),
+          if (trailing != null) ...[
+            const SizedBox(width: AppSpacing.md),
+            trailing!,
+          ],
+          if (chevron) ...[
+            const SizedBox(width: AppSpacing.md),
+            Icon(AppIcons.chevronRightBold, size: 18, color: AppColors.chevron),
+          ],
+        ],
+      ),
+    );
+    final content = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: padded ? AppSpacing.screenH : 0,
+      ),
+      child: row,
+    );
+    if (onTap == null) return Semantics(container: true, child: content);
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: content,
+      ),
+    );
+  }
+}
+
+/// 목록 줄 왼쪽 날짜 칸 (시안 Ad-PtInfoLog·Ad-WithdrawnDetail): 폭 52, 위 16/500 · (2) 아래 12 mute.
+/// [small]이면 위 글자 15 (Ad-WithdrawnDetail).
+class AppDateCell extends StatelessWidget {
+  final String top;
+  final String bottom;
+  final bool small;
+
+  const AppDateCell({
+    super.key,
+    required this.top,
+    required this.bottom,
+    this.small = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 52,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            top,
+            style: (small ? AppTextStyles.bodyMd : AppTextStyles.input)
+                .medium
+                .natural,
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(bottom, style: AppTextStyles.captionSmall),
+        ],
+      ),
+    );
+  }
+}

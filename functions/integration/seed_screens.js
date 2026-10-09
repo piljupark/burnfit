@@ -97,6 +97,18 @@ async function main() {
     });
   }
 
+  // 공지 (관리자 공지 목록·상세 화면용). 알림은 보내지 않게 notify는 끈다.
+  const notice = (id, title, body, extra) => set(`notices/${id}`, {
+    centerId: CENTER.id, authorId: adminUid, title, body, audience: 'all',
+    pinned: false, important: false, notify: false,
+    createdAt: ts(day(-1, 14, 10)), updatedAt: ts(day(-1, 14, 10)), ...extra,
+  });
+  notice('notice-holiday', '추석 연휴 운영 시간 안내',
+    '추석 연휴 기간 센터 운영 시간이 바뀌어요.\n10월 4일 (토) ~ 10월 6일 (월): 휴관\n10월 7일 (화): 10:00 ~ 18:00',
+    { pinned: true, important: true });
+  notice('notice-gx', '10월 GX 시간표 변경', '10월부터 저녁 GX 시간이 30분 늦춰져요.',
+    { audience: 'member', createdAt: ts(day(-7)), updatedAt: ts(day(-7)) });
+
   // PT 정보
   const ptInfo = (id, m, total, remaining, end) => set(`pt_infos/${id}`, {
     id, centerId: CENTER.id, memberId: m.uid, memberName: m.name, trainerId,

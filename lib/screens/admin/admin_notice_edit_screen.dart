@@ -6,15 +6,19 @@ import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/notice.dart';
+import '../../services/firestore_service.dart';
 import '../../services/notice_service.dart';
 import '../../services/user_provider.dart';
-import '../../widgets/app_button.dart';
-import '../../widgets/app_filter_tabs.dart';
+import '../../widgets/app_inputs.dart';
+import '../../widgets/app_action_row.dart';
+import '../../widgets/app_switch.dart';
+import '../../widgets/app_tag.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_toast.dart';
 
-/// 공지 작성·수정. 저장하면 true를 돌려준다.
+/// 공지 작성·수정 (시안 Nt-Admin-Compose): 대상 3칸 + 인원 안내 → 제목·내용(글자 수) → 띠 → 스위치 줄.
+/// 저장하면 true를 돌려준다.
 class AdminNoticeEditScreen extends StatefulWidget {
   final Notice? notice;
   const AdminNoticeEditScreen({super.key, this.notice});
@@ -33,7 +37,49 @@ class _AdminNoticeEditScreenState extends State<AdminNoticeEditScreen> {
   bool _notify = false;
   bool _saving = false;
 
+  /// 센터의 승인된 회원·트레이너 수 (대상 안내용, 못 불러오면 null)
+  ({int members, int trainers})? _counts;
+
   bool get _isEdit => widget.notice != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCounts();
+  }
+
+  Future<void> _loadCounts() async {
+    final centerId = context.read<UserProvider>().user?.centerId;
+    if (centerId == null) return;
+    try {
+      final counts = await FirestoreService.countApprovedUsers(centerId);
+      if (mounted) setState(() => _counts = counts);
+    } catch (_) {
+      // 안내 문구만 빠진다 (작성에는 지장 없음)
+    }
+  }
+
+  /// 지금 고른 대상의 인원 (모르면 null)
+  int? get _audienceCount {
+    final c = _counts;
+    if (c == null) return null;
+    return switch (_audience) {
+      NoticeAudience.all => c.members + c.trainers,
+      NoticeAudience.member => c.members,
+      NoticeAudience.trainer => c.trainers,
+    };
+  }
+
+  /// 시안 '회원 128명 · 트레이너 6명에게 보여요'
+  String? get _audienceLine {
+    final c = _counts;
+    if (c == null) return null;
+    return switch (_audience) {
+      NoticeAudience.all => '회원 ${c.members}명 · 트레이너 ${c.trainers}명에게 보여요',
+      NoticeAudience.member => '회원 ${c.members}명에게 보여요',
+      NoticeAudience.trainer => '트레이너 ${c.trainers}명에게 보여요',
+    };
+  }
 
   @override
   void dispose() {
@@ -70,7 +116,17 @@ class _AdminNoticeEditScreenState extends State<AdminNoticeEditScreen> {
         );
       }
       if (!mounted) return;
-      AppToast.show(context, message: _isEdit ? '공지를 수정했어요' : '공지를 등록했어요');
+      final count = _audienceCount;
+      // 시안 Nt-Admin-Posted: 두 줄 토스트 (알림을 보냈으면 아래 줄에 인원)
+      if (!_isEdit && _notify) {
+        AppToast.show(
+          context,
+          title: '공지를 등록했어요',
+          message: count == null ? '대상에게 알림을 보내요' : '$count명에게 알림을 보내요',
+        );
+      } else {
+        AppToast.show(context, message: _isEdit ? '공지를 수정했어요' : '공지를 등록했어요');
+      }
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
@@ -97,127 +153,131 @@ class _AdminNoticeEditScreenState extends State<AdminNoticeEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final count = _audienceCount;
+    final audienceLine = _audienceLine;
     return Scaffold(
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
+        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            // 시안 Nt-Admin-Compose: 닫기(X) + 가운데 17/500 제목
+            AppScreenHeader.centered(
               title: _isEdit ? '공지 수정' : '공지 작성',
+              close: true,
               onBack: () => Navigator.of(context).pop(false),
             ),
             Expanded(
               child: Form(
                 key: _formKey,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.lg,
-                    AppSpacing.screenH,
-                    AppSpacing.xl2,
+                  padding: const EdgeInsets.only(
+                    top: AppSpacing.md,
+                    bottom: AppSpacing.xl2,
                   ),
                   children: [
-                    Text('누구에게 보일까요', style: AppTextStyles.bodySm),
-                    const SizedBox(height: AppSpacing.sm),
-                    AppFilterTabs(
-                      tabs: [for (final a in NoticeAudience.values) a.label],
-                      selectedIndex: _audience.index,
-                      onChanged: (i) =>
-                          setState(() => _audience = NoticeAudience.values[i]),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    AppTextField(
-                      label: '제목',
-                      hint: '공지 제목을 입력하세요',
-                      controller: _title,
-                      maxLength: Notice.titleMax,
-                      validator: _validateTitle,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    AppTextField(
-                      label: '내용',
-                      hint: '회원과 트레이너에게 전할 내용을 입력하세요',
-                      controller: _body,
-                      maxLines: 10,
-                      maxLength: Notice.bodyMax,
-                      keyboardType: TextInputType.multiline,
-                      textInputAction: TextInputAction.newline,
-                      validator: _validateBody,
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    _SwitchRow(
-                      label: '상단 고정',
-                      description: '목록 맨 위에 계속 보여요',
-                      value: _pinned,
-                      onChanged: (v) => setState(() => _pinned = v),
-                    ),
-                    _SwitchRow(
-                      label: '중요 공지로 띄우기',
-                      description: '앱을 열면 한 번 크게 보여요',
-                      value: _important,
-                      onChanged: (v) => setState(() => _important = v),
-                    ),
-                    if (!_isEdit)
-                      _SwitchRow(
-                        label: '푸시 알림 보내기',
-                        description: '대상에게 알림이 가고 알림함에도 남아요',
-                        value: _notify,
-                        onChanged: (v) => setState(() => _notify = v),
+                    // ── 대상 (3칸 44 · 반경 14) ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.screenH,
                       ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('누구에게 보일까요', style: AppTextStyles.fieldLabel),
+                          const SizedBox(height: AppSpacing.sm),
+                          Row(
+                            children: [
+                              for (final a in NoticeAudience.values) ...[
+                                if (a.index > 0)
+                                  const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: AppChip(
+                                    label: a.label,
+                                    cell: true,
+                                    selected: _audience == a,
+                                    onTap: () => setState(() => _audience = a),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (audienceLine != null) ...[
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(audienceLine, style: AppTextStyles.bodySm),
+                          ],
+                          const SizedBox(height: AppSpacing.xl),
+                          AppTextField(
+                            label: '제목',
+                            hint: '공지 제목을 입력하세요',
+                            controller: _title,
+                            maxLength: Notice.titleMax,
+                            labelCounter: true,
+                            validator: _validateTitle,
+                          ),
+                          const SizedBox(height: AppSpacing.base),
+                          AppTextField(
+                            label: '내용',
+                            hint: '회원과 트레이너에게 전할 내용을 입력하세요',
+                            controller: _body,
+                            maxLines: 10,
+                            fieldHeight: 200,
+                            maxLength: Notice.bodyMax,
+                            labelCounter: true,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: TextInputAction.newline,
+                            validator: _validateBody,
+                          ),
+                        ],
+                      ),
+                    ),
+                    // ── 표시 · 알림 (8 띠 → 68 스위치 줄) ──
+                    const AppSectionBand(top: AppSpacing.xl),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.screenH,
+                        AppSpacing.sm,
+                        AppSpacing.screenH,
+                        0,
+                      ),
+                      child: Column(
+                        children: [
+                          AppSwitchRow(
+                            label: '상단 고정',
+                            description: '목록 맨 위에 계속 보여요',
+                            value: _pinned,
+                            onChanged: (v) => setState(() => _pinned = v),
+                          ),
+                          AppSwitchRow(
+                            label: '중요 공지로 띄우기',
+                            description: '앱을 열면 한 번 크게 보여요',
+                            value: _important,
+                            onChanged: (v) => setState(() => _important = v),
+                          ),
+                          if (!_isEdit)
+                            AppSwitchRow(
+                              label: '푸시 알림 보내기',
+                              description: count == null
+                                  ? '대상에게 알림이 가고 알림함에도 남아요'
+                                  : '$count명에게 알림이 가고 알림함에도 남아요',
+                              value: _notify,
+                              onChanged: (v) => setState(() => _notify = v),
+                            ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.screenH),
-              child: AppButton(
-                label: _isEdit ? '수정 저장' : '등록하기',
-                fullWidth: true,
-                size: AppButtonSize.lg,
-                isLoading: _saving,
-                onPressed: _saving ? null : _save,
-              ),
+            AppBottomActionBar(
+              primaryLabel: _isEdit ? '수정 저장' : '등록하기',
+              loading: _saving,
+              onPrimary: _saving ? null : _save,
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SwitchRow extends StatelessWidget {
-  final String label;
-  final String description;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _SwitchRow({
-    required this.label,
-    required this.description,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.hairline)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: AppTextStyles.bodyMd),
-                Text(description, style: AppTextStyles.bodySm),
-              ],
-            ),
-          ),
-          Switch(value: value, onChanged: onChanged),
-        ],
       ),
     );
   }

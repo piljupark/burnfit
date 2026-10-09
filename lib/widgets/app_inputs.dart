@@ -11,6 +11,10 @@ import 'app_button.dart';
 
 /// 숫자 조절: − 값 단위 +. 범위를 벗어나는 쪽 버튼은 꺼진다.
 /// 가운데 숫자를 누르면 숫자를 직접 입력하는 시트가 열린다 (큰 값을 한 번에 넣을 때).
+/// - 기본: 버튼 44 · 값 칸 64 · 값 20/500
+/// - [compact]: 시안 AdminMemberDetail·Ad-PtInfoSheet — 버튼 40(흰 면 · 반경 12 · 아이콘 16 Bold) ·
+///   값 칸 56 · 사이 6, 끝에 닿은 버튼은 40% 흐림 (터치 영역은 44)
+/// - [bold]: 값 Bold — 기준 시안 계열
 class AppStepper extends StatelessWidget {
   final int value;
   final int min;
@@ -20,6 +24,8 @@ class AppStepper extends StatelessWidget {
 
   /// 스크린리더용 이름 (예: '총 횟수')
   final String semanticLabel;
+  final bool compact;
+  final bool bold;
 
   const AppStepper({
     super.key,
@@ -29,11 +35,13 @@ class AppStepper extends StatelessWidget {
     this.min = 0,
     this.max = 999,
     this.unit = '',
+    this.compact = false,
+    this.bold = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final valueStyle = AppTextStyles.title;
+    final valueStyle = bold ? AppTextStyles.title.bold : AppTextStyles.title;
     return Semantics(
       label: semanticLabel,
       value: '$value$unit',
@@ -47,8 +55,11 @@ class AppStepper extends StatelessWidget {
           _StepButton(
             icon: AppIcons.remove,
             label: '$semanticLabel 줄이기',
+            compact: compact,
             onTap: value > min ? () => onChanged(value - 1) : null,
           ),
+          // 버튼 터치 자리(44)가 양옆 2씩 넓으므로 4를 더해 보이는 간격 6
+          if (compact) const SizedBox(width: 4),
           Semantics(
             button: true,
             label: '$semanticLabel 직접 입력',
@@ -57,7 +68,7 @@ class AppStepper extends StatelessWidget {
               onTap: () => _promptNumber(context),
               borderRadius: BorderRadius.circular(AppRadius.iconBox),
               child: SizedBox(
-                width: 64,
+                width: compact ? 56 : 64,
                 height: AppSize.touchMin,
                 child: Center(
                   child: Text.rich(
@@ -81,9 +92,12 @@ class AppStepper extends StatelessWidget {
               ),
             ),
           ),
+          // 버튼 터치 자리(44)가 양옆 2씩 넓으므로 4를 더해 보이는 간격 6
+          if (compact) const SizedBox(width: 4),
           _StepButton(
             icon: AppIcons.add,
             label: '$semanticLabel 늘리기',
+            compact: compact,
             onTap: value < max ? () => onChanged(value + 1) : null,
           ),
         ],
@@ -197,32 +211,57 @@ class _StepButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final bool compact;
 
-  const _StepButton({required this.icon, required this.label, this.onTap});
+  const _StepButton({
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final box = compact ? 40.0 : AppSize.touchMin;
+    final button = SizedBox.square(
+      dimension: box,
+      child: Material(
+        color: AppColors.canvas,
+        borderRadius: BorderRadius.circular(AppRadius.iconBox),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.iconBox),
+          child: Icon(
+            compact ? AppIcons.bold(icon) : icon,
+            size: compact ? 16 : 18,
+            color: onTap == null && !compact
+                ? AppColors.canvasMid
+                : AppColors.ink,
+          ),
+        ),
+      ),
+    );
     return Semantics(
       button: true,
       label: label,
       enabled: onTap != null,
       excludeSemantics: true,
-      child: SizedBox.square(
-        dimension: AppSize.touchMin,
-        child: Material(
-          color: AppColors.canvas,
-          borderRadius: BorderRadius.circular(AppRadius.iconBox),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(AppRadius.iconBox),
-            child: Icon(
-              icon,
-              size: 18,
-              color: onTap == null ? AppColors.canvasMid : AppColors.ink,
-            ),
-          ),
-        ),
-      ),
+      child: compact
+          // 보이는 버튼은 40, 누를 수 있는 자리는 44 (위아래·바깥 2씩)
+          ? GestureDetector(
+              onTap: onTap,
+              behavior: HitTestBehavior.opaque,
+              child: SizedBox.square(
+                dimension: AppSize.touchMin,
+                child: Center(
+                  child: Opacity(
+                    opacity: onTap == null ? 0.4 : 1,
+                    child: button,
+                  ),
+                ),
+              ),
+            )
+          : button,
     );
   }
 }

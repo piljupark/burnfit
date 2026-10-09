@@ -25,12 +25,19 @@ String formatNoticeDate(DateTime? date) {
   return DateFormat(sameYear ? 'M월 d일' : 'yyyy년 M월 d일').format(date);
 }
 
-/// 보조 줄: "2026.10.08 · 회원 대상 · 수정됨"
+/// 대상 글자: 전체는 '회원·트레이너' (시안 Nt-Admin-*)
+String noticeAudienceLabel(NoticeAudience a) =>
+    a == NoticeAudience.all ? '회원·트레이너' : a.label;
+
+/// 보조 줄
+/// - 회원·트레이너 (시안 Nt-List): '10월 8일 · 중요 · 수정됨'
+/// - [showAudience] 관리자 (시안 Nt-Admin-List): '회원·트레이너 · 10월 8일 · 중요 공지 · 알림 보냄 · 수정됨'
 String noticeMetaLine(Notice n, {bool showAudience = false}) {
   final parts = <String>[
+    if (showAudience) noticeAudienceLabel(n.audience),
     if (n.createdAt != null) formatNoticeDate(n.createdAt),
-    if (showAudience) '${n.audience.label} 대상',
-    if (n.important) '중요',
+    if (n.important) showAudience ? '중요 공지' : '중요',
+    if (showAudience && n.notify) '알림 보냄',
     if (n.isEdited) '수정됨',
   ];
   return parts.join(' · ');
@@ -299,43 +306,62 @@ List<Widget> buildNoticeListChildren({
     ];
   }
 
+  // 관리자 목록도 줄이 왼쪽에서 차례로 밀려 들어온다 (시안 Nt-Admin-List `slide`, 0.05초 간격)
+  var order = 0;
+  Widget slide(Notice n) {
+    final i = order++;
+    return AppEntrance.slide(
+      key: ValueKey('slide-${n.id}'),
+      delay: Duration(milliseconds: 50 * (i < 8 ? i : 8)),
+      child: tile(n),
+    );
+  }
+
   return [
     if (pinned.isNotEmpty) ...[
       const NoticeSectionLabel('상단 고정'),
-      ...pinned.map(tile),
+      ...pinned.map(slide),
     ],
     if (rest.isNotEmpty) ...[
       if (pinned.isNotEmpty) ...[
         const AppSectionBand(top: AppSpacing.md),
         const NoticeSectionLabel('전체 공지'),
       ],
-      ...rest.map(tile),
+      ...rest.map(slide),
     ],
   ];
 }
 
 /// 공지 본문 (시안 Nt-Detail): '중요 공지' 14 noticeText → (위 6) 제목 24/500 · 줄 높이 1.35 →
 /// (위 8) 보조 줄 14 mute → (위 20) 선 → (위 20) 내용 16 · 줄 높이 1.7.
+/// [admin](시안 Nt-Admin-Detail): '중요 공지' 글자와 선 없이, 보조 줄은 등록 시각,
+/// 그 아래 (16) 요약 카드(보이는 대상 · 표시 · 알림) → (24) 내용.
 /// 머리 묶음과 내용이 아래 10에서 떠오른다 (시안 `up` .45s, 내용은 .08초 늦게).
 class NoticeArticle extends StatelessWidget {
   final Notice notice;
-  final bool showAudience;
   final String centerName;
+  final bool admin;
   const NoticeArticle({
     super.key,
     required this.notice,
-    this.showAudience = false,
     this.centerName = '',
+    this.admin = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final meta = <String>[
-      if (centerName.isNotEmpty) centerName,
-      if (notice.createdAt != null) formatNoticeDate(notice.createdAt),
-      if (showAudience) '${notice.audience.label} 대상',
-      if (notice.isEdited) '수정됨',
-    ].join(' · ');
+    final created = notice.createdAt;
+    final meta = admin
+        ? <String>[
+            if (created != null)
+              '${formatNoticeDate(created)} ${DateFormat('a h:mm', 'ko').format(created)}',
+            if (notice.isEdited) '수정됨',
+          ].join(' · ')
+        : <String>[
+            if (centerName.isNotEmpty) centerName,
+            if (created != null) formatNoticeDate(created),
+            if (notice.isEdited) '수정됨',
+          ].join(' · ');
     const duration = Duration(milliseconds: 450);
 
     return Column(
@@ -346,7 +372,7 @@ class NoticeArticle extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (notice.important) ...[
+              if (notice.important && !admin) ...[
                 Text(
                   '중요 공지',
                   style: AppTextStyles.bodySmall.copyWith(
@@ -368,12 +394,20 @@ class NoticeArticle extends StatelessWidget {
                 meta,
                 style: AppTextStyles.bodySmall.copyWith(color: AppColors.mute),
               ),
+              if (admin) ...[
+                const SizedBox(height: AppSpacing.base),
+                _NoticeSummary(notice: notice),
+              ],
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        Divider(height: 1, thickness: 1, color: AppColors.hairline),
-        const SizedBox(height: AppSpacing.lg),
+        if (admin)
+          const SizedBox(height: AppSpacing.xl)
+        else ...[
+          const SizedBox(height: AppSpacing.lg),
+          Divider(height: 1, thickness: 1, color: AppColors.hairline),
+          const SizedBox(height: AppSpacing.lg),
+        ],
         AppEntrance(
           duration: duration,
           delay: const Duration(milliseconds: 80),
@@ -383,6 +417,51 @@ class NoticeArticle extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 관리자 공지 요약 카드 (시안 Nt-Admin-Detail): 회색 · 반경 18, 48 줄 셋(사이 선 line) —
+/// 라벨 14 mute · 값 15.
+class _NoticeSummary extends StatelessWidget {
+  final Notice notice;
+  const _NoticeSummary({required this.notice});
+
+  @override
+  Widget build(BuildContext context) {
+    final display = [if (notice.pinned) '상단 고정', if (notice.important) '중요 공지'];
+    final rows = [
+      ('보이는 대상', noticeAudienceLabel(notice.audience)),
+      ('표시', display.isEmpty ? '일반' : display.join(' · ')),
+      ('알림', notice.notify ? '보냄' : '보내지 않음'),
+    ];
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++)
+            Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
+              decoration: i < rows.length - 1
+                  ? BoxDecoration(
+                      border: Border(bottom: BorderSide(color: AppColors.line)),
+                    )
+                  : null,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(rows[i].$1, style: AppTextStyles.fieldLabel),
+                  ),
+                  Text(rows[i].$2, style: AppTextStyles.bodyMd),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/app_button.dart';
+import '../widgets/app_motion.dart';
 import '../widgets/app_toast.dart';
 import 'validators.dart';
 import 'app_colors.dart';
@@ -99,7 +100,9 @@ class AppFeedback {
   }
 }
 
-/// 오류 안내: 카드 + 경고 아이콘 + 문구 + 외곽선 "다시 시도".
+/// 오류 안내 (시안 Ad-Home-Error): 회색 카드(반경 18, 안쪽 28 20) 가운데에
+/// 경고 원 40 faint · (10) 16/500 문구 · (16) 검정 44 '다시 시도'(도는 새로고침 16).
+/// 바깥 여백은 좌우 20 · 위아래 16.
 class AppErrorCard extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -109,32 +112,46 @@ class AppErrorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(
-          color: AppColors.canvasCard,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: AppColors.hairline),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(AppIcons.warning, color: AppColors.body, size: 28),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
-            ),
-            const SizedBox(height: AppSpacing.base),
-            AppButton(
-              label: '다시 시도',
-              variant: AppButtonVariant.secondary,
-              onPressed: onRetry,
-            ),
-          ],
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenH,
+        vertical: AppSpacing.base,
+      ),
+      child: Semantics(
+        liveRegion: true,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: 28,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.canvasCard,
+            borderRadius: BorderRadius.circular(AppRadius.button),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ExcludeSemantics(
+                child: Icon(AppIcons.warning, color: AppColors.faint, size: 40),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.input.medium,
+              ),
+              const SizedBox(height: AppSpacing.base),
+              AppButton(
+                label: '다시 시도',
+                variant: AppButtonVariant.dark,
+                size: AppButtonSize.row,
+                icon: AppSpin(
+                  child: Icon(AppIcons.bold(AppIcons.refresh), size: 16),
+                ),
+                onPressed: onRetry,
+              ),
+            ],
+          ),
         ),
       ),
     );

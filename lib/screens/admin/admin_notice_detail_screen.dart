@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_spacing.dart';
 import '../../models/notice.dart';
 import '../../services/notice_service.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_confirm_dialog.dart';
+import '../../widgets/app_inputs.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/notice_widgets.dart';
 import 'admin_notice_edit_screen.dart';
 
-/// 관리자 공지 상세: 수정 / 삭제. 바뀌면 true를 돌려준다.
+/// 관리자 공지 상세 (시안 Nt-Admin-Detail): 제목 · 등록 시각 → 요약 카드 → 내용 → 아래 삭제 · 수정.
+/// 바뀌면 true를 돌려준다.
 class AdminNoticeDetailScreen extends StatefulWidget {
   final Notice notice;
   const AdminNoticeDetailScreen({super.key, required this.notice});
@@ -42,7 +45,10 @@ class _AdminNoticeDetailScreenState extends State<AdminNoticeDetailScreen> {
     final ok = await showAppConfirmDialog(
       context,
       title: '공지를 삭제할까요?',
-      message: '‘${_notice.title}’ 공지가 회원과 트레이너 화면에서 사라져요. 삭제한 공지는 되돌릴 수 없어요.',
+      // 시안 Nt-Admin-DeleteConfirm
+      message:
+          '${noticeAudienceLabel(_notice.audience)} 화면에서 바로 사라져요. '
+          '${_notice.notify ? '이미 보낸 푸시 알림은 알림함에 남아요.' : '삭제한 공지는 되돌릴 수 없어요.'}',
       confirmLabel: '삭제',
     );
     if (!ok || !mounted) return;
@@ -61,59 +67,38 @@ class _AdminNoticeDetailScreenState extends State<AdminNoticeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) Navigator.of(context).pop(_changed);
-      },
-      child: Scaffold(
-        body: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppScreenHeader(
-                title: '공지 상세',
-                onBack: () => Navigator.of(context).pop(_changed),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.xl,
-                    AppSpacing.screenH,
-                    AppSpacing.xl2,
-                  ),
-                  child: NoticeArticle(notice: _notice, showAudience: true),
+    // 밀어서 뒤로 가기도 막지 않는다 (목록은 돌아오면 늘 다시 불러온다).
+    return Scaffold(
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppScreenHeader.large(
+              title: '',
+              onBack: () => Navigator.of(context).pop(_changed),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.xl2,
                 ),
+                child: NoticeArticle(notice: _notice, admin: true),
               ),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.screenH),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: AppButton(
-                        label: '삭제',
-                        variant: AppButtonVariant.secondary,
-                        fullWidth: true,
-                        size: AppButtonSize.lg,
-                        isLoading: _deleting,
-                        onPressed: _deleting ? null : _delete,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: AppButton(
-                        label: '수정',
-                        fullWidth: true,
-                        size: AppButtonSize.lg,
-                        onPressed: _deleting ? null : _edit,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+            // 시안: 2칸 56 — 삭제 회색 · 수정 검정 (16/500)
+            AppBottomActionBar(
+              secondaryLabel: '삭제',
+              onSecondary: _deleting ? null : _delete,
+              primaryLabel: '수정',
+              primaryVariant: AppButtonVariant.dark,
+              onPrimary: _deleting ? null : _edit,
+            ),
+          ],
         ),
       ),
     );

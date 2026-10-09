@@ -16,20 +16,26 @@ import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_highlight.dart';
 import '../../widgets/app_inputs.dart';
-import '../../widgets/app_kpi_card.dart';
+import '../../widgets/app_loader.dart';
+import '../../widgets/app_motion.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_text_field.dart';
-import '../../widgets/app_loader.dart';
 
-final _ymd = DateFormat('yyyy.MM.dd');
+/// 날짜 한 개: 올해면 '9월 1일', 아니면 '2025.9.1'
+String _day(DateTime d) => d.year == DateTime.now().year
+    ? DateFormat('M월 d일').format(d)
+    : DateFormat('yyyy.M.d').format(d);
 
-String _fmt(DateTime? d) => d == null ? '-' : _ymd.format(d);
-
+/// 회원 상세 (기준 시안 AdminMemberDetail): 뒤로 → 26 이름 · 14 '가입 · 이메일' →
+/// 'PT' 회색 카드(총 횟수 · 남은 횟수 조절 68, 기간 56, 담당 트레이너 56 ›) → 13 안내 →
+/// '변경 기록' 52 줄 → 아래 고정 주황 '저장'.
+/// 고친 값은 '저장'을 눌러야 반영된다 (담당 트레이너 포함).
 class AdminMemberDetailScreen extends StatefulWidget {
   final AppUser member;
 
@@ -41,18 +47,38 @@ class AdminMemberDetailScreen extends StatefulWidget {
 }
 
 class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
+  /// 조절 최대값. 저장된 값이 더 크면 그 값까지 허용한다.
+  static const _maxSessions = 999;
+
   late AppUser _member;
   PtInfo? _ptInfo;
   List<PtInfoLog> _ptInfoLogs = [];
   List<AppUser> _trainers = [];
   bool _isLoading = false;
+  bool _isSaving = false;
   String? _errorMessage;
+
+  // ── 고치는 중인 값 ──
+  int _total = 0;
+  int _remaining = 0;
+  DateTime? _startDate;
+  DateTime? _endDate;
+  DateTime? _renewalDate;
+  AppUser? _pickedTrainer;
+  final _noteController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _member = widget.member;
+    _noteController.addListener(() => setState(() {}));
     _load();
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -75,6 +101,7 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
         _trainers = results[1] as List<AppUser>;
         _ptInfoLogs = results[2] as List<PtInfoLog>;
         _errorMessage = null;
+        _resetDraft();
       });
     } catch (e) {
       if (!mounted) return;
@@ -86,233 +113,543 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
     }
   }
 
-  Future<void> _assignTrainer() async {
+  void _resetDraft() {
+    final pt = _ptInfo;
+    _total = pt?.totalSessions ?? 0;
+    _remaining = pt?.remainingSessions ?? 0;
+    _startDate = pt?.startDate;
+    _endDate = pt?.endDate;
+    _renewalDate = pt?.renewalDate;
+    _pickedTrainer = null;
+    _noteController.clear();
+  }
+
+  // ── 바뀐 것 ──
+
+  bool get _ptChanged {
+    final pt = _ptInfo;
+    if (pt == null) {
+      return _total > 0 ||
+          _startDate != null ||
+          _endDate != null ||
+          _renewalDate != null;
+    }
+    return _total != pt.totalSessions ||
+        _remaining != pt.remainingSessions ||
+        !_sameDay(_startDate, pt.startDate) ||
+        !_sameDay(_endDate, pt.endDate) ||
+        !_sameDay(_renewalDate, pt.renewalDate);
+  }
+
+  bool get _trainerChanged =>
+      _pickedTrainer != null && _pickedTrainer!.uid != _member.trainerId;
+
+  bool get _dirty => _ptChanged || _trainerChanged;
+
+  static bool _sameDay(DateTime? a, DateTime? b) =>
+      a == null || b == null ? a == b : DateUtils.isSameDay(a, b);
+
+  /// 저장을 막는 문제 (없으면 null). 카드 아래 안내 줄에 주황으로 보인다.
+  String? get _problem {
+    if (!_ptChanged) return null;
+    if (_total < 1) return '총 횟수를 1회 이상으로 정해주세요';
+    if (_remaining > _total) return '남은 횟수는 총 횟수보다 많을 수 없어요';
+    final s = _startDate;
+    final e = _endDate;
+    if (s != null && e != null && e.isBefore(s)) {
+      return '종료일이 시작일보다 앞설 수 없어요';
+    }
+    return null;
+  }
+
+  /// 이미 있는 PT를 바꾸면 변경 사유가 있어야 저장할 수 있다 (사유 칸은 안내 아래에 바로 보인다).
+  bool get _noteMissing =>
+      _ptInfo != null && _ptChanged && _noteController.text.trim().isEmpty;
+
+  bool get _canSave => _dirty && _problem == null && !_noteMissing;
+
+  /// 카드 아래 13 안내 (시안 '10회 추가 등록 · 남은 횟수도 함께 늘어나요')
+  String? get _hint {
+    final pt = _ptInfo;
+    if (pt == null) {
+      return _total == 0 ? '총 횟수를 정하고 저장하면 PT가 등록돼요' : '$_total회 등록';
+    }
+    final totalDiff = _total - pt.totalSessions;
+    final remainingDiff = _remaining - pt.remainingSessions;
+    if (totalDiff > 0) {
+      return remainingDiff == totalDiff
+          ? '$totalDiff회 추가 등록 · 남은 횟수도 함께 늘어나요'
+          : '$totalDiff회 추가 등록 · 남은 ${pt.remainingSessions} → $_remaining회';
+    }
+    if (totalDiff < 0) {
+      return remainingDiff == totalDiff
+          ? '${-totalDiff}회 줄임 · 남은 횟수도 함께 줄어요'
+          : '${-totalDiff}회 줄임 · 남은 ${pt.remainingSessions} → $_remaining회';
+    }
+    if (remainingDiff != 0) {
+      return '남은 횟수 ${pt.remainingSessions} → $_remaining회';
+    }
+    return null;
+  }
+
+  // ── 고치기 ──
+
+  void _changeTotal(int v) {
+    setState(() {
+      // 총 횟수를 늘리고 줄인 만큼 남은 횟수도 함께 움직인다 (0 ~ 총 횟수)
+      _remaining = (_remaining + (v - _total)).clamp(0, v);
+      _total = v;
+    });
+  }
+
+  Future<void> _pickPeriod() async {
+    final result = await showAppBottomSheet<_Period>(
+      context: context,
+      child: _PeriodSheet(initial: _Period(_startDate, _endDate, _renewalDate)),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _startDate = result.start;
+      _endDate = result.end;
+      _renewalDate = result.renewal;
+    });
+  }
+
+  Future<void> _pickTrainer() async {
+    final currentId = _pickedTrainer?.uid ?? _member.trainerId;
     final trainer = await showAppBottomSheet<AppUser>(
       context: context,
       child: _TrainerPickerSheet(
         trainers: _trainers,
-        currentTrainerId: _member.trainerId,
+        currentTrainerId: currentId,
       ),
     );
-    if (trainer == null) return;
+    if (trainer == null || !mounted) return;
+    setState(() => _pickedTrainer = trainer);
+  }
 
+  Future<void> _save() async {
+    if (_isSaving || !_canSave) return;
+    final admin = context.read<UserProvider>().user;
+    setState(() => _isSaving = true);
     try {
-      await FirestoreService.assignTrainer(
-        centerId: _member.centerId,
-        memberId: _member.uid,
-        trainerId: trainer.uid,
-        trainerName: trainer.name,
-      );
-      if (!mounted) return;
-      setState(() {
-        _member = _member.copyWith(
+      // 1) 담당 트레이너 (회원·남은 예약·PT권의 담당을 함께 바꾼다)
+      if (_trainerChanged) {
+        final trainer = _pickedTrainer!;
+        await FirestoreService.assignTrainer(
+          centerId: _member.centerId,
+          memberId: _member.uid,
           trainerId: trainer.uid,
           trainerName: trainer.name,
         );
-      });
-      await _load();
+        if (!mounted) return;
+        setState(() {
+          _member = _member.copyWith(
+            trainerId: trainer.uid,
+            trainerName: trainer.name,
+          );
+          _pickedTrainer = null;
+        });
+      }
+      // 2) PT 정보 (변경 기록과 한 번에)
+      if (_ptChanged) {
+        final existing = _ptInfo;
+        final now = DateTime.now();
+        final note = _noteController.text.trim();
+        final info = PtInfo(
+          id: existing?.id ?? const Uuid().v4(),
+          centerId: _member.centerId,
+          memberId: _member.uid,
+          memberName: _member.name,
+          trainerId: _member.trainerId,
+          startDate: _startDate,
+          endDate: _endDate,
+          totalSessions: _total,
+          remainingSessions: _remaining,
+          renewalDate: _renewalDate,
+          createdAt: existing?.createdAt ?? now,
+          updatedAt: now,
+        );
+        await FirestoreService.savePtInfo(
+          info,
+          changedById: admin?.uid,
+          changedByName: admin?.name,
+          note: note.isEmpty ? null : note,
+          previousInfo: existing,
+        );
+      }
       if (!mounted) return;
-      AppFeedback.showSuccessSnackBar(context, '${trainer.name} 트레이너를 배정했습니다.');
+      AppFeedback.showSuccessSnackBar(context, '저장했어요');
+      await _load();
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
-  }
-
-  Future<void> _editPtInfo() async {
-    final admin = context.read<UserProvider>().user;
-    final result = await showAppBottomSheet<PtInfo>(
-      context: context,
-      child: _PtInfoSheet(
-        memberId: _member.uid,
-        memberName: _member.name,
-        centerId: _member.centerId,
-        trainerId: _member.trainerId,
-        changedById: admin?.uid,
-        changedByName: admin?.name,
-        existing: _ptInfo,
-      ),
-    );
-    if (result == null) return;
-    if (!mounted) return;
-    await _load();
   }
 
   Future<void> _openPtInfoLogs() async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => _PtInfoLogScreen(member: _member)),
     );
-    if (!mounted) return;
-    await _load();
+  }
+
+  Future<void> _leave() async {
+    if (_dirty && !_isSaving) {
+      final discard = await showAppConfirmDialog(
+        context,
+        title: '저장하지 않고 나갈까요?',
+        message: '고친 내용이 사라져요.',
+        confirmLabel: '나가기',
+      );
+      if (discard != true || !mounted) return;
+    }
+    Navigator.of(context).pop(_member);
   }
 
   @override
   Widget build(BuildContext context) {
     final m = _member;
-    final pt = _ptInfo;
+    final joined = DateFormat('yyyy년 M월').format(m.createdAt);
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppScreenHeader(
-              title: '회원 상세',
-              onBack: () => Navigator.of(context).pop(_member),
-            ),
-            Expanded(
-              child: _isLoading
-                  ? const AppLoadingView()
-                  : _errorMessage != null
-                  ? AppErrorCard(message: _errorMessage!, onRetry: _load)
-                  : ListView(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
-                      children: [
-                        // 프로필 머리
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.screenH,
-                            AppSpacing.xl,
-                            AppSpacing.screenH,
-                            AppSpacing.sm,
+    return PopScope(
+      canPop: !_dirty || _isSaving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.canvas,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppScreenHeader.large(title: '', onBack: _leave),
+              Expanded(
+                child: _isLoading
+                    ? const AppLoadingView()
+                    : _errorMessage != null
+                    ? ListView(
+                        children: [
+                          AppErrorCard(message: _errorMessage!, onRetry: _load),
+                        ],
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.screenH,
+                            ),
+                            child: AppProfileCard(
+                              name: m.name,
+                              subtitle: '$joined 가입 · ${m.email}',
+                              bold: true,
+                            ),
                           ),
-                          child: AppProfileCard(
-                            name: m.name,
-                            subtitle: m.email,
-                            roleLabel: '회원',
+                          const AppMonthHeader(
+                            label: 'PT',
+                            padding: EdgeInsets.fromLTRB(
+                              AppSpacing.screenH,
+                              AppSpacing.xl,
+                              AppSpacing.screenH,
+                              AppSpacing.sm,
+                            ),
                           ),
-                        ),
-
-                        // 기본 정보
-                        const AppMonthHeader(label: '기본 정보'),
-                        _KeyValueRow(label: '이메일', value: m.email),
-                        const AppRowDivider(indent: AppSpacing.screenH),
-                        _KeyValueRow(
-                          label: '트레이너',
-                          value: m.trainerName ?? '미배정',
-                          muted: m.trainerName == null,
-                          trailing: AppButton(
-                            label: m.trainerName != null
-                                ? '트레이너 변경'
-                                : '트레이너 배정',
-                            variant: AppButtonVariant.secondary,
-                            size: AppButtonSize.sm,
-                            onPressed: _assignTrainer,
-                          ),
-                        ),
-
-                        // PT 관리
-                        AppMonthHeader(
-                          label: 'PT',
-                          trailing: AppButton(
-                            label: pt != null ? 'PT 정보 수정' : 'PT 정보 등록',
-                            variant: AppButtonVariant.ghost,
-                            size: AppButtonSize.sm,
-                            onPressed: _editPtInfo,
-                          ),
-                        ),
-                        if (pt != null) ...[
-                          AppStatStrip(
-                            cells: [
-                              AppKpiCard(
-                                framed: false,
-                                label: '잔여',
-                                value: '${pt.remainingSessions}',
-                                unit: '회',
+                          _ptCard(),
+                          _hintLine(),
+                          if (_ptInfo != null && _ptChanged)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.screenH,
+                                AppSpacing.base,
+                                AppSpacing.screenH,
+                                0,
                               ),
-                              AppKpiCard(
-                                framed: false,
-                                label: '전체',
-                                value: '${pt.totalSessions}',
-                                unit: '회',
+                              child: AppTextField(
+                                label: '변경 사유',
+                                labelHint: '(필수)',
+                                hint: '예: 추가 결제, 횟수 보정',
+                                controller: _noteController,
+                                maxLength: 200,
+                                textInputAction: TextInputAction.done,
                               ),
-                            ],
+                            ),
+                          AppMonthHeader(
+                            label: '변경 기록',
+                            actionLabel: _ptInfoLogs.isEmpty ? null : '전체 보기',
+                            onAction: _openPtInfoLogs,
                           ),
-                          _KeyValueRow(label: '시작일', value: _fmt(pt.startDate)),
-                          const AppRowDivider(indent: AppSpacing.screenH),
-                          _KeyValueRow(label: '종료일', value: _fmt(pt.endDate)),
-                          const AppRowDivider(indent: AppSpacing.screenH),
-                          _KeyValueRow(
-                            label: '갱신일',
-                            value: _fmt(pt.renewalDate),
-                          ),
-                        ] else
-                          const _MutedLine('PT 정보가 없습니다.'),
+                          if (_ptInfoLogs.isEmpty)
+                            const AppEmptyLine('변경 기록이 없습니다.')
+                          else
+                            for (final log in _ptInfoLogs) _LogLine(log: log),
+                        ],
+                      ),
+              ),
+              if (!_isLoading && _errorMessage == null)
+                AppBottomActionBar(
+                  primaryLabel: '저장',
+                  bold: true,
+                  loading: _isSaving,
+                  onPrimary: _canSave ? _save : null,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-                        // PT 변경 이력
-                        AppMonthHeader(
-                          label: 'PT 변경 이력',
-                          trailing: AppButton(
-                            label: '전체 보기',
-                            variant: AppButtonVariant.ghost,
-                            size: AppButtonSize.sm,
-                            onPressed: _openPtInfoLogs,
-                          ),
-                        ),
-                        if (_ptInfoLogs.isEmpty)
-                          const _MutedLine('변경 이력이 없습니다.')
-                        else
-                          for (int i = 0; i < _ptInfoLogs.length; i++) ...[
-                            if (i > 0)
-                              const AppRowDivider(indent: AppSpacing.screenH),
-                            _PtInfoLogRow(log: _ptInfoLogs[i]),
-                          ],
-                      ],
-                    ),
+  /// 회색 카드: 총 횟수 · 남은 횟수 (68) · 기간 · 담당 트레이너 (56), 사이 선은 line.
+  Widget _ptCard() {
+    final trainerName = _pickedTrainer?.name ?? _member.trainerName;
+    final hasTrainer = (trainerName ?? '').isNotEmpty;
+    final s = _startDate;
+    final e = _endDate;
+    final Widget period = s == null && e == null
+        ? Text(
+            '선택',
+            style: AppTextStyles.input.copyWith(color: AppColors.faint),
+          )
+        : Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: s == null ? '시작 미정' : _day(s)),
+                TextSpan(
+                  text: ' ~ ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.mute,
+                  ),
+                ),
+                TextSpan(text: e == null ? '종료 미정' : _day(e)),
+              ],
             ),
-          ],
+            style: AppTextStyles.input.bold,
+          );
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          _CardRow(
+            label: '총 횟수',
+            height: 68,
+            divider: true,
+            right: AppStepper(
+              value: _total,
+              max: _total > _maxSessions ? _total : _maxSessions,
+              min: 0,
+              unit: '회',
+              semanticLabel: '총 횟수',
+              compact: true,
+              bold: true,
+              onChanged: _changeTotal,
+            ),
+          ),
+          _CardRow(
+            label: '남은 횟수',
+            height: 68,
+            divider: true,
+            right: AppStepper(
+              value: _remaining,
+              max: _total,
+              unit: '회',
+              semanticLabel: '남은 횟수',
+              compact: true,
+              bold: true,
+              onChanged: (v) => setState(() => _remaining = v),
+            ),
+          ),
+          _CardRow(
+            label: '기간',
+            divider: true,
+            onTap: _pickPeriod,
+            semanticValue: s == null && e == null
+                ? '선택 안 됨'
+                : '${s == null ? '시작 미정' : _day(s)}부터 ${e == null ? '종료 미정' : _day(e)}까지',
+            right: period,
+          ),
+          _CardRow(
+            label: '담당 트레이너',
+            onTap: _pickTrainer,
+            semanticValue: hasTrainer ? trainerName! : '없음',
+            right: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  hasTrainer ? trainerName! : '없음',
+                  style: hasTrainer
+                      ? AppTextStyles.input.bold
+                      : AppTextStyles.input.copyWith(color: AppColors.faint),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Icon(
+                  AppIcons.chevronRightBold,
+                  size: 16,
+                  color: AppColors.chevron,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 카드 아래 13 안내 (위 10). 저장을 막는 문제가 있으면 noticeText 500으로 흔들린다.
+  Widget _hintLine() {
+    final problem = _problem;
+    final text = problem ?? _hint;
+    if (text == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        10,
+        AppSpacing.screenH,
+        0,
+      ),
+      child: Semantics(
+        liveRegion: problem != null,
+        child: AppShake(
+          trigger: problem,
+          child: Text(
+            text,
+            style: problem == null
+                ? AppTextStyles.bodySm
+                : AppTextStyles.bodySm.medium.copyWith(
+                    color: AppColors.noticeText,
+                  ),
+          ),
         ),
       ),
     );
   }
 }
 
-// ── _KeyValueRow ──────────────────────────────────────────────────────────────
-
-/// 화면 폭 키/값 줄: 왼쪽 라벨(13, mute) + 값(15) + (선택) 오른쪽 행동. 최소 높이 52.
-class _KeyValueRow extends StatelessWidget {
+/// 회색 카드 안 한 줄: 왼쪽 16 라벨 + 오른쪽 내용. 누를 수 있으면 오른쪽 여백 14, 아니면 12.
+class _CardRow extends StatelessWidget {
   final String label;
-  final String value;
-  final bool muted;
-  final Widget? trailing;
+  final Widget right;
+  final double height;
+  final bool divider;
+  final VoidCallback? onTap;
+  final String? semanticValue;
 
-  const _KeyValueRow({
+  const _CardRow({
     required this.label,
-    required this.value,
-    this.muted = false,
-    this.trailing,
+    required this.right,
+    this.height = 56,
+    this.divider = false,
+    this.onTap,
+    this.semanticValue,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 52),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.screenH,
-          vertical: AppSpacing.xs,
+    final row = Container(
+      constraints: BoxConstraints(minHeight: height),
+      padding: EdgeInsets.only(left: 18, right: onTap == null ? 12 : 14),
+      decoration: divider
+          ? BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.line)),
+            )
+          : null,
+      child: Row(
+        children: [
+          Expanded(
+            child: ExcludeSemantics(
+              excluding: onTap != null,
+              child: Text(label, style: AppTextStyles.input),
+            ),
+          ),
+          right,
+        ],
+      ),
+    );
+    if (onTap == null) return row;
+    return Semantics(
+      button: true,
+      label: '$label ${semanticValue ?? ''}',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasMid,
+        splashFactory: NoSplash.splashFactory,
+        child: row,
+      ),
+    );
+  }
+}
+
+// ── 변경 기록 ─────────────────────────────────────────────────────────────────
+
+/// 변경 기록 한 줄의 글: 'PT 완료 8 → 7회', '20회 등록', '총 20 → 30회 · 남은 7 → 17회'
+String _logTitle(PtInfoLog log) {
+  switch (log.type) {
+    case PtInfoLogType.created:
+      return '${log.nextTotalSessions}회 등록';
+    case PtInfoLogType.sessionCompleted:
+      return 'PT 완료 ${log.previousRemainingSessions} → ${log.nextRemainingSessions}회';
+    case PtInfoLogType.sessionReopened:
+      return '완료 취소 ${log.previousRemainingSessions} → ${log.nextRemainingSessions}회';
+    case PtInfoLogType.updated:
+      final parts = [
+        if (log.totalDiff != 0)
+          '총 ${log.previousTotalSessions} → ${log.nextTotalSessions}회',
+        if (log.remainingDiff != 0)
+          '남은 ${log.previousRemainingSessions} → ${log.nextRemainingSessions}회',
+      ];
+      return parts.isEmpty ? 'PT 정보 수정' : parts.join(' · ');
+  }
+}
+
+String _logActor(PtInfoLog log) => log.changedByName?.trim().isNotEmpty == true
+    ? log.changedByName!.trim()
+    : '시스템';
+
+/// 기준 시안 AdminMemberDetail '변경 기록': 52 · 15 글 + ' · 처리한 사람'(mute) · 오른쪽 14 mute 날짜.
+class _LogLine extends StatelessWidget {
+  final PtInfoLog log;
+
+  const _LogLine({required this.log});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 52),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.hairline)),
         ),
         child: Row(
           children: [
-            SizedBox(
-              width: 72,
-              child: Text(label, style: AppTextStyles.bodySm),
-            ),
             Expanded(
-              child: Text(
-                value,
-                style: AppTextStyles.bodyMd.copyWith(
-                  color: muted ? AppColors.mute : AppColors.ink,
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: _logTitle(log)),
+                    TextSpan(
+                      text: ' · ${_logActor(log)}',
+                      style: TextStyle(color: AppColors.mute),
+                    ),
+                  ],
                 ),
+                style: AppTextStyles.bodyMd,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (trailing != null) ...[
-              const SizedBox(width: AppSpacing.sm),
-              trailing!,
-            ],
+            const SizedBox(width: AppSpacing.md),
+            Text(_day(log.createdAt), style: AppTextStyles.fieldLabel),
           ],
         ),
       ),
@@ -320,26 +657,179 @@ class _KeyValueRow extends StatelessWidget {
   }
 }
 
-class _MutedLine extends StatelessWidget {
-  final String text;
+// ── 기간 시트 ─────────────────────────────────────────────────────────────────
 
-  const _MutedLine(this.text);
+class _Period {
+  final DateTime? start;
+  final DateTime? end;
+  final DateTime? renewal;
+
+  const _Period(this.start, this.end, this.renewal);
+}
+
+/// 기간 고르기 (시안 Ad-PtInfoSheet 날짜 묶음): 회색 묶음(시작일 · 종료일 · 갱신일) → '확인'.
+class _PeriodSheet extends StatefulWidget {
+  final _Period initial;
+
+  const _PeriodSheet({required this.initial});
+
+  @override
+  State<_PeriodSheet> createState() => _PeriodSheetState();
+}
+
+class _PeriodSheetState extends State<_PeriodSheet> {
+  late DateTime? _start = widget.initial.start;
+  late DateTime? _end = widget.initial.end;
+  late DateTime? _renewal = widget.initial.renewal;
+
+  bool get _invalid =>
+      _start != null && _end != null && _end!.isBefore(_start!);
+
+  Future<void> _pick(
+    DateTime? current,
+    String label,
+    void Function(DateTime) onPicked,
+  ) async {
+    // 범위는 오늘 기준 ±10년 (저장된 날짜가 범위 밖이어도 열리도록 그 날짜를 포함한다).
+    final now = DateTime.now();
+    final initial = current ?? now;
+    final first = DateTime(now.year - 10);
+    final last = DateTime(now.year + 10, 12, 31);
+    final picked = await showAppDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: initial.isBefore(first) ? initial : first,
+      lastDate: initial.isAfter(last) ? initial : last,
+      title: label,
+    );
+    if (picked != null && mounted) setState(() => onPicked(picked));
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.screenH,
-        vertical: AppSpacing.md,
-      ),
-      child: Text(text, style: AppTextStyles.bodySm),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const AppBottomSheetHeader(title: '기간'),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.canvasCard,
+            borderRadius: BorderRadius.circular(AppRadius.button),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              _DateRow(
+                label: '시작일',
+                value: _start,
+                divider: true,
+                onTap: () => _pick(_start, '시작일', (d) => _start = d),
+              ),
+              _DateRow(
+                label: '종료일',
+                value: _end,
+                divider: true,
+                onTap: () => _pick(_end, '종료일', (d) => _end = d),
+              ),
+              _DateRow(
+                label: '갱신일',
+                value: _renewal,
+                onTap: () => _pick(_renewal, '갱신일', (d) => _renewal = d),
+              ),
+            ],
+          ),
+        ),
+        if (_invalid) ...[
+          const SizedBox(height: 10),
+          AppShake(
+            trigger: _end,
+            child: const AppInlineNotice('종료일이 시작일보다 앞설 수 없어요'),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        AppButton(
+          label: '확인',
+          size: AppButtonSize.lg,
+          fullWidth: true,
+          onPressed: _invalid
+              ? null
+              : () =>
+                    Navigator.of(context).pop(_Period(_start, _end, _renewal)),
+        ),
+      ],
     );
   }
 }
 
-// ── _TrainerPickerSheet ───────────────────────────────────────────────────────
+/// 회색 묶음 안 날짜 줄 (시안 Ad-PtInfoSheet-Edit): 52 · 라벨 15 mute(폭 64) · 10 ·
+/// 값 16/500(없으면 '선택' faint) · 달력 아이콘 20 mute. 사이 선은 line.
+class _DateRow extends StatelessWidget {
+  final String label;
+  final DateTime? value;
+  final bool divider;
+  final VoidCallback onTap;
 
-/// 트레이너 선택 시트: 아바타 + 이름, 현재 담당은 체크 표시. 고르면 그 트레이너를 돌려준다.
+  const _DateRow({
+    required this.label,
+    required this.value,
+    this.divider = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value;
+    return Semantics(
+      button: true,
+      label: '$label ${v == null ? '선택 안 됨' : _day(v)}',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasMid,
+        splashFactory: NoSplash.splashFactory,
+        child: Container(
+          height: 52,
+          padding: const EdgeInsets.only(left: AppSpacing.base, right: 14),
+          decoration: divider
+              ? BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.line)),
+                )
+              : null,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 64,
+                child: Text(
+                  label,
+                  style: AppTextStyles.bodyMd.copyWith(color: AppColors.mute),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  v == null ? '선택' : _day(v),
+                  style: v == null
+                      ? AppTextStyles.input.copyWith(color: AppColors.faint)
+                      : AppTextStyles.input.medium,
+                ),
+              ),
+              Icon(
+                AppIcons.calendar,
+                size: AppSize.icon,
+                color: AppColors.mute,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── 트레이너 선택 시트 ────────────────────────────────────────────────────────
+
+/// 트레이너 선택 (시안 Ad-TrainerPicker): 제목 22/500 + ' 4명' 400 mute → (8) 56 줄
+/// (이름 16, 고른 사람은 500 + 22 Bold 체크). 고르면 그 트레이너를 돌려준다.
 class _TrainerPickerSheet extends StatelessWidget {
   final List<AppUser> trainers;
   final String? currentTrainerId;
@@ -353,25 +843,27 @@ class _TrainerPickerSheet extends StatelessWidget {
       children: [
         AppBottomSheetHeader(
           title: '트레이너 선택',
-          subtitle: trainers.isEmpty ? null : '${trainers.length}명',
+          gap: AppSpacing.sm,
+          trailingTitle: trainers.isEmpty
+              ? null
+              : Text(
+                  '${trainers.length}명',
+                  style: AppTextStyles.sheetTitle.copyWith(
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.mute,
+                  ),
+                ),
         ),
         if (trainers.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
-            child: Text(
-              '등록된 트레이너가 없습니다.',
-              style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
-            ),
-          )
+          const AppEmptyLine('등록된 트레이너가 없습니다.', inset: false)
         else
-          for (int i = 0; i < trainers.length; i++) ...[
-            if (i > 0) const AppRowDivider(),
+          for (int i = 0; i < trainers.length; i++)
             _TrainerOption(
               trainer: trainers[i],
               selected: trainers[i].uid == currentTrainerId,
+              divider: i < trainers.length - 1,
               onTap: () => Navigator.of(context).pop(trainers[i]),
             ),
-          ],
       ],
     );
   }
@@ -380,11 +872,13 @@ class _TrainerPickerSheet extends StatelessWidget {
 class _TrainerOption extends StatelessWidget {
   final AppUser trainer;
   final bool selected;
+  final bool divider;
   final VoidCallback onTap;
 
   const _TrainerOption({
     required this.trainer,
     required this.selected,
+    required this.divider,
     required this.onTap,
   });
 
@@ -397,20 +891,27 @@ class _TrainerOption extends StatelessWidget {
         onTap: onTap,
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
-        child: SizedBox(
+        child: Container(
           height: 56,
+          decoration: divider
+              ? BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.hairline)),
+                )
+              : null,
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   trainer.name,
-                  style: AppTextStyles.bodyMd,
+                  style: selected
+                      ? AppTextStyles.input.medium
+                      : AppTextStyles.input,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (selected)
-                Icon(AppIcons.check, size: AppSize.icon, color: AppColors.ink),
+                Icon(AppIcons.checkBold, size: 22, color: AppColors.ink),
             ],
           ),
         ),
@@ -419,68 +920,10 @@ class _TrainerOption extends StatelessWidget {
   }
 }
 
-// ── _PtInfoLogRow ─────────────────────────────────────────────────────────────
+// ── PT 변경 이력 (전체) ───────────────────────────────────────────────────────
 
-class _PtInfoLogRow extends StatelessWidget {
-  final PtInfoLog log;
-
-  const _PtInfoLogRow({required this.log});
-
-  @override
-  Widget build(BuildContext context) {
-    final date = DateFormat('MM.dd HH:mm').format(log.createdAt);
-    final totalDiff = _signed(log.totalDiff);
-    final remainingDiff = _signed(log.remainingDiff);
-    final actor = log.changedByName?.trim().isNotEmpty == true
-        ? log.changedByName!
-        : '시스템';
-    final detail = [
-      if (totalDiff != '0') '전체 $totalDiff',
-      if (remainingDiff != '0') '잔여 $remainingDiff',
-    ].join(' · ');
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.screenH,
-        vertical: AppSpacing.md,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(log.type.label, style: AppTextStyles.bodyMd),
-                Text(
-                  detail.isEmpty ? actor : '$detail · $actor',
-                  style: AppTextStyles.bodySm,
-                ),
-                if (log.note != null && log.note!.trim().isNotEmpty)
-                  Text(
-                    log.note!,
-                    style: AppTextStyles.bodySm,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(date, style: AppTextStyles.counter),
-        ],
-      ),
-    );
-  }
-
-  String _signed(int value) {
-    if (value > 0) return '+$value';
-    return value.toString();
-  }
-}
-
-// ── _PtInfoLogScreen ──────────────────────────────────────────────────────────
-
+/// PT 변경 이력 (시안 Ad-PtInfoLog): 큰 제목 + 회원 이름 → '변경 이력 12건' →
+/// 왼쪽 날짜 칸(52) + 15/500 종류 · 13 '잔여 -1 · 이트레이너' · 13 body 사유.
 class _PtInfoLogScreen extends StatefulWidget {
   final AppUser member;
 
@@ -491,6 +934,9 @@ class _PtInfoLogScreen extends StatefulWidget {
 }
 
 class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
+  /// 한 번에 불러오는 최대 건수
+  static const _limit = 100;
+
   List<PtInfoLog> _logs = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -507,7 +953,7 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
       final logs = await FirestoreService.getPtInfoLogs(
         centerId: widget.member.centerId,
         memberId: widget.member.uid,
-        limit: 100,
+        limit: _limit,
       );
       if (!mounted) return;
       setState(() {
@@ -524,6 +970,15 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
     }
   }
 
+  String _detail(PtInfoLog log) {
+    String signed(int v) => v > 0 ? '+$v' : '$v';
+    return [
+      if (log.totalDiff != 0) '전체 ${signed(log.totalDiff)}',
+      if (log.remainingDiff != 0) '잔여 ${signed(log.remainingDiff)}',
+      _logActor(log),
+    ].join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -532,7 +987,7 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            AppScreenHeader.large(
               title: 'PT 변경 이력',
               subtitle: widget.member.name,
               onBack: () => Navigator.of(context).pop(),
@@ -541,408 +996,55 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
               child: _isLoading
                   ? const AppLoadingView()
                   : _errorMessage != null
-                  ? AppErrorCard(message: _errorMessage!, onRetry: _load)
+                  ? ListView(
+                      children: [
+                        AppErrorCard(message: _errorMessage!, onRetry: _load),
+                      ],
+                    )
                   : _logs.isEmpty
                   ? const AppEmptyState(
                       icon: AppIcons.clipboard,
                       message: '변경 이력이 없습니다.',
+                      compact: true,
                     )
                   : ListView(
                       padding: const EdgeInsets.only(bottom: AppSpacing.xl),
                       children: [
                         AppMonthHeader(
                           label: '변경 이력',
-                          count: '${_logs.length}',
+                          // 다 불러오지 못했으면 '최근 100건'
+                          count: _logs.length >= _limit
+                              ? '최근 $_limit건'
+                              : '${_logs.length}건',
+                          strongCount: true,
                         ),
-                        for (int i = 0; i < _logs.length; i++) ...[
-                          if (i > 0)
-                            const AppRowDivider(indent: AppSpacing.screenH),
-                          _PtInfoLogRow(log: _logs[i]),
-                        ],
+                        for (int i = 0; i < _logs.length; i++)
+                          // 시안 `slide`: .4s, 0.04초 간격 (화면 밖 줄은 늦게 기다리지 않게 10번째까지만)
+                          AppEntrance.slide(
+                            delay: Duration(
+                              milliseconds: 40 * (i < 10 ? i : 10),
+                            ),
+                            child: AppListRow(
+                              leading: AppDateCell(
+                                top: DateFormat(
+                                  'MM.dd',
+                                ).format(_logs[i].createdAt),
+                                bottom: DateFormat(
+                                  'HH:mm',
+                                ).format(_logs[i].createdAt),
+                              ),
+                              title: _logs[i].type.label,
+                              titleStyle: AppTextStyles.bodyMd.medium,
+                              subtitle: _detail(_logs[i]),
+                              note: _logs[i].note,
+                              height: 0,
+                              verticalPadding: 14,
+                            ),
+                          ),
                       ],
                     ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── _PtInfoSheet ──────────────────────────────────────────────────────────────
-
-class _PtInfoSheet extends StatefulWidget {
-  final String memberId;
-  final String memberName;
-  final String centerId;
-  final String? trainerId;
-  final String? changedById;
-  final String? changedByName;
-  final PtInfo? existing;
-
-  const _PtInfoSheet({
-    required this.memberId,
-    required this.memberName,
-    required this.centerId,
-    this.trainerId,
-    this.changedById,
-    this.changedByName,
-    this.existing,
-  });
-
-  @override
-  State<_PtInfoSheet> createState() => _PtInfoSheetState();
-}
-
-class _PtInfoSheetState extends State<_PtInfoSheet> {
-  /// 스테퍼 최대값. 저장된 값이 더 크면 그 값까지 허용한다.
-  static const _maxSessions = 999;
-
-  int _total = 0;
-  int _remaining = 0;
-  final _noteController = TextEditingController();
-  DateTime? _startDate;
-  DateTime? _endDate;
-  DateTime? _renewalDate;
-  bool _isSaving = false;
-
-  bool get _isEditing => widget.existing != null;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.existing != null) {
-      final e = widget.existing!;
-      _total = e.totalSessions;
-      _remaining = e.remainingSessions;
-      _startDate = e.startDate;
-      _endDate = e.endDate;
-      _renewalDate = e.renewalDate;
-    }
-  }
-
-  @override
-  void dispose() {
-    _noteController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickDate(
-    BuildContext context,
-    DateTime? current,
-    String label,
-    void Function(DateTime) onPicked,
-  ) async {
-    // 범위는 오늘 기준 ±10년 (저장된 날짜가 범위 밖이어도 열리도록 그 날짜를 포함한다).
-    final now = DateTime.now();
-    final initial = current ?? now;
-    final first = DateTime(now.year - 10);
-    final last = DateTime(now.year + 10, 12, 31);
-    final picked = await showAppDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: initial.isBefore(first) ? initial : first,
-      lastDate: initial.isAfter(last) ? initial : last,
-      title: '$label 선택',
-    );
-    if (picked != null) onPicked(picked);
-  }
-
-  Future<void> _save() async {
-    if (_isSaving) return;
-
-    final total = _total;
-    final remaining = _remaining;
-    if (total < 0 || remaining < 0) {
-      AppFeedback.showWarning(context, '전체·잔여 횟수를 0 이상의 숫자로 입력해주세요.');
-      return;
-    }
-    if (total == 0) {
-      AppFeedback.showWarning(context, '전체 횟수를 1회 이상 입력해주세요.');
-      return;
-    }
-    if (remaining > total) {
-      AppFeedback.showWarning(context, '잔여 횟수는 전체 횟수보다 많을 수 없습니다.');
-      return;
-    }
-    final note = _noteController.text.trim();
-
-    if (_isEditing && note.isEmpty) {
-      AppFeedback.showErrorSnackBar(context, ArgumentError('수정 사유를 입력해주세요.'));
-      return;
-    }
-
-    setState(() => _isSaving = true);
-    try {
-      const uuid = Uuid();
-      final id = widget.existing?.id ?? uuid.v4();
-      final now = DateTime.now();
-      final info = PtInfo(
-        id: id,
-        centerId: widget.centerId,
-        memberId: widget.memberId,
-        memberName: widget.memberName,
-        trainerId: widget.trainerId,
-        startDate: _startDate,
-        endDate: _endDate,
-        totalSessions: total,
-        remainingSessions: remaining,
-        renewalDate: _renewalDate,
-        createdAt: widget.existing?.createdAt ?? now,
-        updatedAt: now,
-      );
-      await FirestoreService.savePtInfo(
-        info,
-        changedById: widget.changedById,
-        changedByName: widget.changedByName,
-        note: note.isEmpty ? null : note,
-        previousInfo: widget.existing,
-      );
-      if (!mounted) return;
-      Navigator.of(context).pop(info);
-    } catch (e) {
-      if (!mounted) return;
-      AppFeedback.showErrorSnackBar(context, e);
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
-    }
-  }
-
-  int _maxFor(int value) => value > _maxSessions ? value : _maxSessions;
-
-  @override
-  Widget build(BuildContext context) {
-    final overTotal = _remaining > _total;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppBottomSheetHeader(
-          title: _isEditing ? 'PT 정보 수정' : 'PT 정보 등록',
-          subtitle: widget.memberName,
-        ),
-        const SizedBox(height: AppSpacing.base),
-        // ── 날짜 묶음 (회색 면 하나에 세 줄) ──────────────────────
-        _SheetGroup(
-          children: [
-            _DateRow(
-              label: '시작일',
-              value: _startDate,
-              onTap: () => _pickDate(
-                context,
-                _startDate,
-                '시작일',
-                (d) => setState(() => _startDate = d),
-              ),
-            ),
-            _DateRow(
-              label: '종료일',
-              value: _endDate,
-              onTap: () => _pickDate(
-                context,
-                _endDate,
-                '종료일',
-                (d) => setState(() => _endDate = d),
-              ),
-            ),
-            _DateRow(
-              label: '갱신일',
-              value: _renewalDate,
-              onTap: () => _pickDate(
-                context,
-                _renewalDate,
-                '갱신일',
-                (d) => setState(() => _renewalDate = d),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        // ── 횟수 묶음 (− 값 +) ────────────────────────────────────
-        _SheetGroup(
-          children: [
-            _StepperRow(
-              label: '총 횟수',
-              child: AppStepper(
-                value: _total,
-                max: _maxFor(_total),
-                unit: '회',
-                semanticLabel: '총 횟수',
-                onChanged: (v) => setState(() => _total = v),
-              ),
-            ),
-            _StepperRow(
-              label: '잔여 횟수',
-              child: AppStepper(
-                value: _remaining,
-                max: _maxFor(_remaining),
-                unit: '회',
-                semanticLabel: '잔여 횟수',
-                onChanged: (v) => setState(() => _remaining = v),
-              ),
-            ),
-          ],
-        ),
-        if (overTotal) ...[
-          const SizedBox(height: AppSpacing.sm),
-          const AppInlineNotice('잔여 횟수는 전체 횟수보다 많을 수 없습니다.'),
-        ],
-        const SizedBox(height: AppSpacing.base),
-        AppTextField(
-          label: _isEditing ? '수정 사유' : '등록 메모',
-          hint: _isEditing ? '예: 추가 결제, 횟수 보정' : '선택 사항',
-          controller: _noteController,
-          maxLines: 2,
-          textInputAction: TextInputAction.done,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Row(
-          children: [
-            Expanded(
-              child: AppButton(
-                label: '취소',
-                variant: AppButtonVariant.secondary,
-                size: AppButtonSize.lg,
-                fullWidth: true,
-                onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: AppButton(
-                label: '저장',
-                size: AppButtonSize.lg,
-                fullWidth: true,
-                onPressed: _isSaving ? null : _save,
-                isLoading: _isSaving,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-// ── _SheetGroup ───────────────────────────────────────────────────────────────
-
-/// 시트 안 회색 묶음: canvasSoft 면(반경 18) 안에 줄들을 hairline으로 나눈다.
-class _SheetGroup extends StatelessWidget {
-  final List<Widget> children;
-
-  const _SheetGroup({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.button),
-      child: Material(
-        color: AppColors.canvasSoft,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (int i = 0; i < children.length; i++) ...[
-              if (i > 0) const AppRowDivider(),
-              children[i],
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── _StepperRow ───────────────────────────────────────────────────────────────
-
-/// 횟수 줄 (높이 64): 왼쪽 라벨 + 오른쪽 스테퍼.
-class _StepperRow extends StatelessWidget {
-  final String label;
-  final Widget child;
-
-  const _StepperRow({required this.label, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 64,
-      child: Padding(
-        padding: const EdgeInsets.only(
-          left: AppSpacing.base,
-          right: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: ExcludeSemantics(
-                child: Text(label, style: AppTextStyles.bodyLg),
-              ),
-            ),
-            child,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── _DateRow ──────────────────────────────────────────────────────────────────
-
-/// 회색 묶음 안 날짜 선택 줄 (높이 52): 라벨 + 값(미선택이면 '선택', mute) + 화살표.
-class _DateRow extends StatelessWidget {
-  final String label;
-  final DateTime? value;
-  final VoidCallback onTap;
-
-  const _DateRow({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '$label ${value == null ? '선택 안 됨' : _fmt(value)}',
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        highlightColor: AppColors.canvasMid,
-        splashFactory: NoSplash.splashFactory,
-        child: Container(
-          height: 52,
-          padding: const EdgeInsets.only(
-            left: AppSpacing.base,
-            right: AppSpacing.md,
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 64,
-                child: Text(
-                  label,
-                  style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  value == null ? '선택' : _fmt(value),
-                  style: AppTextStyles.bodyMd.copyWith(
-                    color: value == null ? AppColors.body : AppColors.ink,
-                    fontWeight: value == null
-                        ? FontWeight.w400
-                        : FontWeight.w500,
-                  ),
-                ),
-              ),
-              Icon(
-                AppIcons.calendar,
-                size: AppSize.icon,
-                color: AppColors.body,
-              ),
-            ],
-          ),
         ),
       ),
     );

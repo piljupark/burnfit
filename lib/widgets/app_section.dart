@@ -5,6 +5,7 @@ import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import 'app_button.dart';
+import 'app_motion.dart';
 
 /// 섹션 머리말 (패딩 없는 버전 — 이미 여백이 있는 열 안에서 쓴다).
 /// 라벨 + hairline + (선택) 오른쪽 글자 행동. 화면 폭 머리말은 AppMonthHeader.
@@ -30,10 +31,7 @@ class AppSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          title,
-          style: AppTextStyles.bodySm.copyWith(color: AppColors.ink),
-        ),
+        Text(title, style: AppTextStyles.bodySm.copyWith(color: AppColors.ink)),
         if (count != null) ...[
           const SizedBox(width: AppSpacing.sm),
           Text(count!, style: AppTextStyles.eyebrow),
@@ -65,8 +63,11 @@ class AppSectionHeader extends StatelessWidget {
   }
 }
 
-/// 빈 상태: 사진 타일과 pill을 본뜬 단색 도형 + 한 줄 제목 + (선택) 주 행동 하나.
-/// 아이콘·캐릭터 그림은 쓰지 않는다. [icon]은 기존 호출부 호환용이며 그리지 않는다.
+/// 빈 상태: 그림 + 한 줄 제목 + (선택) 설명 · 주 행동 하나.
+/// - 기본: 회색 원 안 상자 그림 + 20 제목 ([icon]은 그리지 않는다)
+/// - [card]: 회색 카드 안 (시안 MemB-FeedbackEmpty 등)
+/// - [compact]: 시안 Ad-*-Empty·Ad-Members-NoResult — [icon] 48 faint가 위아래로 떠다니고(-5, 2.6s),
+///   12 아래 17/500 제목. 위 여백은 [top].
 class AppEmptyState extends StatelessWidget {
   final IconData icon;
   final String message;
@@ -92,7 +93,15 @@ class AppEmptyState extends StatelessWidget {
     this.margin,
     this.cardPadding = const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
     this.artGap = 18,
+    this.compact = false,
+    this.top = 120,
   });
+
+  /// 작은 빈 상태 (아이콘 48 + 17 제목, 카드 없음)
+  final bool compact;
+
+  /// [compact]일 때 위 여백
+  final double top;
 
   /// 카드 안쪽 여백 (기본 40 28, 시안 MemB-FeedbackEmpty는 36 24)
   final EdgeInsetsGeometry cardPadding;
@@ -112,6 +121,7 @@ class AppEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (compact) return _compact();
     final column = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -176,6 +186,56 @@ class AppEmptyState extends StatelessWidget {
       child: column,
     );
   }
+
+  Widget _compact() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        top,
+        AppSpacing.screenH,
+        AppSpacing.xl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ExcludeSemantics(
+            child:
+                illustration ??
+                AppFloat(child: Icon(icon, size: 48, color: AppColors.faint)),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            message,
+            style: AppTextStyles.section,
+            textAlign: TextAlign.center,
+          ),
+          if (description != null) ...[
+            const SizedBox(height: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 280),
+              child: Text(
+                description!,
+                style: AppTextStyles.note.copyWith(
+                  color: AppColors.mute,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: AppSpacing.base),
+            AppButton(
+              label: actionLabel!,
+              onPressed: onAction,
+              variant: actionVariant,
+              size: actionSize,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 /// 빈 상태 그림: 회색 원 안에 흐린 상자 아이콘. 색은 무채색만 쓴다.
@@ -212,9 +272,7 @@ class AppEmptyLine extends StatelessWidget {
     return Container(
       height: 52,
       alignment: Alignment.centerLeft,
-      padding: EdgeInsets.symmetric(
-        horizontal: inset ? AppSpacing.screenH : 0,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: inset ? AppSpacing.screenH : 0),
       child: Text(
         message,
         style: AppTextStyles.note.copyWith(color: AppColors.mute),

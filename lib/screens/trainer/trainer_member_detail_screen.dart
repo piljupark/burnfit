@@ -35,6 +35,7 @@ import '../../widgets/app_inputs.dart';
 import '../../widgets/app_key_value_row.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
+import '../../widgets/app_profile_card.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/feedback_sheet.dart';
 import 'trainer_inbody_sheet.dart';
@@ -411,32 +412,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                 AppSpacing.screenH,
                 0,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      m.name,
-                      style: AppTextStyles.displayMd.bold.natural.copyWith(
-                        fontSize: 26,
-                        letterSpacing: 26 * -0.019,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (meta.isNotEmpty) ...[
-                    const Gap(AppSpacing.xs),
-                    Text(
-                      meta,
-                      style: AppTextStyles.fieldLabel.natural,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
+              child: AppProfileCard(name: m.name, subtitle: meta, bold: true),
             ),
             // ── 2칸 카드 ─────────────────────────────────────────────────────
             Padding(

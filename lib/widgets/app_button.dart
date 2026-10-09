@@ -5,18 +5,19 @@ import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import 'app_loader.dart';
 
-/// 버튼 모양은 pill 하나뿐.
-/// - [primary]: 흰 채움. 화면당 하나의 주 행동에만.
-/// - [secondary]: 흰 외곽선(기본 모양). 대부분의 행동.
-/// - [ghost]: 테두리 없음. 취소·보조 행동.
+/// 버튼 종류.
+/// - [primary]: 주황 채움 + 검정 글자. 화면당 하나의 주 행동에만.
+/// - [secondary]: 회색(canvasSoft) 채움. 대부분의 보조 행동.
+/// - [ghost]: 면 없는 글자. 취소·보조 행동.
 /// - [danger]: 외곽선 + 빨간 글자. 되돌릴 수 없는 행동에만.
 /// - [dangerText]: 테두리 없는 빨간 글자.
-/// - [dark]: 검정 채움 + 흰 글자. 확인 다이얼로그·탈퇴 시트의 파괴적 확정 버튼 전용.
+/// - [dark]: 검정 채움 + 흰 글자. 파괴적 확정 버튼, 기준 시안의 검정 버튼.
 enum AppButtonVariant { primary, secondary, ghost, danger, dangerText, dark }
 
-/// sm 32 · md 40 · lg 52(폼 대표 버튼). 시각 높이와 별개로 터치 영역은 44 이상.
-/// sm 32 · md 40 · lg 56(반경 18, 17) · dialog 52(반경 14, 16, 확인 창 시안)
-enum AppButtonSize { sm, md, lg, dialog }
+/// 크기. 시각 높이와 별개로 터치 영역은 44 이상.
+/// sm 32(알약) · md 40(알약) · row 44(반경 14, 15 — 줄 안 2칸 버튼·다시 시도) ·
+/// dialog 52(반경 14, 16 — 확인 창) · lg 56(반경 18, 17 — 화면 아래 주 버튼)
+enum AppButtonSize { sm, md, row, lg, dialog }
 
 class AppButton extends StatelessWidget {
   final String label;
@@ -33,6 +34,9 @@ class AppButton extends StatelessWidget {
   /// 글자 크기를 바꿀 때 (예: 2칸 버튼 16)
   final double? labelSize;
 
+  /// 처리 중에 글자 없이 점 세 개만 보인다 (시안 Ad-Requests 승인 버튼)
+  final bool loadingOnly;
+
   const AppButton({
     super.key,
     required this.label,
@@ -44,6 +48,7 @@ class AppButton extends StatelessWidget {
     this.icon,
     this.bold = false,
     this.labelSize,
+    this.loadingOnly = false,
   });
 
   @override
@@ -52,17 +57,20 @@ class AppButton extends StatelessWidget {
     final height = switch (size) {
       AppButtonSize.sm => AppSize.buttonHeightSm,
       AppButtonSize.md => AppSize.buttonHeight,
+      AppButtonSize.row => AppSize.touchMin,
       AppButtonSize.lg => AppSize.buttonHeightLg,
       AppButtonSize.dialog => 52.0,
     };
     final hPad = switch (size) {
       AppButtonSize.sm => AppSpacing.md,
       AppButtonSize.md => AppSpacing.base,
+      AppButtonSize.row => 18.0,
       AppButtonSize.lg || AppButtonSize.dialog => AppSpacing.xl,
     };
     final fontSize = switch (size) {
       AppButtonSize.sm => 14.0,
       AppButtonSize.md => 15.0,
+      AppButtonSize.row => 15.0,
       AppButtonSize.lg => 17.0,
       AppButtonSize.dialog => 16.0,
     };
@@ -70,12 +78,12 @@ class AppButton extends StatelessWidget {
     final isDark = variant == AppButtonVariant.dark;
     // 회색으로 채운 보조 버튼 (soft)
     final isSoft = variant == AppButtonVariant.secondary;
-    // 큰 버튼은 모서리 18, 꽉 찬 중간 버튼은 14, 그 외(작은·내용 폭)는 알약
+    // 큰 버튼은 모서리 18, 꽉 찬 중간 버튼·row 크기는 14, 그 외(작은·내용 폭)는 알약
     final OutlinedBorder shape = size == AppButtonSize.lg
         ? RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.button),
           )
-        : fullWidth
+        : fullWidth || size == AppButtonSize.row
         ? RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.field),
           )
@@ -97,7 +105,9 @@ class AppButton extends StatelessWidget {
       mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (isLoading) ...[
+        if (isLoading && loadingOnly)
+          AppLoader.inline(color: fg)
+        else if (isLoading) ...[
           AppLoader.inline(color: fg),
           const SizedBox(width: AppSpacing.sm),
         ] else if (icon != null) ...[
@@ -110,18 +120,19 @@ class AppButton extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
-        Flexible(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.buttonLabel.copyWith(
-              color: fg,
-              fontSize: labelSize ?? fontSize,
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+        if (!(isLoading && loadingOnly))
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.buttonLabel.copyWith(
+                color: fg,
+                fontSize: labelSize ?? fontSize,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ),
-        ),
       ],
     );
 

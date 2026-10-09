@@ -696,12 +696,38 @@ class FirestoreService {
     });
   }
 
+  /// 센터의 승인된 회원·트레이너 수 (문서를 읽지 않고 개수만 센다 — 공지 대상 안내용).
+  static Future<({int members, int trainers})> countApprovedUsers(
+    String centerId,
+  ) async {
+    ServiceValidator.requireText(centerId, '센터 ID');
+    Future<int> count(String role) async {
+      final snap = await _db
+          .collection('users')
+          .where('centerId', isEqualTo: centerId)
+          .where('role', isEqualTo: role)
+          .where('status', isEqualTo: 'approved')
+          .count()
+          .get();
+      return snap.count ?? 0;
+    }
+
+    final (members, trainers) = await (count('member'), count('trainer')).wait;
+    return (members: members, trainers: trainers);
+  }
+
   // ---------- Admin Dashboard ----------
 
-  static Future<AdminStats> getAdminStats(String centerId) async {
+  /// 센터 통계. [month]의 달(기본 이번 달)로 완료·예약·취소·주별 완료·트레이너별을 센다.
+  /// 회원·트레이너 수, 오늘 수업, 잔여 부족·만료 예정은 언제나 지금 기준이다.
+  static Future<AdminStats> getAdminStats(
+    String centerId, {
+    DateTime? month,
+  }) async {
     final now = DateTime.now();
-    final monthStart = DateTime(now.year, now.month, 1);
-    final monthEnd = DateTime(now.year, now.month + 1, 1);
+    final base = month ?? now;
+    final monthStart = DateTime(base.year, base.month, 1);
+    final monthEnd = DateTime(base.year, base.month + 1, 1);
     final todayStart = DateTime(now.year, now.month, now.day);
     final tomorrowStart = todayStart.add(const Duration(days: 1));
     final expiryLimit = todayStart.add(const Duration(days: 14));
@@ -771,6 +797,19 @@ class FirestoreService {
     final monthScheduled = monthSessions
         .where((s) => s.status == PtSessionStatus.scheduled)
         .toList();
+    final monthCancelled = monthSessions
+        .where((s) => s.status == PtSessionStatus.cancelled)
+        .length;
+    // 주별 완료: 월요일 시작 주. 1일이 속한 주가 1주.
+    final firstOffset = monthStart.weekday - DateTime.monday;
+    final lastDay = monthEnd.subtract(const Duration(days: 1)).day;
+    final weeklyCompleted = List<int>.filled(
+      (lastDay + firstOffset - 1) ~/ 7 + 1,
+      0,
+    );
+    for (final s in completedSessions) {
+      weeklyCompleted[(s.scheduledAt.day + firstOffset - 1) ~/ 7]++;
+    }
     // 이번 달 중 아직 다가오지 않은 예약 (홈의 '예정 세션')
     final upcomingSessions = monthScheduled
         .where((s) => !s.scheduledAt.isBefore(now))
@@ -817,6 +856,7 @@ class FirestoreService {
         : completedSessions.length / monthlyScheduledTotal;
 
     return AdminStats(
+      month: monthStart,
       memberCount: memberCount,
       trainerCount: trainerCount,
       monthlyCompletedSessions: completedSessions.length,
@@ -824,6 +864,9 @@ class FirestoreService {
       todayScheduledSessions: todayScheduledSessions,
       todayCompletedSessions: todayCompletedSessions,
       monthlyCompletionRate: monthlyCompletionRate,
+      monthlyScheduledSessions: monthScheduled.length,
+      monthlyCancelledSessions: monthCancelled,
+      weeklyCompleted: weeklyCompleted,
       trainerStats: trainerStats,
       lowPtMembers: lowPtInfos,
       expiringPtMembers: expiringPtInfos,

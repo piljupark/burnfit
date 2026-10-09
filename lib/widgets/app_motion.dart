@@ -341,7 +341,9 @@ class _AppShakeState extends State<AppShake>
       builder: (context, child) {
         // 0~0.6 구간에서 다섯 번 흔들고 멈춘다.
         final v = _controller.value;
-        final dx = v >= 0.6 ? 0.0 : -4 * math.sin(v / 0.6 * 5 * math.pi / 2 * 2);
+        final dx = v >= 0.6
+            ? 0.0
+            : -4 * math.sin(v / 0.6 * 5 * math.pi / 2 * 2);
         return Transform.translate(offset: Offset(dx, 0), child: child);
       },
     );
@@ -395,6 +397,201 @@ class _AppBlinkState extends State<AppBlink>
           opacity: 1 - 0.65 * Curves.easeInOut.transform(tri),
           child: child,
         );
+      },
+    );
+  }
+}
+
+/// 반복 움직임의 공통 뼈대: [period]마다 0 → 1을 되풀이하고, 동작 줄이기면 [restValue]에서 멈춘다.
+abstract class _AppLoopState<T extends StatefulWidget> extends State<T>
+    with SingleTickerProviderStateMixin {
+  Duration get period;
+  double get restValue => 0;
+
+  late final AnimationController controller = AnimationController(
+    vsync: this,
+    duration: period,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      controller.stop();
+      controller.value = restValue;
+    } else if (!controller.isAnimating) {
+      controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+}
+
+/// 위아래로 천천히 떠다니는 그림 (시안 `float`·`bob`: 0 → -[distance] → 0, ease-in-out).
+/// 빈 상태 아이콘에 쓴다.
+class AppFloat extends StatefulWidget {
+  final Widget child;
+  final double distance;
+  final Duration period;
+
+  const AppFloat({
+    super.key,
+    required this.child,
+    this.distance = 5,
+    this.period = const Duration(milliseconds: 2600),
+  });
+
+  @override
+  State<AppFloat> createState() => _AppFloatState();
+}
+
+class _AppFloatState extends _AppLoopState<AppFloat> {
+  @override
+  Duration get period => widget.period;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      child: widget.child,
+      builder: (context, child) {
+        final v = controller.value;
+        final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
+        return Transform.translate(
+          offset: Offset(0, -widget.distance * Curves.easeInOut.transform(tri)),
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+/// 좌우로 흔들리는 종·확성기 (시안 `ring`: 0~50% 구간에서 14° → -12° → 8° → -4° → 0, 나머지는 멈춤).
+/// [angle]은 첫 흔들림 각도(도). 위쪽 가운데를 축으로 돈다.
+class AppRingShake extends StatefulWidget {
+  final Widget child;
+  final double angle;
+  final Duration period;
+  final Alignment pivot;
+
+  const AppRingShake({
+    super.key,
+    required this.child,
+    this.angle = 14,
+    this.period = const Duration(milliseconds: 2400),
+    this.pivot = const Alignment(0, -0.8),
+  });
+
+  @override
+  State<AppRingShake> createState() => _AppRingShakeState();
+}
+
+class _AppRingShakeState extends _AppLoopState<AppRingShake> {
+  @override
+  Duration get period => widget.period;
+
+  // 시안 키프레임 비율 (첫 흔들림 각도에 대한 비)
+  static const _steps = [0.0, 1.0, -0.857, 0.571, -0.286, 0.0];
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      child: widget.child,
+      builder: (context, child) {
+        final v = controller.value;
+        var deg = 0.0;
+        if (v < 0.5) {
+          final pos = v / 0.1; // 10% 간격
+          final i = pos.floor().clamp(0, _steps.length - 2);
+          final t = Curves.easeInOut.transform(pos - i);
+          deg = (_steps[i] + (_steps[i + 1] - _steps[i]) * t) * widget.angle;
+        }
+        return Transform.rotate(
+          angle: deg * math.pi / 180,
+          alignment: widget.pivot,
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+/// 계속 도는 아이콘 (시안 `spin`: 한 바퀴 2.4초, cubic-bezier(.6,0,.4,1)). 다시 시도 버튼의 새로고침 표시.
+class AppSpin extends StatefulWidget {
+  final Widget child;
+  final Duration period;
+
+  const AppSpin({
+    super.key,
+    required this.child,
+    this.period = const Duration(milliseconds: 2400),
+  });
+
+  @override
+  State<AppSpin> createState() => _AppSpinState();
+}
+
+class _AppSpinState extends _AppLoopState<AppSpin> {
+  static const _curve = Cubic(.6, 0, .4, 1);
+
+  @override
+  Duration get period => widget.period;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      child: widget.child,
+      builder: (context, child) => Transform.rotate(
+        angle: _curve.transform(controller.value) * 2 * math.pi,
+        child: child,
+      ),
+    );
+  }
+}
+
+/// 좌우로 천천히 기우는 그림 (시안 `wiggle`: -[angle]° ↔ [angle]°, ease-in-out). 공지 빈 상태 확성기.
+class AppSway extends StatefulWidget {
+  final Widget child;
+  final double angle;
+  final Duration period;
+
+  const AppSway({
+    super.key,
+    required this.child,
+    this.angle = 6,
+    this.period = const Duration(milliseconds: 1800),
+  });
+
+  @override
+  State<AppSway> createState() => _AppSwayState();
+}
+
+class _AppSwayState extends _AppLoopState<AppSway> {
+  @override
+  Duration get period => widget.period;
+
+  // 동작 줄이기면 가운데(0°)에 멈춘다
+  @override
+  double get restValue => 0.25;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      child: widget.child,
+      builder: (context, child) {
+        // 0 → 1: -angle → angle → -angle
+        final v = controller.value;
+        final tri = v < 0.5 ? v * 2 : (1 - v) * 2;
+        final deg =
+            -widget.angle + 2 * widget.angle * Curves.easeInOut.transform(tri);
+        return Transform.rotate(angle: deg * math.pi / 180, child: child);
       },
     );
   }

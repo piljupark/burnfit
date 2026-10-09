@@ -16,11 +16,11 @@ import '../../services/retained_pt_record_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_async_body.dart';
-import '../../widgets/app_card.dart';
 import '../../widgets/app_hero.dart';
+import '../../widgets/app_highlight.dart';
+import '../../widgets/app_motion.dart';
 import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
-import '../../widgets/status_badge.dart';
 
 final _date = DateFormat('yyyy.MM.dd');
 final _dateTime = DateFormat('yyyy.MM.dd (E) HH:mm', 'ko');
@@ -105,10 +105,25 @@ class _AdminWithdrawnMembersScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            AppScreenHeader.large(
               title: '탈퇴 회원 PT 이력',
-              subtitle: _members.isNotEmpty ? '${_members.length}명' : null,
+              count: _members.isEmpty ? null : '${_members.length}',
               onBack: () => Navigator.of(context).pop(),
+            ),
+            // 시안 Ad-Withdrawn: 제목 아래 16 회색 안내 상자
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.base,
+                AppSpacing.screenH,
+                0,
+              ),
+              child: AppInlineNotice(
+                '탈퇴한 회원의 이름 등 개인정보는 삭제되었습니다. 계약 기간과 담당 트레이너로 기록을 찾아주세요. '
+                'PT 종료일(또는 탈퇴일) 중 늦은 날로부터 ${AccountService.ptRecordRetentionYears}년이 지나면 자동으로 파기됩니다.',
+                warning: false,
+                neutral: true,
+              ),
             ),
             Expanded(
               child: AppAsyncBody(
@@ -116,34 +131,32 @@ class _AdminWithdrawnMembersScreenState
                 errorMessage: _errorMessage,
                 isEmpty: _members.isEmpty,
                 onRefresh: _load,
-                empty: const Column(
-                  children: [
-                    _RetentionNotice(),
-                    AppEmptyState(
-                      icon: AppIcons.archive,
-                      message: '보관 중인 탈퇴 회원 PT 이력이 없습니다.',
-                    ),
-                  ],
+                padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
+                // 시안 Ad-Withdrawn-Empty: 안내 상자 아래 110 (본문 위 24 + 86)
+                empty: const AppEmptyState(
+                  icon: AppIcons.archive,
+                  message: '보관 중인 탈퇴 회원 PT 이력이 없습니다.',
+                  compact: true,
+                  top: 86,
                 ),
                 children: [
-                  const SizedBox(height: AppSpacing.base),
-                  const _RetentionNotice(),
                   AppMonthHeader(
                     label: '탈퇴 회원',
-                    count: '${_members.length}',
-                    padding: const EdgeInsets.only(
-                      top: AppSpacing.xl,
-                      bottom: AppSpacing.sm,
-                    ),
+                    count: '${_members.length}명',
+                    strongCount: true,
                   ),
-                  for (int i = 0; i < _members.length; i++) ...[
-                    if (i > 0) const AppRowDivider(),
-                    _WithdrawnMemberRow(
-                      member: _members[i],
-                      trainerLabel: _trainerLabel(_members[i].trainerIds),
-                      onTap: () => _openDetail(_members[i]),
+                  for (int i = 0; i < _members.length; i++)
+                    // 시안 `fade`: 아래 8에서 .4s, 0.05초 간격
+                    AppEntrance(
+                      offset: const Offset(0, 8),
+                      duration: const Duration(milliseconds: 400),
+                      delay: Duration(milliseconds: 50 * (i < 10 ? i : 10)),
+                      child: _WithdrawnMemberRow(
+                        member: _members[i],
+                        trainerLabel: _trainerLabel(_members[i].trainerIds),
+                        onTap: () => _openDetail(_members[i]),
+                      ),
                     ),
-                  ],
                 ],
               ),
             ),
@@ -154,32 +167,8 @@ class _AdminWithdrawnMembersScreenState
   }
 }
 
-/// 보관 안내: 카드 한 덩어리 (정보 아이콘 + 한 문단).
-class _RetentionNotice extends StatelessWidget {
-  const _RetentionNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(AppIcons.info, size: AppSize.icon, color: AppColors.body),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              '탈퇴한 회원의 이름 등 개인정보는 삭제되었습니다. 계약 기간과 담당 트레이너로 기록을 찾아주세요. '
-              'PT 종료일(또는 탈퇴일) 중 늦은 날로부터 ${AccountService.ptRecordRetentionYears}년이 지나면 자동으로 파기됩니다.',
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 탈퇴 회원 한 줄: 탈퇴일 제목 + 키/값 요약 + 화살표 (읽기 전용 상세로 이동).
+/// 탈퇴 회원 한 줄 (시안 Ad-Withdrawn): 위아래 16 · 아래 hairline, '2026.08.14 탈퇴' 16/500 ·
+/// (8) 키/값 13 (라벨 84 mute · 값 body, 줄 사이 3) · 18 Bold 화살표.
 class _WithdrawnMemberRow extends StatelessWidget {
   final WithdrawnMemberSummary member;
   final String trainerLabel;
@@ -204,39 +193,50 @@ class _WithdrawnMemberRow extends StatelessWidget {
         highlightColor: AppColors.canvasSoft,
         splashFactory: NoSplash.splashFactory,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${_formatDate(member.withdrawnAt)} 탈퇴',
-                      style: AppTextStyles.bodyLg,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    _InfoLine(
-                      label: '계약 기간',
-                      value:
-                          '${_formatDate(contract.startDate)} ~ ${_formatDate(contract.endDate)}$extra',
-                    ),
-                    _InfoLine(
-                      label: 'PT 횟수',
-                      value:
-                          '${contract.remainingSessions ?? '-'} / ${contract.totalSessions ?? '-'}회 남음',
-                    ),
-                    _InfoLine(label: '담당 트레이너', value: trainerLabel),
-                    _InfoLine(
-                      label: '파기 예정',
-                      value: _formatDate(member.expireAt),
-                    ),
-                  ],
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.hairline)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_formatDate(member.withdrawnAt)} 탈퇴',
+                        style: AppTextStyles.listTitle,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      _InfoLine(
+                        label: '계약 기간',
+                        value:
+                            '${_formatDate(contract.startDate)} ~ ${_formatDate(contract.endDate)}$extra',
+                      ),
+                      _InfoLine(
+                        label: 'PT 횟수',
+                        value:
+                            '${contract.remainingSessions ?? '-'} / ${contract.totalSessions ?? '-'}회 남음',
+                      ),
+                      _InfoLine(label: '담당 트레이너', value: trainerLabel),
+                      _InfoLine(
+                        label: '파기 예정',
+                        value: _formatDate(member.expireAt),
+                        last: true,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Icon(AppIcons.forward, size: AppSize.icon, color: AppColors.mute),
-            ],
+                const SizedBox(width: AppSpacing.md),
+                Icon(
+                  AppIcons.chevronRightBold,
+                  size: 18,
+                  color: AppColors.chevron,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -247,13 +247,18 @@ class _WithdrawnMemberRow extends StatelessWidget {
 class _InfoLine extends StatelessWidget {
   final String label;
   final String value;
+  final bool last;
 
-  const _InfoLine({required this.label, required this.value});
+  const _InfoLine({
+    required this.label,
+    required this.value,
+    this.last = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xxs),
+      padding: EdgeInsets.only(bottom: last ? 0 : 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -341,8 +346,9 @@ class _AdminWithdrawnMemberDetailScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppScreenHeader(
+            AppScreenHeader.large(
               title: '${_formatDate(widget.member.withdrawnAt)} 탈퇴 회원',
+              titleSize: 26,
               subtitle: '${_formatDate(widget.member.expireAt)} 파기 예정',
               onBack: () => Navigator.of(context).pop(),
             ),
@@ -352,63 +358,48 @@ class _AdminWithdrawnMemberDetailScreenState
                 errorMessage: _errorMessage,
                 isEmpty: _records.isEmpty,
                 onRefresh: _load,
+                padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
                 empty: const AppEmptyState(
                   icon: AppIcons.archive,
-                  message: '보관된 기록이 없습니다. 보관 기간이 지나 파기되었을 수 있습니다.',
+                  compact: true,
+                  top: 96,
+                  message: '보관된 기록이 없습니다.',
+                  description: '보관 기간이 지나 파기되었을 수 있습니다.',
                 ),
                 children: [
-                  _Section(
+                  // ── PT 계약 ──
+                  _SectionHeader(
                     title: 'PT 계약',
                     count: contracts.length,
-                    children: [
-                      for (final c in contracts)
-                        _RecordTile(
-                          title:
-                              '${_formatDate(c.startDate)} ~ ${_formatDate(c.endDate)}',
-                          lines: [
-                            '${c.remainingSessions ?? '-'} / ${c.totalSessions ?? '-'}회 남음',
-                            '담당 ${_trainerName(c)}',
-                            if (c.renewalDate != null)
-                              '갱신일 ${_formatDate(c.renewalDate)}',
-                          ],
-                        ),
-                    ],
+                    top: 28 - 24, // 본문 위 24를 빼고 제목 아래 28
                   ),
-                  _Section(
-                    title: '수업 기록',
-                    count: sessions.length,
-                    children: [
-                      for (final s in sessions)
-                        _RecordTile(
-                          title: s.scheduledAt == null
-                              ? '-'
-                              : _dateTime.format(s.scheduledAt!),
-                          lines: [
-                            '${s.durationMinutes ?? '-'}분 · ${_trainerName(s)}',
-                          ],
-                          badge: s.sessionStatus == null
-                              ? null
-                              : _statusBadge(s.sessionStatus!),
-                        ),
-                    ],
-                  ),
-                  _Section(
-                    title: '횟수 변경 이력',
-                    count: logs.length,
-                    children: [
-                      for (final l in logs)
-                        _RecordTile(
-                          title: l.logType?.label ?? '변경',
-                          lines: [
-                            _formatDate(l.createdAt),
-                            '잔여 ${l.previousRemainingSessions ?? '-'} → ${l.nextRemainingSessions ?? '-'}회'
-                                '${_totalChange(l)}',
-                            if (l.changedByName != null)
-                              '처리 ${l.changedByName}',
-                          ],
-                        ),
-                    ],
-                  ),
+                  if (contracts.isEmpty)
+                    const AppEmptyLine('기록 없음')
+                  else
+                    for (final c in contracts)
+                      _ContractCard(record: c, trainer: _trainerName(c)),
+                  const AppSectionBand(top: AppSpacing.xl),
+                  // ── 수업 기록 ──
+                  _SectionHeader(title: '수업 기록', count: sessions.length),
+                  if (sessions.isEmpty)
+                    const AppEmptyLine('기록 없음')
+                  else
+                    for (int i = 0; i < sessions.length; i++)
+                      AppEntrance.slide(
+                        delay: Duration(milliseconds: 40 * (i < 10 ? i : 10)),
+                        child: _sessionRow(sessions[i]),
+                      ),
+                  const AppSectionBand(top: AppSpacing.base),
+                  // ── 횟수 변경 이력 ──
+                  _SectionHeader(title: '횟수 변경 이력', count: logs.length),
+                  if (logs.isEmpty)
+                    const AppEmptyLine('기록 없음')
+                  else
+                    for (int i = 0; i < logs.length; i++)
+                      AppEntrance.slide(
+                        delay: Duration(milliseconds: 40 * (i < 10 ? i : 10)),
+                        child: _logRow(logs[i]),
+                      ),
                 ],
               ),
             ),
@@ -418,90 +409,170 @@ class _AdminWithdrawnMemberDetailScreenState
     );
   }
 
+  /// 수업 줄 (시안): 64 · '2026.08.17 (월) 19:00' 15/500 · 13 mute '50분 · 이트레이너' ·
+  /// 오른쪽 14 상태 — 예약 noticeText 500 · 완료 ink 500 · 취소 faint 400(제목도 faint).
+  Widget _sessionRow(RetainedPtRecord s) {
+    final status = s.sessionStatus;
+    final cancelled = status == PtSessionStatus.cancelled;
+    final statusStyle = switch (status) {
+      PtSessionStatus.scheduled => AppTextStyles.bodySmall.medium.copyWith(
+        color: AppColors.noticeText,
+      ),
+      PtSessionStatus.completed => AppTextStyles.bodySmall.medium.copyWith(
+        color: AppColors.ink,
+      ),
+      _ => AppTextStyles.bodySmall.copyWith(color: AppColors.faint),
+    };
+    return AppListRow(
+      title: s.scheduledAt == null ? '-' : _dateTime.format(s.scheduledAt!),
+      titleStyle: AppTextStyles.bodyMd.medium,
+      subtitle: '${s.durationMinutes ?? '-'}분 · ${_trainerName(s)}',
+      height: 64,
+      dimmed: cancelled,
+      trailing: status == null ? null : Text(status.label, style: statusStyle),
+    );
+  }
+
+  /// 횟수 변경 줄 (시안): 왼쪽 날짜 칸('08.10' 15/500 + '2026') · 15/500 종류 ·
+  /// 13 body '잔여 5 → 4회' · 13 mute '처리 이트레이너'.
+  Widget _logRow(RetainedPtRecord l) {
+    final at = l.createdAt;
+    return AppListRow(
+      leading: at == null
+          ? null
+          : AppDateCell(
+              top: DateFormat('MM.dd').format(at),
+              bottom: '${at.year}',
+              small: true,
+            ),
+      title: l.logType?.label ?? '변경',
+      titleStyle: AppTextStyles.bodyMd.medium,
+      subtitle:
+          '잔여 ${l.previousRemainingSessions ?? '-'} → ${l.nextRemainingSessions ?? '-'}회'
+          '${_totalChange(l)}',
+      subtitleColor: AppColors.body,
+      note: l.changedByName == null ? null : '처리 ${l.changedByName}',
+      noteColor: AppColors.mute,
+      height: 0,
+      verticalPadding: 14,
+    );
+  }
+
   static String _totalChange(RetainedPtRecord log) {
     final prev = log.previousTotalSessions;
     final next = log.nextTotalSessions;
     if (prev == null || next == null || prev == next) return '';
     return ' · 총 $prev → $next회';
   }
-
-  /// 완료 = 흰 채움, 예정 = 외곽선, 취소 = 흐린 글자 (색이 아니라 모양으로 구분).
-  static StatusBadge _statusBadge(PtSessionStatus status) {
-    switch (status) {
-      case PtSessionStatus.completed:
-        return StatusBadge(label: status.label, strong: true);
-      case PtSessionStatus.scheduled:
-        return StatusBadge(label: status.label);
-      case PtSessionStatus.cancelled:
-        return StatusBadge(label: status.label, color: AppColors.mute);
-    }
-  }
 }
 
-class _Section extends StatelessWidget {
+/// 섹션 머리말 (시안 Ad-WithdrawnDetail): 17/500 라벨 + 오른쪽 15/500 개수 · '건' mute. 여백 [top] 20 4.
+class _SectionHeader extends StatelessWidget {
   final String title;
   final int count;
-  final List<Widget> children;
+  final double top;
 
-  const _Section({
+  const _SectionHeader({
     required this.title,
     required this.count,
-    required this.children,
+    this.top = AppSpacing.lg,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppMonthHeader(
-          label: title,
-          count: '$count',
-          padding: const EdgeInsets.only(
-            top: AppSpacing.xl,
-            bottom: AppSpacing.sm,
-          ),
-        ),
-        if (children.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Text('기록 없음', style: AppTextStyles.bodySm),
-          )
-        else
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) const AppRowDivider(),
-            children[i],
-          ],
-      ],
+    return AppMonthHeader(
+      label: title,
+      strong: true,
+      count: '$count',
+      unit: '건',
+      strongCount: true,
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        top,
+        AppSpacing.screenH,
+        AppSpacing.xs,
+      ),
     );
   }
 }
 
-class _RecordTile extends StatelessWidget {
-  final String title;
-  final List<String> lines;
-  final Widget? badge;
+/// PT 계약 카드 (시안): 회색 · 반경 18 · 안쪽 16 18, 기간 16/500 → (8) 3칸
+/// (남은 횟수 · 담당 · 갱신일 — 라벨 12 mute, 값 15/500).
+class _ContractCard extends StatelessWidget {
+  final RetainedPtRecord record;
+  final String trainer;
 
-  const _RecordTile({required this.title, required this.lines, this.badge});
+  const _ContractCard({required this.record, required this.trainer});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      child: Row(
+    final c = record;
+    Widget cell(String label, InlineSpan value) => Expanded(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTextStyles.bodyMd),
-                for (final line in lines)
-                  Text(line, style: AppTextStyles.bodySm),
-              ],
-            ),
+          Text(label, style: AppTextStyles.captionSmall),
+          const SizedBox(height: AppSpacing.xxs),
+          Text.rich(
+            value,
+            style: AppTextStyles.bodyMd.medium,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          if (badge != null) ...[const SizedBox(width: AppSpacing.sm), badge!],
+        ],
+      ),
+    );
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.sm,
+        AppSpacing.screenH,
+        0,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.button),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${_formatDate(c.startDate)} ~ ${_formatDate(c.endDate)}',
+            style: AppTextStyles.listTitle,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              cell(
+                '남은 횟수',
+                TextSpan(
+                  children: [
+                    TextSpan(text: '${c.remainingSessions ?? '-'}'),
+                    TextSpan(
+                      text: ' / ${c.totalSessions ?? '-'}회',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.mute,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              cell('담당', TextSpan(text: trainer)),
+              const SizedBox(width: AppSpacing.sm),
+              cell(
+                '갱신일',
+                TextSpan(
+                  text: c.renewalDate == null
+                      ? '-'
+                      : _formatDate(c.renewalDate),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

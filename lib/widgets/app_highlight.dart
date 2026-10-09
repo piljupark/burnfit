@@ -4,16 +4,24 @@ import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
+import 'app_motion.dart';
 import 'app_progress_bar.dart';
 
-/// 강조 띠: 강조색 바탕 한 줄. 왼쪽 내용, 오른쪽 행동 글자 + 화살표.
-/// 화면당 하나만 둔다 (예: 관리자 홈 '가입 신청 n건').
+/// 강조 띠 (기준 시안 AdminHome '가입 요청 3건'): 주황 면 · 반경 18 · 높이 64 · 안쪽 0 16 0 18 · 칸 사이 12.
+/// 아이콘 24 · 제목 17/500 · 오른쪽 행동 글자 15/500 · 18 Bold 화살표. 화면당 하나만 둔다.
+/// - [subtitle]: 제목 아래 13 보조 줄 (높이 68)
+/// - [muted]: 회색 면(canvasCard), 아이콘 mute, 화살표 chevron (시안 Ad-Home-NoPending — 할 일이 없을 때)
+/// - [ring]: 아이콘이 종처럼 흔들린다 (시안 `ring`)
+/// - [bold]: 글자 Bold — 기준 시안 계열(Admin*)
 class AppAccentBar extends StatelessWidget {
   final IconData? icon;
   final String title;
   final String? subtitle;
   final String? actionLabel;
   final VoidCallback? onTap;
+  final bool muted;
+  final bool ring;
+  final bool bold;
 
   const AppAccentBar({
     super.key,
@@ -22,34 +30,46 @@ class AppAccentBar extends StatelessWidget {
     this.subtitle,
     this.actionLabel,
     this.onTap,
+    this.muted = false,
+    this.ring = false,
+    this.bold = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fg = AppColors.onPrimary;
+    // 주황 면은 두 테마 공통이라 글자는 늘 검정(onPrimary). 회색 면은 테마 색을 따른다.
+    final fg = muted ? AppColors.ink : AppColors.onPrimary;
+    TextStyle strong(TextStyle t) => bold ? t.bold : t.medium;
+    Widget? iconWidget = icon == null
+        ? null
+        : Icon(
+            AppIcons.bold(icon!),
+            size: 24,
+            color: muted ? AppColors.mute : fg,
+          );
+    if (iconWidget != null && ring) {
+      iconWidget = AppRingShake(child: iconWidget);
+    }
     return Semantics(
       button: onTap != null,
       child: Material(
-        color: AppColors.primary,
+        color: muted ? AppColors.canvasCard : AppColors.primary,
         borderRadius: BorderRadius.circular(AppRadius.button),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.button),
-          highlightColor: AppColors.ink.withValues(alpha: 0.08),
+          highlightColor: muted
+              ? AppColors.canvasMid
+              : AppColors.onPrimary.withValues(alpha: 0.08),
           splashFactory: NoSplash.splashFactory,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 64),
+            constraints: BoxConstraints(minHeight: subtitle == null ? 64 : 68),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.base,
-                AppSpacing.md,
-              ),
+              padding: const EdgeInsets.fromLTRB(18, 10, 16, 10),
               child: Row(
                 children: [
-                  if (icon != null) ...[
-                    Icon(icon, size: 22, color: fg),
+                  if (iconWidget != null) ...[
+                    ExcludeSemantics(child: iconWidget),
                     const SizedBox(width: AppSpacing.md),
                   ],
                   Expanded(
@@ -59,28 +79,39 @@ class AppAccentBar extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: AppTextStyles.bodyLg.copyWith(
-                            color: fg,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: strong(
+                            AppTextStyles.bodyLg,
+                          ).natural.copyWith(color: fg),
                         ),
-                        if (subtitle != null)
+                        if (subtitle != null) ...[
+                          const SizedBox(height: AppSpacing.xxs),
                           Text(
                             subtitle!,
                             style: AppTextStyles.bodySm.copyWith(
-                              color: fg.withValues(alpha: 0.72),
+                              color: muted
+                                  ? AppColors.mute
+                                  : fg.withValues(alpha: 0.7),
                             ),
                           ),
+                        ],
                       ],
                     ),
                   ),
-                  if (actionLabel != null)
+                  if (actionLabel != null) ...[
+                    const SizedBox(width: AppSpacing.md),
                     Text(
                       actionLabel!,
-                      style: AppTextStyles.bodyMd.copyWith(color: fg),
+                      style: strong(AppTextStyles.bodyMd).copyWith(color: fg),
                     ),
-                  if (onTap != null)
-                    Icon(AppIcons.forward, size: 18, color: fg),
+                  ],
+                  if (onTap != null) ...[
+                    const SizedBox(width: AppSpacing.md),
+                    Icon(
+                      AppIcons.chevronRightBold,
+                      size: 18,
+                      color: muted ? AppColors.chevron : fg,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -211,8 +242,9 @@ class AppHighlightCard extends StatelessWidget {
   }
 }
 
-/// 안내·경고 줄: 연한 주황 바탕 + 진한 주황 글자. [warning]이면 경고 아이콘.
-/// 회색 안내는 [neutral].
+/// 안내·경고 줄: 연한 주황 바탕 + 진한 주황 글자 14/500. [warning]이면 경고 아이콘.
+/// 회색 안내는 [neutral] (시안 Ad-Withdrawn `role=note`): canvasCard · 안쪽 14 · 정보 아이콘 18 mute(위 2) ·
+/// 8 · 14 body 줄 높이 1.55.
 class AppInlineNotice extends StatelessWidget {
   final String message;
   final bool warning;
@@ -233,12 +265,14 @@ class AppInlineNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = neutral ? AppColors.body : AppColors.noticeText;
     return Semantics(
-      liveRegion: warning,
+      liveRegion: warning && !neutral,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.base - 2,
-          vertical: AppSpacing.md,
-        ),
+        padding: neutral
+            ? const EdgeInsets.all(14)
+            : const EdgeInsets.symmetric(
+                horizontal: AppSpacing.base - 2,
+                vertical: AppSpacing.md,
+              ),
         decoration: BoxDecoration(
           color: neutral ? AppColors.canvasCard : AppColors.noticeBg,
           borderRadius: BorderRadius.circular(AppRadius.field),
@@ -246,10 +280,13 @@ class AppInlineNotice extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              warning && !neutral ? AppIcons.warning : AppIcons.info,
-              size: 18,
-              color: fg,
+            Padding(
+              padding: EdgeInsets.only(top: neutral ? 2 : 0),
+              child: Icon(
+                warning && !neutral ? AppIcons.warning : AppIcons.info,
+                size: 18,
+                color: neutral ? AppColors.mute : fg,
+              ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -257,6 +294,7 @@ class AppInlineNotice extends StatelessWidget {
                 message,
                 style: AppTextStyles.bodySmall.copyWith(
                   color: fg,
+                  height: neutral ? 1.55 : null,
                   fontWeight: neutral
                       ? FontWeight.w400
                       : bold
@@ -274,11 +312,13 @@ class AppInlineNotice extends StatelessWidget {
 
 /// 떠 있는 행동 버튼: 검정 알약 + 아이콘 + 글자. 화면 오른쪽 아래에 둔다.
 /// [extended]가 false면 글자를 접고 아이콘만 있는 원(56)이 된다 (아래로 스크롤할 때 내용을 덜 가리게).
+/// 글자 16 — 기준 시안(TrainerSchedule)은 Bold, 상세 시안(Nt-Admin-List)은 [bold] false로 Medium.
 class AppFloatingAction extends StatelessWidget {
   final String label;
   final IconData icon;
   final VoidCallback? onPressed;
   final bool extended;
+  final bool bold;
 
   const AppFloatingAction({
     super.key,
@@ -286,6 +326,7 @@ class AppFloatingAction extends StatelessWidget {
     this.icon = AppIcons.add,
     required this.onPressed,
     this.extended = true,
+    this.bold = true,
   });
 
   @override
@@ -318,8 +359,11 @@ class AppFloatingAction extends StatelessWidget {
                       const SizedBox(width: AppSpacing.sm),
                       Text(
                         label,
-                        // 시안 TrainerSchedule 'PT 예약': 16, 기준 시안이라 Bold
-                        style: AppTextStyles.listTitle.bold.copyWith(color: fg),
+                        style:
+                            (bold
+                                    ? AppTextStyles.listTitle.bold
+                                    : AppTextStyles.listTitle)
+                                .copyWith(color: fg),
                       ),
                     ],
                   ],

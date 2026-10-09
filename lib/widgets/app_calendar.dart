@@ -11,12 +11,19 @@ import 'calendar_marks.dart';
 /// 홈 보기 고르기 (시안 Main '오늘 · 캘린더 · 기록', TrainerMember '운동 · 식단 · 유산소 · 정보').
 /// 고른 것 = ink 채움 + canvas 글자(Bold), 나머지 = canvasSoft + body 글자.
 /// 기본 40 높이 · 좌우 18 · 15 글자, [compact]는 38 · 16 · 14.
+/// 관리자 필터(기준 시안 AdminRequests·AdminMembers)도 이것을 쓴다:
+/// - [counts]: 라벨 뒤 개수 (고른 칸은 400 · 투명도 .7, 나머지는 mute)
+/// - [chipPadding]: pill 좌우 여백 (AdminRequests 16)
+/// - [scrollable]: 화면보다 길면 가로로 넘긴다
 class AppViewTabs extends StatelessWidget {
   final List<String> labels;
   final int selectedIndex;
   final ValueChanged<int> onSelect;
   final bool compact;
   final EdgeInsetsGeometry padding;
+  final List<String>? counts;
+  final double? chipPadding;
+  final bool scrollable;
 
   const AppViewTabs({
     super.key,
@@ -25,57 +32,81 @@ class AppViewTabs extends StatelessWidget {
     required this.onSelect,
     this.compact = false,
     this.padding = const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+    this.counts,
+    this.chipPadding,
+    this.scrollable = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final base = compact ? AppTextStyles.bodySmall : AppTextStyles.bodyMd;
-    return Padding(
-      padding: padding,
-      child: Row(
-        children: [
-          for (var i = 0; i < labels.length; i++) ...[
-            if (i > 0) const Gap(AppSpacing.sm),
-            // 터치 영역 44: pill 위아래로 비어 있는 누름 자리를 둔다
-            GestureDetector(
-              onTap: () => onSelect(i),
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: compact ? 3 : 2),
-                child: Semantics(
-                  button: true,
-                  selected: i == selectedIndex,
-                  child: Material(
-                    color: i == selectedIndex
-                        ? AppColors.ink
-                        : AppColors.canvasSoft,
-                    shape: const StadiumBorder(),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => onSelect(i),
-                      splashFactory: NoSplash.splashFactory,
-                      child: Container(
-                        height: compact ? 38 : 40,
-                        alignment: Alignment.center,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: compact ? 16 : 18,
+    final row = Row(
+      mainAxisSize: scrollable ? MainAxisSize.min : MainAxisSize.max,
+      children: [
+        for (var i = 0; i < labels.length; i++) ...[
+          if (i > 0) const Gap(AppSpacing.sm),
+          // 터치 영역 44: pill 위아래로 비어 있는 누름 자리를 둔다
+          GestureDetector(
+            onTap: () => onSelect(i),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: compact ? 3 : 2),
+              child: Semantics(
+                button: true,
+                selected: i == selectedIndex,
+                child: Material(
+                  color: i == selectedIndex
+                      ? AppColors.ink
+                      : AppColors.canvasSoft,
+                  shape: const StadiumBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => onSelect(i),
+                    splashFactory: NoSplash.splashFactory,
+                    child: Container(
+                      height: compact ? 38 : 40,
+                      alignment: Alignment.center,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: chipPadding ?? (compact ? 16 : 18),
+                      ),
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(text: labels[i]),
+                            if (counts != null && i < counts!.length)
+                              TextSpan(
+                                text: ' ${counts![i]}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w400,
+                                  color: i == selectedIndex
+                                      ? AppColors.canvas.withValues(alpha: 0.7)
+                                      : AppColors.mute,
+                                ),
+                              ),
+                          ],
                         ),
-                        child: Text(
-                          labels[i],
-                          style: i == selectedIndex
-                              ? base.bold.copyWith(color: AppColors.canvas)
-                              : base.copyWith(color: AppColors.body),
-                        ),
+                        maxLines: 1,
+                        style: i == selectedIndex
+                            ? base.bold.copyWith(color: AppColors.canvas)
+                            : base.copyWith(color: AppColors.body),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ],
+          ),
         ],
-      ),
+      ],
     );
+    if (scrollable) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: padding,
+        child: row,
+      );
+    }
+    return Padding(padding: padding, child: row);
   }
 }
 
@@ -130,10 +161,11 @@ class AppMonthNav extends StatelessWidget {
 }
 
 /// 월·주 이동 화살표: 터치 영역 [width]×44, 안에 [size] Bold 화살표(mute).
+/// [onTap]이 null이면 누를 수 없고 화살표가 흐려진다 (canvasMid — 시안 AdminDashboard 다음 달).
 class AppNavArrow extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final double width;
   final double size;
 
@@ -150,6 +182,7 @@ class AppNavArrow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
+      enabled: onTap != null,
       label: label,
       excludeSemantics: true,
       child: InkResponse(
@@ -160,7 +193,11 @@ class AppNavArrow extends StatelessWidget {
         child: SizedBox(
           width: width,
           height: AppSize.touchMin,
-          child: Icon(icon, size: size, color: AppColors.mute),
+          child: Icon(
+            icon,
+            size: size,
+            color: onTap == null ? AppColors.canvasMid : AppColors.mute,
+          ),
         ),
       ),
     );

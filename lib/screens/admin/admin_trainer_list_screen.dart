@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
@@ -15,9 +16,8 @@ import '../../widgets/app_action_row.dart';
 import '../../widgets/app_async_body.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_hero.dart';
-import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_motion.dart';
 import '../../widgets/app_section.dart';
-import '../../widgets/app_tag.dart';
 import '../../widgets/app_text_field.dart';
 import 'admin_member_detail_screen.dart';
 import '../../widgets/app_kpi_card.dart';
@@ -147,8 +147,6 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canPop = Navigator.of(context).canPop();
-
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
@@ -156,53 +154,56 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 탭으로 열리면 AppHero, 메뉴에서 밀어 열리면 뒤로 버튼 앱바.
-            if (canPop) ...[
-              AppScreenHeader(
-                title: '트레이너 관리',
-                subtitle: '${_trainers.length}명',
-                onBack: () => Navigator.of(context).pop(),
-              ),
-            ] else
-              const AppHero(title: '트레이너'),
-            // 검색
+            const AppHero(title: '트레이너'),
+            // 검색 (시안 Ad-Trainers: 48 · 좌우 14) → 위 16 화면 폭 선
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.base,
-                AppSpacing.screenH,
-                AppSpacing.base,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenH,
               ),
               child: AppTextField(
                 label: '',
                 hint: '이름 또는 이메일 검색',
                 controller: _searchController,
                 prefix: const Icon(AppIcons.search),
+                dense: true,
                 textInputAction: TextInputAction.search,
               ),
             ),
+            const SizedBox(height: AppSpacing.base),
             const AppRowDivider(),
-            // 목록
             Expanded(
               child: AppAsyncBody(
                 isLoading: _isLoading,
                 errorMessage: _errorMessage,
                 isEmpty: _filtered.isEmpty,
                 onRefresh: _load,
+                padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
                 empty: AppEmptyState(
                   icon: AppIcons.trainers,
+                  compact: true,
+                  top: 96,
                   message: _trainers.isEmpty
                       ? '등록된 트레이너가 없습니다.'
                       : '검색 결과가 없습니다.',
                 ),
                 children: [
-                  for (int i = 0; i < _filtered.length; i++) ...[
-                    if (i > 0) const AppRowDivider(),
-                    _TrainerListItem(
-                      trainer: _filtered[i],
-                      onTap: () => _showTrainerDetail(_filtered[i]),
+                  for (int i = 0; i < _filtered.length; i++)
+                    // 시안 `fade`: 아래 8에서 .4s, 0.05초 간격
+                    AppEntrance(
+                      key: ValueKey(_filtered[i].uid),
+                      offset: const Offset(0, 8),
+                      duration: const Duration(milliseconds: 400),
+                      delay: Duration(milliseconds: 50 * (i < 10 ? i : 10)),
+                      child: AppListRow(
+                        title: _filtered[i].name,
+                        subtitle: _filtered[i].email,
+                        subtitleLead: _filtered[i].isApproved
+                            ? null
+                            : '승인 대기 · ',
+                        chevron: true,
+                        onTap: () => _showTrainerDetail(_filtered[i]),
+                      ),
                     ),
-                  ],
                 ],
               ),
             ),
@@ -213,71 +214,11 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
   }
 }
 
-// ── _TrainerListItem ──────────────────────────────────────────────────────────
-
-/// 트레이너 한 줄: 아바타 + 이름 + 이메일 + (승인 대기면 "승인 대기" 태그) + 화살표.
-class _TrainerListItem extends StatelessWidget {
-  final AppUser trainer;
-  final VoidCallback onTap;
-
-  const _TrainerListItem({required this.trainer, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      child: InkWell(
-        onTap: onTap,
-        highlightColor: AppColors.canvasSoft,
-        splashFactory: NoSplash.splashFactory,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppSize.listRow),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        trainer.name,
-                        style: AppTextStyles.bodyLg,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        trainer.email,
-                        style: AppTextStyles.bodySm,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                if (!trainer.isApproved) ...[
-                  const AppTag('승인 대기'),
-                  const SizedBox(width: AppSpacing.sm),
-                ],
-                Icon(
-                  AppIcons.forward,
-                  size: AppSize.icon,
-                  color: AppColors.mute,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ── _TrainerDetailSheet ───────────────────────────────────────────────────────
 
-/// 트레이너 상세 시트: 이름 · 이메일 · 등록일 → 숫자 2칸(배정 회원 · 이번 달 PT 완료) → 배정 회원(PT 잔여).
-/// 센터는 관리자 센터와 항상 같아서 적지 않는다. 승인 대기면 태그로 알린다.
-/// 회원 줄을 누르면 그 회원을 돌려주며 닫힌다.
+/// 트레이너 상세 시트 (시안 Ad-TrainerDetailSheet): 이름 22 · 14 mute '이메일 · 2025.03.02 등록' →
+/// 2칸 숫자(배정 회원 · 이번 달 PT 완료) → '배정 회원 8명' → 60 회원 줄(13 body 'PT 7 / 20회 남음' ›).
+/// 회원 줄을 누르면 시트를 닫고 그 회원을 돌려준다.
 class _TrainerDetailSheet extends StatelessWidget {
   final AppUser trainer;
   final List<AppUser> members;
@@ -293,125 +234,74 @@ class _TrainerDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final created = trainer.createdAt;
-    final createdLabel =
-        '${created.year}.${created.month.toString().padLeft(2, '0')}.${created.day.toString().padLeft(2, '0')}';
+    final created = DateFormat('yyyy.MM.dd').format(trainer.createdAt);
+    AppKpiCard kpi(String label, int value, String unit) => AppKpiCard(
+      label: label,
+      value: '$value',
+      unit: unit,
+      framed: false,
+      valueSize: 24,
+      labelSize: 14,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppBottomSheetHeader(
           title: trainer.name,
-          subtitle: [
-            if (!trainer.isApproved) '승인 대기',
-            trainer.email,
-            '$createdLabel 등록',
-          ].join(' · '),
+          subtitleWidget: Text.rich(
+            TextSpan(
+              children: [
+                if (!trainer.isApproved)
+                  const TextSpan(
+                    text: '승인 대기 · ',
+                    style: TextStyle(
+                      color: AppColors.noticeText,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                TextSpan(text: '${trainer.email} · $created 등록'),
+              ],
+            ),
+            style: AppTextStyles.fieldLabel,
+          ),
         ),
         AppStatStrip(
-          topBorder: true,
+          padded: false,
+          // 시안 `rise`: 시트가 올라온 뒤(.35s) 0.08초 간격으로
+          entrance: const AppStatEntrance(start: Duration(milliseconds: 350)),
           cells: [
-            AppKpiCard(
-              label: '배정 회원',
-              value: '${members.length}',
-              unit: '명',
-              framed: false,
-              valueSize: 24,
-            ),
-            AppKpiCard(
-              label: '이번 달 PT 완료',
-              value: '$monthCompleted',
-              unit: '회',
-              framed: false,
-              valueSize: 24,
-            ),
+            kpi('배정 회원', members.length, '명'),
+            kpi('이번 달 PT 완료', monthCompleted, '회'),
           ],
         ),
         AppMonthHeader(
           label: '배정 회원',
-          count: '${members.length}',
-          padding: const EdgeInsets.only(
-            top: AppSpacing.xl,
-            bottom: AppSpacing.sm,
-          ),
+          count: '${members.length}명',
+          strongCount: true,
+          padding: const EdgeInsets.only(top: 22, bottom: AppSpacing.xs),
         ),
         if (members.isEmpty)
           const AppEmptyLine('배정된 회원이 없습니다.', inset: false)
         else
-          for (int i = 0; i < members.length; i++) ...[
-            if (i > 0) const AppRowDivider(),
-            _MemberRowItem(
-              member: members[i],
-              ptInfo: ptInfos[members[i].uid],
-              onTap: () => Navigator.of(context).pop(members[i]),
+          for (final member in members)
+            Builder(
+              builder: (context) {
+                final pt = ptInfos[member.uid];
+                return AppListRow(
+                  title: member.name,
+                  subtitle: pt == null
+                      ? 'PT 이용권 없음'
+                      : 'PT ${pt.remainingSessions} / ${pt.totalSessions}회 남음',
+                  subtitleColor: AppColors.body,
+                  height: 60,
+                  padded: false,
+                  chevron: true,
+                  onTap: () => Navigator.of(context).pop(member),
+                );
+              },
             ),
-          ],
       ],
-    );
-  }
-}
-
-// ── _MemberRowItem ────────────────────────────────────────────────────────────
-
-/// 배정 회원 한 줄: 이름 + PT 잔여 + 화살표.
-class _MemberRowItem extends StatelessWidget {
-  final AppUser member;
-  final PtInfo? ptInfo;
-  final VoidCallback onTap;
-
-  const _MemberRowItem({
-    required this.member,
-    required this.ptInfo,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final pt = ptInfo;
-    final ptLabel = pt == null
-        ? 'PT 이용권 없음'
-        : 'PT ${pt.remainingSessions} / ${pt.totalSessions}회 남음';
-    return Semantics(
-      button: true,
-      label: '${member.name}, $ptLabel',
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppSize.listRow),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        member.name,
-                        style: AppTextStyles.bodyLg,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        ptLabel,
-                        style: AppTextStyles.bodySm.copyWith(
-                          color: AppColors.body,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  AppIcons.forward,
-                  size: AppSize.icon,
-                  color: AppColors.mute,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

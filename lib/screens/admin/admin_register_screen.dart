@@ -152,7 +152,8 @@ class _AdminRegisterScreenState extends State<AdminRegisterScreen> {
                             const Gap(14),
                             AppTextField(
                               label: '비밀번호',
-                              hint: '8자 이상 입력해주세요',
+                              hint:
+                                  '${AdminSetupService.passwordMinLength}자 이상 입력해주세요',
                               controller: _passwordController,
                               obscureText: true,
                               validator: (v) => Validators.password(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 
@@ -15,6 +16,9 @@ class AppHero extends StatelessWidget {
   final bool divider;
   final double bottomGap;
 
+  /// 제목 바로 뒤 개수 28/400 mute, 8 띄움 (기준 시안 AdminMembers '회원 128')
+  final String? count;
+
   const AppHero({
     super.key,
     required this.title,
@@ -22,6 +26,7 @@ class AppHero extends StatelessWidget {
     this.leading,
     this.divider = false,
     this.bottomGap = AppSpacing.base,
+    this.count,
   });
 
   @override
@@ -49,8 +54,22 @@ class AppHero extends StatelessWidget {
             Expanded(
               child: Semantics(
                 header: true,
-                child: Text(
-                  title,
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: title),
+                      if (count != null) ...[
+                        const WidgetSpan(child: SizedBox(width: AppSpacing.sm)),
+                        TextSpan(
+                          text: count,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.mute,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                   style: AppTextStyles.displayMd.bold,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -70,6 +89,8 @@ class AppHero extends StatelessWidget {
 /// - [strong]: 17/500 ink 라벨, 여백 20 20 4 (시안 MemA-PtSchedule·Stats·Workout '저장된 기록',
 ///   회원·트레이너 캘린더의 고른 날 머리말 등)
 /// - [bold]: [strong]을 Bold로, 오른쪽 개수도 15 ink Bold (기준 시안 TrainerHome '혼자 운동한 회원 3명')
+/// - [strongCount]: 개수를 15/500 ink로, [unit]은 그 뒤 400 mute (시안 Ad-* '8명'·'12건')
+/// - [actionLabel]: 오른쪽 끝 글자 링크 15 body + 16 Bold 화살표(chevron), 터치 44 (시안 'PT 정보 수정 ›')
 class AppMonthHeader extends StatelessWidget {
   final String label;
   final String? count;
@@ -77,6 +98,10 @@ class AppMonthHeader extends StatelessWidget {
   final Widget? trailing;
   final bool strong;
   final bool bold;
+  final bool strongCount;
+  final String? unit;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   const AppMonthHeader({
     super.key,
@@ -86,6 +111,10 @@ class AppMonthHeader extends StatelessWidget {
     this.trailing,
     this.strong = false,
     this.bold = false,
+    this.strongCount = false,
+    this.unit,
+    this.actionLabel,
+    this.onAction,
   });
 
   @override
@@ -97,6 +126,8 @@ class AppMonthHeader extends StatelessWidget {
         : AppTextStyles.eyebrow;
     final countStyle = bold
         ? AppTextStyles.bodyMd.bold.natural
+        : strongCount
+        ? AppTextStyles.bodyMd.medium
         : AppTextStyles.eyebrow;
     return Padding(
       padding:
@@ -124,12 +155,69 @@ class AppMonthHeader extends StatelessWidget {
               child: Text(label, style: labelStyle),
             ),
           ),
-          if (count != null) Text(count!, style: countStyle),
+          if (count != null)
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: count),
+                  if (unit != null)
+                    TextSpan(
+                      text: unit,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.mute,
+                      ),
+                    ),
+                ],
+              ),
+              style: countStyle,
+            ),
           if (trailing != null) ...[
             const SizedBox(width: AppSpacing.sm),
             trailing!,
           ],
+          if (actionLabel != null && onAction != null)
+            _HeaderLink(label: actionLabel!, onTap: onAction!),
         ],
+      ),
+    );
+  }
+}
+
+/// 머리말 오른쪽 글자 링크: 15 body + 4 + 16 Bold 화살표(chevron). 터치 높이 44.
+class _HeaderLink extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _HeaderLink({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: AppSize.touchMin,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Icon(
+                AppIcons.chevronRightBold,
+                size: 16,
+                color: AppColors.chevron,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
