@@ -59,9 +59,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _load();
   }
 
-  Future<void> _load() async {
+  /// [quiet]면 보이던 내용을 두고 새로 고친다 (당겨서 새로고침). 달을 바꾸면 로딩을 보인다.
+  Future<void> _load({bool quiet = false}) async {
     final requestId = ++_requestId;
-    setState(() => _loading = true);
+    if (!quiet || _stats == null) setState(() => _loading = true);
     final user = context.read<UserProvider>().user;
     if (user == null) {
       setState(() => _loading = false);
@@ -80,6 +81,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } catch (e) {
       AppLogger.debug('[AdminDashboard] 관리자 대시보드 로드 실패: $e');
       if (!mounted || requestId != _requestId) return;
+      if (quiet && _stats != null) {
+        AppFeedback.showErrorSnackBar(context, e);
+        return;
+      }
       setState(() {
         _stats = null;
         _loadError = '데이터를 불러올 수 없습니다.';
@@ -119,7 +124,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _load,
+                onRefresh: () => _load(quiet: true),
                 color: AppColors.ink,
                 backgroundColor: AppColors.canvasCard,
                 child: CustomScrollView(

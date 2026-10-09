@@ -60,15 +60,34 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   late final List<Widget> _pages;
 
+  // 탭을 옮기면 그 탭을 다시 불러온다 (홈에서 승인·배정한 결과가 회원·트레이너 탭에 바로 보이게).
+  final _homeKey = GlobalKey<_AdminDashboardTabState>();
+  final _membersKey = GlobalKey<AdminMemberListScreenState>();
+  final _trainersKey = GlobalKey<AdminTrainerListScreenState>();
+
   @override
   void initState() {
     super.initState();
     _pages = [
-      const _AdminDashboardTab(),
-      const AdminMemberListScreen(),
-      const AdminTrainerListScreen(),
+      _AdminDashboardTab(key: _homeKey),
+      AdminMemberListScreen(key: _membersKey),
+      AdminTrainerListScreen(key: _trainersKey),
       const _AdminProfileTab(),
     ];
+  }
+
+  void _selectTab(int i) {
+    if (i != _currentIndex) {
+      switch (i) {
+        case 0:
+          _homeKey.currentState?.refresh();
+        case 1:
+          _membersKey.currentState?.refresh();
+        case 2:
+          _trainersKey.currentState?.refresh();
+      }
+    }
+    setState(() => _currentIndex = i);
   }
 
   @override
@@ -78,7 +97,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: AppNavBar(
         currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
+        onTap: _selectTab,
         items: _navItems,
       ),
     );
@@ -90,7 +109,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AdminDashboardTab extends StatefulWidget {
-  const _AdminDashboardTab();
+  const _AdminDashboardTab({super.key});
 
   @override
   State<_AdminDashboardTab> createState() => _AdminDashboardTabState();
@@ -100,6 +119,7 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
   int _pendingCount = 0;
   AdminStats? _stats;
   bool _isLoading = false;
+  bool _loadedOnce = false;
   String? _loadError;
 
   @override
@@ -111,7 +131,8 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
   Future<void> _load() async {
     final user = context.read<UserProvider>().user;
     if (user == null) return;
-    setState(() => _isLoading = true);
+    // 처음에만 화면 전체를 로딩으로 바꾼다 (당겨서 새로고침·돌아와서 다시 불러올 때는 보이던 내용을 그대로 둔다).
+    if (!_loadedOnce) setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
         FirestoreService.getPendingRequests(user.centerId),
@@ -124,15 +145,22 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
         _pendingCount = requests.length;
         _stats = stats;
         _loadError = null;
+        _loadedOnce = true;
       });
     } catch (e) {
       AppLogger.debug('[AdminHome] 관리자 홈 로드 실패: $e');
       if (!mounted) return;
-      setState(() => _loadError = '데이터를 불러올 수 없습니다.');
+      if (_loadedOnce) {
+        AppFeedback.showErrorSnackBar(context, e);
+      } else {
+        setState(() => _loadError = '데이터를 불러올 수 없습니다.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  Future<void> refresh() => _load();
 
   /// 하위 화면에서 승인·PT 등록 등을 했을 수 있으므로 돌아오면 홈 숫자를 다시 불러온다.
   Future<void> _push(Widget screen) async {

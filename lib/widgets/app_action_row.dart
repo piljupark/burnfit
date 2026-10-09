@@ -206,7 +206,6 @@ class AppPlainRow extends StatelessWidget {
 /// 아이콘 상자 없이 제목 16/500 + (3) 보조 줄 13 mute + 오른쪽([trailing] 또는 18 Bold 화살표).
 /// 좌우 20 안쪽에 놓이고 아래 1px hairline도 그 안쪽에만 긋는다 (마지막 줄 포함).
 /// - [height]: 최소 높이 (68 · 64 · 60, 글자가 커지면 늘어난다)
-/// - [subtitleLead]: 보조 줄 앞 강조 글자 (noticeText 500, 예: '승인 대기 · ')
 /// - [note]: 셋째 줄 13 body (예: 변경 사유)
 /// - [leading]: 왼쪽 칸 (예: 날짜 52) — 있으면 줄을 위로 붙이고 위아래 [verticalPadding]
 /// - [dimmed]: 제목을 faint로 (만료·취소)
@@ -215,7 +214,6 @@ class AppPlainRow extends StatelessWidget {
 class AppListRow extends StatelessWidget {
   final String title;
   final String? subtitle;
-  final String? subtitleLead;
   final Color? subtitleColor;
   final String? note;
 
@@ -237,7 +235,6 @@ class AppListRow extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle,
-    this.subtitleLead,
     this.subtitleColor,
     this.note,
     this.noteColor,
@@ -270,22 +267,10 @@ class AppListRow extends StatelessWidget {
             color: dimmed ? AppColors.faint : null,
           ),
         ),
-        if (subtitle != null || subtitleLead != null) ...[
+        if (subtitle != null) ...[
           const SizedBox(height: 3),
-          Text.rich(
-            TextSpan(
-              children: [
-                if (subtitleLead != null)
-                  TextSpan(
-                    text: subtitleLead,
-                    style: const TextStyle(
-                      color: AppColors.noticeText,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                if (subtitle != null) TextSpan(text: subtitle),
-              ],
-            ),
+          Text(
+            subtitle!,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.bodySm.copyWith(color: subtitleColor),

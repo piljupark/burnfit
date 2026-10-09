@@ -24,9 +24,13 @@ async function prepareRetention(db, userRef, uid, nowMs = Date.now()) {
   if (existing?.memberAlias && existing?.expireAt) return existing;
 
   const ptInfos = await db.collection('pt_infos').where('memberId', '==', uid).get();
+  const user = snap.data() ?? {};
   const prep = {
     memberAlias: `withdrawn_${crypto.randomUUID()}`,
     expireAt: Timestamp.fromDate(retentionExpiry(ptInfos.docs.map((d) => d.data()), nowMs)),
+    // 탈퇴 직전 담당 (보관 계약에 담당 이름을 남기는 데만 쓴다)
+    trainerId: typeof user.trainerId === 'string' ? user.trainerId : null,
+    trainerName: typeof user.trainerName === 'string' ? user.trainerName : null,
   };
   if (snap.exists) await userRef.update({ deletionPrep: prep });
   return prep;
@@ -51,6 +55,7 @@ async function moveToRetention(db, source, uid, prep) {
         memberAlias: prep.memberAlias,
         retainedAt: FieldValue.serverTimestamp(),
         expireAt: prep.expireAt,
+        memberTrainer: { id: prep.trainerId ?? null, name: prep.trainerName ?? null },
       });
       batch.set(db.collection(RETAINED_COLLECTION).doc(id), record);
       batch.delete(doc.ref);

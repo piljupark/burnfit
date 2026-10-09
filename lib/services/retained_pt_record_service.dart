@@ -13,6 +13,10 @@ class RetainedPtRecordService {
     'retained_pt_records',
   );
 
+  /// 한 번에 읽는 최대 건수 (보관 기록이 아주 많아져도 화면이 한꺼번에 다 읽지 않게)
+  static const contractLimit = 500;
+  static const recordLimit = 1000;
+
   /// 센터의 탈퇴 회원 목록 (PT 계약 기록 기준, 최근 탈퇴 순).
   static Future<List<WithdrawnMemberSummary>> getWithdrawnMembers(
     String centerId,
@@ -21,6 +25,7 @@ class RetainedPtRecordService {
     final snap = await _collection
         .where('centerId', isEqualTo: centerId)
         .where('kind', isEqualTo: RetainedPtRecordKind.ptInfo.value)
+        .limit(contractLimit)
         .get();
     return WithdrawnMemberSummary.group(
       snap.docs.map((d) => RetainedPtRecord.fromMap(d.id, d.data())),
@@ -37,6 +42,7 @@ class RetainedPtRecordService {
     final snap = await _collection
         .where('centerId', isEqualTo: centerId)
         .where('memberAlias', isEqualTo: memberAlias)
+        .limit(recordLimit)
         .get();
     final records =
         snap.docs.map((d) => RetainedPtRecord.fromMap(d.id, d.data())).toList()

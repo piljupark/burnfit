@@ -262,6 +262,25 @@ exports.onNoticeCreated = onDocumentCreated(
     const roles = notices.noticeRecipientRoles(notice.audience);
     if (roles.length === 0 || typeof notice.centerId !== 'string') return;
 
+    // 센터마다 하루 상한: 넘으면 공지는 남고 알림만 보내지 않는다 (서버 전용 문서, 앱은 읽지도 쓰지도 못한다).
+    const quotaRef = db.collection('notice_push_quota')
+      .doc(`${notice.centerId}_${notices.noticePushDayKey(new Date())}`);
+    const allowed = await db.runTransaction(async (tx) => {
+      const quota = await tx.get(quotaRef);
+      const sent = quota.exists ? quota.data().count : 0;
+      if (!notices.canSendNoticePush(sent)) return false;
+      tx.set(quotaRef, {
+        centerId: notice.centerId,
+        count: (Number.isInteger(sent) ? sent : 0) + 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return true;
+    });
+    if (!allowed) {
+      console.warn(`[onNoticeCreated] ${notice.centerId} 오늘 공지 알림 상한(${notices.DAILY_NOTICE_PUSH_LIMIT}) — 알림 생략`);
+      return;
+    }
+
     const snap = await db.collection('users')
       .where('centerId', '==', notice.centerId)
       .where('status', '==', 'approved')

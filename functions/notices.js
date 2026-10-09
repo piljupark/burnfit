@@ -30,4 +30,29 @@ function buildNoticeMessage(notice) {
   };
 }
 
-module.exports = { noticeRecipientRoles, isNoticeRecipient, buildNoticeMessage };
+/** 센터마다 하루에 보낼 수 있는 공지 푸시 수 (반복 등록으로 전원에게 알림이 쏟아지지 않게). */
+const DAILY_NOTICE_PUSH_LIMIT = 10;
+
+/** 한국 시간 기준 날짜 열쇠 'YYYYMMDD' (하루 횟수를 세는 단위). */
+function noticePushDayKey(date) {
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  const y = kst.getUTCFullYear();
+  const m = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(kst.getUTCDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
+}
+
+/** 오늘 이미 보낸 수가 [sentToday]일 때 하나 더 보내도 되는지. */
+function canSendNoticePush(sentToday, limit = DAILY_NOTICE_PUSH_LIMIT) {
+  const n = Number.isInteger(sentToday) && sentToday > 0 ? sentToday : 0;
+  return n < limit;
+}
+
+module.exports = {
+  noticeRecipientRoles,
+  isNoticeRecipient,
+  buildNoticeMessage,
+  DAILY_NOTICE_PUSH_LIMIT,
+  noticePushDayKey,
+  canSendNoticePush,
+};

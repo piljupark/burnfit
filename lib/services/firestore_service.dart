@@ -149,7 +149,16 @@ class FirestoreService {
         .where('centerId', isEqualTo: centerId)
         .where('status', isEqualTo: 'pending')
         .get();
-    return snap.docs.map((d) => JoinRequest.fromMap(d.data())).toList();
+    // 형식이 잘못된 요청 문서 하나 때문에 목록 전체가 깨지지 않게 그 문서만 건너뛴다.
+    final requests = <JoinRequest>[];
+    for (final d in snap.docs) {
+      try {
+        requests.add(JoinRequest.fromMap(d.data()));
+      } catch (e) {
+        AppLogger.debug('[getPendingRequests] 잘못된 가입 요청 건너뜀 ${d.id}: $e');
+      }
+    }
+    return requests;
   }
 
   static Future<void> approveJoinRequest(
@@ -226,47 +235,82 @@ class FirestoreService {
     if (start != null && end != null && end.isBefore(start)) {
       throw ArgumentError('종료일이 시작일보다 앞설 수 없습니다.');
     }
+    // 새 PT권은 회원당 하나 — 문서 이름이 회원 ID다 (규칙도 같은 것을 요구한다).
+    if (previousInfo == null && info.id != info.memberId) {
+      throw ArgumentError('새 PT권 ID는 회원 ID여야 합니다.');
+    }
     final ptInfoRef = _db.collection('pt_infos').doc(info.id);
     final logRef = _db.collection('pt_info_logs').doc();
+
+    if (previousInfo == null) {
+      // 새 등록: 아직 없는 문서는 (센터를 알 수 없어) 읽기 규칙이 막으므로 미리 읽지 않고 한 배치로 쓴다.
+      // 그 사이 다른 관리자가 먼저 만들었다면 이 쓰기는 '수정'이 되어 규칙이 거절한다 (문서 이름 = 회원 ID).
+      final batch = _db.batch();
+      batch.set(ptInfoRef, {...info.toMap(), 'lastLogId': logRef.id});
+      batch.set(
+        logRef,
+        _buildPtInfoLog(
+          id: logRef.id,
+          info: info,
+          previous: null,
+          type: PtInfoLogType.created,
+          changedById: changedById,
+          changedByName: changedByName,
+          note: note,
+        ).toCreateMap(),
+      );
+      try {
+        await batch.commit();
+      } on FirebaseException catch (e) {
+        if (e.code == 'permission-denied') {
+          throw ArgumentError('이미 PT가 등록되어 있을 수 있습니다. 화면을 다시 열어 확인해주세요.');
+        }
+        rethrow;
+      }
+      return;
+    }
 
     await _db.runTransaction((transaction) async {
       final snap = await transaction.get(ptInfoRef);
       final current = snap.exists ? PtInfo.fromMap(snap.data()!) : null;
-      if (current != null &&
-          previousInfo != null &&
-          current.remainingSessions != previousInfo.remainingSessions) {
+      if (current == null) {
+        throw ArgumentError('PT 정보를 찾을 수 없습니다. 화면을 다시 열어 확인해주세요.');
+      }
+      if (current.remainingSessions != previousInfo.remainingSessions) {
         throw ArgumentError(
           '그 사이 PT 잔여 횟수가 ${current.remainingSessions}회로 바뀌었습니다. 화면을 다시 열어 확인해주세요.',
         );
       }
-      if (current == null) {
-        transaction.set(ptInfoRef, info.toMap());
-      } else {
-        final map = info.toMap();
-        transaction.update(ptInfoRef, {
-          for (final key in const [
-            'trainerId',
-            'startDate',
-            'endDate',
-            'totalSessions',
-            'remainingSessions',
-            'renewalDate',
-          ])
-            key: map[key],
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+      if (current.totalSessions != previousInfo.totalSessions ||
+          current.updatedAt != previousInfo.updatedAt) {
+        throw ArgumentError('그 사이 다른 사람이 PT 정보를 바꿨습니다. 화면을 다시 열어 확인해주세요.');
       }
+      final map = info.toMap();
+      transaction.update(ptInfoRef, {
+        for (final key in const [
+          'trainerId',
+          'startDate',
+          'endDate',
+          'totalSessions',
+          'remainingSessions',
+          'renewalDate',
+        ])
+          key: map[key],
+        // 같은 쓰기의 변경 기록을 가리킨다 (기록 없이 PT권만 바뀌지 않게 규칙이 확인한다)
+        'lastLogId': logRef.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
       transaction.set(
         logRef,
         _buildPtInfoLog(
           id: logRef.id,
           info: info,
           previous: current,
-          type: current == null ? PtInfoLogType.created : PtInfoLogType.updated,
+          type: PtInfoLogType.updated,
           changedById: changedById,
           changedByName: changedByName,
           note: note,
-        ).toMap(),
+        ).toCreateMap(),
       );
     });
   }
@@ -507,7 +551,15 @@ class FirestoreService {
         .orderBy('createdAt', descending: true)
         .limit(limit)
         .get();
-    return snap.docs.map((d) => PtInfoLog.fromMap(d.data())).toList();
+    final logs = <PtInfoLog>[];
+    for (final d in snap.docs) {
+      try {
+        logs.add(PtInfoLog.fromMap(d.data()));
+      } catch (e) {
+        AppLogger.debug('[getPtInfoLogs] 잘못된 변경 기록 건너뜀 ${d.id}: $e');
+      }
+    }
+    return logs;
   }
 
   static Future<List<PtSession>> getPtSessionsByMember(
@@ -640,19 +692,25 @@ class FirestoreService {
 
   /// 회원 담당 트레이너 배정·변경: 회원 문서, PT권, 앞으로의 예약 일정을 한 번에 바꾼다.
   /// 조회에 centerId를 넣어야 관리자 읽기 규칙(isCenterAdmin)이 조회를 허용한다.
-  static Future<void> assignTrainer({
+  /// 담당 트레이너 배정: 회원 · 남은 예약 · PT권의 담당을 함께 바꾸고 '담당 변경' 기록을 남긴다.
+  /// 이미 그 트레이너가 담당이면 아무것도 쓰지 않는다 (false).
+  static Future<bool> assignTrainer({
     required String centerId,
     required String memberId,
     required String trainerId,
     required String trainerName,
+    required String changedById,
+    required String changedByName,
   }) async {
     ServiceValidator.requireText(centerId, '센터 ID');
     ServiceValidator.requireText(memberId, '회원 ID');
     ServiceValidator.requireText(trainerId, '트레이너 ID');
     ServiceValidator.requireText(trainerName, '트레이너 이름');
+    ServiceValidator.requireText(changedById, '처리자 ID');
 
     final memberRef = _db.collection('users').doc(memberId);
     final results = await Future.wait([
+      memberRef.get(),
       _db
           .collection('pt_infos')
           .where('centerId', isEqualTo: centerId)
@@ -665,35 +723,65 @@ class FirestoreService {
           .where('status', isEqualTo: PtSessionStatus.scheduled.name)
           .get(),
     ]);
-    final ptInfoRefs = results[0].docs.map((d) => d.reference).toList();
-    final sessionRefs = results[1].docs.map((d) => d.reference).toList();
+    final member = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+    final ptInfoDocs = (results[1] as QuerySnapshot<Map<String, dynamic>>).docs;
+    final sessionRefs = (results[2] as QuerySnapshot<Map<String, dynamic>>).docs
+        .map((d) => d.reference)
+        .toList();
+    final memberData = member.data();
+    if (memberData == null) throw ArgumentError('회원 정보를 찾을 수 없습니다.');
+    final previousTrainerId = memberData['trainerId'] as String?;
+    if (previousTrainerId == trainerId) return false;
+    final previousTrainerName = memberData['trainerName'] as String?;
+
+    final pt = ptInfoDocs.isEmpty
+        ? null
+        : PtInfo.fromMap(ptInfoDocs.first.data());
+    final logRef = _db.collection('pt_info_logs').doc();
+    final log = PtInfoLog(
+      id: logRef.id,
+      ptInfoId: pt?.id ?? '',
+      centerId: centerId,
+      memberId: memberId,
+      memberName: memberData['name'] as String? ?? '',
+      changedById: changedById,
+      changedByName: changedByName,
+      type: PtInfoLogType.trainerChanged,
+      previousTotalSessions: pt?.totalSessions ?? 0,
+      nextTotalSessions: pt?.totalSessions ?? 0,
+      previousRemainingSessions: pt?.remainingSessions ?? 0,
+      nextRemainingSessions: pt?.remainingSessions ?? 0,
+      note: '${previousTrainerName ?? '없음'} → $trainerName',
+      previousTrainerId: previousTrainerId,
+      nextTrainerId: trainerId,
+      createdAt: DateTime.now(),
+    );
 
     final assigned = {
       'trainerId': trainerId,
       'trainerName': trainerName,
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    // 일반적으로 한 배치(500건) 안에 들어가므로 중간에 일부만 바뀌는 일이 없다.
-    if (1 + ptInfoRefs.length + sessionRefs.length <= 450) {
-      final batch = _db.batch();
-      batch.update(memberRef, assigned);
-      for (final ref in sessionRefs) {
-        batch.update(ref, assigned);
-      }
-      for (final ref in ptInfoRefs) {
-        batch.update(ref, {
-          'trainerId': trainerId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-      await batch.commit();
-      return;
+    // 회원 · 담당 변경 기록 · PT권은 한 배치로 (규칙이 기록과 회원 변경을 함께 확인한다).
+    final batch = _db.batch();
+    batch.update(memberRef, assigned);
+    batch.set(logRef, log.toCreateMap());
+    for (final d in ptInfoDocs) {
+      batch.update(d.reference, {
+        'trainerId': trainerId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     }
-    await _commitInChunks([memberRef, ...sessionRefs], assigned);
-    await _commitInChunks(ptInfoRefs, {
-      'trainerId': trainerId,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    // 예약은 대개 함께 넣는다. 아주 많으면 나머지를 나눠 쓴다.
+    const batchLimit = 450;
+    final room = batchLimit - 2 - ptInfoDocs.length;
+    final inFirst = sessionRefs.take(room < 0 ? 0 : room).toList();
+    for (final ref in inFirst) {
+      batch.update(ref, assigned);
+    }
+    await batch.commit();
+    await _commitInChunks(sessionRefs.skip(inFirst.length).toList(), assigned);
+    return true;
   }
 
   /// 센터의 승인된 회원·트레이너 수 (문서를 읽지 않고 개수만 센다 — 공지 대상 안내용).

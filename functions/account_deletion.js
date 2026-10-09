@@ -22,7 +22,7 @@ const MEMBER_RETAINED_SOURCES = [
     collection: 'pt_infos',
     kind: 'pt_info',
     keep: [
-      'centerId', 'trainerId', 'startDate', 'endDate', 'totalSessions',
+      'centerId', 'trainerId', 'trainerName', 'startDate', 'endDate', 'totalSessions',
       'remainingSessions', 'renewalDate', 'createdAt', 'updatedAt',
     ],
   },
@@ -146,11 +146,24 @@ function retentionExpiry(ptInfos, nowMs) {
   return base;
 }
 
-/** 보관용 문서. 원본 문서 ID를 키로 써서 재시도해도 중복되지 않는다. */
-function buildRetainedRecord({ source, sourceId, data, memberAlias, retainedAt, expireAt }) {
+/**
+ * 보관용 문서. 원본 문서 ID를 키로 써서 재시도해도 중복되지 않는다.
+ * PT 계약에는 담당 이름이 없으므로, 탈퇴 직전 회원의 담당이 그 계약의 담당과 같으면
+ * 그 이름([memberTrainer])을 함께 남긴다 (트레이너가 나중에 바뀌거나 퇴사해도 기록에서 알아볼 수 있게).
+ */
+function buildRetainedRecord({ source, sourceId, data, memberAlias, retainedAt, expireAt, memberTrainer }) {
   const kept = {};
   for (const field of source.keep) {
     if (data[field] !== undefined) kept[field] = data[field];
+  }
+  if (
+    source.kind === 'pt_info' &&
+    kept.trainerName === undefined &&
+    typeof memberTrainer?.name === 'string' &&
+    memberTrainer.id != null &&
+    memberTrainer.id === data.trainerId
+  ) {
+    kept.trainerName = memberTrainer.name;
   }
   return {
     id: `${source.kind}_${sourceId}`,

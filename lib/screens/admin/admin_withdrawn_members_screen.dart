@@ -44,6 +44,7 @@ class _AdminWithdrawnMembersScreenState
   List<WithdrawnMemberSummary> _members = [];
   Map<String, String> _trainerNames = {};
   bool _isLoading = false;
+  bool _loadedOnce = false;
   String? _errorMessage;
 
   @override
@@ -55,7 +56,8 @@ class _AdminWithdrawnMembersScreenState
   Future<void> _load() async {
     final user = context.read<UserProvider>().user;
     if (user == null) return;
-    setState(() => _isLoading = true);
+    // 처음에만 화면 전체를 로딩으로 바꾼다 (당겨서 새로고침·돌아와서 다시 불러올 때는 보이던 내용을 그대로 둔다).
+    if (!_loadedOnce) setState(() => _isLoading = true);
     try {
       // 함께 시작하고, 실패하면 원래 오류를 그대로 받는다 (오류 문구 매핑 유지).
       final membersFuture = RetainedPtRecordService.getWithdrawnMembers(
@@ -72,18 +74,30 @@ class _AdminWithdrawnMembersScreenState
         _members = members;
         _trainerNames = {for (final t in trainers) t.uid: t.name};
         _errorMessage = null;
+        _loadedOnce = true;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      if (_loadedOnce) {
+        // 이미 보이는 내용은 두고 알리기만 한다
+        AppFeedback.showErrorSnackBar(context, e);
+      } else {
+        setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  String _trainerLabel(Set<String> ids) {
-    if (ids.isEmpty) return '미배정';
-    return ids.map((id) => _trainerNames[id] ?? '퇴사한 트레이너').join(', ');
+  /// 계약마다 남겨 둔 담당 이름을 먼저 쓰고, 없으면 지금 트레이너 목록에서 찾는다.
+  String _trainerLabel(WithdrawnMemberSummary member) {
+    final names = <String>{};
+    for (final c in member.contracts) {
+      final id = c.trainerId;
+      if (id == null) continue;
+      names.add(c.trainerName ?? _trainerNames[id] ?? '퇴사한 트레이너');
+    }
+    return names.isEmpty ? '미배정' : names.join(', ');
   }
 
   void _openDetail(WithdrawnMemberSummary member) {
@@ -153,7 +167,7 @@ class _AdminWithdrawnMembersScreenState
                       delay: Duration(milliseconds: 50 * (i < 10 ? i : 10)),
                       child: _WithdrawnMemberRow(
                         member: _members[i],
-                        trainerLabel: _trainerLabel(_members[i].trainerIds),
+                        trainerLabel: _trainerLabel(_members[i]),
                         onTap: () => _openDetail(_members[i]),
                       ),
                     ),
@@ -298,6 +312,7 @@ class _AdminWithdrawnMemberDetailScreenState
     extends State<AdminWithdrawnMemberDetailScreen> {
   List<RetainedPtRecord> _records = [];
   bool _isLoading = false;
+  bool _loadedOnce = false;
   String? _errorMessage;
 
   List<RetainedPtRecord> _ofKind(RetainedPtRecordKind kind) =>
@@ -312,7 +327,8 @@ class _AdminWithdrawnMemberDetailScreenState
   Future<void> _load() async {
     final user = context.read<UserProvider>().user;
     if (user == null) return;
-    setState(() => _isLoading = true);
+    // 처음에만 화면 전체를 로딩으로 바꾼다 (당겨서 새로고침·돌아와서 다시 불러올 때는 보이던 내용을 그대로 둔다).
+    if (!_loadedOnce) setState(() => _isLoading = true);
     try {
       final records = await RetainedPtRecordService.getMemberRecords(
         centerId: user.centerId,
@@ -322,10 +338,16 @@ class _AdminWithdrawnMemberDetailScreenState
       setState(() {
         _records = records;
         _errorMessage = null;
+        _loadedOnce = true;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      if (_loadedOnce) {
+        // 이미 보이는 내용은 두고 알리기만 한다
+        AppFeedback.showErrorSnackBar(context, e);
+      } else {
+        setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

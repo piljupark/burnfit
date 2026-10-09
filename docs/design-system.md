@@ -77,7 +77,7 @@
 | `AppEmptyState` | 그림 + 20 제목 + 설명 + (선택) 주 행동 — 화면 전체가 빈 경우 |
 | `AppEmptyLine` | 목록 자리의 짧은 빈 상태 한 줄: 52 높이, 14 mute ("이 날의 기록이 없습니다") |
 | `AppEmptyState(compact:)` | 작은 빈 상태 (시안 Ad-*-Empty): 아이콘 48 faint가 떠다니고(-5, 2.6s) 12 아래 17/500 제목, 위 여백 `top` |
-| `AppListRow` · `AppDateCell` (`app_action_row.dart`) | 아이콘 상자 없는 두 줄 목록 줄 (관리자 회원·트레이너·탈퇴·이력): 68/64/60 · 제목 16/500 · 보조 13 mute(앞 강조 `subtitleLead`) · 셋째 줄 `note` · 오른쪽 상태 글자 또는 18 Bold 화살표, 아래 선은 좌우 20 안쪽(마지막 줄 포함). 왼쪽 날짜 칸 52(위 16/500 · 아래 12 mute) |
+| `AppListRow` · `AppDateCell` (`app_action_row.dart`) | 아이콘 상자 없는 두 줄 목록 줄 (관리자 회원·트레이너·탈퇴·이력): 68/64/60 · 제목 16/500 · 보조 13 mute · 셋째 줄 `note` · 오른쪽 상태 글자 또는 18 Bold 화살표, 아래 선은 좌우 20 안쪽(마지막 줄 포함). 왼쪽 날짜 칸 52(위 16/500 · 아래 12 mute) |
 | `AppAccentBar` | 강조 띠 64 (관리자 홈 '가입 요청 3건'): 주황 · 반경 18 · 아이콘 24 · 17/500 · '확인하기' 15/500 · 18 Bold 화살표. `muted`(회색, 할 일 없음) · `ring`(종 흔들림) · `bold` |
 | `AppRing` · `AppRankBar` · `AppColumnChart` (`app_charts.dart`) | 대시보드 그래프: 완료율 고리 112(선 12 · 1.4s 차오름), 순위 가로 막대(6 · 바탕 navLine), 주별 세로 막대(반경 10 · 이번 주 주황) |
 | `AppSwitch` · `AppSwitchRow` (`app_switch.dart`) | 시안 스위치 52×32(켜짐 primary), 스위치 줄 68(라벨 16 · 설명 13 mute, 줄 전체가 토글) — 회원 공유 설정·공지 작성 |

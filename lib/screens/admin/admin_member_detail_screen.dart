@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
@@ -55,6 +54,7 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
   List<PtInfoLog> _ptInfoLogs = [];
   List<AppUser> _trainers = [];
   bool _isLoading = false;
+  bool _loadedOnce = false;
   bool _isSaving = false;
   String? _errorMessage;
 
@@ -84,7 +84,8 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
   Future<void> _load() async {
     final admin = context.read<UserProvider>().user;
     if (admin == null) return;
-    setState(() => _isLoading = true);
+    // 처음에만 화면 전체를 로딩으로 바꾼다 (당겨서 새로고침·돌아와서 다시 불러올 때는 보이던 내용을 그대로 둔다).
+    if (!_loadedOnce) setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
         FirestoreService.getPtInfo(_member.uid, centerId: _member.centerId),
@@ -101,11 +102,17 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
         _trainers = results[1] as List<AppUser>;
         _ptInfoLogs = results[2] as List<PtInfoLog>;
         _errorMessage = null;
+        _loadedOnce = true;
         _resetDraft();
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      if (_loadedOnce) {
+        // 이미 보이는 내용은 두고 알리기만 한다
+        AppFeedback.showErrorSnackBar(context, e);
+      } else {
+        setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -241,6 +248,8 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
           memberId: _member.uid,
           trainerId: trainer.uid,
           trainerName: trainer.name,
+          changedById: admin?.uid ?? '',
+          changedByName: admin?.name ?? '',
         );
         if (!mounted) return;
         setState(() {
@@ -257,7 +266,8 @@ class _AdminMemberDetailScreenState extends State<AdminMemberDetailScreen> {
         final now = DateTime.now();
         final note = _noteController.text.trim();
         final info = PtInfo(
-          id: existing?.id ?? const Uuid().v4(),
+          // 새 PT권은 회원당 하나: 문서 이름이 회원 ID
+          id: existing?.id ?? _member.uid,
           centerId: _member.centerId,
           memberId: _member.uid,
           memberName: _member.name,
@@ -600,6 +610,9 @@ String _logTitle(PtInfoLog log) {
       return 'PT 완료 ${log.previousRemainingSessions} → ${log.nextRemainingSessions}회';
     case PtInfoLogType.sessionReopened:
       return '완료 취소 ${log.previousRemainingSessions} → ${log.nextRemainingSessions}회';
+    case PtInfoLogType.trainerChanged:
+      // note에 '이전 → 새 트레이너' 이름이 있다
+      return '담당 ${log.note?.trim().isNotEmpty == true ? log.note!.trim() : '변경'}';
     case PtInfoLogType.updated:
       final parts = [
         if (log.totalDiff != 0)
@@ -939,6 +952,7 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
 
   List<PtInfoLog> _logs = [];
   bool _isLoading = false;
+  bool _loadedOnce = false;
   String? _errorMessage;
 
   @override
@@ -948,7 +962,8 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _isLoading = true);
+    // 처음에만 화면 전체를 로딩으로 바꾼다 (당겨서 새로고침·돌아와서 다시 불러올 때는 보이던 내용을 그대로 둔다).
+    if (!_loadedOnce) setState(() => _isLoading = true);
     try {
       final logs = await FirestoreService.getPtInfoLogs(
         centerId: widget.member.centerId,
@@ -959,10 +974,16 @@ class _PtInfoLogScreenState extends State<_PtInfoLogScreen> {
       setState(() {
         _logs = logs;
         _errorMessage = null;
+        _loadedOnce = true;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      if (_loadedOnce) {
+        // 이미 보이는 내용은 두고 알리기만 한다
+        AppFeedback.showErrorSnackBar(context, e);
+      } else {
+        setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

@@ -6,7 +6,6 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
-import '../../core/app_text_styles.dart';
 import '../../models/user.dart';
 import '../../models/pt_info.dart';
 import '../../models/pt_session.dart';
@@ -26,13 +25,17 @@ class AdminTrainerListScreen extends StatefulWidget {
   const AdminTrainerListScreen({super.key});
 
   @override
-  State<AdminTrainerListScreen> createState() => _AdminTrainerListScreenState();
+  State<AdminTrainerListScreen> createState() => AdminTrainerListScreenState();
 }
 
-class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
+class AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
+  /// 탭을 다시 열 때 (관리자 셸이 부른다)
+  Future<void> refresh() => _load();
+
   List<AppUser> _trainers = [];
   List<AppUser> _filtered = [];
   bool _isLoading = false;
+  bool _loadedOnce = false;
   String? _errorMessage;
   final _searchController = TextEditingController();
 
@@ -52,7 +55,8 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
   Future<void> _load() async {
     final user = context.read<UserProvider>().user;
     if (user == null) return;
-    setState(() => _isLoading = true);
+    // 처음에만 화면 전체를 로딩으로 바꾼다 (당겨서 새로고침·돌아와서 다시 불러올 때는 보이던 내용을 그대로 둔다).
+    if (!_loadedOnce) setState(() => _isLoading = true);
     try {
       final list = await FirestoreService.getTrainersByCenter(user.centerId);
       if (!mounted) return;
@@ -60,10 +64,16 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
         _trainers = list;
         _filtered = list;
         _errorMessage = null;
+        _loadedOnce = true;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      if (_loadedOnce) {
+        // 이미 보이는 내용은 두고 알리기만 한다
+        AppFeedback.showErrorSnackBar(context, e);
+      } else {
+        setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -197,9 +207,6 @@ class _AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                       child: AppListRow(
                         title: _filtered[i].name,
                         subtitle: _filtered[i].email,
-                        subtitleLead: _filtered[i].isApproved
-                            ? null
-                            : '승인 대기 · ',
                         chevron: true,
                         onTap: () => _showTrainerDetail(_filtered[i]),
                       ),
@@ -249,22 +256,8 @@ class _TrainerDetailSheet extends StatelessWidget {
       children: [
         AppBottomSheetHeader(
           title: trainer.name,
-          subtitleWidget: Text.rich(
-            TextSpan(
-              children: [
-                if (!trainer.isApproved)
-                  const TextSpan(
-                    text: '승인 대기 · ',
-                    style: TextStyle(
-                      color: AppColors.noticeText,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                TextSpan(text: '${trainer.email} · $created 등록'),
-              ],
-            ),
-            style: AppTextStyles.fieldLabel,
-          ),
+          subtitle: '${trainer.email} · $created 등록',
+          mutedSubtitle: true,
         ),
         AppStatStrip(
           padded: false,

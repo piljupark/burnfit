@@ -37,6 +37,28 @@ function authedDb(uid, email = `${uid}@example.com`) {
   return testEnv.authenticatedContext(uid, { email }).firestore();
 }
 
+// 관리자 PT 변경 기록 (기본: 시드 PT권 30/12 그대로, 서버 시각)
+function ptLog(id, overrides = {}) {
+  return {
+    id,
+    ptInfoId,
+    centerId,
+    memberId,
+    memberName: '회원',
+    changedById: adminId,
+    changedByName: '관리자',
+    type: 'updated',
+    previousTotalSessions: 30,
+    nextTotalSessions: 30,
+    previousRemainingSessions: 12,
+    nextRemainingSessions: 12,
+    ptSessionId: null,
+    note: null,
+    createdAt: serverTimestamp(),
+    ...overrides,
+  };
+}
+
 function newUserDoc(overrides = {}) {
   return {
     uid: newUid,
@@ -255,22 +277,60 @@ describe('users / centers / pt_infos security rules', () => {
       }));
     });
 
-    it('관리자 PT권은 횟수가 올바라야 한다 (잔여 ≤ 전체, 0 이상 정수)', async () => {
-      const db = authedDb(adminId);
-      await assertFails(updateDoc(doc(db, 'pt_infos', ptInfoId), { remainingSessions: 31, updatedAt: new Date() }));
-      await assertFails(updateDoc(doc(db, 'pt_infos', ptInfoId), { remainingSessions: -1, updatedAt: new Date() }));
-      await assertSucceeds(updateDoc(doc(db, 'pt_infos', ptInfoId), { remainingSessions: 20, updatedAt: new Date() }));
+    it('관리자 PT권은 횟수가 올바라야 한다 (잔여 ≤ 전체, 전체 1 이상, 0 이상 정수)', async () => {
+      const edit = (fields, logId) => {
+        const db = authedDb(adminId);
+        const batch = writeBatch(db);
+        const next = { totalSessions: 30, remainingSessions: 12, ...fields };
+        batch.update(doc(db, 'pt_infos', ptInfoId), { ...fields, lastLogId: logId, updatedAt: serverTimestamp() });
+        batch.set(doc(db, 'pt_info_logs', logId), ptLog(logId, {
+          previousTotalSessions: 30, previousRemainingSessions: 12,
+          nextTotalSessions: next.totalSessions, nextRemainingSessions: next.remainingSessions,
+        }));
+        return batch.commit();
+      };
+      await assertFails(edit({ remainingSessions: 31 }, 'l1'));
+      await assertFails(edit({ remainingSessions: -1 }, 'l2'));
+      await assertFails(edit({ totalSessions: 0, remainingSessions: 0 }, 'l3'));
+      await assertSucceeds(edit({ remainingSessions: 20 }, 'l4'));
     });
 
-    it('PT 변경 기록은 관리자 본인 이름으로만 남길 수 있다', async () => {
-      const base = {
-        ptInfoId, centerId, memberId, memberName: '회원', changedByName: '관리자', type: 'updated',
-        previousTotalSessions: 30, nextTotalSessions: 30, previousRemainingSessions: 12,
-        nextRemainingSessions: 12, ptSessionId: null, note: null, createdAt: new Date(),
+    it('PT 변경 기록은 관리자 본인 이름 · 서버 시각으로, PT권 변경과 함께만 남길 수 있다', async () => {
+      const db = authedDb(adminId);
+      const withPt = (log) => {
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'pt_infos', ptInfoId), { remainingSessions: 11, lastLogId: log.id, updatedAt: serverTimestamp() });
+        batch.set(doc(db, 'pt_info_logs', log.id), log);
+        return batch.commit();
       };
-      await assertFails(setDoc(doc(authedDb(adminId), 'pt_info_logs', 'log-forged'), { ...base, id: 'log-forged', changedById: trainerId }));
-      await assertSucceeds(setDoc(doc(authedDb(adminId), 'pt_info_logs', 'log-ok'), { ...base, id: 'log-ok', changedById: adminId }));
-      await assertFails(setDoc(doc(authedDb(trainerId), 'pt_info_logs', 'log-t'), { ...base, id: 'log-t', changedById: trainerId }));
+      const changed = { nextRemainingSessions: 11 };
+      // 다른 사람 이름
+      await assertFails(withPt(ptLog('log-forged', { ...changed, changedById: trainerId })));
+      // 기기 시각
+      await assertFails(withPt(ptLog('log-time', { ...changed, createdAt: new Date(0) })));
+      // 숫자가 실제 변경과 다름
+      await assertFails(withPt(ptLog('log-lie', { nextRemainingSessions: 30 })));
+      // 서버만 쓰는 종류
+      await assertFails(withPt(ptLog('log-type', { ...changed, type: 'sessionCompleted' })));
+      // PT권 변경 없이 기록만
+      await assertFails(setDoc(doc(db, 'pt_info_logs', 'log-alone'), ptLog('log-alone')));
+      // 트레이너는 못 쓴다
+      await assertFails(setDoc(doc(authedDb(trainerId), 'pt_info_logs', 'log-t'), ptLog('log-t', { changedById: trainerId })));
+      await assertSucceeds(withPt(ptLog('log-ok', changed)));
+    });
+
+    it('PT권 횟수·날짜는 변경 기록 없이 바꿀 수 없고, 날짜는 시각 · 순서가 맞아야 한다', async () => {
+      const db = authedDb(adminId);
+      await assertFails(updateDoc(doc(db, 'pt_infos', ptInfoId), { remainingSessions: 11, updatedAt: serverTimestamp() }));
+      const dated = (start, end, logId) => {
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'pt_infos', ptInfoId), { startDate: start, endDate: end, lastLogId: logId, updatedAt: serverTimestamp() });
+        batch.set(doc(db, 'pt_info_logs', logId), ptLog(logId));
+        return batch.commit();
+      };
+      await assertFails(dated(new Date(2026, 9, 10), new Date(2026, 9, 1), 'd1'));
+      await assertFails(dated('2026-10-01', null, 'd2'));
+      await assertSucceeds(dated(new Date(2026, 9, 1), new Date(2026, 11, 31), 'd3'));
     });
 
     it('PT 일정은 예약 상태로만 만들 수 있다 (완료로 바로 만들기 금지)', async () => {
@@ -553,16 +613,19 @@ describe('users / centers / pt_infos security rules', () => {
       });
     });
 
-    const assign = (uid, trainer) =>
+    const names = { [trainerId]: '트레이너', [pendingTrainerId]: '대기 트레이너' };
+    const assign = (uid, trainer, name = trainer == null ? null : names[trainer] ?? '이름') =>
       updateDoc(doc(authedDb(adminId), 'users', uid), {
         trainerId: trainer,
-        trainerName: '이름',
+        trainerName: name,
         updatedAt: serverTimestamp(),
       });
 
     it('관리자는 같은 센터의 승인된 트레이너만 회원에게 배정할 수 있다', async () => {
       await assertSucceeds(assign(memberId, trainerId));
       await assertSucceeds(assign(memberId, null));
+      // 담당 이름은 그 트레이너의 실제 이름이어야 한다
+      await assertFails(assign(memberId, trainerId, '꾸민 이름'));
       await assertFails(assign(memberId, pendingTrainerId));
       await assertFails(assign(memberId, otherCenterTrainerId));
       await assertFails(assign(memberId, adminId));
@@ -621,6 +684,125 @@ describe('users / centers / pt_infos security rules', () => {
       await assertSucceeds(
         setDoc(doc(authedDb(memberId), 'custom_exercises', `custom-${memberId}`), exercise(memberId)),
       );
+    });
+  });
+
+  describe('관리자 처리 보강 (2026-10-09 관리자 점검)', () => {
+    const pendingUid = 'pending-member';
+    const reqId = `req-${pendingUid}`;
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, 'users', pendingUid), {
+          uid: pendingUid, role: 'member', status: 'pending', centerId, name: '대기 회원',
+        });
+        await setDoc(doc(db, 'join_requests', reqId), {
+          id: reqId, userId: pendingUid, userName: '대기 회원', userEmail: 'p@example.com',
+          centerId, centerName: '강남 센터', role: 'member', status: 'pending', createdAt: new Date(),
+        });
+      });
+    });
+
+    const decide = (status, userId = pendingUid) => {
+      const db = authedDb(adminId);
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'join_requests', reqId), { status });
+      batch.update(doc(db, 'users', userId), { status, updatedAt: serverTimestamp() });
+      return batch.commit();
+    };
+
+    it('가입 요청은 대기 중일 때 한 번만 승인·거절할 수 있다', async () => {
+      await assertSucceeds(decide('approved'));
+      // 승인한 뒤 다시 거절하거나 대기로 되돌릴 수 없다
+      await assertFails(decide('rejected'));
+      await assertFails(decide('pending'));
+    });
+
+    it('요청과 다른 사람의 상태를 함께 바꿀 수 없다', async () => {
+      await assertFails(decide('approved', 'pending-trainer-x'));
+      // 요청만 바꾸고 사용자 문서는 그대로 두는 것도 안 된다
+      await assertFails(updateDoc(doc(authedDb(adminId), 'join_requests', reqId), { status: 'approved' }));
+    });
+
+    it('승인된 계정의 상태는 관리자가 바꿀 수 없다', async () => {
+      await assertFails(updateDoc(doc(authedDb(adminId), 'users', memberId), { status: 'rejected', updatedAt: serverTimestamp() }));
+      await assertFails(updateDoc(doc(authedDb(adminId), 'users', trainerId), { status: 'pending', updatedAt: serverTimestamp() }));
+    });
+
+    const newTrainer = 'trainer-b';
+    const trainerChange = (overrides = {}) => {
+      const db = authedDb(adminId);
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'users', memberId), {
+        trainerId: newTrainer, trainerName: '새 트레이너', updatedAt: serverTimestamp(),
+      });
+      batch.set(doc(db, 'pt_info_logs', 'log-trainer'), ptLog('log-trainer', {
+        type: 'trainerChanged', previousTrainerId: trainerId, nextTrainerId: newTrainer,
+        note: '트레이너 → 새 트레이너', ...overrides,
+      }));
+      return batch.commit();
+    };
+
+    it('담당 변경 기록은 실제 담당 변경과 함께만 남길 수 있다', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'users', newTrainer), {
+          uid: newTrainer, role: 'trainer', status: 'approved', centerId, name: '새 트레이너',
+        });
+      });
+      await assertFails(trainerChange({ nextTrainerId: 'someone-else' }));
+      await assertFails(trainerChange({ previousTrainerId: 'someone-else' }));
+      await assertFails(setDoc(doc(authedDb(adminId), 'pt_info_logs', 'log-alone'), ptLog('log-alone', {
+        type: 'trainerChanged', previousTrainerId: trainerId, nextTrainerId: newTrainer,
+      })));
+      await assertSucceeds(trainerChange());
+    });
+
+    it('예약이 많아도 담당 변경(회원 · 기록 · PT권 · 예약 30개)을 한 배치로 할 수 있다 (규칙 읽기 상한)', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, 'users', newTrainer), {
+          uid: newTrainer, role: 'trainer', status: 'approved', centerId, name: '새 트레이너',
+        });
+        for (let i = 0; i < 30; i++) {
+          await setDoc(doc(db, 'pt_sessions', `many-${i}`), {
+            id: `many-${i}`, centerId, trainerId, trainerName: '트레이너', memberId, memberName: '회원',
+            scheduledAt: new Date(), durationMinutes: 50, note: '', status: 'scheduled',
+            createdAt: new Date(), updatedAt: new Date(),
+          });
+        }
+      });
+      const db = authedDb(adminId);
+      const batch = writeBatch(db);
+      const assigned = { trainerId: newTrainer, trainerName: '새 트레이너', updatedAt: serverTimestamp() };
+      batch.update(doc(db, 'users', memberId), assigned);
+      batch.set(doc(db, 'pt_info_logs', 'log-many'), ptLog('log-many', {
+        type: 'trainerChanged', previousTrainerId: trainerId, nextTrainerId: newTrainer,
+      }));
+      batch.update(doc(db, 'pt_infos', ptInfoId), { trainerId: newTrainer, updatedAt: serverTimestamp() });
+      for (let i = 0; i < 30; i++) batch.update(doc(db, 'pt_sessions', `many-${i}`), assigned);
+      await assertSucceeds(batch.commit());
+    });
+
+    it('예약·PT권의 담당은 같은 센터의 승인된 트레이너로, 실제 이름으로만 바꾼다', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), 'pt_sessions', 's-1'), {
+          id: 's-1', centerId, trainerId, trainerName: '트레이너', memberId, memberName: '회원',
+          scheduledAt: new Date(), durationMinutes: 50, note: '', status: 'scheduled',
+          createdAt: new Date(), updatedAt: new Date(),
+        });
+      });
+      const db = authedDb(adminId);
+      const move = (id, name) => updateDoc(doc(db, 'pt_sessions', 's-1'), {
+        trainerId: id, trainerName: name, updatedAt: serverTimestamp(),
+      });
+      await assertFails(move(pendingTrainerId, '대기 트레이너'));
+      await assertFails(move('no-such-trainer', '누구'));
+      await assertFails(move(trainerId, '꾸민 이름'));
+      await assertSucceeds(move(trainerId, '트레이너'));
+
+      await assertFails(updateDoc(doc(db, 'pt_infos', ptInfoId), { trainerId: pendingTrainerId, updatedAt: serverTimestamp() }));
+      await assertSucceeds(updateDoc(doc(db, 'pt_infos', ptInfoId), { trainerId, updatedAt: serverTimestamp() }));
     });
   });
 });

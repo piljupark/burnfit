@@ -133,3 +133,29 @@ describe('buildRetainedRecord', () => {
     }
   });
 });
+
+describe('보관 계약의 담당 이름', () => {
+  const source = MEMBER_RETAINED_SOURCES.find((x) => x.kind === 'pt_info');
+  const base = { source, sourceId: 'p1', memberAlias: 'a', retainedAt: null, expireAt: null };
+
+  it('탈퇴 직전 담당이 계약 담당과 같으면 이름을 남긴다', () => {
+    const { doc } = buildRetainedRecord({
+      ...base,
+      data: { centerId: 'c', trainerId: 't1', memberId: 'm', memberName: '회원' },
+      memberTrainer: { id: 't1', name: '김도윤' },
+    });
+    assert.strictEqual(doc.data.trainerName, '김도윤');
+    assert.strictEqual(doc.data.memberName, undefined);
+  });
+
+  it('담당이 다르거나 없으면 이름을 남기지 않는다', () => {
+    const other = buildRetainedRecord({
+      ...base,
+      data: { centerId: 'c', trainerId: 't1' },
+      memberTrainer: { id: 't2', name: '다른 트레이너' },
+    });
+    assert.strictEqual(other.doc.data.trainerName, undefined);
+    const none = buildRetainedRecord({ ...base, data: { centerId: 'c', trainerId: null } });
+    assert.strictEqual(none.doc.data.trainerName, undefined);
+  });
+});

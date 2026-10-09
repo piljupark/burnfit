@@ -29,15 +29,19 @@ class AdminMemberListScreen extends StatefulWidget {
   const AdminMemberListScreen({super.key});
 
   @override
-  State<AdminMemberListScreen> createState() => _AdminMemberListScreenState();
+  State<AdminMemberListScreen> createState() => AdminMemberListScreenState();
 }
 
-class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
+class AdminMemberListScreenState extends State<AdminMemberListScreen> {
+  /// 탭을 다시 열 때 (관리자 셸이 부른다)
+  Future<void> refresh() => _load();
+
   List<AppUser> _members = [];
   List<AppUser> _filtered = [];
   Map<String, PtInfo> _ptInfoByMember = {};
   _MemberFilter _selectedFilter = _MemberFilter.all;
   bool _isLoading = false;
+  bool _loadedOnce = false;
   String? _errorMessage;
   final _searchController = TextEditingController();
 
@@ -57,7 +61,8 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
   Future<void> _load() async {
     final user = context.read<UserProvider>().user;
     if (user == null) return;
-    setState(() => _isLoading = true);
+    // 처음에만 화면 전체를 로딩으로 바꾼다 (당겨서 새로고침·돌아와서 다시 불러올 때는 보이던 내용을 그대로 둔다).
+    if (!_loadedOnce) setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
         FirestoreService.getUsersByCenter(user.centerId),
@@ -71,11 +76,17 @@ class _AdminMemberListScreenState extends State<AdminMemberListScreen> {
         _members = members;
         _ptInfoByMember = {for (final info in ptInfos) info.memberId: info};
         _errorMessage = null;
+        _loadedOnce = true;
       });
       _filter();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      if (_loadedOnce) {
+        // 이미 보이는 내용은 두고 알리기만 한다
+        AppFeedback.showErrorSnackBar(context, e);
+      } else {
+        setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

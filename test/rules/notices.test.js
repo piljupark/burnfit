@@ -152,6 +152,12 @@ describe('notices rules', () => {
     );
   });
 
+  it('공지 알림 횟수 문서(서버 전용)는 관리자도 읽거나 고칠 수 없다', async () => {
+    const ref = doc(db(adminId), 'notice_push_quota', `${centerId}_20261009`);
+    await assertFails(getDoc(ref));
+    await assertFails(setDoc(ref, { centerId, count: 0 }));
+  });
+
   it('관리자는 자기 센터에 공지를 작성·수정·삭제할 수 있다', async () => {
     const ref = doc(db(adminId), 'notices', 'new-1');
     await assertSucceeds(setDoc(ref, validNotice({ pinned: true, important: true, notify: true })));

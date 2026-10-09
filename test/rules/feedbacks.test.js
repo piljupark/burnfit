@@ -908,6 +908,25 @@ describe('firestore feedback rules', () => {
     );
   });
 
+  // 관리자 PT권 쓰기: 같은 쓰기에서 만든 변경 기록(lastLogId)이 숫자와 함께 있어야 한다.
+  const ptLog = (id, ptInfoId, type, prev, next) => ({
+    id,
+    ptInfoId,
+    centerId,
+    memberId,
+    memberName: '회원',
+    changedById: adminId,
+    changedByName: '관리자',
+    type,
+    previousTotalSessions: prev[0],
+    nextTotalSessions: next[0],
+    previousRemainingSessions: prev[1],
+    nextRemainingSessions: next[1],
+    ptSessionId: null,
+    note: null,
+    createdAt: serverTimestamp(),
+  });
+
   it('관리자는 PT권 운영 필드만 수정할 수 있고 소유권 필드는 바꿀 수 없다', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'pt_infos', 'admin-pt-info-a'), {
@@ -922,29 +941,30 @@ describe('firestore feedback rules', () => {
         updatedAt: serverTimestamp(),
       });
     });
+    const db = authedDb(adminId);
 
-    await assertSucceeds(
-      updateDoc(doc(authedDb(adminId), 'pt_infos', 'admin-pt-info-a'), {
-        totalSessions: 12,
-        remainingSessions: 7,
-        updatedAt: serverTimestamp(),
-      }),
-    );
+    const ok = writeBatch(db);
+    ok.update(doc(db, 'pt_infos', 'admin-pt-info-a'), {
+      totalSessions: 12,
+      remainingSessions: 7,
+      lastLogId: 'log-edit',
+      updatedAt: serverTimestamp(),
+    });
+    ok.set(doc(db, 'pt_info_logs', 'log-edit'), ptLog('log-edit', 'admin-pt-info-a', 'updated', [10, 5], [12, 7]));
+    await assertSucceeds(ok.commit());
 
     await assertFails(
-      updateDoc(doc(authedDb(adminId), 'pt_infos', 'admin-pt-info-a'), {
+      updateDoc(doc(db, 'pt_infos', 'admin-pt-info-a'), {
         memberId: otherMemberId,
         updatedAt: serverTimestamp(),
       }),
     );
   });
 
-  it('관리자는 신규 PT권과 변경 로그를 같은 배치로 등록할 수 있다', async () => {
+  it('관리자는 신규 PT권(문서 이름 = 회원 ID)과 변경 로그를 같은 배치로 등록할 수 있다', async () => {
     const db = authedDb(adminId);
-    const batch = writeBatch(db);
-
-    batch.set(doc(db, 'pt_infos', 'admin-pt-info-new'), {
-      id: 'admin-pt-info-new',
+    const pt = (id) => ({
+      id,
       centerId,
       trainerId,
       memberId,
@@ -954,27 +974,20 @@ describe('firestore feedback rules', () => {
       startDate: null,
       endDate: null,
       renewalDate: null,
+      lastLogId: `log-${id}`,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    batch.set(doc(db, 'pt_info_logs', 'admin-pt-log-new'), {
-      id: 'admin-pt-log-new',
-      ptInfoId: 'admin-pt-info-new',
-      centerId,
-      memberId,
-      memberName: '회원',
-      changedById: adminId,
-      changedByName: '관리자',
-      type: 'created',
-      previousTotalSessions: 0,
-      nextTotalSessions: 10,
-      previousRemainingSessions: 0,
-      nextRemainingSessions: 10,
-      ptSessionId: null,
-      note: null,
-      createdAt: serverTimestamp(),
-    });
 
+    // 회원 ID가 아닌 이름으로는 만들 수 없다 (한 회원에게 PT권이 둘 생기지 않게)
+    const wrong = writeBatch(db);
+    wrong.set(doc(db, 'pt_infos', 'admin-pt-info-new'), pt('admin-pt-info-new'));
+    wrong.set(doc(db, 'pt_info_logs', 'log-admin-pt-info-new'), ptLog('log-admin-pt-info-new', 'admin-pt-info-new', 'created', [0, 0], [10, 10]));
+    await assertFails(wrong.commit());
+
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'pt_infos', memberId), pt(memberId));
+    batch.set(doc(db, 'pt_info_logs', `log-${memberId}`), ptLog(`log-${memberId}`, memberId, 'created', [0, 0], [10, 10]));
     await assertSucceeds(batch.commit());
   });
 

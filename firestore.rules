@@ -113,11 +113,16 @@ service cloud.firestore {
       ]);
     }
 
+    // 대기 중인 요청만 한 번 처리한다 (승인·거절을 다시 뒤집지 못하게).
+    // 같은 쓰기에서 신청자 문서도 같은 상태가 되어야 한다 (요청과 사람이 어긋나지 않게).
     function canUpdateJoinRequestStatus() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'status'
       ]) &&
-      request.resource.data.status in ['approved', 'rejected'];
+      resource.data.status == 'pending' &&
+      request.resource.data.status in ['approved', 'rejected'] &&
+      getAfter(/databases/$(database)/documents/users/$(resource.data.userId)).data.status ==
+        request.resource.data.status;
     }
 
     function hasOnlyWorkoutFields() {
@@ -256,6 +261,7 @@ service cloud.firestore {
         'totalSessions',
         'remainingSessions',
         'renewalDate',
+        'lastLogId',
         'createdAt',
         'updatedAt'
       ]);
@@ -278,20 +284,28 @@ service cloud.firestore {
       ]);
     }
 
+    // [trainerId]가 [centerId]의 승인된 트레이너인지.
+    function isApprovedTrainerOf(trainerId, centerId) {
+      return trainerId is string &&
+        exists(/databases/$(database)/documents/users/$(trainerId)) &&
+        userDoc(trainerId).data.role == 'trainer' &&
+        userDoc(trainerId).data.status == 'approved' &&
+        userDoc(trainerId).data.centerId == centerId;
+    }
+
     // 담당 트레이너는 회원에게만, 같은 센터의 승인된 트레이너로만 (해제는 null).
+    // 담당 이름(trainerName)은 그 트레이너의 실제 이름과 같아야 한다.
     function hasValidTrainerAssignment() {
       let trainerId = request.resource.data.get('trainerId', null);
-      return !('trainerId' in request.resource.data.diff(resource.data).affectedKeys()) ||
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return !changed.hasAny(['trainerId', 'trainerName']) ||
         (
           resource.data.role == 'member' &&
           (
-            trainerId == null ||
+            (trainerId == null && request.resource.data.get('trainerName', null) == null) ||
             (
-              trainerId is string &&
-              exists(/databases/$(database)/documents/users/$(trainerId)) &&
-              userDoc(trainerId).data.role == 'trainer' &&
-              userDoc(trainerId).data.status == 'approved' &&
-              userDoc(trainerId).data.centerId == resource.data.centerId
+              isApprovedTrainerOf(trainerId, resource.data.centerId) &&
+              request.resource.data.get('trainerName', null) == userDoc(trainerId).data.name
             )
           )
         );
@@ -307,17 +321,42 @@ service cloud.firestore {
         'updatedAt'
       ]) &&
       (
-        !('status' in request.resource.data) ||
-        request.resource.data.status in ['pending', 'approved', 'rejected']
+        !('status' in request.resource.data.diff(resource.data).affectedKeys()) ||
+        (
+          // 승인 대기 계정을 한 번 승인하거나 거절할 때만 상태가 바뀐다.
+          resource.data.status == 'pending' &&
+          request.resource.data.status in ['approved', 'rejected']
+        )
       );
     }
 
-    // PT 횟수: 정수, 0 이상, 잔여 ≤ 전체.
+    // PT 횟수: 정수, 전체 1 이상, 잔여 0 이상, 잔여 ≤ 전체.
     function hasValidPtCounts() {
       let total = request.resource.data.totalSessions;
       let remaining = request.resource.data.remainingSessions;
       return total is int && remaining is int &&
-        total >= 0 && remaining >= 0 && remaining <= total;
+        total >= 1 && remaining >= 0 && remaining <= total;
+    }
+
+    // PT 날짜: 비어 있거나 시각(timestamp), 종료일은 시작일보다 앞서지 않는다.
+    function hasValidPtDates() {
+      let d = request.resource.data;
+      let start = d.get('startDate', null);
+      let end = d.get('endDate', null);
+      let renewal = d.get('renewalDate', null);
+      return (start == null || start is timestamp) &&
+        (end == null || end is timestamp) &&
+        (renewal == null || renewal is timestamp) &&
+        (start == null || end == null || end >= start);
+    }
+
+    // PT권의 횟수·날짜를 바꾸는 쓰기에는 같은 쓰기에서 새로 만든 변경 기록(lastLogId)이 있어야 한다.
+    function hasNewPtInfoLog(ptInfoId) {
+      let logId = request.resource.data.get('lastLogId', null);
+      return logId is string &&
+        !exists(/databases/$(database)/documents/pt_info_logs/$(logId)) &&
+        existsAfter(/databases/$(database)/documents/pt_info_logs/$(logId)) &&
+        getAfter(/databases/$(database)/documents/pt_info_logs/$(logId)).data.ptInfoId == ptInfoId;
     }
 
     // 회원이 같은 센터 소속인지 (다른 센터 회원에게 PT·알림을 만들지 못하게).
@@ -327,26 +366,53 @@ service cloud.firestore {
         userDoc(memberId).data.role == 'member';
     }
 
+    // PT권은 회원당 하나: 문서 이름이 회원 ID다 (동시에 등록해도 둘이 생기지 않는다).
     function canAdminCreatePtInfo(ptInfoId) {
       return isCenterAdmin(request.resource.data.centerId) &&
         hasOnlyPtInfoFields() &&
         request.resource.data.id == ptInfoId &&
+        ptInfoId == request.resource.data.memberId &&
         hasValidPtCounts() &&
-        isMemberOfCenter(request.resource.data.memberId, request.resource.data.centerId);
+        hasValidPtDates() &&
+        isMemberOfCenter(request.resource.data.memberId, request.resource.data.centerId) &&
+        (
+          request.resource.data.get('trainerId', null) == null ||
+          isApprovedTrainerOf(request.resource.data.trainerId, request.resource.data.centerId)
+        ) &&
+        hasNewPtInfoLog(ptInfoId);
     }
 
-    function canAdminUpdatePtInfo() {
+    function canAdminUpdatePtInfo(ptInfoId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
       return isCenterAdmin(resource.data.centerId) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        changed.hasOnly([
           'trainerId',
           'startDate',
           'endDate',
           'totalSessions',
           'remainingSessions',
           'renewalDate',
+          'lastLogId',
           'updatedAt'
         ]) &&
-        hasValidPtCounts();
+        hasValidPtCounts() &&
+        hasValidPtDates() &&
+        (
+          !('trainerId' in changed) ||
+          request.resource.data.trainerId == null ||
+          isApprovedTrainerOf(request.resource.data.trainerId, resource.data.centerId)
+        ) &&
+        (
+          // 담당만 바꾸는 쓰기(담당 변경)는 회원 쪽 변경 기록으로 남는다.
+          !changed.hasAny([
+            'startDate',
+            'endDate',
+            'totalSessions',
+            'remainingSessions',
+            'renewalDate'
+          ]) ||
+          hasNewPtInfoLog(ptInfoId)
+        );
     }
 
     // PT 일정은 '예약' 상태로만 만든다. 완료·완료 취소는 서버 함수(setPtSessionStatus)가 잔여 횟수와 함께 바꾼다.
@@ -362,12 +428,15 @@ service cloud.firestore {
         canCreateScheduledPtSession(sessionId);
     }
 
+    // 예약의 담당 변경: 같은 센터의 승인된 트레이너로, 이름은 그 트레이너의 실제 이름.
     function canUpdatePtSessionTrainer() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'trainerId',
         'trainerName',
         'updatedAt'
-      ]);
+      ]) &&
+      isApprovedTrainerOf(request.resource.data.trainerId, resource.data.centerId) &&
+      request.resource.data.trainerName == userDoc(request.resource.data.trainerId).data.name;
     }
 
     function canCreateInbody(inbodyId) {
@@ -530,8 +599,54 @@ service cloud.firestore {
         'nextRemainingSessions',
         'ptSessionId',
         'note',
+        'previousTrainerId',
+        'nextTrainerId',
         'createdAt'
       ]);
+    }
+
+    // 앱(관리자)이 남기는 변경 기록이 실제 변경과 맞는지.
+    // - created/updated: 같은 쓰기에서 PT권의 lastLogId가 이 기록을 가리키고, 숫자가 쓰기 전·후와 같다.
+    // - trainerChanged: 같은 쓰기에서 회원의 담당이 previousTrainerId → nextTrainerId로 바뀐다.
+    // 수업 완료 차감·복구 기록은 서버 함수만 쓴다.
+    function isTruthfulPtInfoLog(logId) {
+      let d = request.resource.data;
+      let ptPath = /databases/$(database)/documents/pt_infos/$(d.ptInfoId);
+      let memberPath = /databases/$(database)/documents/users/$(d.memberId);
+      return d.ptInfoId is string &&
+        (
+          (
+            d.type in ['created', 'updated'] &&
+            existsAfter(ptPath) &&
+            getAfter(ptPath).data.lastLogId == logId &&
+            getAfter(ptPath).data.centerId == d.centerId &&
+            getAfter(ptPath).data.memberId == d.memberId &&
+            getAfter(ptPath).data.totalSessions == d.nextTotalSessions &&
+            getAfter(ptPath).data.remainingSessions == d.nextRemainingSessions &&
+            (
+              (
+                d.type == 'created' &&
+                !exists(ptPath) &&
+                d.previousTotalSessions == 0 &&
+                d.previousRemainingSessions == 0
+              ) ||
+              (
+                d.type == 'updated' &&
+                exists(ptPath) &&
+                get(ptPath).data.totalSessions == d.previousTotalSessions &&
+                get(ptPath).data.remainingSessions == d.previousRemainingSessions
+              )
+            )
+          ) ||
+          (
+            d.type == 'trainerChanged' &&
+            d.previousTotalSessions == d.nextTotalSessions &&
+            d.previousRemainingSessions == d.nextRemainingSessions &&
+            get(memberPath).data.get('trainerId', null) == d.get('previousTrainerId', null) &&
+            getAfter(memberPath).data.get('trainerId', null) == d.get('nextTrainerId', null) &&
+            d.get('previousTrainerId', null) != d.get('nextTrainerId', null)
+          )
+        );
     }
 
     // 생년월일은 'yyyyMMdd' 8자리 숫자 문자열 (온보딩·프로필 편집). 바꿀 때만 검사해
@@ -699,7 +814,7 @@ service cloud.firestore {
       );
       // PT권은 관리자만 만들고 고친다. 세션 완료에 따른 잔여 차감·복구는 서버 함수만 한다.
       allow create: if canAdminCreatePtInfo(ptInfoId);
-      allow update: if canAdminUpdatePtInfo();
+      allow update: if canAdminUpdatePtInfo(ptInfoId);
       allow delete: if false;
     }
 
@@ -712,7 +827,11 @@ service cloud.firestore {
       // 관리자의 PT권 등록·수정 기록만 앱에서 쓴다 (세션 완료 기록은 서버 함수가 쓴다).
       allow create: if isCenterAdmin(request.resource.data.centerId) &&
         canCreatePtInfoLog() &&
-        request.resource.data.changedById == request.auth.uid;
+        request.resource.data.id == logId &&
+        request.resource.data.changedById == request.auth.uid &&
+        request.resource.data.createdAt == request.time &&
+        isMemberOfCenter(request.resource.data.memberId, request.resource.data.centerId) &&
+        isTruthfulPtInfoLog(logId);
       allow update, delete: if false;
     }
 

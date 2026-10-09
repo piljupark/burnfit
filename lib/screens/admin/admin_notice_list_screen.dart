@@ -31,6 +31,7 @@ class AdminNoticeListScreen extends StatefulWidget {
 class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
   List<Notice> _items = [];
   bool _isLoading = false;
+  bool _loadedOnce = false;
   String? _errorMessage;
 
   @override
@@ -42,17 +43,24 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
   Future<void> _load() async {
     final centerId = context.read<UserProvider>().user?.centerId;
     if (centerId == null) return;
-    setState(() => _isLoading = true);
+    // 처음에만 화면 전체를 로딩으로 바꾼다 (당겨서 새로고침·돌아와서 다시 불러올 때는 보이던 내용을 그대로 둔다).
+    if (!_loadedOnce) setState(() => _isLoading = true);
     try {
       final items = await NoticeService.getForAdmin(centerId);
       if (!mounted) return;
       setState(() {
         _items = items;
         _errorMessage = null;
+        _loadedOnce = true;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      if (_loadedOnce) {
+        // 이미 보이는 내용은 두고 알리기만 한다
+        AppFeedback.showErrorSnackBar(context, e);
+      } else {
+        setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -38,6 +38,7 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
   final Set<String> _leavingIds = {};
   _RoleFilter _filter = _RoleFilter.all;
   bool _isLoading = false;
+  bool _loadedOnce = false;
   String? _errorMessage;
 
   @override
@@ -49,7 +50,8 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
   Future<void> _load() async {
     final user = context.read<UserProvider>().user;
     if (user == null) return;
-    setState(() => _isLoading = true);
+    // 처음에만 화면 전체를 로딩으로 바꾼다 (당겨서 새로고침·돌아와서 다시 불러올 때는 보이던 내용을 그대로 둔다).
+    if (!_loadedOnce) setState(() => _isLoading = true);
     try {
       final list = await FirestoreService.getPendingRequests(user.centerId);
       // 최근 신청부터
@@ -59,10 +61,16 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
         _requests = list;
         _leavingIds.clear();
         _errorMessage = null;
+        _loadedOnce = true;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      if (_loadedOnce) {
+        // 이미 보이는 내용은 두고 알리기만 한다
+        AppFeedback.showErrorSnackBar(context, e);
+      } else {
+        setState(() => _errorMessage = AppFeedback.errorMessage(e));
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -95,6 +103,8 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
       if (!mounted) return;
       setState(() => _processingIds.remove(req.id));
       AppFeedback.showErrorSnackBar(context, e);
+      // 그 사이 다른 관리자가 처리했거나 신청자가 탈퇴했을 수 있다 → 목록을 다시 맞춘다
+      _load();
     }
   }
 
@@ -122,6 +132,8 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
       if (!mounted) return;
       setState(() => _processingIds.remove(req.id));
       AppFeedback.showErrorSnackBar(context, e);
+      // 그 사이 다른 관리자가 처리했거나 신청자가 탈퇴했을 수 있다 → 목록을 다시 맞춘다
+      _load();
     }
   }
 
