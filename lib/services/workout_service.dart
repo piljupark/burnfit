@@ -81,8 +81,21 @@ class WorkoutService {
       'exercises': exercises.map((e) => e.toMap()).toList(),
       'note': note,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
-      // 운동 시간은 더 이상 입력받지 않는다. 넘기지 않으면 기존 기록의 값을 그대로 둔다.
+      // 넘기지 않으면 기존 기록의 운동 시간을 그대로 둔다 (PT 기록·예전 기록).
       'durationSeconds': ?durationSeconds,
+    });
+  }
+
+  /// 저장한 개인 운동의 시간만 고친다 (운동 완료 화면 '시간 고치기').
+  static Future<void> updateWorkoutDuration({
+    required String workoutId,
+    required int durationSeconds,
+  }) async {
+    ServiceValidator.requireText(workoutId, '운동 ID');
+    ServiceValidator.requireNonNegativeInt(durationSeconds, '운동 시간');
+    await _db.collection('workouts').doc(workoutId).update({
+      'durationSeconds': durationSeconds,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
     });
   }
 

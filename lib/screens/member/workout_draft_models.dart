@@ -121,10 +121,12 @@ class WorkoutExerciseDraft {
     return unit.label;
   }
 
-  Exercise? toExercise() {
+  /// [doneOnly]면 완료 표시한 세트만 담는다 (앱을 닫아 자동 저장할 때).
+  Exercise? toExercise({bool doneOnly = false}) {
     final validSets = <ExerciseSet>[];
 
     for (final set in sets) {
+      if (doneOnly && !set.done) continue;
       final rawWeight = set.weight;
       final reps = set.reps;
 

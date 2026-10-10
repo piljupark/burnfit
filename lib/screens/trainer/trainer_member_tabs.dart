@@ -6,6 +6,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
+import '../../core/workout_timing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/cardio.dart';
 import '../../models/meal.dart';
@@ -152,6 +153,9 @@ class TrainerWorkoutsTab extends StatelessWidget {
               '${w.exercises.length}종목',
               '${w.totalSets}세트',
               '${_number(w.totalVolume.round())}kg',
+              // 회원 개인 운동 시간 (PT 기록은 재지 않는다)
+              if (w.workoutType == WorkoutType.personal)
+                ?formatWorkoutDuration(w.durationSeconds),
             ].join(' · '),
             hasFeedback: w.hasFeedback,
             onTap: () => onFeedback(w),

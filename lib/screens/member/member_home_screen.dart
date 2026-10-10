@@ -67,6 +67,7 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
       MemberWorkoutScreen(
         showAsTab: true,
         onGoHome: () => _selectTab(_homeTab),
+        onRecordsChanged: () => _calendarKey.currentState?.refresh(),
       ),
       MemberPtScheduleScreen(key: _ptScheduleKey, showBackButton: false),
       MemberProfileScreen(key: _profileKey),
@@ -103,6 +104,9 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
         Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => const NoticeListScreen()));
+      case NotificationTarget.workout:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        _selectTab(_workoutTab);
       case null:
         break;
     }

@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'core/app_logger.dart';
 import 'core/app_theme.dart';
 import 'services/theme_controller.dart';
+import 'services/workout_reminder.dart';
 import 'widgets/account_status_listener.dart';
 import 'widgets/app_toast.dart';
 import 'core/constants.dart';
@@ -68,6 +69,8 @@ Future<void> bootstrapApp({bool withMessaging = true}) async {
   if (withMessaging) {
     await FcmService.initialize();
     AppLogger.debug('[Main] FCM 초기화 완료: ${stopwatch.elapsedMilliseconds}ms');
+    // 개인 운동 '마치셨나요?' 리마인드 (기기 안 예약 알림, 권한은 위에서 받았다)
+    await WorkoutReminder.initialize();
   }
   stopwatch.stop();
 }

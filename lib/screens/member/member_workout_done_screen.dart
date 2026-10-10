@@ -6,7 +6,9 @@ import 'package:intl/intl.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../core/workout_timing.dart';
 import '../../widgets/app_motion.dart';
+import '../../widgets/workout_duration_sheet.dart';
 import '../../widgets/workout_parts.dart';
 
 /// 운동 완료 화면에서 고른 행동.
@@ -20,8 +22,8 @@ const Color _confettiOrange = Color(0xFFFF7A33);
 /// 개인 운동을 새로 저장한 순간 뜨는 완료 화면 (시안 Done.html, Main 계열이라 500 = Bold).
 /// 주황 바탕 · 흰 카드(290×350, 반경 32, 상태줄 아래 41)에 '운동 완료'와 바벨 그림(들었다 내림 ·
 /// 그림자 · 빛줄기 · 꽃가루), 양옆 불꽃·체크 배지(떠다님), 아래 '8,450kg을 들어 올렸어요' +
-/// 요약 줄 + '기록 자세히 보기 >'(등장), 맨 아래 검정 '확인'.
-class MemberWorkoutDoneScreen extends StatelessWidget {
+/// 요약 줄('4종목 · 16세트 · 48분') + '운동 시간 고치기' + '기록 자세히 보기 >'(등장), 맨 아래 검정 '확인'.
+class MemberWorkoutDoneScreen extends StatefulWidget {
   final double totalVolumeKg;
   final int exerciseCount;
   final int setCount;
@@ -32,6 +34,12 @@ class MemberWorkoutDoneScreen extends StatelessWidget {
   /// 지난주 같은 요일과 비교한 볼륨 차이(kg). 비교할 기록이 없으면 null.
   final double? weekOverWeekKg;
 
+  /// 운동 시간(초). 0이면 요약 줄에 넣지 않는다.
+  final int durationSeconds;
+
+  /// '운동 시간 고치기' — 저장한 기록에 반영하고 성공하면 true. null이면 고칠 수 없다.
+  final Future<bool> Function(int seconds)? onChangeDuration;
+
   const MemberWorkoutDoneScreen({
     super.key,
     required this.totalVolumeKg,
@@ -39,19 +47,46 @@ class MemberWorkoutDoneScreen extends StatelessWidget {
     required this.setCount,
     this.cardioMinutes,
     this.weekOverWeekKg,
+    this.durationSeconds = 0,
+    this.onChangeDuration,
   });
 
   @override
+  State<MemberWorkoutDoneScreen> createState() =>
+      _MemberWorkoutDoneScreenState();
+}
+
+class _MemberWorkoutDoneScreenState extends State<MemberWorkoutDoneScreen> {
+  late int _durationSeconds = widget.durationSeconds;
+
+  Future<void> _editDuration() async {
+    final change = widget.onChangeDuration;
+    if (change == null) return;
+    final seconds = await showWorkoutDurationSheet(
+      context,
+      initialSeconds: _durationSeconds,
+    );
+    if (seconds == null || seconds == _durationSeconds || !mounted) return;
+    if (await change(seconds) && mounted) {
+      setState(() => _durationSeconds = seconds);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final totalVolumeKg = widget.totalVolumeKg;
+    final cardioMinutes = widget.cardioMinutes;
     final ink = AppPalette.light.ink;
     final number = NumberFormat('#,##0');
     final headline = cardioMinutes != null
         ? '$cardioMinutes분\n운동했어요'
         : '${number.format(totalVolumeKg.round())}kg을\n들어 올렸어요';
-    final diff = weekOverWeekKg;
+    final diff = widget.weekOverWeekKg;
+    final duration = formatWorkoutDuration(_durationSeconds);
     final summary = [
-      '$exerciseCount종목',
-      '$setCount세트',
+      '${widget.exerciseCount}종목',
+      '${widget.setCount}세트',
+      ?duration,
       if (diff != null && diff.round() != 0)
         diff > 0
             ? '지난주보다 ${number.format(diff.round())}kg 더'
@@ -107,6 +142,11 @@ class MemberWorkoutDoneScreen extends StatelessWidget {
                                 color: ink.withValues(alpha: 0.72),
                               ),
                             ),
+                            if (widget.onChangeDuration != null)
+                              DoneTextLink(
+                                label: '운동 시간 고치기',
+                                onTap: _editDuration,
+                              ),
                             // 시안 위 10: 44 터치 칸의 위 여백(11)이 그 몫을 한다.
                             DoneTextLink(
                               label: '기록 자세히 보기 >',

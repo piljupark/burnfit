@@ -7,6 +7,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
+import '../../core/workout_timing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/feedback.dart' as fb;
 import '../../models/meal.dart';
@@ -1044,6 +1045,8 @@ class _DayRecords extends StatelessWidget {
       workout.category.label,
       '${workout.totalSets}세트',
       '${_volumeFormat.format(workout.totalVolume.round())}kg',
+      if (workout.workoutType == WorkoutType.personal)
+        ?formatWorkoutDuration(workout.durationSeconds),
     ].join(' · ');
     final isPt = workout.workoutType == WorkoutType.pt;
     return _RecordRow(

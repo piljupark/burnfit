@@ -12,7 +12,10 @@ enum NotificationTarget {
   home,
 
   /// 센터 공지사항 목록
-  notices;
+  notices,
+
+  /// 회원 운동 탭 (기기 안 '운동 마치셨나요?' 리마인드 — 서버 알림에는 없다)
+  workout;
 
   static NotificationTarget? fromData(Map<String, dynamic> data) {
     switch (data['type']) {

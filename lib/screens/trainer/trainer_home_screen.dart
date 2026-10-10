@@ -86,8 +86,9 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
         Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => const NoticeListScreen()));
-      // 트레이너에게는 피드백 알림이 오지 않는다.
+      // 트레이너에게는 피드백·운동 리마인드 알림이 오지 않는다.
       case NotificationTarget.feedback:
+      case NotificationTarget.workout:
       case null:
         break;
     }

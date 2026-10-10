@@ -9,13 +9,16 @@ import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../core/workout_timing.dart';
 import '../../models/custom_exercise.dart';
 import '../../models/user.dart';
 import '../../models/workout.dart';
 import '../../services/exercise_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_draft_service.dart';
+import '../../services/workout_reminder.dart';
 import '../../services/workout_service.dart';
+import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/brand_marks.dart';
 import '../../widgets/app_confirm_dialog.dart';
@@ -28,8 +31,10 @@ import '../../widgets/app_text_field.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
 import '../../widgets/rest_timer.dart';
+import '../../widgets/workout_duration_sheet.dart';
 import '../../widgets/workout_parts.dart';
 import 'member_workout_done_screen.dart';
+import 'workout_auto_save.dart';
 import 'workout_draft_models.dart';
 import 'workout_exercise_input.dart';
 import 'workout_saved_card.dart';
@@ -44,10 +49,14 @@ class MemberWorkoutScreen extends StatefulWidget {
   final AppUser? targetMember;
   final bool showAsTab;
 
+  /// 화면 밖에서 기록이 바뀌었을 때 (앱을 열 때 자동 저장) — 홈 캘린더를 다시 불러온다.
+  final VoidCallback? onRecordsChanged;
+
   const MemberWorkoutScreen({
     super.key,
     this.onExit,
     this.onGoHome,
+    this.onRecordsChanged,
     this.workoutType = WorkoutType.personal,
     this.targetMember,
     this.showAsTab = false,
@@ -81,9 +90,21 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
   final _scrollController = ScrollController();
   final _savedSectionKey = GlobalKey();
 
-  // 운동 시간은 기록하지 않는다 (피드백: 운동일지에 전체 운동 시간은 필요 없음).
-  // 유산소 세트의 '시간'은 운동 내용이므로 세트 값으로 그대로 입력한다.
   Timer? _draftTimer;
+
+  // 운동 시간 (회원 개인 운동만, core/workout_timing.dart). PT 기록은 재지 않는다.
+  // 유산소 세트의 '시간'은 운동 내용이므로 세트 값으로 따로 입력한다.
+  DateTime? _startedAt;
+  DateTime? _lastSetAt;
+
+  /// 고치는 중인 저장 기록의 운동 시간(초). 새 기록이면 null.
+  int? _editingDurationSeconds;
+
+  /// 흘러가는 시간 표시를 30초마다 새로 그린다.
+  Timer? _clockTimer;
+
+  /// 앱을 연 뒤 한 번만: 닫혀서 마치지 못한 운동을 자동 저장한다.
+  bool _autoSaveChecked = false;
 
   @override
   void initState() {
@@ -96,6 +117,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
   @override
   void dispose() {
     _draftTimer?.cancel();
+    _clockTimer?.cancel();
     _noteController.dispose();
     _scrollController.dispose();
 
@@ -108,7 +130,59 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
   bool get _hasSessionContent {
     return _sessionExercises.isNotEmpty ||
-        _noteController.text.trim().isNotEmpty;
+        _noteController.text.trim().isNotEmpty ||
+        _startedAt != null;
+  }
+
+  /// 운동 시간을 재는 화면인지: 회원이 직접 하는 개인 운동만.
+  bool get _tracksTime {
+    if (widget.workoutType != WorkoutType.personal) return false;
+    final actor = context.read<UserProvider>().user;
+    return actor != null && !actor.isTrainer && widget.targetMember == null;
+  }
+
+  void _startClock() {
+    if (_clockTimer != null || _startedAt == null) return;
+    _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _stopClock() {
+    _clockTimer?.cancel();
+    _clockTimer = null;
+  }
+
+  /// 종목을 추가하기 전에 '운동 시작'을 누른 때부터 잰다.
+  void _startWorkout() {
+    setState(() => _startedAt = DateTime.now());
+    _startClock();
+    _queueDraftSave();
+  }
+
+  /// 종목 없이 시작만 눌렀을 때 되돌린다.
+  void _cancelStart() {
+    setState(() {
+      _startedAt = null;
+      _lastSetAt = null;
+    });
+    _stopClock();
+    WorkoutReminder.cancel();
+    _queueDraftSave();
+  }
+
+  /// 앱을 닫아 마치지 못한 개인 운동을 저장한다 (임시저장을 되살리기 전에).
+  Future<void> _autoSaveClosedWorkouts(AppUser member) async {
+    if (_autoSaveChecked || !_tracksTime) return;
+    _autoSaveChecked = true;
+    final result = await WorkoutAutoSave.run(member);
+    if (!mounted || result.count == 0) return;
+    final duration = formatWorkoutDuration(result.lastDurationSeconds);
+    AppFeedback.showSuccessSnackBar(
+      context,
+      duration == null ? '지난 운동을 저장했어요' : '지난 운동을 저장했어요 · $duration',
+    );
+    widget.onRecordsChanged?.call();
   }
 
   int get _completedSetCount {
@@ -178,6 +252,9 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     setState(() => _loading = true);
 
     try {
+      await _autoSaveClosedWorkouts(member);
+      if (!mounted) return;
+
       final results = await Future.wait([
         WorkoutService.getWorkoutsByDate(
           member.centerId,
@@ -231,8 +308,9 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     final rawExercises = draft['exercises'];
     final hasExercises = rawExercises is List && rawExercises.isNotEmpty;
     final note = draft['note'] as String? ?? '';
+    final started = draftTime(draft, draftStartedAtKey) != null;
 
-    if (!hasExercises && note.trim().isEmpty) return;
+    if (!hasExercises && note.trim().isEmpty && !started) return;
 
     _replaceSessionFromDraft(draft);
 
@@ -258,6 +336,23 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
     _editingWorkoutId = draft['editingWorkoutId'] as String?;
     _noteController.text = draft['note'] as String? ?? '';
+
+    if (_tracksTime) {
+      _startedAt = draftTime(draft, draftStartedAtKey);
+      _lastSetAt = draftTime(draft, draftLastSetAtKey);
+      _editingDurationSeconds = draft['editingDurationSeconds'] as int?;
+      // 오래 전에 시작만 해 두었거나 완료 세트 없이 남은 운동은 시간을 새로 잰다
+      // (자동 저장되지 않고 남은 경우 — '운동 중 · 50시간'이 되지 않게).
+      final lastActive = _lastSetAt ?? _startedAt;
+      if (lastActive != null &&
+          DateTime.now().difference(lastActive) >= workoutAutoSaveAfter) {
+        _startedAt = null;
+        _lastSetAt = null;
+      }
+      _startClock();
+      final lastSetAt = _lastSetAt;
+      if (lastSetAt != null) WorkoutReminder.scheduleAfterSet(lastSetAt);
+    }
 
     final rawExercises = draft['exercises'];
     if (rawExercises is List) {
@@ -310,6 +405,9 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
         'defaultCategory': _defaultCategory.name,
         'note': _noteController.text.trim(),
         'exercises': _sessionExercises.map((e) => e.toMap()).toList(),
+        draftStartedAtKey: _startedAt?.toIso8601String(),
+        draftLastSetAtKey: _lastSetAt?.toIso8601String(),
+        'editingDurationSeconds': _editingDurationSeconds,
       },
     );
   }
@@ -500,6 +598,16 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     if (set.done && !exercise.isCardio) {
       RestTimer.instance.start(exercise.restSeconds);
     }
+    // 첫 세트를 완료하면 운동 시간이 시작되고, 세트마다 10분 뒤 리마인드를 다시 맞춘다.
+    if (set.done && _tracksTime && _editingWorkoutId == null) {
+      final now = DateTime.now();
+      setState(() {
+        _startedAt ??= now;
+        _lastSetAt = now;
+      });
+      _startClock();
+      WorkoutReminder.scheduleAfterSet(now);
+    }
 
     _queueDraftSave();
   }
@@ -511,6 +619,10 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
 
     _sessionExercises.clear();
     _activeIndex = 0;
+    _startedAt = null;
+    _lastSetAt = null;
+    _editingDurationSeconds = null;
+    _stopClock();
 
     if (!disposeOnly) {
       _noteController.clear();
@@ -536,6 +648,16 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     }
 
     final wasEditing = _editingWorkoutId != null;
+    final tracksTime = _tracksTime;
+    // 새 개인 운동: 시작부터 지금('운동 마치기')까지. 고치는 기록: 고친 값(안 고쳤으면 원래 값).
+    final startedAt = _startedAt;
+    final durationSeconds = !tracksTime
+        ? 0
+        : wasEditing
+        ? (_editingDurationSeconds ?? 0)
+        : startedAt == null
+        ? 0
+        : workoutDurationSeconds(startedAt, DateTime.now());
 
     // 완료 화면 요약 (세션을 비우기 전에 계산한다)
     final cardioMinutes = _isCardioSession ? _sessionCardioMinutes : null;
@@ -571,6 +693,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
           note: _noteController.text.trim().isEmpty
               ? null
               : _noteController.text.trim(),
+          durationSeconds: durationSeconds,
         );
       } else {
         await WorkoutService.updateWorkout(
@@ -580,10 +703,13 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
           note: _noteController.text.trim().isEmpty
               ? null
               : _noteController.text.trim(),
+          // PT 기록·트레이너가 고칠 때는 넘기지 않아 원래 값을 둔다.
+          durationSeconds: tracksTime ? durationSeconds : null,
         );
       }
 
       await _clearDraft();
+      if (tracksTime) await WorkoutReminder.cancel();
 
       if (!mounted) return;
 
@@ -613,6 +739,8 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
           setCount: setCount,
           volumeKg: volumeKg,
           cardioMinutes: cardioMinutes,
+          workoutId: savedWorkout?.id,
+          durationSeconds: durationSeconds,
         );
       }
     } catch (e) {
@@ -633,6 +761,8 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     required int setCount,
     required double volumeKg,
     required int? cardioMinutes,
+    required String? workoutId,
+    required int durationSeconds,
   }) async {
     final weekOverWeek = cardioMinutes != null
         ? null
@@ -649,6 +779,11 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
           setCount: setCount,
           cardioMinutes: cardioMinutes,
           weekOverWeekKg: weekOverWeek,
+          durationSeconds: durationSeconds,
+          // 완료 화면에서 운동 시간을 고치면 저장한 기록에 바로 반영한다.
+          onChangeDuration: workoutId == null
+              ? null
+              : (seconds) => _changeSavedDuration(workoutId, seconds),
         ),
       ),
     );
@@ -666,6 +801,32 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
       case null:
         widget.onGoHome?.call();
     }
+  }
+
+  /// 저장한 기록의 운동 시간만 고친다 (운동 완료 화면). 성공하면 true.
+  Future<bool> _changeSavedDuration(String workoutId, int seconds) async {
+    try {
+      await WorkoutService.updateWorkoutDuration(
+        workoutId: workoutId,
+        durationSeconds: seconds,
+      );
+      if (mounted) await _load();
+      return true;
+    } catch (e) {
+      if (mounted) AppFeedback.showErrorSnackBar(context, e);
+      return false;
+    }
+  }
+
+  /// 고치는 기록의 운동 시간 (운동 화면의 '운동 시간' 줄).
+  Future<void> _editDuration() async {
+    final seconds = await showWorkoutDurationSheet(
+      context,
+      initialSeconds: _editingDurationSeconds ?? 0,
+    );
+    if (seconds == null || !mounted) return;
+    setState(() => _editingDurationSeconds = seconds);
+    _queueDraftSave();
   }
 
   /// 지난주 같은 요일의 개인 운동 볼륨(kg). 기록이 없거나 불러오지 못하면 null.
@@ -697,6 +858,10 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
       _editingWorkoutId = workout.id;
       _defaultCategory = workout.category;
       _noteController.text = workout.note ?? '';
+      _startedAt = null;
+      _lastSetAt = null;
+      _editingDurationSeconds = _tracksTime ? workout.durationSeconds : null;
+      _stopClock();
 
       // 기록에는 부위가 하나만 있으므로 종목 이름으로 부위를 찾아 유산소 표를 맞춘다.
       for (final exercise in workout.exercises) {
@@ -716,6 +881,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     });
 
     _queueDraftSave();
+    if (_tracksTime) WorkoutReminder.cancel();
 
     AppFeedback.showSuccessSnackBar(context, '수정 모드로 불러왔습니다.');
   }
@@ -870,6 +1036,14 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                               bottom: barBottom + 100 + 80,
                             ),
                             children: [
+                              if (_startedAt != null &&
+                                  _editingWorkoutId == null)
+                                _ElapsedLine(
+                                  startedAt: _startedAt!,
+                                  onCancel: _sessionExercises.isEmpty
+                                      ? _cancelStart
+                                      : null,
+                                ),
                               if (_sessionExercises.isNotEmpty)
                                 WorkoutSummaryStats(
                                   stats: [
@@ -895,7 +1069,16 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                                   ],
                                 ),
                               if (_sessionExercises.isEmpty)
-                                const _WorkoutEmptyCard()
+                                _WorkoutEmptyCard(
+                                  // 종목을 추가하기 전에 시작할 수 있다 (회원 개인 운동만).
+                                  onStart:
+                                      _tracksTime &&
+                                          _startedAt == null &&
+                                          _editingWorkoutId == null
+                                      ? _startWorkout
+                                      : null,
+                                  started: _startedAt != null,
+                                )
                               else
                                 for (
                                   var index = 0;
@@ -938,6 +1121,23 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                                           ),
                                   ),
                               _AddExerciseButton(onTap: _showExercisePicker),
+                              if (_editingWorkoutId != null &&
+                                  _editingDurationSeconds != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: AppSpacing.md,
+                                  ),
+                                  child: AppActionRow(
+                                    icon: AppIcons.timer,
+                                    label: '운동 시간',
+                                    value:
+                                        formatWorkoutDuration(
+                                          _editingDurationSeconds!,
+                                        ) ??
+                                        '기록 없음',
+                                    onTap: _editDuration,
+                                  ),
+                                ),
                               if (_sessionExercises.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(
@@ -1149,9 +1349,13 @@ class _AddExerciseButton extends StatelessWidget {
   }
 }
 
-/// 오늘 운동이 아직 없을 때: 회색 둥근 카드 + 바벨 그림 + 안내 두 줄.
+/// 오늘 운동이 아직 없을 때: 회색 둥근 카드 + 바벨 그림 + 안내 두 줄
+/// (+ 회원 개인 운동이면 '운동 시작' 회색 단추 — 누른 때부터 운동 시간을 잰다).
 class _WorkoutEmptyCard extends StatelessWidget {
-  const _WorkoutEmptyCard();
+  final VoidCallback? onStart;
+  final bool started;
+
+  const _WorkoutEmptyCard({this.onStart, this.started = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1175,16 +1379,80 @@ class _WorkoutEmptyCard extends StatelessWidget {
           const SizedBox(height: 18),
           // 시안 MemA-Workout-Empty: 17/500(Medium)
           Text(
-            '운동을 추가하고 바로 기록하세요',
+            started ? '운동을 시작했어요' : '운동을 추가하고 바로 기록하세요',
             style: AppTextStyles.section,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 10),
           Text(
-            '무게, 횟수, 완료 체크를 한 화면에서\n입력할 수 있습니다.',
+            started
+                ? '아래 \'종목 추가\'로 오늘 할 운동을\n골라 주세요.'
+                : '무게, 횟수, 완료 체크를 한 화면에서\n입력할 수 있습니다.',
             style: AppTextStyles.note.copyWith(color: AppColors.mute),
             textAlign: TextAlign.center,
           ),
+          if (onStart != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              label: '운동 시작',
+              variant: AppButtonVariant.secondary,
+              icon: const Icon(AppIcons.timer),
+              onPressed: onStart,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 진행 중인 운동 시간: 주황 점 + '운동 중 · 32분' 15 body (가운데).
+/// 종목 없이 시작만 했으면 오른쪽에 '취소'.
+class _ElapsedLine extends StatelessWidget {
+  final DateTime startedAt;
+  final VoidCallback? onCancel;
+
+  const _ElapsedLine({required this.startedAt, this.onCancel});
+
+  @override
+  Widget build(BuildContext context) {
+    final elapsed =
+        formatWorkoutDuration(
+          workoutDurationSeconds(startedAt, DateTime.now()),
+        ) ??
+        '방금 시작';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.xs,
+        AppSpacing.screenH,
+        AppSpacing.xs,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            '운동 중 · $elapsed',
+            style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
+          ),
+          if (onCancel != null) ...[
+            const SizedBox(width: AppSpacing.xs),
+            AppButton(
+              label: '취소',
+              variant: AppButtonVariant.ghost,
+              size: AppButtonSize.sm,
+              onPressed: onCancel,
+            ),
+          ],
         ],
       ),
     );

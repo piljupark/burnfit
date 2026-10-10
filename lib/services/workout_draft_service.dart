@@ -28,6 +28,29 @@ class WorkoutDraftService {
     }
   }
 
+  /// 이 기기에 남은 해당 사용자·종류의 임시 저장 운동 전부 (날짜 → 내용). 읽지 못한 것은 건너뛴다.
+  static Future<Map<String, Map<String, dynamic>>> loadAllFor({
+    required String memberId,
+    required String workoutType,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final prefix = 'workout_draft_${memberId}_${workoutType}_';
+    final result = <String, Map<String, dynamic>>{};
+    for (final key in prefs.getKeys().where((k) => k.startsWith(prefix))) {
+      final raw = prefs.getString(key);
+      if (raw == null || raw.trim().isEmpty) continue;
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          result[key.substring(prefix.length)] = decoded;
+        }
+      } catch (e) {
+        AppLogger.debug('[WorkoutDraft] 임시저장 데이터 파싱 실패: $e');
+      }
+    }
+    return result;
+  }
+
   static Future<void> saveDraft({
     required String memberId,
     required String workoutDate,

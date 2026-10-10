@@ -9,6 +9,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
+import '../../core/workout_timing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/pt_session.dart';
 import '../../models/user.dart';
@@ -754,6 +755,7 @@ class _WorkoutRow extends StatelessWidget {
       workout.category.label,
       '${workout.totalSets}세트',
       '볼륨 ${NumberFormat('#,##0').format(workout.totalVolume.round())}kg',
+      ?formatWorkoutDuration(workout.durationSeconds),
     ].join(' · ');
 
     return InkWell(

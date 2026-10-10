@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
+import '../../core/workout_timing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/workout.dart';
 import '../../widgets/app_icon_button.dart';
@@ -36,6 +37,10 @@ class SavedWorkoutCard extends StatelessWidget {
         .toList();
     // 기록에는 부위가 하나만 있어 종목마다 유산소인지 가린다 (유산소 '속도 × 분'은 볼륨이 아니다).
     final allCardio = workoutIsAllCardio(workout);
+    // 회원 개인 운동 시간 (PT 기록은 재지 않는다, 0이면 없음)
+    final duration = workout.workoutType == WorkoutType.personal
+        ? formatWorkoutDuration(workout.durationSeconds)
+        : null;
     final volume = NumberFormat(
       '#,###',
     ).format(workoutStrengthVolumeKg(workout).round());
@@ -107,6 +112,11 @@ class SavedWorkoutCard extends StatelessWidget {
                           ? [
                               TextSpan(text: '${workout.totalSets}'),
                               TextSpan(text: '세트', style: suffixStyle),
+                              if (duration != null)
+                                TextSpan(
+                                  text: ' · $duration',
+                                  style: suffixStyle,
+                                ),
                             ]
                           : [
                               TextSpan(text: volume),
@@ -114,6 +124,11 @@ class SavedWorkoutCard extends StatelessWidget {
                                 text: 'kg · ${workout.totalSets}세트',
                                 style: suffixStyle,
                               ),
+                              if (duration != null)
+                                TextSpan(
+                                  text: ' · $duration',
+                                  style: suffixStyle,
+                                ),
                             ],
                     ),
                     style: AppTextStyles.bodyMd.medium.natural,
