@@ -15,6 +15,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:pt_solution_v2/core/app_icons.dart';
 import 'package:pt_solution_v2/main.dart';
 import 'package:pt_solution_v2/screens/member/workout_sheets.dart';
+import 'package:pt_solution_v2/services/saved_account_store.dart';
 import 'package:pt_solution_v2/services/theme_controller.dart';
 import 'package:pt_solution_v2/widgets/app_highlight.dart';
 import 'package:pt_solution_v2/widgets/app_nav_bar.dart';
@@ -81,32 +82,26 @@ void main() {
       _tourTheme == 'dark' ? AppThemeChoice.dark : AppThemeChoice.light,
     );
 
-    // ── 로그인·가입 (시안 Com-*) ──
+    // ── 로그인·가입 ──
+    // 지난 실행이 남긴 '다시 오셨네요' 계정을 지워 처음 화면(이메일·비밀번호)부터 찍는다.
+    await SavedAccountStore.clear();
     await startApp(tester);
     await shot('00_login');
-    await step('center sheet', () async {
-      await tester.tap(find.text('센터를 선택해주세요').first);
-      await wait(tester, 1500);
-      await shot('01_center_sheet');
-      await back(tester);
-    });
     await step('password reset sheet', () async {
       await tester.tap(find.text('비밀번호를 잊으셨나요?').first);
       await wait(tester, 1500);
       await shot('02_password_reset');
       await back(tester);
     });
-    await step('trainer tab', () async {
-      await tester.tap(find.text('트레이너').first);
-      await wait(tester, 800);
-      await shot('03_login_trainer');
-      await tester.tap(find.text('회원').first);
-      await wait(tester, 800);
-    });
     await step('register', () async {
-      await tester.tap(find.textContaining('가입하기', findRichText: true).first);
+      await tester.tap(find.text('가입하기').first);
       await wait(tester);
-      await shot('04_register_member');
+      await shot('04_register_role');
+      await tester.tap(find.text('회원').first);
+      await wait(tester, 1500);
+      await shot('04b_register_center');
+      await tester.tap(find.byTooltip('뒤로').first);
+      await wait(tester, 800);
       await back(tester);
     });
     await step('pending', () async {

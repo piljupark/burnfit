@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
@@ -8,24 +10,26 @@ import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 import '../core/app_routing.dart';
 import '../core/validators.dart';
-import '../models/center.dart' as center_model;
 import '../services/account_service.dart';
 import '../services/auth_service.dart';
-import '../services/center_search.dart';
 import '../services/firestore_service.dart';
+import '../services/saved_account_store.dart';
 import '../services/user_provider.dart';
-import '../widgets/app_bottom_sheet.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_confirm_dialog.dart';
+import '../widgets/app_icon_box.dart';
 import '../widgets/app_text_field.dart';
-import '../widgets/center_list_row.dart';
-import '../widgets/app_loader.dart';
 import '../widgets/app_motion.dart';
+import '../widgets/app_toast.dart';
+import '../widgets/auth_parts.dart';
 import '../widgets/password_reset_sheet.dart';
-import 'member/member_register_screen.dart';
-import 'trainer/trainer_register_screen.dart';
-import 'admin/admin_register_screen.dart';
+import 'register_flow_screen.dart';
 
+/// 로그인: 이메일·비밀번호만 받는다. 센터와 역할은 계정(사용자 문서)에 있으므로
+/// 로그인한 뒤 [startRouteFor]가 들어갈 화면을 정한다.
+///
+/// 이 기기에서 로그인한 적이 있으면 '다시 오셨네요' + 계정 카드 + 비밀번호만 보여 준다
+/// ([SavedAccountStore]). '바꾸기'를 누르면 이메일 입력으로 펼친다.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -34,61 +38,57 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  int _roleIndex = 0; // 0=회원 1=트레이너 2=관리자
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _centerSearchController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  center_model.Center? _selectedCenter;
+
+  /// 저장된 계정을 읽기 전에는 아무것도 그리지 않는다 (두 화면이 번갈아 보이지 않게).
+  bool _ready = false;
+  SavedAccount? _saved;
+
+  /// 저장된 계정 카드로 로그인하는 중인지. false면 이메일을 입력받는다.
+  bool _useSaved = false;
   bool _isLoading = false;
 
-  static const _roles = [
-    (label: '회원', role: 'member'),
-    (label: '트레이너', role: 'trainer'),
-    (label: '관리자', role: 'admin'),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadSaved();
+  }
+
+  Future<void> _loadSaved() async {
+    final saved = await SavedAccountStore.load();
+    if (!mounted) return;
+    setState(() {
+      _saved = saved;
+      _useSaved = saved != null;
+      _ready = true;
+    });
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _centerSearchController.dispose();
     super.dispose();
   }
 
+  String get _email => _useSaved ? _saved!.email : _emailController.text.trim();
+
   Future<void> _login() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCenter == null) {
-      _showError('센터를 선택해주세요.');
-      return;
-    }
+    final firstTimeHere = !_useSaved;
     setState(() => _isLoading = true);
     final password = _passwordController.text;
     try {
-      final cred = await AuthService.signIn(
-        email: _emailController.text.trim(),
-        password: password,
-      );
+      final cred = await AuthService.signIn(email: _email, password: password);
 
       final user = await FirestoreService.getUser(cred.user!.uid);
       if (!mounted) return;
 
       if (user == null) {
-        _showError('계정 정보를 찾을 수 없습니다.');
-        await AuthService.signOut();
-        return;
-      }
-
-      // 비밀번호까지 맞은 본인이므로 무엇을 골라야 하는지 알려준다.
-      if (user.centerId != _selectedCenter!.id) {
-        _showError('이 계정은 \'${user.centerName}\' 소속이에요. 센터를 다시 선택해주세요.');
-        await AuthService.signOut();
-        return;
-      }
-
-      if (user.role.name != _roles[_roleIndex].role) {
-        final label = _roles.firstWhere((r) => r.role == user.role.name).label;
-        _showError('이 계정은 $label 계정이에요. 위에서 \'$label\'을(를) 선택해주세요.');
+        AppFeedback.showWarning(context, '계정 정보를 찾을 수 없습니다.');
         await AuthService.signOut();
         return;
       }
@@ -99,9 +99,19 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      await SavedAccountStore.save(user);
+      if (!mounted) return;
       // 알림 토큰 저장·계정 상태 구독도 함께 시작된다.
       context.read<UserProvider>().setUser(user);
       Navigator.of(context).pushReplacementNamed(route);
+      // 처음 이메일로 들어왔으면 어느 센터의 어떤 계정으로 들어갔는지 알려 준다.
+      if (firstTimeHere) {
+        AppToast.show(
+          null,
+          message: '${user.centerName} ${user.role.label} 계정으로 들어왔어요.',
+          kind: AppToastKind.success,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       // 잘못된 비밀번호·네트워크 오류 등을 구분해 안내한다.
@@ -112,8 +122,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
-
-  void _showError(String msg) => AppFeedback.showWarning(context, msg);
 
   /// 거절된 계정: 그냥 로그아웃시키면 같은 이메일로 다시 가입할 수 없으므로
   /// 계정 삭제(기존 탈퇴 서버 함수)를 안내한다. 삭제하지 않으면 로그아웃만 한다.
@@ -133,14 +141,36 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     try {
       await AccountService.deleteMyAccount(uid: uid, password: password);
+      await SavedAccountStore.clear();
       if (!mounted) return;
       _passwordController.clear();
+      setState(() {
+        _saved = null;
+        _useSaved = false;
+      });
       AppFeedback.showSuccessSnackBar(context, '계정을 삭제했어요. 다시 가입 신청할 수 있어요.');
     } catch (e) {
       await AuthService.signOut();
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
     }
+  }
+
+  void _useOtherAccount() {
+    _emailController.clear();
+    _passwordController.clear();
+    setState(() => _useSaved = false);
+  }
+
+  void _backToSaved() {
+    _passwordController.clear();
+    setState(() => _useSaved = true);
+  }
+
+  void _goRegister() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const RegisterFlowScreen()));
   }
 
   /// 시안 `up`: 아래 12에서 올라오며 나타남 (.5s ease-out, 순번 × 0.05초 늦게)
@@ -150,449 +180,257 @@ class _LoginScreenState extends State<LoginScreen> {
     child: child,
   );
 
-  void _goRegister() {
-    final screen = switch (_roleIndex) {
-      0 => const MemberRegisterScreen(),
-      1 => const TrainerRegisterScreen(),
-      _ => const AdminRegisterScreen(),
-    };
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
-  }
-
-  Future<void> _openCenterPicker() async {
-    _centerSearchController.clear();
-    final selected = await showAppBottomSheet<center_model.Center>(
-      context: context,
-      child: _CenterPickerSheet(controller: _centerSearchController),
-    );
-    if (selected == null || !mounted) return;
-    setState(() => _selectedCenter = selected);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
+    if (!_ready) return Scaffold(backgroundColor: AppColors.canvas);
+    final saved = _saved;
+    final useSaved = _useSaved && saved != null;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      body: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          padding: EdgeInsets.only(
-            top: media.padding.top + AppSpacing.xl2,
-            bottom: media.padding.bottom + AppSpacing.xl2,
-          ),
-          child: ConstrainedBox(
-            // 폼이 화면보다 작으면 세로 가운데, 키보드가 올라오면 스크롤
-            constraints: BoxConstraints(
-              minHeight:
-                  constraints.maxHeight -
-                  media.padding.vertical -
-                  AppSpacing.xl2 * 2,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 보이는 제목은 없지만 스크린리더에는 화면 이름을 알린다
-                  Semantics(
-                    header: true,
-                    label: 'BurnFit 로그인',
-                    child: const SizedBox.shrink(),
-                  ),
-                  // 화면 가운데: 역할 → 센터·이메일·비밀번호 → 로그인 → 가입
-                  // (시안 `up`: 묶음마다 0.05초씩 늦게 아래 12에서 올라온다)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screenH,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 위: 가운데 제목 → 계정 카드 또는 이메일 → 비밀번호
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenH,
+                ),
+                child: Form(
+                  key: _formKey,
+                  // 카드 화면과 이메일 화면을 바꾸면 칸을 새로 만들어 지난 오류 문구가 남지 않게 한다.
+                  child: _LoginFields(
+                    key: ValueKey(useSaved),
+                    up: _up,
+                    saved: useSaved ? saved : null,
+                    emailController: _emailController,
+                    passwordController: _passwordController,
+                    onChangeAccount: _useOtherAccount,
+                    onSubmit: _login,
+                    onForgot: () => showPasswordResetSheet(
+                      context,
+                      initialEmail: useSaved
+                          ? saved.email
+                          : _emailController.text,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _up(
-                          0,
-                          _RoleSelector(
-                            labels: [for (final r in _roles) r.label],
-                            selectedIndex: _roleIndex,
-                            onSelect: (i) => setState(() => _roleIndex = i),
-                          ),
-                        ),
-                        const Gap(AppSpacing.xl),
-                        _up(
-                          1,
-                          _CenterSelector(
-                            centerName: _selectedCenter?.name,
-                            onTap: _openCenterPicker,
-                          ),
-                        ),
-                        const Gap(AppSpacing.base),
-                        _up(
-                          2,
-                          AppTextField(
-                            label: '이메일',
-                            hint: 'name@example.com',
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: Validators.email,
-                            textInputAction: TextInputAction.next,
-                          ),
-                        ),
-                        const Gap(AppSpacing.base),
-                        _up(
-                          3,
-                          AppTextField(
-                            label: '비밀번호',
-                            hint: '비밀번호',
-                            controller: _passwordController,
-                            obscureText: true,
-                            validator: Validators.existingPassword,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _login(),
-                          ),
-                        ),
-                        _up(
-                          4,
-                          ForgotPasswordLink(
-                            onPressed: () => showPasswordResetSheet(
-                              context,
-                              initialEmail: _emailController.text,
-                            ),
-                          ),
-                        ),
-                        _up(
-                          5,
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const Gap(AppSpacing.xs),
-                              AppButton(
-                                label: '로그인',
-                                onPressed: _login,
-                                isLoading: _isLoading,
-                                fullWidth: true,
-                                size: AppButtonSize.lg,
-                              ),
-                              const Gap(AppSpacing.sm),
-                              _RegisterLink(onTap: _goRegister),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    onBackToSaved: !useSaved && saved != null
+                        ? _backToSaved
+                        : null,
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 역할 선택 (시안 Com-Login): 같은 폭 3칸, 높이 44 · 반경 14 · 회색 면, 선택 = 검정 채움 + 흰 15/500
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _RoleSelector extends StatelessWidget {
-  final List<String> labels;
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
-
-  const _RoleSelector({
-    required this.labels,
-    required this.selectedIndex,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: '로그인 역할',
-      container: true,
-      child: Row(
-        children: [
-          for (var i = 0; i < labels.length; i++) ...[
-            if (i > 0) const Gap(AppSpacing.sm),
-            Expanded(
-              child: _RolePill(
-                label: labels[i],
-                selected: i == selectedIndex,
-                onTap: () => onSelect(i),
+            // 아래 고정: 로그인 → 가입·다른 계정 링크 (키보드 위로 따라 올라온다)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenH,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Gap(AppSpacing.md),
+                  _up(
+                    4,
+                    AppButton(
+                      label: '로그인',
+                      onPressed: _login,
+                      isLoading: _isLoading,
+                      fullWidth: true,
+                      size: AppButtonSize.lg,
+                    ),
+                  ),
+                  _up(
+                    5,
+                    useSaved
+                        ? AuthTextLink(
+                            lead: '다른 계정으로',
+                            action: '로그인',
+                            onTap: _useOtherAccount,
+                          )
+                        : AuthTextLink(
+                            lead: '처음이에요',
+                            action: '가입하기',
+                            onTap: _goRegister,
+                          ),
+                  ),
+                  Gap(math.max(bottomInset - AppSpacing.md, AppSpacing.sm)),
+                ],
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
-class _RolePill extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+/// 폼 위쪽 묶음. 계정 카드 화면과 이메일 화면을 [key]로 나눠 그때마다 새로 들어오게 한다.
+class _LoginFields extends StatelessWidget {
+  final Widget Function(int index, Widget child) up;
+  final SavedAccount? saved;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final VoidCallback onChangeAccount;
+  final VoidCallback onSubmit;
+  final VoidCallback onForgot;
+  final VoidCallback? onBackToSaved;
 
-  const _RolePill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
+  const _LoginFields({
+    super.key,
+    required this.up,
+    required this.saved,
+    required this.emailController,
+    required this.passwordController,
+    required this.onChangeAccount,
+    required this.onSubmit,
+    required this.onForgot,
+    required this.onBackToSaved,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      inMutuallyExclusiveGroup: true,
-      label: label,
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          height: AppSize.touchMin,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? AppColors.ink : AppColors.canvasSoft,
-            borderRadius: BorderRadius.circular(AppRadius.field),
-          ),
-          child: Text(
-            label,
-            style: AppTextStyles.bodyMd.copyWith(
-              color: selected ? AppColors.canvas : AppColors.body,
-              fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
-            ),
+    final saved = this.saved;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Gap(40),
+        up(
+          0,
+          AuthHeading(
+            title: saved != null ? '다시 오셨네요' : '로그인',
+            subtitle: saved != null
+                ? '지난번 계정으로 들어가요.'
+                : '센터와 역할은 계정에서 알아서 찾아요.',
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 센터 선택 (입력창 모양, 누르면 검색 시트)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _CenterSelector extends StatelessWidget {
-  final String? centerName;
-  final VoidCallback onTap;
-
-  const _CenterSelector({required this.centerName, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ExcludeSemantics(child: Text('센터', style: AppTextStyles.fieldLabel)),
-        const Gap(6),
-        Semantics(
-          button: true,
-          label: centerName == null ? '센터 선택' : '센터, $centerName. 바꾸기',
-          excludeSemantics: true,
-          child: Material(
-            color: AppColors.canvasSoft,
-            borderRadius: BorderRadius.circular(AppRadius.field),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              highlightColor: AppColors.canvasMid,
-              splashFactory: NoSplash.splashFactory,
-              child: SizedBox(
-                height: 52,
-                child: Row(
-                  children: [
-                    const Gap(AppSpacing.base),
-                    Expanded(
-                      child: Text(
-                        centerName ?? '센터를 선택해주세요',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.input.copyWith(
-                          color: centerName == null
-                              ? AppColors.faint
-                              : AppColors.ink,
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: AppSize.touchMin,
-                      child: Icon(
-                        AppIcons.search,
-                        size: AppSize.icon,
-                        color: AppColors.mute,
-                      ),
-                    ),
-                    const Gap(AppSpacing.xs),
-                  ],
-                ),
+        const Gap(AppSpacing.xl),
+        if (saved != null)
+          up(1, _SavedAccountCard(account: saved, onChange: onChangeAccount))
+        else
+          up(
+            1,
+            AppTextField(
+              label: '이메일',
+              hint: 'name@example.com',
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              validator: Validators.email,
+              textInputAction: TextInputAction.next,
+            ),
+          ),
+        const Gap(AppSpacing.base),
+        up(
+          2,
+          AppTextField(
+            label: '비밀번호',
+            hint: '비밀번호',
+            controller: passwordController,
+            obscureText: true,
+            // 로그인은 틀린 비밀번호를 확인하는 일이 잦아 보기 단추를 켠다 (2026-10-10 결정)
+            showVisibilityToggle: true,
+            validator: Validators.existingPassword,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => onSubmit(),
+          ),
+        ),
+        up(3, ForgotPasswordLink(onPressed: onForgot)),
+        if (onBackToSaved != null)
+          up(
+            3,
+            Center(
+              child: AppButton(
+                label: '지난번 계정으로 돌아가기',
+                variant: AppButtonVariant.ghost,
+                size: AppButtonSize.md,
+                onPressed: onBackToSaved,
               ),
             ),
           ),
-        ),
+        const Gap(AppSpacing.base),
       ],
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 가입 링크: '처음이에요 ·' 15 body + '가입하기' 15/500 ink (높이 48)
+// 계정 카드: 회색 면(반경 20) · 아이콘 상자(흰 면) · 센터 이름 16/500 · '역할 · 이메일' 13 body ·
+// 오른쪽 흰 알약 '바꾸기'(32, 터치 44)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _RegisterLink extends StatelessWidget {
-  final VoidCallback onTap;
+class _SavedAccountCard extends StatelessWidget {
+  final SavedAccount account;
+  final VoidCallback onChange;
 
-  const _RegisterLink({required this.onTap});
+  const _SavedAccountCard({required this.account, required this.onChange});
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '처음이에요, 가입하기',
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        splashFactory: NoSplash.splashFactory,
-        highlightColor: Colors.transparent,
-        child: SizedBox(
-          height: 48,
-          child: Center(
-            child: Text.rich(
-              TextSpan(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: AppColors.canvasCard,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Row(
+        children: [
+          AppIconBox(icon: AppIcons.profile, background: AppColors.canvas),
+          const Gap(AppSpacing.md),
+          Expanded(
+            child: Semantics(
+              label:
+                  '지난번 계정, ${account.centerName} ${account.role.label}, ${account.email}',
+              excludeSemantics: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const TextSpan(text: '처음이에요 · '),
-                  TextSpan(
-                    text: '가입하기',
-                    style: TextStyle(
-                      color: AppColors.ink,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Text(
+                    account.centerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.listTitle,
+                  ),
+                  const Gap(2),
+                  Text(
+                    '${account.role.label} · ${account.email}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
                   ),
                 ],
               ),
-              style: AppTextStyles.bodyMd.copyWith(color: AppColors.body),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 센터 선택 바텀시트
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _CenterPickerSheet extends StatefulWidget {
-  final TextEditingController controller;
-
-  const _CenterPickerSheet({required this.controller});
-
-  @override
-  State<_CenterPickerSheet> createState() => _CenterPickerSheetState();
-}
-
-class _CenterPickerSheetState extends State<_CenterPickerSheet> {
-  final _centerSearch = CenterSearch();
-  List<center_model.Center> _centers = [];
-  bool _loading = false;
-  bool _failed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _search('');
-  }
-
-  Future<void> _search(String query) async {
-    setState(() => _loading = true);
-    try {
-      final centers = await _centerSearch.search(query);
-      // 입력이 그새 바뀌었으면 이 결과는 버린다 (최신 입력의 검색이 곧 반영된다).
-      if (!mounted || query != widget.controller.text) return;
-      setState(() {
-        _centers = centers;
-        _failed = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _centers = [];
-        _failed = true;
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const AppBottomSheetHeader(title: '센터 선택', gap: AppSpacing.md),
-        AppTextField(
-          label: '센터 검색',
-          hint: '센터 이름을 입력해주세요',
-          controller: widget.controller,
-          onChanged: _search,
-          textInputAction: TextInputAction.search,
-          prefix: const Icon(AppIcons.search),
-        ),
-        const Gap(AppSpacing.sm),
-        if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl2),
-            child: Center(child: AppLoader.screen()),
-          )
-        else if (_failed)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: Column(
-              children: [
-                Text(
-                  '센터 목록을 불러오지 못했어요.\n네트워크를 확인해주세요.',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+          const Gap(AppSpacing.sm),
+          Semantics(
+            button: true,
+            label: '다른 계정으로 바꾸기',
+            excludeSemantics: true,
+            child: GestureDetector(
+              onTap: onChange,
+              behavior: HitTestBehavior.opaque,
+              child: SizedBox(
+                height: AppSize.touchMin,
+                child: Center(
+                  child: Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.canvas,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text('바꾸기', style: AppTextStyles.buttonLabel.medium),
+                  ),
                 ),
-                const Gap(AppSpacing.md),
-                AppButton(
-                  label: '다시 시도',
-                  variant: AppButtonVariant.secondary,
-                  onPressed: () => _search(widget.controller.text),
-                ),
-              ],
-            ),
-          )
-        else if (_centers.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl2),
-            child: Text(
-              '검색된 센터가 없습니다.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
-            ),
-          )
-        else
-          // 시안 `row`: 줄마다 0.05초씩 늦게 아래 8에서 올라온다
-          for (var i = 0; i < _centers.length; i++)
-            AppEntrance(
-              key: ValueKey(_centers[i].id),
-              offset: const Offset(0, 8),
-              duration: const Duration(milliseconds: 400),
-              delay: Duration(milliseconds: 50 * (i + 1)),
-              child: CenterListRow(
-                center: _centers[i],
-                minHeight: 68,
-                onTap: () => Navigator.of(context).pop(_centers[i]),
               ),
             ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }

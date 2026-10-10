@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/body_profile_service.dart';
 import '../services/fcm_service.dart';
 import '../services/firestore_service.dart';
+import '../services/saved_account_store.dart';
 
 class UserProvider extends ChangeNotifier {
   AppUser? _user;
@@ -120,6 +121,8 @@ class UserProvider extends ChangeNotifier {
       if (current != null) _attach(current);
       rethrow;
     }
+    // 지운 계정이 로그인 화면의 '다시 오셨네요' 카드로 남지 않게 한다.
+    await SavedAccountStore.clear();
     _user = null;
     notifyListeners();
   }

@@ -2,7 +2,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/firestore_date.dart';
 
-enum UserRole { admin, trainer, member }
+enum UserRole {
+  admin('관리자'),
+  trainer('트레이너'),
+  member('회원');
+
+  final String label;
+
+  const UserRole(this.label);
+}
 
 enum UserStatus { pending, approved, rejected }
 

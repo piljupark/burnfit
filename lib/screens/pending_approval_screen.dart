@@ -19,6 +19,13 @@ class PendingApprovalScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 어느 센터가 승인하는지 알려 준다 (센터 이름이 없으면 예전 문구).
+    final centerName = context.select<UserProvider, String?>(
+      (p) => p.user?.centerName,
+    );
+    final message = centerName == null || centerName.isEmpty
+        ? '관리자가 가입 신청을 검토하고 있습니다.\n승인이 완료되면 바로 서비스를 이용하실 수 있습니다.'
+        : '$centerName 관리자가 가입 신청을 확인하고 있어요.\n승인되면 바로 이용할 수 있어요.';
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
@@ -48,7 +55,7 @@ class PendingApprovalScreen extends StatelessWidget {
               ),
               const Gap(AppSpacing.md),
               Text(
-                '관리자가 가입 신청을 검토하고 있습니다.\n승인이 완료되면 바로 서비스를 이용하실 수 있습니다.',
+                message,
                 style: AppTextStyles.input.copyWith(
                   color: AppColors.body,
                   height: 1.6,
