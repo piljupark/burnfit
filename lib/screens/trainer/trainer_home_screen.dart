@@ -16,6 +16,7 @@ import '../../widgets/theme_setting_row.dart';
 import '../../widgets/password_reset_sheet.dart';
 import '../../widgets/delete_account_sheet.dart';
 import 'trainer_calendar_screen.dart';
+import 'trainer_meal_feed_screen.dart';
 import 'trainer_schedule_screen.dart';
 import '../common/notice_list_screen.dart';
 import '../common/notice_menu_row.dart';
@@ -31,8 +32,13 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
   int _currentIndex = 0;
   final _calendarKey = GlobalKey<TrainerCalendarScreenState>();
   final _scheduleKey = GlobalKey<TrainerScheduleScreenState>();
+  final _mealKey = GlobalKey<TrainerMealFeedScreenState>();
 
   static const _scheduleTab = 1;
+  static const _mealTab = 2;
+
+  /// 피드백할 회원 식단 수 (식단 탭 아이콘 점).
+  int _pendingMeals = 0;
 
   static const _navItems = [
     AppNavItem(label: '홈', icon: AppIcons.home, activeIcon: AppIcons.homeFill),
@@ -41,6 +47,7 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
       icon: AppIcons.calendar,
       activeIcon: AppIcons.calendarFill,
     ),
+    AppNavItem(label: '식단', icon: AppIcons.meal, activeIcon: AppIcons.mealFill),
     AppNavItem(
       label: '마이',
       icon: AppIcons.profile,
@@ -56,6 +63,14 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
     _pages = [
       TrainerCalendarScreen(key: _calendarKey),
       TrainerScheduleScreen(key: _scheduleKey),
+      TrainerMealFeedScreen(
+        key: _mealKey,
+        onPendingChanged: (count) {
+          if (mounted && count != _pendingMeals) {
+            setState(() => _pendingMeals = count);
+          }
+        },
+      ),
       const _TrainerProfileTab(),
     ];
     FcmService.pendingTarget.addListener(_handleNotificationTarget);
@@ -86,6 +101,10 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
         Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => const NoticeListScreen()));
+      case NotificationTarget.meals:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        setState(() => _currentIndex = _mealTab);
+        _mealKey.currentState?.refresh();
       // 트레이너에게는 피드백·운동 리마인드 알림이 오지 않는다.
       case NotificationTarget.feedback:
       case NotificationTarget.workout:
@@ -114,10 +133,12 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
                 if (i != _currentIndex) {
                   if (i == 0) _calendarKey.currentState?.refresh();
                   if (i == _scheduleTab) _scheduleKey.currentState?.refresh();
+                  if (i == _mealTab) _mealKey.currentState?.refresh();
                 }
                 setState(() => _currentIndex = i);
               },
               items: _navItems,
+              dotIndexes: _pendingMeals > 0 ? const {_mealTab} : const {},
             ),
           ),
         ],

@@ -107,6 +107,9 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
       case NotificationTarget.workout:
         Navigator.of(context).popUntil((route) => route.isFirst);
         _selectTab(_workoutTab);
+      // 회원에게는 '새 식단' 알림이 오지 않는다 (트레이너용).
+      case NotificationTarget.meals:
+        break;
       case null:
         break;
     }

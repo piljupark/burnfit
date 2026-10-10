@@ -13,14 +13,13 @@ import '../../core/constants.dart';
 import '../../models/cardio.dart';
 import '../../models/feedback.dart' as fb;
 import '../../models/inbody.dart';
-import '../../models/meal.dart';
 import '../../models/pt_info.dart';
 import '../../models/user.dart';
 import '../../models/workout.dart';
 import '../../services/body_profile_service.dart';
 import '../../services/cardio_service.dart';
 import '../../services/firestore_service.dart';
-import '../../services/meal_service.dart';
+import '../../services/meal_feed_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
@@ -37,7 +36,9 @@ import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/app_screen_header.dart';
+import '../../widgets/app_section.dart';
 import '../../widgets/feedback_sheet.dart';
+import '../../widgets/meal_feed.dart';
 import 'trainer_inbody_sheet.dart';
 import 'trainer_member_tabs.dart';
 
@@ -67,7 +68,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
 
   late TabController _tabController;
 
-  List<Meal> _meals = [];
+  List<MealFeedItem> _meals = [];
   List<Workout> _workouts = [];
   List<Cardio> _cardios = [];
   List<Inbody> _inbodies = [];
@@ -180,14 +181,23 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     if (!mounted) return;
     setState(() => _loadingMeals = true);
     try {
-      final list = await MealService.getMealsByDateRange(
-        widget.member.centerId,
-        widget.member.uid,
-        _rangeStart,
-        _rangeEnd,
+      // 식단 탭과 같은 카드: 식단 + 달린 피드백을 함께 읽는다.
+      final list = await MealFeedService.load(
+        members: [widget.member],
+        from: DateTime.parse(_rangeStart),
+        to: DateTime.parse(_rangeEnd),
       );
       if (!mounted) return;
       setState(() => _meals = list);
+      // 이 회원 식단을 봤으므로 식단 탭의 '새 식단' 표시를 지운다.
+      final trainer = context.read<UserProvider>().user;
+      if (trainer != null) {
+        await MealFeedSeenStore.markSeen(
+          trainer.uid,
+          widget.member.uid,
+          DateTime.now(),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       AppFeedback.showErrorSnackBar(context, e);
@@ -252,6 +262,30 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
       if (mounted) {
         setState(() => _loadingCardios = false);
       }
+    }
+  }
+
+  /// 식단 카드 아래 입력 줄에서 바로 보낸 피드백 (식단 탭과 같은 방식 — 댓글처럼 쌓인다).
+  Future<bool> _sendMealFeedback(MealFeedItem item, String content) async {
+    final trainer = context.read<UserProvider>().user;
+    if (trainer == null) return false;
+    try {
+      final feedback = await MealFeedService.sendFeedback(
+        trainer: trainer,
+        item: item,
+        content: content,
+      );
+      if (!mounted) return true;
+      setState(() {
+        _meals = [
+          for (final x in _meals)
+            x.meal.id == item.meal.id ? x.withFeedback(feedback) : x,
+        ];
+      });
+      return true;
+    } catch (e) {
+      if (mounted) AppFeedback.showErrorSnackBar(context, e);
+      return false;
     }
   }
 
@@ -474,15 +508,10 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                     ),
                     onRefresh: _loadWorkouts,
                   ),
-                  TrainerMealsTab(
-                    meals: _meals,
+                  _MealFeedTab(
+                    items: _meals,
                     isLoading: _loadingMeals,
-                    onFeedback: (meal) => _writeFeedback(
-                      type: fb.FeedbackTargetType.meal,
-                      targetId: meal.id,
-                      targetDate: meal.mealDate,
-                      targetLinked: meal.hasFeedback,
-                    ),
+                    onSend: _sendMealFeedback,
                     onRefresh: _loadMeals,
                   ),
                   TrainerCardiosTab(
@@ -1054,4 +1083,51 @@ class _InbodyRow extends StatelessWidget {
 
 String _formatProfileValue(num value) {
   return value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
+}
+
+/// 회원 상세 '식단' 탭: 식단 탭과 같은 카드(회원 이름 대신 끼니), 최근 30일.
+class _MealFeedTab extends StatelessWidget {
+  final List<MealFeedItem> items;
+  final bool isLoading;
+  final Future<bool> Function(MealFeedItem item, String content) onSend;
+  final Future<void> Function() onRefresh;
+
+  const _MealFeedTab({
+    required this.items,
+    required this.isLoading,
+    required this.onSend,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading && items.isEmpty) return const AppLoadingView();
+    final trainer = context.read<UserProvider>().user;
+    if (trainer == null) return const SizedBox.shrink();
+    if (items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        color: AppColors.ink,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            AppEmptyState(
+              icon: AppIcons.meal,
+              message: '최근 30일 식단 기록이 없습니다.',
+              compact: true,
+              top: AppSpacing.xl3,
+            ),
+          ],
+        ),
+      );
+    }
+    return MealFeedList(
+      items: items,
+      trainerId: trainer.uid,
+      showMember: false,
+      onSend: onSend,
+      onRefresh: onRefresh,
+      padding: const EdgeInsets.only(bottom: 120),
+    );
+  }
 }

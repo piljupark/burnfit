@@ -13,6 +13,7 @@ const retentionStore = require('./retention_store');
 const inbox = require('./notifications');
 const ptSessions = require('./pt_sessions');
 const notices = require('./notices');
+const meals = require('./meals');
 
 initializeApp();
 
@@ -246,6 +247,32 @@ exports.onFeedbackCreated = onDocumentCreated(
       `${feedback.trainerName ?? ''} 트레이너가 피드백을 남겼습니다`,
       `${targetLabel} 기록에 새 피드백: ${preview}`,
       { type: 'feedback_created', feedbackId: event.params.feedbackId },
+      `${event.id}`,
+    );
+  },
+);
+
+// ─────────────────────────────────────────────
+// 식단 등록 → 지금 담당 트레이너에게 알림 (트레이너 앱 '식단' 탭으로)
+// ─────────────────────────────────────────────
+
+exports.onMealCreated = onDocumentCreated(
+  'meals/{mealId}',
+  async (event) => {
+    const meal = event.data?.data();
+    if (!meal?.memberId) return;
+
+    // 식단에 저장된 trainerId가 아니라 회원의 지금 담당 트레이너에게 보낸다 (담당이 바뀌었을 수 있다).
+    const memberSnap = await db.collection('users').doc(meal.memberId).get();
+    const trainerId = memberSnap.exists ? memberSnap.data().trainerId : null;
+    if (!trainerId) return;
+
+    const { title, body } = meals.mealCreatedMessage(meal);
+    await notifyUser(
+      trainerId,
+      title,
+      body,
+      { type: 'meal_created', mealId: event.params.mealId },
       `${event.id}`,
     );
   },

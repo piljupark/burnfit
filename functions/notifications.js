@@ -4,7 +4,7 @@
 const INBOX_RETENTION_DAYS = 90;
 
 // FCM data에서 알림이 가리키는 문서 ID를 꺼낸다.
-const TARGET_ID_KEYS = ['sessionId', 'feedbackId', 'ptInfoId', 'noticeId'];
+const TARGET_ID_KEYS = ['sessionId', 'feedbackId', 'ptInfoId', 'noticeId', 'mealId'];
 
 function buildInboxDoc({ title, body, data, createdAt }) {
   const targetKey = TARGET_ID_KEYS.find((key) => typeof data?.[key] === 'string');

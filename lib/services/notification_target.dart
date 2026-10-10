@@ -15,7 +15,10 @@ enum NotificationTarget {
   notices,
 
   /// 회원 운동 탭 (기기 안 '운동 마치셨나요?' 리마인드 — 서버 알림에는 없다)
-  workout;
+  workout,
+
+  /// 트레이너 식단 탭 (담당 회원이 식단을 올렸을 때)
+  meals;
 
   static NotificationTarget? fromData(Map<String, dynamic> data) {
     switch (data['type']) {
@@ -29,6 +32,8 @@ enum NotificationTarget {
         return NotificationTarget.ptSchedule;
       case 'notice_created':
         return NotificationTarget.notices;
+      case 'meal_created':
+        return NotificationTarget.meals;
       case 'account_approved':
       case 'member_assigned':
         return NotificationTarget.home;

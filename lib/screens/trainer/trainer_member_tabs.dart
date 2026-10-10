@@ -9,7 +9,6 @@ import '../../core/app_spacing.dart';
 import '../../core/workout_timing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/cardio.dart';
-import '../../models/meal.dart';
 import '../../models/workout.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_loader.dart';
@@ -61,51 +60,6 @@ class TrainerEmptyState extends StatelessWidget {
       actionLabel: actionLabel,
       onAction: onAction,
       actionVariant: AppButtonVariant.dark,
-    );
-  }
-}
-
-class TrainerMealsTab extends StatelessWidget {
-  final List<Meal> meals;
-  final bool isLoading;
-  final void Function(Meal) onFeedback;
-  final Future<void> Function() onRefresh;
-
-  const TrainerMealsTab({
-    super.key,
-    required this.meals,
-    required this.isLoading,
-    required this.onFeedback,
-    required this.onRefresh,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // 이미 보이는 목록이 있으면 당겨서 새로고침하는 동안 그대로 둔다.
-    if (isLoading && meals.isEmpty) return const AppLoadingView();
-
-    return _RecordList(
-      onRefresh: onRefresh,
-      emptyIcon: AppIcons.meal,
-      emptyMessage: '최근 30일 식단 기록이 없습니다.',
-      records: [
-        for (final meal in meals)
-          _Record(
-            date: meal.mealDate,
-            title: (meal.description?.isNotEmpty ?? false)
-                ? meal.description!
-                : meal.mealType.label,
-            meta: [
-              meal.mealType.label,
-              if (meal.mealTime != null && meal.mealTime!.isNotEmpty)
-                meal.mealTime!,
-              if (meal.calories != null) '${_number(meal.calories!)} kcal',
-            ].join(' · '),
-            imageUrls: meal.imageUrls,
-            hasFeedback: meal.hasFeedback,
-            onTap: () => onFeedback(meal),
-          ),
-      ],
     );
   }
 }
@@ -214,7 +168,6 @@ class _Record {
   final String date;
   final String title;
   final String meta;
-  final List<String> imageUrls;
   final bool hasFeedback;
   final VoidCallback onTap;
 
@@ -224,7 +177,6 @@ class _Record {
     required this.meta,
     required this.hasFeedback,
     required this.onTap,
-    this.imageUrls = const [],
   });
 }
 
@@ -386,34 +338,6 @@ class _RecordRow extends StatelessWidget {
                   ),
                 ],
               ),
-              if (record.imageUrls.isNotEmpty) ...[
-                const Gap(AppSpacing.md),
-                Padding(
-                  padding: const EdgeInsets.only(left: 52),
-                  child: SizedBox(
-                    height: 72,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: record.imageUrls.length,
-                      separatorBuilder: (_, _) => const Gap(AppSpacing.xs),
-                      itemBuilder: (_, j) => ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.iconBox),
-                        child: Image.network(
-                          record.imageUrls[j],
-                          width: 72,
-                          height: 72,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(
-                            width: 72,
-                            height: 72,
-                            color: AppColors.canvasSoft,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ),

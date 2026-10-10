@@ -75,6 +75,7 @@ class AppIcons {
   static const IconData bell = PhosphorIconsRegular.bell;
   static const IconData megaphone = PhosphorIconsRegular.megaphone;
   static const IconData meal = PhosphorIconsRegular.bowlSteam;
+  static const IconData mealFill = PhosphorIconsFill.bowlSteam; // 트레이너 식단 탭 선택
   static const IconData feedback = PhosphorIconsRegular.chatText;
   static const IconData note = PhosphorIconsRegular.notePencil;
   static const IconData clipboard = PhosphorIconsRegular.clipboardText;
@@ -94,6 +95,7 @@ class AppIcons {
   static const IconData trendDown = PhosphorIconsRegular.trendDown;
   static const IconData camera = PhosphorIconsRegular.camera;
   static const IconData image = PhosphorIconsRegular.image;
+  static const IconData sendBold = PhosphorIconsBold.arrowUp; // 피드백 보내기 (식단 피드)
   static const IconData userPlus = PhosphorIconsRegular.userPlus;
   static const IconData user = PhosphorIconsRegular.user;
   static const IconData center = PhosphorIconsRegular.buildings;

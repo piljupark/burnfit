@@ -25,11 +25,15 @@ class AppNavBar extends StatelessWidget {
   final void Function(int) onTap;
   final List<AppNavItem> items;
 
+  /// 새 소식 점(7, newDot)을 아이콘 오른쪽 위에 찍을 탭 (예: 트레이너 식단 — 피드백할 식단이 있을 때).
+  final Set<int> dotIndexes;
+
   const AppNavBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
     required this.items,
+    this.dotIndexes = const {},
   });
 
   /// 위아래 여백 (위 10, 아래는 기기 안전 영역이 더 크면 그만큼)
@@ -68,17 +72,37 @@ class AppNavBar extends StatelessWidget {
               child: Semantics(
                 button: true,
                 selected: active,
-                label: item.label,
+                label: dotIndexes.contains(i)
+                    ? '${item.label}, 새 소식'
+                    : item.label,
                 excludeSemantics: true,
                 child: GestureDetector(
                   onTap: () => onTap(i),
                   behavior: HitTestBehavior.opaque,
                   child: Column(
                     children: [
-                      Icon(
-                        active ? item.activeIcon : item.icon,
-                        size: AppSize.iconNav,
-                        color: color,
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            active ? item.activeIcon : item.icon,
+                            size: AppSize.iconNav,
+                            color: color,
+                          ),
+                          if (dotIndexes.contains(i))
+                            Positioned(
+                              top: 0,
+                              right: -2,
+                              child: Container(
+                                width: 7,
+                                height: 7,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.newDot,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
