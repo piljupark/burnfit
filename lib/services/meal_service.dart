@@ -37,6 +37,7 @@ class MealService {
   }) async {
     ServiceValidator.requireText(centerId, '센터 ID');
     ServiceValidator.requireText(memberId, '회원 ID');
+    if (files.isEmpty) throw ArgumentError('사진을 1장 이상 올려 주세요.');
     ServiceValidator.requireImageCount(files.length);
 
     final urls = <String>[];
@@ -111,6 +112,7 @@ class MealService {
     ServiceValidator.requireDateKey(mealDate, '식단 날짜');
     ServiceValidator.requireOptionalTime(mealTime, '식단 시간');
     ServiceValidator.requireNonNegativeInt(calories ?? 0, '칼로리');
+    if (imageUrls.isEmpty) throw ArgumentError('사진을 1장 이상 올려 주세요.');
 
     final id = _uuid.v4();
     final now = DateTime.now();

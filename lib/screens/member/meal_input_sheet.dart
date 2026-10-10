@@ -110,10 +110,9 @@ class _MealInputSheetState extends State<MealInputSheet> {
   Future<void> _save() async {
     if (_isSaving) return;
     final calories = _caloriesController.text.trim();
-    if (_images.isEmpty &&
-        _descController.text.trim().isEmpty &&
-        calories.isEmpty) {
-      AppFeedback.showWarning(context, '사진, 메모, 칼로리 중 하나는 입력해주세요.');
+    // 식단은 사진이 꼭 있어야 한다 (규칙도 같은 것을 요구한다)
+    if (_images.isEmpty) {
+      AppFeedback.showWarning(context, '사진을 1장 이상 올려 주세요.');
       return;
     }
     if (calories.isNotEmpty && (int.tryParse(calories) ?? -1) < 0) {
@@ -212,7 +211,18 @@ class _MealInputSheetState extends State<MealInputSheet> {
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
-                      Text('사진', style: AppTextStyles.fieldLabel),
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(text: '사진'),
+                            TextSpan(
+                              text: ' (필수)',
+                              style: TextStyle(color: AppColors.faint),
+                            ),
+                          ],
+                        ),
+                        style: AppTextStyles.fieldLabel,
+                      ),
                       const SizedBox(width: AppSpacing.sm),
                       Text.rich(
                         TextSpan(
@@ -239,6 +249,13 @@ class _MealInputSheetState extends State<MealInputSheet> {
                     onAdd: _pickImages,
                     onRemove: _removeImage,
                   ),
+                  if (_images.isEmpty) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      '사진을 1장 이상 올려야 저장할 수 있어요',
+                      style: AppTextStyles.bodySm,
+                    ),
+                  ],
                   const SizedBox(height: 28),
                   AppTextField(
                     label: '메모',
@@ -264,7 +281,8 @@ class _MealInputSheetState extends State<MealInputSheet> {
             AppBottomActionBar(
               primaryLabel: '기록 저장',
               loading: _isSaving,
-              onPrimary: _isSaving ? null : _save,
+              // 사진이 없으면 누를 수 없다 (위에 안내 줄)
+              onPrimary: _isSaving || _images.isEmpty ? null : _save,
             ),
           ],
         ),

@@ -127,15 +127,14 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
         FirestoreService.getMembersByTrainer(user.centerId, user.uid),
       ]).timeout(const Duration(seconds: 12));
       final members = initialResults[1] as List<AppUser>;
-      // 공유를 끈 회원은 트레이너 자신의 PT 기록만 돌아온다. 그 밖의 오류는 화면 오류로 보인다.
+      // 담당 회원들의 운동 기록 (회원 기록은 늘 담당 트레이너에게 공유된다)
       final workoutResults = await Future.wait(
         members.map(
-          (member) => WorkoutService.getMemberWorkoutsForTrainer(
-            centerId: user.centerId,
-            memberId: member.uid,
-            trainerId: user.uid,
-            startDate: DateFormat('yyyy-MM-dd').format(from),
-            endDate: DateFormat('yyyy-MM-dd').format(to),
+          (member) => WorkoutService.getWorkoutsByDateRange(
+            user.centerId,
+            member.uid,
+            DateFormat('yyyy-MM-dd').format(from),
+            DateFormat('yyyy-MM-dd').format(to),
           ),
         ),
       ).timeout(const Duration(seconds: 12));
@@ -144,7 +143,7 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
         _sessions = initialResults[0] as List<PtSession>;
         _members = members;
         _membersLoaded = true;
-        _workouts = workoutResults.expand((result) => result.workouts).toList();
+        _workouts = workoutResults.expand((list) => list).toList();
         _errorMessage = null;
       });
     } catch (e) {

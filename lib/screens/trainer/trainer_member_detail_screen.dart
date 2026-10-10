@@ -73,7 +73,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   List<Inbody> _inbodies = [];
   PtInfo? _ptInfo;
 
-  /// 회원이 신체 정보 공유를 켠 경우에만 읽는다 (사용자 문서와 따로 저장됨).
+  /// 회원 신체 정보 (사용자 문서와 따로 저장됨).
   UserProfile? _body;
 
   bool _loadingMeals = false;
@@ -81,9 +81,8 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   bool _loadingCardios = false;
   bool _loadingInbodies = false;
 
-  /// 운동 탭: 처음 읽기를 마쳤는지, 회원이 운동 공유를 켰는지(꺼져 있으면 내 PT 기록만), 읽기 오류.
+  /// 운동 탭: 처음 읽기를 마쳤는지, 읽기 오류.
   bool _workoutsLoaded = false;
-  bool _workoutsShared = true;
   String? _workoutsError;
 
   /// 기록 줄을 빠르게 두 번 눌러 피드백 시트가 두 번 열리지 않게 한다.
@@ -147,7 +146,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
 
   Future<void> _loadBody() async {
     try {
-      final body = await BodyProfileService.loadShared(widget.member);
+      final body = await BodyProfileService.loadForTrainer(widget.member);
       if (!mounted) return;
       setState(() => _body = body);
     } catch (e) {
@@ -157,7 +156,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   }
 
   Future<void> _loadInbodies() async {
-    if (!mounted || !widget.member.shareSettings.body) return;
+    if (!mounted) return;
     setState(() => _loadingInbodies = true);
     try {
       final list = await FirestoreService.getInbodiesByMember(
@@ -178,7 +177,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   }
 
   Future<void> _loadMeals() async {
-    if (!mounted || !widget.member.shareSettings.meal) return;
+    if (!mounted) return;
     setState(() => _loadingMeals = true);
     try {
       final list = await MealService.getMealsByDateRange(
@@ -199,27 +198,23 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     }
   }
 
-  /// PT·개인 운동을 함께 읽는다. 회원이 운동 공유를 껐으면 내가 남긴 PT 기록만 온다.
+  /// PT·개인 운동을 함께 읽는다.
   Future<void> _loadWorkouts() async {
     if (!mounted) return;
-    final trainer = context.read<UserProvider>().user;
-    if (trainer == null) return;
     setState(() {
       _loadingWorkouts = true;
       _workoutsError = null;
     });
     try {
-      final result = await WorkoutService.getMemberWorkoutsForTrainer(
-        centerId: widget.member.centerId,
-        memberId: widget.member.uid,
-        trainerId: trainer.uid,
-        startDate: _rangeStart,
-        endDate: _rangeEnd,
+      final list = await WorkoutService.getWorkoutsByDateRange(
+        widget.member.centerId,
+        widget.member.uid,
+        _rangeStart,
+        _rangeEnd,
       );
       if (!mounted) return;
       setState(() {
-        _workouts = result.workouts;
-        _workoutsShared = result.shared;
+        _workouts = list;
         _workoutsLoaded = true;
       });
     } catch (e) {
@@ -239,7 +234,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   }
 
   Future<void> _loadCardios() async {
-    if (!mounted || !widget.member.shareSettings.workout) return;
+    if (!mounted) return;
     setState(() => _loadingCardios = true);
     try {
       final list = await CardioService.getCardiosByDateRange(
@@ -322,7 +317,6 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
 
   /// 'InBody 입력': 정보 탭으로 옮기고 입력 시트를 연다. 저장하면 인바디 목록을 다시 읽는다.
   Future<void> _openInbodyInput() async {
-    if (!widget.member.shareSettings.body) return;
     final trainer = context.read<UserProvider>().user;
     if (trainer == null) return;
     if (_tabController.index != _infoTab) _tabController.animateTo(_infoTab);
@@ -370,8 +364,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     // '기타'는 요약 줄에 적지 않는다.
     final gender = m.gender == Gender.other ? null : m.gender?.label;
     final age = ageFromBirthDate(m.birthDate);
-    // 신체 정보 공유를 끈 회원은 키도 보여주지 않는다.
-    final height = m.shareSettings.body ? _body?.height : null;
+    final height = _body?.height;
     return [
       ?gender,
       if (age != null) '$age세',
@@ -447,7 +440,6 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                     const Gap(AppSpacing.sm),
                     Expanded(
                       child: _WeightSummaryCard(
-                        shared: m.shareSettings.body,
                         inbodies: _inbodies,
                         fallbackWeight: _body?.weight,
                       ),
@@ -473,8 +465,6 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                   TrainerWorkoutsTab(
                     workouts: _workouts,
                     isLoading: _loadingWorkouts,
-                    loaded: _workoutsLoaded,
-                    shared: _workoutsShared,
                     errorMessage: _workoutsError,
                     onFeedback: (w) => _writeFeedback(
                       type: fb.FeedbackTargetType.workout,
@@ -487,7 +477,6 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                   TrainerMealsTab(
                     meals: _meals,
                     isLoading: _loadingMeals,
-                    canView: m.shareSettings.meal,
                     onFeedback: (meal) => _writeFeedback(
                       type: fb.FeedbackTargetType.meal,
                       targetId: meal.id,
@@ -499,7 +488,6 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                   TrainerCardiosTab(
                     cardios: _cardios,
                     isLoading: _loadingCardios,
-                    canView: m.shareSettings.workout,
                     onFeedback: (c) => _writeFeedback(
                       type: fb.FeedbackTargetType.cardio,
                       targetId: c.id,
@@ -516,7 +504,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                     inbodyLimit: _inbodyLimit,
                     loadingInbodies: _loadingInbodies,
                     onOpenInbody: _showInbodyDetail,
-                    onAddInbody: m.shareSettings.body ? _openInbodyInput : null,
+                    onAddInbody: _openInbodyInput,
                   ),
                 ],
               ),
@@ -524,7 +512,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
             // ── 아래 고정 2칸 버튼: 인바디 입력(회색) · 피드백 쓰기(검정) ────────
             AppBottomActionBar(
               secondaryLabel: '인바디 입력',
-              onSecondary: m.shareSettings.body ? _openInbodyInput : null,
+              onSecondary: _openInbodyInput,
               primaryLabel: '피드백 쓰기',
               onPrimary: () =>
                   _writeFeedback(type: fb.FeedbackTargetType.general),
@@ -561,15 +549,14 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                 _writeFeedback(type: fb.FeedbackTargetType.general);
               },
             ),
-            if (m.shareSettings.body)
-              AppSheetAction(
-                icon: AppIcons.inbody,
-                label: 'InBody 입력',
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _openInbodyInput();
-                },
-              ),
+            AppSheetAction(
+              icon: AppIcons.inbody,
+              label: 'InBody 입력',
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _openInbodyInput();
+              },
+            ),
           ],
         ),
       ),
@@ -588,31 +575,30 @@ TextStyle get _cardValueStyle =>
 /// 회색 카드: 최근 체중 (최근 InBody, 없으면 신체 정보) + 직전 측정과의 차이 + 최근 체중 선.
 /// 시안의 '스쿼트 추정 1RM'은 계산 근거가 없어 체중으로 대신한다.
 class _WeightSummaryCard extends StatelessWidget {
-  final bool shared;
   final List<Inbody> inbodies;
   final double? fallbackWeight;
 
   const _WeightSummaryCard({
-    required this.shared,
     required this.inbodies,
     required this.fallbackWeight,
   });
 
   @override
   Widget build(BuildContext context) {
-    final latest = shared
-        ? (inbodies.isNotEmpty ? inbodies.first.weight : fallbackWeight)
-        : null;
-    final delta = shared && inbodies.length >= 2
+    final latest = inbodies.isNotEmpty ? inbodies.first.weight : fallbackWeight;
+    final delta = inbodies.length >= 2
         ? inbodies[0].weight - inbodies[1].weight
         : null;
     final deltaText = delta == null || delta.abs() < 0.05
         ? null
         : '${delta > 0 ? '+' : '-'}${_formatProfileValue(delta.abs())}';
     // 오래된 것 → 최근 순서, 최대 6번
-    final points = shared
-        ? inbodies.take(6).map((e) => e.weight).toList().reversed.toList()
-        : const <double>[];
+    final points = inbodies
+        .take(6)
+        .map((e) => e.weight)
+        .toList()
+        .reversed
+        .toList();
 
     return Semantics(
       label: latest == null
@@ -630,7 +616,7 @@ class _WeightSummaryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              shared ? '최근 체중' : '체중 · 공유 꺼짐',
+              '최근 체중',
               style: AppTextStyles.bodySm.natural,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -727,8 +713,8 @@ class _InfoTab extends StatelessWidget {
   final bool loadingInbodies;
   final void Function(Inbody) onOpenInbody;
 
-  /// 인바디가 없을 때 '첫 기록 입력' (신체 정보 공유가 꺼져 있으면 null)
-  final VoidCallback? onAddInbody;
+  /// 인바디가 없을 때 '첫 기록 입력'
+  final VoidCallback onAddInbody;
 
   const _InfoTab({
     required this.member,
@@ -745,23 +731,16 @@ class _InfoTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final ptInfo = this.ptInfo;
     final p = body;
-    final shared = member.shareSettings.body;
     final fmt = DateFormat('yyyy.MM.dd');
     // 체중은 머리의 '최근 체중' 카드와 같은 기준: 최근 인바디가 있으면 그 값, 없으면 신체 정보.
-    final latestInbody = shared && inbodies.isNotEmpty ? inbodies.first : null;
+    final latestInbody = inbodies.isNotEmpty ? inbodies.first : null;
     final weight = latestInbody?.weight ?? p?.weight;
-    final showMetrics = shared && (p != null || latestInbody != null);
+    final showMetrics = p != null || latestInbody != null;
 
     return ListView(
       padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
       children: [
-        if (!shared)
-          const TrainerShareBlockedMessage(
-            message: '회원이 신체 정보 공유를 꺼두었습니다.',
-            top: 40,
-            bottom: AppSpacing.xl2,
-          )
-        else if (showMetrics) ...[
+        if (showMetrics) ...[
           const AppMonthHeader(
             label: '체성분',
             strong: true,
@@ -842,7 +821,7 @@ class _InfoTab extends StatelessWidget {
             ),
           ),
         ],
-        if (shared) ...[
+        ...[
           if (showMetrics || ptInfo != null) const AppSectionBand(top: 12),
           AppMonthHeader(
             label: '인바디',

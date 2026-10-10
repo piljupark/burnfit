@@ -38,13 +38,9 @@ service firebase.storage {
         userDoc(memberId).data.centerId == currentUser().centerId;
     }
 
+    // 회원 식단은 늘 담당 트레이너에게 공유된다 (firestore.rules shares()와 같다).
     function sharesMeal(memberId) {
-      return isAssignedTrainer(memberId) &&
-        (
-          !('shareSettings' in userDoc(memberId).data) ||
-          !('meal' in userDoc(memberId).data.shareSettings) ||
-          userDoc(memberId).data.shareSettings.meal == true
-        );
+      return isAssignedTrainer(memberId);
     }
 
     function isImageUpload() {

@@ -63,6 +63,9 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
 
   /// 오늘 보기: 이번 주(월~일) PT와 오늘 개인운동.
   List<PtSession> _weekSessions = [];
+
+  /// 이번 주 담당 회원 운동 기록 (PT · 개인 — 이번 주 칸 표시용)
+  List<Workout> _weekWorkouts = [];
   List<Workout> _todayWorkouts = [];
   bool _todayLoaded = false;
   bool _todayLoading = false;
@@ -88,15 +91,23 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
   static DateTime _weekStart(DateTime day) =>
       DateTime(day.year, day.month, day.day - (day.weekday - 1));
 
+  /// 홈 공지 줄 (다시 불러올 때 최신 공지도 다시 읽는다)
+  final _noticeKey = GlobalKey<NoticeHomeBannerState>();
+
   void refresh() {
     _membersFuture = null;
     _loadMonth();
     _loadToday();
+    _noticeKey.currentState?.reload();
   }
 
   Future<void> _refreshAll() {
     _membersFuture = null;
-    return Future.wait([_loadMonth(), _loadToday()]);
+    return Future.wait([
+      _loadMonth(),
+      _loadToday(),
+      if (_noticeKey.currentState case final notice?) notice.reload(),
+    ]);
   }
 
   @override
@@ -136,8 +147,7 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
         trainerId,
       ).timeout(const Duration(seconds: 15));
 
-  /// 담당 회원들의 [start]~[end] 운동 기록. 운동 공유를 끈 회원은 트레이너 자신이 남긴
-  /// PT 기록만 담긴다. 공유 꺼짐이 아닌 오류(네트워크 등)는 그대로 던진다.
+  /// 담당 회원들의 [start]~[end] 운동 기록 (회원 기록은 늘 담당 트레이너에게 공유된다).
   static Future<List<Workout>> _memberWorkouts(
     AppUser trainer,
     List<AppUser> members,
@@ -146,16 +156,15 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
   ) async {
     final lists = await Future.wait(
       members.map(
-        (m) => WorkoutService.getMemberWorkoutsForTrainer(
-          centerId: trainer.centerId,
-          memberId: m.uid,
-          trainerId: trainer.uid,
-          startDate: start,
-          endDate: end,
+        (m) => WorkoutService.getWorkoutsByDateRange(
+          trainer.centerId,
+          m.uid,
+          start,
+          end,
         ),
       ),
     );
-    return lists.expand((l) => l.workouts).toList();
+    return lists.expand((l) => l).toList();
   }
 
   Future<void> _loadMonth() async {
@@ -222,7 +231,8 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
       if (!mounted || loadId != _todayLoadId) return;
 
       final results = await Future.wait([
-        _memberWorkouts(user, members, _key(today), _key(today)),
+        // 이번 주 칸이 캘린더와 같은 표시(개인운동 포함)를 그리도록 주 전체를 읽는다
+        _memberWorkouts(user, members, _key(weekStart), _key(weekEnd)),
         FirestoreService.getPtSessionsByTrainer(
           user.centerId,
           user.uid,
@@ -234,7 +244,8 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
 
       setState(() {
         _members = members;
-        _todayWorkouts = (results[0] as List<Workout>)
+        _weekWorkouts = results[0] as List<Workout>;
+        _todayWorkouts = _weekWorkouts
             .where((w) => w.workoutType == WorkoutType.personal)
             .toList();
         _weekSessions = (results[1] as List<PtSession>)
@@ -338,8 +349,8 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
                 selectedIndex: _view.index,
                 onSelect: (i) => setState(() => _view = _HomeView.values[i]),
               ),
-              // 오늘 보기(시안 TrainerHome)에는 공지 줄이 없다. 중요 공지 시트는 어느 보기에서든 뜬다.
-              NoticeHomeBanner(showBanner: _view != _HomeView.today),
+              // 공지 줄은 모든 보기에서 같은 자리에 둔다 (보기를 바꿔도 다시 불러오지 않는다).
+              NoticeHomeBanner(key: _noticeKey),
               ...switch (_view) {
                 _HomeView.today => _todayChildren(),
                 _HomeView.calendar => _calendarChildren(),
@@ -355,13 +366,11 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
     final today = _today();
     final todaySessions = _sessionsOn(_weekSessions, today);
     final weekStart = _weekStart(today);
-    final weekCounts = [
-      for (var i = 0; i < 7; i++)
-        _sessionsOn(
-          _weekSessions,
-          DateTime(weekStart.year, weekStart.month, weekStart.day + i),
-        ).length,
-    ];
+    // 캘린더 보기와 같은 규칙·같은 점 (PT 완료 · PT 예약 · 개인운동)
+    final weekMarks = buildCalendarMarks(
+      sessions: _weekSessions,
+      workouts: _weekWorkouts,
+    );
     // 자정 직후 다시 불러오기 전에도 어제 기록이 오늘로 보이지 않게 날짜로 거른다.
     final todayKey = _key(today);
     final todayWorkouts = _todayWorkouts
@@ -401,10 +410,10 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
               : '오늘 PT $total건 중 $done건 완료',
         ),
       ),
-      _WeekCountCard(
+      _WeekMarkCard(
         weekStart: weekStart,
         today: today,
-        counts: known ? weekCounts : null,
+        marks: known ? weekMarks : null,
         onSelect: _openDay,
       ),
       if (_todayFailed)
@@ -528,27 +537,23 @@ class TrainerCalendarScreenState extends State<TrainerCalendarScreen>
   }
 }
 
-/// 이번 주 줄 (회색 카드, 반경 20, 안쪽 16 12): 공용 날짜 칸(요일 · 32 원, 오늘 = ink 채움) + 'N건' 11.
-/// [counts]가 null이면(불러오는 중·실패) 개수 자리를 비워 둔다.
-class _WeekCountCard extends StatelessWidget {
+/// 이번 주 줄 (회색 카드, 반경 20, 안쪽 16 12): 공용 날짜 칸(요일 · 32 원, 오늘 = ink 채움) +
+/// 캘린더 보기와 같은 표시 줄. [marks]가 null이면(불러오는 중·실패) 표시 자리를 비워 둔다.
+class _WeekMarkCard extends StatelessWidget {
   final DateTime weekStart;
   final DateTime today;
-  final List<int>? counts;
+  final Map<String, Set<CalendarMark>>? marks;
   final ValueChanged<DateTime> onSelect;
 
-  const _WeekCountCard({
+  const _WeekMarkCard({
     required this.weekStart,
     required this.today,
-    required this.counts,
+    required this.marks,
     required this.onSelect,
   });
 
   @override
   Widget build(BuildContext context) {
-    final countStyle = AppTextStyles.captionSmall.natural.copyWith(
-      fontSize: 11,
-      letterSpacing: 11 * -0.019,
-    );
     return Container(
       margin: const EdgeInsets.fromLTRB(
         AppSpacing.screenH,
@@ -570,8 +575,6 @@ class _WeekCountCard extends StatelessWidget {
             Expanded(
               child: _day(
                 DateTime(weekStart.year, weekStart.month, weekStart.day + i),
-                counts?[i],
-                countStyle,
               ),
             ),
         ],
@@ -579,23 +582,20 @@ class _WeekCountCard extends StatelessWidget {
     );
   }
 
-  Widget _day(DateTime day, int? count, TextStyle countStyle) {
+  Widget _day(DateTime day) {
     final isToday = DateUtils.isSameDay(day, today);
+    final dayMarks =
+        marks?[DateFormat('yyyy-MM-dd').format(day)] ?? const <CalendarMark>{};
     return AppWeekDay(
       day: day,
       selected: isToday,
       semanticLabel: [
         DateFormat('M월 d일', 'ko').format(day),
         if (isToday) '오늘',
-        if (count != null) 'PT $count건',
+        if (dayMarks.isNotEmpty) calendarMarksSemantics(dayMarks),
       ].join(', '),
       onTap: () => onSelect(day),
-      below: SizedBox(
-        height: 14,
-        child: count == null || count == 0
-            ? null
-            : Text('$count건', style: countStyle),
-      ),
+      below: CalendarWeekMarks(dayMarks),
     );
   }
 }

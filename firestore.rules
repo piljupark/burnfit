@@ -63,13 +63,10 @@ service cloud.firestore {
         userDoc(memberId).data.centerId == currentUser().centerId;
     }
 
+    // 회원 기록(운동·식단·신체 정보)은 늘 담당 트레이너에게 공유된다 — 회원이 끌 수 없다.
+    // 예전에 저장된 shareSettings 값은 보지 않는다. [key]는 호출부 구분용으로만 남긴다.
     function shares(memberId, key) {
-      return isAssignedTrainer(memberId) &&
-        (
-          !('shareSettings' in userDoc(memberId).data) ||
-          !(key in userDoc(memberId).data.shareSettings) ||
-          userDoc(memberId).data.shareSettings[key] == true
-        );
+      return isAssignedTrainer(memberId);
     }
 
     function canReadMemberScoped(centerId, memberId, shareKey) {
@@ -520,6 +517,12 @@ service cloud.firestore {
       ]);
     }
 
+    // 식단은 사진이 1장 이상 있어야 한다 (최대 장수는 앱이 막는다).
+    function hasMealPhotos() {
+      return request.resource.data.imageUrls is list &&
+        request.resource.data.imageUrls.size() >= 1;
+    }
+
     function canCreateOwnMeal(mealId) {
       return canWriteOwnMemberScoped(
         request.resource.data.centerId,
@@ -527,10 +530,12 @@ service cloud.firestore {
       ) &&
       hasOnlyMealFields() &&
       request.resource.data.id == mealId &&
+      hasMealPhotos() &&
       request.resource.data.hasFeedback == false &&
       request.resource.data.feedbackId == null;
     }
 
+    // 사진 목록을 바꿀 때도 0장이 될 수 없다 (예전에 사진 없이 저장된 식단의 다른 필드 수정은 막지 않는다).
     function canUpdateMealContent() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'mealType',
@@ -540,7 +545,11 @@ service cloud.firestore {
         'description',
         'calories',
         'updatedAt'
-      ]);
+      ]) &&
+      (
+        !('imageUrls' in request.resource.data.diff(resource.data).affectedKeys()) ||
+        hasMealPhotos()
+      );
     }
 
     function canCreateOwnCardio(cardioId) {

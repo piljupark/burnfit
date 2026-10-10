@@ -121,37 +121,6 @@ class WorkoutService {
     return list;
   }
 
-  /// 트레이너가 보는 담당 회원의 [startDate]~[endDate] 운동 기록.
-  /// 회원이 운동 공유를 껐으면 규칙이 전체 조회를 막는다 → 트레이너 자신이 남긴 PT 기록만 다시 읽는다
-  /// ([MemberWorkouts.shared]가 false). 권한 거부가 아닌 오류(네트워크 등)는 그대로 던진다.
-  static Future<MemberWorkouts> getMemberWorkoutsForTrainer({
-    required String centerId,
-    required String memberId,
-    required String trainerId,
-    required String startDate,
-    required String endDate,
-  }) async {
-    try {
-      final all = await getWorkoutsByDateRange(
-        centerId,
-        memberId,
-        startDate,
-        endDate,
-      );
-      return MemberWorkouts(all, shared: true);
-    } on FirebaseException catch (e) {
-      if (e.code != 'permission-denied') rethrow;
-      final pt = await getWorkoutsByDateRange(
-        centerId,
-        memberId,
-        startDate,
-        endDate,
-        ptTrainerId: trainerId,
-      );
-      return MemberWorkouts(pt, shared: false);
-    }
-  }
-
   static Future<List<Workout>> getWorkoutsByDate(
     String centerId,
     String memberId,
@@ -326,14 +295,4 @@ class WorkoutService {
       throw ArgumentError('$fieldName 시작일은 종료일보다 늦을 수 없습니다.');
     }
   }
-}
-
-/// [WorkoutService.getMemberWorkoutsForTrainer] 결과.
-class MemberWorkouts {
-  final List<Workout> workouts;
-
-  /// false면 회원이 운동 공유를 꺼서 트레이너 자신의 PT 기록만 담겼다.
-  final bool shared;
-
-  const MemberWorkouts(this.workouts, {required this.shared});
 }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pt_solution_v2/models/pt_session.dart';
 import 'package:pt_solution_v2/models/workout.dart';
@@ -86,22 +87,31 @@ void main() {
     expect(calendarMarksSemantics(day), 'PT 완료, PT 예약, 개인운동');
   });
 
-  test('한 칸에 하나만 그릴 때는 PT 완료 → PT 예약 → 개인운동 순으로 고른다', () {
-    expect(primaryCalendarMark(null), isNull);
-    expect(primaryCalendarMark({}), isNull);
-    expect(
-      primaryCalendarMark({CalendarMark.personal, CalendarMark.ptScheduled}),
-      CalendarMark.ptScheduled,
-      reason: 'PT 예약이 개인운동 점에 가려지면 안 된다',
+  testWidgets('홈 이번 주 칸은 캘린더와 같은 표시를 모두 그린다', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CalendarWeekMarks({
+            CalendarMark.personal,
+            CalendarMark.ptScheduled,
+            CalendarMark.ptDone,
+          }),
+        ),
+      ),
     );
-    expect(
-      primaryCalendarMark({
-        CalendarMark.personal,
-        CalendarMark.ptScheduled,
-        CalendarMark.ptDone,
-      }),
+    final icons = tester
+        .widgetList<CalendarMarkIcon>(find.byType(CalendarMarkIcon))
+        .map((w) => w.mark)
+        .toList();
+    expect(icons, [
       CalendarMark.ptDone,
+      CalendarMark.ptScheduled,
+      CalendarMark.personal,
+    ]);
+
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: CalendarWeekMarks({}))),
     );
-    expect(primaryCalendarMark({CalendarMark.personal}), CalendarMark.personal);
+    expect(find.byType(CalendarMarkIcon), findsNothing);
   });
 }

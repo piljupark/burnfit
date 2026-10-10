@@ -10,18 +10,16 @@ import '../../widgets/notice_widgets.dart';
 import 'notice_detail_screen.dart';
 
 /// 회원·트레이너 홈 헤더 아래 최신 공지 한 줄 + 중요 공지 시트(공지마다 한 번).
+/// 홈의 모든 보기(오늘·캘린더·기록)에서 같은 자리에 보인다.
 /// 공지가 없거나 불러오지 못하면 아무것도 그리지 않는다.
-/// [showBanner]가 false면 줄은 숨기고 중요 공지 시트만 띄운다 (회원 홈 '오늘' 보기 — 시안 Main에 공지 줄이 없다).
 class NoticeHomeBanner extends StatefulWidget {
-  final bool showBanner;
-
-  const NoticeHomeBanner({super.key, this.showBanner = true});
+  const NoticeHomeBanner({super.key});
 
   @override
-  State<NoticeHomeBanner> createState() => _NoticeHomeBannerState();
+  State<NoticeHomeBanner> createState() => NoticeHomeBannerState();
 }
 
-class _NoticeHomeBannerState extends State<NoticeHomeBanner> {
+class NoticeHomeBannerState extends State<NoticeHomeBanner> {
   Notice? _latest;
 
   @override
@@ -30,12 +28,20 @@ class _NoticeHomeBannerState extends State<NoticeHomeBanner> {
     _load();
   }
 
+  /// 홈을 다시 불러올 때(당겨서 새로고침·탭 복귀) 최신 공지도 다시 읽는다.
+  Future<void> reload() => _load();
+
   Future<void> _load() async {
     final user = context.read<UserProvider>().user;
     if (user == null || user.isAdmin) return;
     try {
       final items = await NoticeService.getForViewer(user.centerId, user.role);
-      if (!mounted || items.isEmpty) return;
+      if (!mounted) return;
+      if (items.isEmpty) {
+        // 공지가 모두 지워졌으면 줄도 내린다
+        if (_latest != null) setState(() => _latest = null);
+        return;
+      }
       // 최신 글 (고정 여부와 무관하게 가장 최근 작성)
       final byDate = [...items]
         ..sort(
@@ -86,7 +92,7 @@ class _NoticeHomeBannerState extends State<NoticeHomeBanner> {
   @override
   Widget build(BuildContext context) {
     final latest = _latest;
-    if (latest == null || !widget.showBanner) return const SizedBox.shrink();
+    if (latest == null) return const SizedBox.shrink();
     return NoticeBanner(notice: latest, onTap: () => _open(latest));
   }
 }

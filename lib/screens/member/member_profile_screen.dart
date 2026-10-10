@@ -23,11 +23,10 @@ import '../../widgets/delete_account_sheet.dart';
 import '../../widgets/app_loader.dart';
 import '../common/notice_menu_row.dart';
 import 'member_profile_detail_screen.dart';
-import 'member_share_settings_screen.dart';
 import 'member_workout_stats_screen.dart';
 
 /// 회원 마이 탭: 28 제목 → 프로필 줄 → PT 남은 횟수 카드 → 내 몸(신체 정보 · 인바디 추이 · 운동 통계) →
-/// 센터(공지사항) → 계정(비밀번호 재설정 · 기록 공유 · 화면 테마 · 로그아웃) → 가운데 탈퇴 링크.
+/// 센터(공지사항) → 계정(비밀번호 재설정 · 화면 테마 · 로그아웃) → 가운데 탈퇴 링크.
 /// 트레이너·관리자 마이와 같은 메뉴 줄(아이콘 상자 60 · 오른쪽 값 + 화살표)을 쓴다.
 class MemberProfileScreen extends StatefulWidget {
   const MemberProfileScreen({super.key});
@@ -176,13 +175,6 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
                       initialEmail: user.email,
                     ),
                   ),
-                  AppActionRow(
-                    icon: AppIcons.share,
-                    label: '기록 공유',
-                    menu: true,
-                    value: '3개 중 ${_sharedCount(user.shareSettings)}개 공개',
-                    onTap: () => _push(const MemberShareSettingsScreen()),
-                  ),
                   const ThemeSettingRow(),
                   AppActionRow(
                     icon: AppIcons.signOut,
@@ -207,9 +199,6 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
       ),
     );
   }
-
-  static int _sharedCount(ShareSettings s) =>
-      [s.workout, s.meal, s.body].where((on) => on).length;
 
   /// '175cm · 72kg' (입력한 값만)
   static String? _bodySummary(UserProfile? profile) {

@@ -5,6 +5,7 @@ import '../core/app_colors.dart';
 import '../core/app_text_styles.dart';
 import '../models/pt_session.dart';
 import '../models/workout.dart';
+import 'app_motion.dart';
 
 /// 캘린더 날짜 아래 표시.
 /// - PT 완료: 주황 채운 점 ●
@@ -57,20 +58,6 @@ Map<String, Set<CalendarMark>> buildCalendarMarks({
   return marks;
 }
 
-/// 한 칸에 표시를 하나만 그릴 때(회원 홈 이번 주 줄) 고르는 순서:
-/// PT 완료 → PT 예약 → 개인운동. PT 예약이 개인운동 점에 가려지지 않게 한다.
-CalendarMark? primaryCalendarMark(Set<CalendarMark>? marks) {
-  if (marks == null || marks.isEmpty) return null;
-  for (final mark in const [
-    CalendarMark.ptDone,
-    CalendarMark.ptScheduled,
-    CalendarMark.personal,
-  ]) {
-    if (marks.contains(mark)) return mark;
-  }
-  return null;
-}
-
 /// 표시 하나: 날짜 아래 5, 범례 6. 빈 원 테두리는 5에서 1.2, 6에서 1.5 (시안 값).
 class CalendarMarkIcon extends StatelessWidget {
   final CalendarMark mark;
@@ -118,6 +105,30 @@ class CalendarMarkRow extends StatelessWidget {
             CalendarMarkIcon(ordered[i]),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// 홈 '이번 주' 칸의 날짜 아래 표시 (회원·트레이너 공통): 캘린더 날짜 칸과 같은 표시 줄을
+/// 높이 6 자리 가운데에 그린다. [pulse]면 숨 쉬듯 커졌다 작아진다 (오늘 PT가 있는 날).
+class CalendarWeekMarks extends StatelessWidget {
+  final Set<CalendarMark> marks;
+  final bool pulse;
+
+  const CalendarWeekMarks(this.marks, {super.key, this.pulse = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final row = CalendarMarkRow(marks);
+    return SizedBox(
+      height: 6,
+      child: Center(
+        child: marks.isEmpty
+            ? null
+            : pulse
+            ? AppPulse(child: row)
+            : row,
       ),
     );
   }

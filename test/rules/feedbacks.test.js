@@ -693,7 +693,7 @@ describe('firestore feedback rules', () => {
       mealType: 'lunch',
       mealDate: '2026-07-20',
       mealTime: '12:00',
-      imageUrls: [],
+      imageUrls: ['https://example.com/meal.jpg'],
       description: '점심',
       calories: 500,
       hasFeedback: false,
@@ -703,6 +703,21 @@ describe('firestore feedback rules', () => {
     };
 
     await assertSucceeds(setDoc(doc(authedDb(memberId), 'meals', 'meal-a'), baseMeal));
+    // 식단은 사진이 1장 이상 있어야 한다
+    await assertFails(
+      setDoc(doc(authedDb(memberId), 'meals', 'meal-no-photo'), {
+        ...baseMeal,
+        id: 'meal-no-photo',
+        imageUrls: [],
+      }),
+    );
+    // 사진을 모두 지우는 수정도 안 된다
+    await assertFails(
+      updateDoc(doc(authedDb(memberId), 'meals', 'meal-a'), {
+        imageUrls: [],
+        updatedAt: serverTimestamp(),
+      }),
+    );
     await assertFails(
       setDoc(doc(authedDb(memberId), 'meals', 'meal-spoof'), {
         ...baseMeal,
@@ -846,13 +861,13 @@ describe('firestore feedback rules', () => {
       }
     });
 
-    it('담당 트레이너는 회원이 신체 정보 공유를 켰을 때만 읽는다', async () => {
+    it('담당 트레이너는 회원 신체 정보를 늘 읽는다 (예전 공유 꺼짐 값이 남아 있어도)', async () => {
       await seedBody();
       await assertSucceeds(getDoc(bodyRef(authedDb(trainerId))));
 
       await setShareBody(false);
-      await assertFails(getDoc(bodyRef(authedDb(trainerId))));
-      // 공유를 꺼도 본인과 같은 센터 관리자는 읽는다.
+      await assertSucceeds(getDoc(bodyRef(authedDb(trainerId))));
+      // 본인과 같은 센터 관리자도 읽는다.
       await assertSucceeds(getDoc(bodyRef(authedDb(memberId))));
       await assertSucceeds(getDoc(bodyRef(authedDb(adminId))));
     });
@@ -1097,7 +1112,7 @@ describe('firestore feedback rules', () => {
 
     await assertSucceeds(batch.commit());
   });
-  it('담당 트레이너는 운동 공유가 꺼져도 자기 PT 기록에만 피드백을 이을 수 있다', async () => {
+  it('담당 트레이너는 회원 PT·개인 운동 모두에 피드백을 이을 수 있다 (늘 공유)', async () => {
     const base = {
       centerId,
       memberId,
@@ -1150,8 +1165,8 @@ describe('firestore feedback rules', () => {
         memberName: '바꾼 이름',
       }),
     );
-    // 공유를 끈 회원의 개인 운동에는 잇지 못한다.
-    await assertFails(updateDoc(doc(db, 'workouts', 'workout-personal'), link));
+    // 회원 기록은 늘 공유되므로 개인 운동에도 피드백을 이을 수 있다 (예전 공유 꺼짐 값과 관계없이).
+    await assertSucceeds(updateDoc(doc(db, 'workouts', 'workout-personal'), link));
   });
   it('담당이 바뀌면 새 담당 트레이너가 이전 담당자의 피드백을 읽되 고치지는 못한다', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {

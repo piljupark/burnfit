@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_motion.dart';
 import '../widgets/app_toast.dart';
+import 'app_logger.dart';
 import 'validators.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
@@ -68,10 +69,29 @@ class AppFeedback {
           return '요청이 많습니다. 잠시 후 다시 시도해주세요.';
         case 'unauthenticated':
           return '로그인이 필요합니다.';
+        // firebase_storage (사진 올리기·내려받기)
+        case 'unauthorized':
+          return '사진을 올릴 권한이 없습니다. 다시 로그인한 뒤 시도해주세요.';
+        case 'object-not-found':
+          return '사진을 찾을 수 없습니다.';
+        case 'quota-exceeded':
+          return '사진 저장 공간이 부족합니다. 센터에 문의해주세요.';
+        case 'retry-limit-exceeded':
+          return '사진을 올리지 못했습니다. 네트워크를 확인하고 다시 시도해주세요.';
+        case 'canceled':
+          return '사진 올리기가 취소되었습니다.';
+        case 'bucket-not-found':
+        case 'project-not-found':
+          return '사진 저장소 설정을 확인할 수 없습니다. 센터에 문의해주세요.';
         default:
+          // 알 수 없는 오류는 원인을 찾을 수 있게 종류·코드를 남긴다
+          AppLogger.debug(
+            '[오류] ${error.plugin}/${error.code}: ${error.message}',
+          );
           return '처리 중 오류가 발생했습니다. 다시 시도해주세요.';
       }
     }
+    AppLogger.debug('[오류] ${error.runtimeType}: $error');
     return '처리 중 오류가 발생했습니다. 다시 시도해주세요.';
   }
 

@@ -96,9 +96,13 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
 
   String _key(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
+  /// 홈 공지 줄 (다시 불러올 때 최신 공지도 다시 읽는다)
+  final _noticeKey = GlobalKey<NoticeHomeBannerState>();
+
   void refresh() {
     _loadMonth();
     _loadToday();
+    _noticeKey.currentState?.reload();
   }
 
   @override
@@ -107,7 +111,11 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
     refresh();
   }
 
-  Future<void> _refreshAll() => Future.wait([_loadMonth(), _loadToday()]);
+  Future<void> _refreshAll() => Future.wait([
+    _loadMonth(),
+    _loadToday(),
+    if (_noticeKey.currentState case final notice?) notice.reload(),
+  ]);
 
   Future<void> _loadMonth() async {
     final user = context.read<UserProvider>().user;
@@ -292,20 +300,9 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
     return count;
   }
 
-  /// 이번 주 날짜별 표시 하나 (PT 완료 > PT 예약 > 개인운동 순으로 하나만).
-  /// 오늘에 PT가 있으면(예약·완료) 시안 Main처럼 주황 채운 점으로 보인다 (맥박은 [_WeekCard]).
-  Map<String, CalendarMark> get _weekMarks {
-    final all = buildCalendarMarks(
-      sessions: _weekSessions,
-      workouts: _recentWorkouts,
-    );
-    final marks = <String, CalendarMark>{
-      for (final entry in all.entries)
-        if (primaryCalendarMark(entry.value) case final mark?) entry.key: mark,
-    };
-    if (_todayHasPt) marks[_key(_today())] = CalendarMark.ptDone;
-    return marks;
-  }
+  /// 이번 주 날짜별 표시: 캘린더 보기와 같은 규칙·같은 점 (PT 완료 · PT 예약 · 개인운동).
+  Map<String, Set<CalendarMark>> get _weekMarks =>
+      buildCalendarMarks(sessions: _weekSessions, workouts: _recentWorkouts);
 
   /// 오늘에 취소되지 않은 PT(세션 또는 PT 운동 기록)가 있는지.
   bool get _todayHasPt {
@@ -353,9 +350,8 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
                 selectedIndex: _view.index,
                 onSelect: (i) => setState(() => _view = _HomeView.values[i]),
               ),
-              // 오늘 보기(시안 Main)에는 공지 줄이 없다. 중요 공지 시트는 어느 보기에서든 뜬다.
-              // 같은 자리에 두어 보기를 바꿔도 공지를 다시 불러오지 않는다.
-              NoticeHomeBanner(showBanner: _view != _HomeView.today),
+              // 공지 줄은 모든 보기에서 같은 자리에 둔다 (보기를 바꿔도 다시 불러오지 않는다).
+              NoticeHomeBanner(key: _noticeKey),
               ...switch (_view) {
                 _HomeView.today => _todayChildren(),
                 _HomeView.calendar => _calendarChildren(),
@@ -837,11 +833,11 @@ class _ShortcutGrid extends StatelessWidget {
 }
 
 /// 이번 주 운동 카드: 불꽃 + 'N일째 운동 중' / 'M월 둘째 주', 아래 월~일 7칸.
-/// 칸마다 요일 12 · 날짜 32 원(오늘 = ink 채움) · 표시 점 6 하나.
+/// 칸마다 요일 12 · 날짜 32 원(오늘 = ink 채움) · 캘린더와 같은 표시 줄.
 class _WeekCard extends StatelessWidget {
   final DateTime today;
   final int streakDays;
-  final Map<String, CalendarMark> marks;
+  final Map<String, Set<CalendarMark>> marks;
 
   /// 오늘에 PT가 있어 오늘 점이 숨 쉬듯 커졌다 작아진다 (시안 Main `dotpulse`).
   final bool pulseToday;
@@ -910,7 +906,7 @@ class _WeekCard extends StatelessWidget {
 
   Widget _weekDay(DateTime day) {
     final isToday = _sameDate(day, today);
-    final mark = marks[DateFormat('yyyy-MM-dd').format(day)];
+    final dayMarks = marks[DateFormat('yyyy-MM-dd').format(day)] ?? const {};
     return AppWeekDay(
       day: day,
       selected: isToday,
@@ -918,17 +914,10 @@ class _WeekCard extends StatelessWidget {
       semanticLabel: [
         DateFormat('M월 d일', 'ko').format(day),
         if (isToday) '오늘',
-        if (mark != null) mark.label,
+        if (dayMarks.isNotEmpty) calendarMarksSemantics(dayMarks),
       ].join(', '),
       onTap: () => onSelect(day),
-      below: SizedBox.square(
-        dimension: 6,
-        child: mark == null
-            ? null
-            : isToday && pulseToday
-            ? AppPulse(child: CalendarMarkIcon(mark, size: 6))
-            : CalendarMarkIcon(mark, size: 6),
-      ),
+      below: CalendarWeekMarks(dayMarks, pulse: isToday && pulseToday),
     );
   }
 }

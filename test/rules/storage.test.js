@@ -96,11 +96,11 @@ describe('storage rules — 식단 사진', () => {
     await assertFails(getMetadata(ref(storageOf(adminId), photoPath)));
   });
 
-  it('식단 공유를 끈 회원의 사진은 담당 트레이너도 볼 수 없다', async () => {
+  it('예전에 식단 공유를 꺼 둔 회원이어도 담당 트레이너는 사진을 본다 (늘 공유)', async () => {
     await setUser(memberId, {
       role: 'member', status: 'approved', trainerId,
       shareSettings: { workout: true, meal: false, body: true },
     });
-    await assertFails(getMetadata(ref(storageOf(trainerId), photoPath)));
+    await assertSucceeds(getMetadata(ref(storageOf(trainerId), photoPath)));
   });
 });

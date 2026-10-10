@@ -6,7 +6,7 @@ import '../models/user.dart';
 
 /// 회원 신체 정보 (키·체중·골격근량·체지방량·목표).
 ///
-/// 회원의 '신체 정보 공유' 설정을 규칙으로 지키기 위해 사용자 문서와 나눠
+/// 본인·같은 센터 관리자·담당 트레이너만 읽도록 사용자 문서와 나눠
 /// `users/{uid}/body_profile/current`에 둔다 (firestore.rules 참고).
 /// 예전에는 사용자 문서의 `profile` 필드에 있었다 — [loadOwn]이 본인 것을 옮긴다.
 class BodyProfileService {
@@ -62,10 +62,9 @@ class BodyProfileService {
     return current ?? legacy;
   }
 
-  /// 담당 트레이너가 보는 회원 신체 정보. 회원이 공유를 껐으면 읽지 않는다.
+  /// 담당 트레이너가 보는 회원 신체 정보 (회원 기록은 늘 담당 트레이너에게 공유된다).
   /// 아직 옮겨지지 않은 회원은 예전 값을 쓴다.
-  static Future<UserProfile?> loadShared(AppUser member) async {
-    if (!member.shareSettings.body) return null;
+  static Future<UserProfile?> loadForTrainer(AppUser member) async {
     return await get(member.uid) ?? member.profile;
   }
 }

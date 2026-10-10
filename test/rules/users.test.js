@@ -353,7 +353,7 @@ describe('users / centers / pt_infos security rules', () => {
       await assertFails(getDocs(query(collection(db, 'pt_infos'), where('memberId', '==', memberId))));
     });
 
-    it('운동 공유를 끈 회원이어도 담당 트레이너는 자기가 남긴 PT 기록을 읽는다', async () => {
+    it('예전에 운동 공유를 꺼 둔 회원이어도 담당 트레이너는 PT·개인 기록을 모두 읽는다', async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         const db = context.firestore();
         await updateDoc(doc(db, 'users', memberId), { shareSettings: { workout: false, meal: true, body: true } });
@@ -363,7 +363,7 @@ describe('users / centers / pt_infos security rules', () => {
       });
       const db = authedDb(trainerId);
       await assertSucceeds(getDoc(doc(db, 'workouts', 'w-pt')));
-      await assertFails(getDoc(doc(db, 'workouts', 'w-personal')));
+      await assertSucceeds(getDoc(doc(db, 'workouts', 'w-personal')));
       await assertSucceeds(getDocs(query(collection(db, 'workouts'),
         where('centerId', '==', centerId), where('memberId', '==', memberId),
         where('workoutType', '==', 'pt'), where('trainerId', '==', trainerId))));
