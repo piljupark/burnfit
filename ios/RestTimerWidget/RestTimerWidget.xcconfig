@@ -1,0 +1,2 @@
+// 앱과 같은 버전 번호를 쓴다 (FLUTTER_BUILD_NAME · FLUTTER_BUILD_NUMBER)
+#include "../Flutter/Generated.xcconfig"

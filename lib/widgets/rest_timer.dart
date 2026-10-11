@@ -28,6 +28,7 @@ class RestTimer extends ChangeNotifier with WidgetsBindingObserver {
   static const _wakeGap = Duration(milliseconds: 2500);
 
   Timer? _ticker;
+  DateTime? _startAt;
   DateTime? _endAt;
   DateTime _lastTick = DateTime.now();
   int _total = 0;
@@ -50,6 +51,7 @@ class RestTimer extends ChangeNotifier with WidgetsBindingObserver {
     }
     _ticker?.cancel();
     final now = DateTime.now();
+    _startAt = now;
     _endAt = now.add(Duration(seconds: seconds));
     _lastTick = now;
     _total = seconds;
@@ -101,6 +103,7 @@ class RestTimer extends ChangeNotifier with WidgetsBindingObserver {
   void _stop({bool keepDoneAlert = false}) {
     _ticker?.cancel();
     _ticker = null;
+    _startAt = null;
     _endAt = null;
     _remaining = 0;
     if (keepDoneAlert) {
@@ -116,7 +119,7 @@ class RestTimer extends ChangeNotifier with WidgetsBindingObserver {
   void _syncAlerts() {
     final endAt = _endAt;
     if (endAt == null) return;
-    RestTimerAlerts.showOngoing(endAt);
+    RestTimerAlerts.showOngoing(_startAt ?? DateTime.now(), endAt);
     if (_inForeground) {
       RestTimerAlerts.cancelScheduled();
     } else {

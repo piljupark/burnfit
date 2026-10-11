@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -14,8 +15,9 @@ enum RestAlertKind { warning, done }
 /// - 앱이 앞에 있을 때: [RestTimer]가 10초 전·끝을 직접 알린다 ([fireNow] — 진동, 안드로이드는 알림도).
 /// - 앱이 뒤로 갈 때: 10초 전·끝 알림을 예약해 두고([scheduleFor]), 앞으로 돌아오면 지운다
 ///   ([cancelScheduled]). 앱이 잠들어 있어도 휴대폰이 알려 준다.
-/// - 안드로이드: 휴식 중에는 알림 센터에 줄어드는 남은 시간을 띄운다 ([showOngoing]).
-///   아이폰 잠금 화면 · 다이내믹 아일랜드 표시는 2차 (실시간 현황 위젯 필요).
+/// - 휴식 중 진행 표시([showOngoing]): 안드로이드는 알림 센터에 줄어드는 남은 시간,
+///   아이폰(16.2+)은 잠금 화면 · 다이내믹 아일랜드 실시간 현황 (`ios/RestTimerWidget`,
+///   다리는 `ios/Runner/RestTimerActivityPlugin.swift`).
 ///
 /// 알림 권한·초기화는 [WorkoutReminder]가 맡는다 (같은 기기 알림 묶음).
 class RestTimerAlerts {
@@ -33,6 +35,23 @@ class RestTimerAlerts {
 
   static bool get _android =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  static bool get _ios =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  static const _activity = MethodChannel('refit/rest_activity');
+
+  /// 아이폰 실시간 현황 (16.2 미만 · 꺼 둔 경우 네이티브가 무시한다).
+  static Future<void> _iosActivity(String method, [Object? args]) async {
+    if (!_ios) return;
+    try {
+      await _activity.invokeMethod<void>(method, args);
+    } on MissingPluginException {
+      // 테스트 · 다른 플랫폼
+    } catch (e) {
+      AppLogger.debug('[RestTimerAlerts] 실시간 현황 $method 실패: $e');
+    }
+  }
 
   static AndroidFlutterLocalNotificationsPlugin? get _androidPlugin => _plugin
       .resolvePlatformSpecificImplementation<
@@ -148,6 +167,7 @@ class RestTimerAlerts {
 
   /// 휴식을 건너뛰거나 끝난 뒤 앱에 돌아왔을 때: 예약 · 진행 표시 · 뜬 알림 모두 지운다.
   static Future<void> clearAll() async {
+    await _iosActivity('end');
     if (!WorkoutReminder.isReady) return;
     try {
       await _plugin.cancel(id: _ongoingId);
@@ -159,6 +179,7 @@ class RestTimerAlerts {
   }
 
   static Future<void> clearOngoing() async {
+    await _iosActivity('end');
     if (!_android || !WorkoutReminder.isReady) return;
     try {
       await _plugin.cancel(id: _ongoingId);
@@ -167,8 +188,13 @@ class RestTimerAlerts {
     }
   }
 
-  /// 안드로이드 알림 센터의 '휴식 중' 줄:시스템이 남은 시간을 직접 세므로 앱이 잠들어도 줄어든다.
-  static Future<void> showOngoing(DateTime endAt) async {
+  /// 휴식 중 진행 표시. 시스템이 남은 시간을 직접 세므로 앱이 잠들어도 줄어든다.
+  /// 안드로이드는 알림 센터의 '휴식 중' 줄, 아이폰은 잠금 화면 · 다이내믹 아일랜드.
+  static Future<void> showOngoing(DateTime startAt, DateTime endAt) async {
+    await _iosActivity('show', {
+      'startAt': startAt.millisecondsSinceEpoch,
+      'endAt': endAt.millisecondsSinceEpoch,
+    });
     if (!_android || !WorkoutReminder.isReady) return;
     final left = endAt.difference(DateTime.now()).inMilliseconds;
     if (left <= 0) return;

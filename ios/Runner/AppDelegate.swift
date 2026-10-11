@@ -14,5 +14,9 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    // 휴식 타이머 잠금 화면 · 다이내믹 아일랜드 (실시간 현황)
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "RestTimerActivityPlugin") {
+      RestTimerActivityPlugin.register(with: registrar)
+    }
   }
 }

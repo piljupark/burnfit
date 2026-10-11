@@ -104,7 +104,7 @@
 |---|---|---|---|
 | `WorkoutPickerRow` · `WorkoutExerciseMenuSheet` · `WorkoutSavedExerciseRow` · `WorkoutCollapsedRow` · `WorkoutSummaryStats` · `DoneConfirmButton` | `workout_parts.dart` | 회원·트레이너 운동 화면 공용. 종목 메뉴는 메모 · 무게 칸 숨기기/보이기 줄을 받는다. 저장된 종목 줄은 메모가 있으면 아래 메모 줄 | 2씩 |
 | `ExerciseNoteLine` · `showExerciseNoteSheet` · `isBodyweightExercise` · `strengthCountLabel` | `workout_parts.dart` | 종목 메모 한 줄(아이콘 14 + 13) · 메모 시트 · 맨몸 운동인지 · '회'/'초' | 3 |
-| `RestTimer` · `RestTimerBar` · `showRestTimerSheet` · `startRestTimer` | `rest_timer.dart` | 앱 전체 휴식 타이머 하나. 남은 시간은 끝나는 시각 기준. 10초 전·끝 알림은 `services/rest_timer_alerts.dart`(`RestTimerAlerts`: 앞이면 바로 진동, 뒤로 가면 기기 알림 예약, 안드로이드 알림 센터 남은 시간) | 2 |
+| `RestTimer` · `RestTimerBar` · `showRestTimerSheet` · `startRestTimer` | `rest_timer.dart` | 앱 전체 휴식 타이머 하나. 남은 시간은 끝나는 시각 기준. 10초 전·끝 알림은 `services/rest_timer_alerts.dart`(`RestTimerAlerts`: 앞이면 바로 진동, 뒤로 가면 기기 알림 예약, 안드로이드 알림 센터 남은 시간, 아이폰 잠금 화면 · 다이내믹 아일랜드는 채널 `refit/rest_activity` → `ios/Runner/RestTimerActivityPlugin.swift` → 위젯 `ios/RestTimerWidget/`) | 2 |
 | `MealFeedList` · `MealFeedCard` | `meal_feed.dart` | 트레이너 식단 피드 (식단 탭 · 회원 상세 식단 탭) | 2 |
 
 ## 로그인 · 그림 · 움직임
