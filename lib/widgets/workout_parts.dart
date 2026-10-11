@@ -9,7 +9,9 @@ import '../models/custom_exercise.dart';
 import '../models/workout.dart';
 import 'app_action_row.dart';
 import 'app_bottom_sheet.dart';
+import 'app_button.dart';
 import 'app_motion.dart';
+import 'app_text_field.dart';
 
 /// 회원 운동 · 트레이너 PT 기록이 함께 쓰는 운동 부품과 계산.
 ///
@@ -35,13 +37,18 @@ double roundWeightKg(double value) => (value * 100).roundToDouble() / 100;
 /// 유산소 종목의 주 지표 이름 (속도·경사·강도·레벨·거리·횟수).
 String cardioPrimaryMetricLabel(String name) {
   final n = name.replaceAll(' ', '');
-  if (n.contains('러닝머신') || n.contains('인터벌') || n.contains('조깅')) return '속도';
+  if (n.contains('러닝') || n.contains('인터벌') || n.contains('조깅')) return '속도';
   if (n.contains('인클라인')) return '경사';
+  if (n.contains('걷기')) return '속도';
   if (n.contains('사이클') || n.contains('싸이클')) return '강도';
   if (n.contains('스텝밀') || n.contains('천국의계단')) return '레벨';
   if (n.contains('일립티컬')) return '강도';
-  if (n.contains('로잉')) return '거리';
-  if (n.contains('줄넘기') || n.contains('버피')) return '횟수';
+  if (n.contains('로잉') || n.contains('스키에르그') || n.contains('수영')) {
+    return '거리';
+  }
+  if (n.contains('줄넘기') || n.contains('버피') || n.contains('점핑잭')) {
+    return '횟수';
+  }
   return '강도';
 }
 
@@ -79,6 +86,16 @@ WorkoutCategory? exerciseCategoryOf(
   }
   return null;
 }
+
+/// 맨몸 운동인지 (기본 목록 기준). 맞으면 무게 칸을 처음부터 숨긴다.
+bool isBodyweightExercise(String name) =>
+    ExerciseData.bodyweight.contains(name.trim());
+
+/// 버티는 운동인지 (플랭크 등). 맞으면 횟수 칸 대신 '초'를 적는다.
+bool isTimedExercise(String name) => ExerciseData.timed.contains(name.trim());
+
+/// 근력 종목 표의 두 번째 칸 이름: 버티는 운동은 '초', 그 밖은 '회'.
+String strengthCountLabel(String name) => isTimedExercise(name) ? '초' : '회';
 
 /// 종목 이름으로 찾은 부위가 유산소인지 (못 찾으면 [fallback] 부위로 판단).
 bool isCardioExercise(
@@ -558,6 +575,16 @@ class WorkoutExerciseMenuSheet extends StatelessWidget {
   final String nextUnitLabel;
   final VoidCallback onToggleUnit;
 
+  /// 무게 칸을 보이는 중인지. 숨겼으면 '무게 단위 변경'을 두지 않는다.
+  final bool showWeight;
+
+  /// '무게 칸 숨기기/보이기' (근력 종목만).
+  final VoidCallback? onToggleWeight;
+
+  /// 지금 메모 (줄 오른쪽에 앞부분을 보인다).
+  final String note;
+  final VoidCallback? onEditNote;
+
   /// 단위 변경과 삭제 사이에 둘 행동 줄 (회원 '휴식 타이머')
   final List<Widget> extraActions;
   final VoidCallback onDelete;
@@ -572,10 +599,15 @@ class WorkoutExerciseMenuSheet extends StatelessWidget {
     required this.onToggleUnit,
     required this.onDelete,
     this.extraActions = const [],
+    this.showWeight = true,
+    this.onToggleWeight,
+    this.note = '',
+    this.onEditNote,
   });
 
   @override
   Widget build(BuildContext context) {
+    final trimmedNote = note.trim();
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -584,11 +616,36 @@ class WorkoutExerciseMenuSheet extends StatelessWidget {
           title: name,
           subtitle: isCardio
               ? category.label
-              : '${category.label} · 현재 단위 $unitLabel',
+              : showWeight
+              ? '${category.label} · 현재 단위 $unitLabel'
+              : '${category.label} · 무게 없이 기록',
           mutedSubtitle: true,
           gap: AppSpacing.md,
         ),
-        if (!isCardio) ...[
+        if (onEditNote != null) ...[
+          AppSheetAction(
+            icon: AppIcons.note,
+            label: '메모',
+            value: trimmedNote.isEmpty
+                ? '없음'
+                : trimmedNote.length > 10
+                ? '${trimmedNote.substring(0, 10)}…'
+                : trimmedNote,
+            chevron: true,
+            onTap: onEditNote!,
+          ),
+          const AppRowDivider(),
+        ],
+        if (!isCardio && onToggleWeight != null) ...[
+          AppSheetAction(
+            icon: AppIcons.workout,
+            label: showWeight ? '무게 칸 숨기기' : '무게 칸 보이기',
+            value: showWeight ? '맨몸으로 기록' : '중량 추가',
+            onTap: onToggleWeight!,
+          ),
+          const AppRowDivider(),
+        ],
+        if (!isCardio && showWeight) ...[
           AppSheetAction(
             icon: AppIcons.swapUnit,
             label: '무게 단위 변경',
@@ -605,6 +662,114 @@ class WorkoutExerciseMenuSheet extends StatelessWidget {
           onTap: onDelete,
         ),
       ],
+    );
+  }
+}
+
+/// 종목 메모 시트: 여러 줄 입력 + '저장'. 저장하면 고친 글자(빈 글자 = 메모 지움), 닫으면 null.
+Future<String?> showExerciseNoteSheet(
+  BuildContext context, {
+  required String exerciseName,
+  required String initial,
+}) {
+  return showAppBottomSheet<String>(
+    context: context,
+    child: _ExerciseNoteSheet(exerciseName: exerciseName, initial: initial),
+  );
+}
+
+class _ExerciseNoteSheet extends StatefulWidget {
+  final String exerciseName;
+  final String initial;
+
+  const _ExerciseNoteSheet({required this.exerciseName, required this.initial});
+
+  @override
+  State<_ExerciseNoteSheet> createState() => _ExerciseNoteSheetState();
+}
+
+class _ExerciseNoteSheetState extends State<_ExerciseNoteSheet> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppBottomSheetHeader(
+          title: '종목 메모',
+          subtitle: widget.exerciseName,
+          mutedSubtitle: true,
+          gap: AppSpacing.md,
+        ),
+        AppTextField(
+          label: '메모',
+          hint: '자세, 느낌, 다음에 바꿀 점',
+          controller: _controller,
+          minLines: 3,
+          maxLines: 5,
+          maxLength: 200,
+          autofocus: true,
+          textInputAction: TextInputAction.newline,
+        ),
+        const SizedBox(height: AppSpacing.base),
+        AppButton(
+          label: '저장',
+          size: AppButtonSize.lg,
+          fullWidth: true,
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+        ),
+      ],
+    );
+  }
+}
+
+/// 종목 메모 한 줄 (메모 아이콘 14 + 13 body, 두 줄까지). 운동 카드·저장된 기록이 함께 쓴다.
+class ExerciseNoteLine extends StatelessWidget {
+  final String note;
+  final VoidCallback? onTap;
+
+  const ExerciseNoteLine({super.key, required this.note, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final line = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(AppIcons.note, size: 14, color: AppColors.mute),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            note,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.body),
+          ),
+        ),
+      ],
+    );
+    if (onTap == null) {
+      return Semantics(label: '메모 $note', excludeSemantics: true, child: line);
+    }
+    return Semantics(
+      button: true,
+      label: '메모 $note, 눌러서 고치기',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: line,
+      ),
     );
   }
 }
@@ -638,7 +803,8 @@ class WorkoutSavedExerciseRow extends StatelessWidget {
     final detail = isCardio
         ? cardioExerciseSummary(exercise)
         : strengthExerciseSummary(exercise, showMax: showMax);
-    return Row(
+    final note = exercise.note?.trim() ?? '';
+    final row = Row(
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: [
@@ -652,6 +818,15 @@ class WorkoutSavedExerciseRow extends StatelessWidget {
         ),
         SizedBox(width: gap),
         Text(detail, style: AppTextStyles.bodySm.natural),
+      ],
+    );
+    if (note.isEmpty) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        row,
+        const SizedBox(height: AppSpacing.xxs),
+        ExerciseNoteLine(note: note),
       ],
     );
   }

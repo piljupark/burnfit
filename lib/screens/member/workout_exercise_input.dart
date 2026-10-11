@@ -6,6 +6,7 @@ import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/workout.dart';
 import '../../widgets/set_input.dart';
+import '../../widgets/workout_parts.dart';
 import 'workout_draft_models.dart';
 
 /// 세트 표 치수 (시안 Main 계열 Workout: 열 40 | 1fr | 1fr | 48, 줄 52).
@@ -14,7 +15,8 @@ const double _setNumberWidth = 40;
 const double _setCheckColumn = 48;
 
 /// 진행 중인 운동 카드 (시안 Workout): 회색 카드(반경 20, 좌우 20 여백) 안에
-/// 이름(17/700) + 메뉴, 지난 기록 비교 한 줄, 세트 표(흰 값 상자 · 36 완료 원), '+ 세트 추가'.
+/// 이름(17/700) + 메뉴, 지난 기록 비교 한 줄, (메모가 있으면) 메모 줄, 세트 표(흰 값 상자 · 36 완료 원),
+/// '+ 세트 추가'. 무게 칸을 숨긴 종목(맨몸)은 값 상자가 하나(회 · 초)다.
 class ExerciseInputCard extends StatelessWidget {
   final int order;
   final WorkoutExerciseDraft exercise;
@@ -24,6 +26,9 @@ class ExerciseInputCard extends StatelessWidget {
   final VoidCallback onMenuTap;
   final void Function(int setIndex) onRemoveSet;
   final void Function(int setIndex) onToggleSetDone;
+
+  /// 메모 줄을 누르면 (메모 고치기)
+  final VoidCallback? onNoteTap;
 
   const ExerciseInputCard({
     super.key,
@@ -35,6 +40,7 @@ class ExerciseInputCard extends StatelessWidget {
     required this.onMenuTap,
     required this.onRemoveSet,
     required this.onToggleSetDone,
+    this.onNoteTap,
   });
 
   /// 부위 · 지난 기록 비교 한 줄 (시안 MemA-Workout-Recording: 13 mute, 위 3).
@@ -146,6 +152,19 @@ class ExerciseInputCard extends StatelessWidget {
               ),
               child: _comparisonLine(),
             ),
+            if (exercise.note.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xs,
+                  6,
+                  AppSpacing.xs,
+                  0,
+                ),
+                child: ExerciseNoteLine(
+                  note: exercise.note.trim(),
+                  onTap: onNoteTap,
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.xs,
@@ -159,13 +178,14 @@ class ExerciseInputCard extends StatelessWidget {
                     width: _setNumberWidth,
                     child: Text('세트', style: header),
                   ),
-                  Expanded(
-                    child: Text(
-                      _headerLabel(exercise.primaryMetricLabel),
-                      textAlign: TextAlign.center,
-                      style: header,
+                  if (exercise.showWeight)
+                    Expanded(
+                      child: Text(
+                        _headerLabel(exercise.primaryMetricLabel),
+                        textAlign: TextAlign.center,
+                        style: header,
+                      ),
                     ),
-                  ),
                   Expanded(
                     child: Text(
                       _headerLabel(exercise.secondaryMetricLabel),
@@ -186,6 +206,7 @@ class ExerciseInputCard extends StatelessWidget {
                 current: i == currentIndex,
                 primaryLabel: exercise.primaryMetricLabel,
                 secondaryLabel: exercise.secondaryMetricLabel,
+                showWeight: exercise.showWeight,
                 onChanged: onChanged,
                 onRemove: () => onRemoveSet(i),
                 onToggleDone: () => onToggleSetDone(i),
@@ -238,6 +259,7 @@ class _WorkoutSetRow extends StatelessWidget {
   final bool current;
   final String primaryLabel;
   final String secondaryLabel;
+  final bool showWeight;
   final VoidCallback onChanged;
   final VoidCallback onRemove;
   final VoidCallback onToggleDone;
@@ -249,6 +271,7 @@ class _WorkoutSetRow extends StatelessWidget {
     required this.current,
     required this.primaryLabel,
     required this.secondaryLabel,
+    required this.showWeight,
     required this.onChanged,
     required this.onRemove,
     required this.onToggleDone,
@@ -285,19 +308,20 @@ class _WorkoutSetRow extends StatelessWidget {
                 ),
               ),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: SetValueField(
-                  controller: set.weightController,
-                  decimal: true,
-                  highlighted: current,
-                  card: true,
-                  semanticLabel: '$number세트 $primaryLabel',
-                  onChanged: onChanged,
+            if (showWeight)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: SetValueField(
+                    controller: set.weightController,
+                    decimal: true,
+                    highlighted: current,
+                    card: true,
+                    semanticLabel: '$number세트 $primaryLabel',
+                    onChanged: onChanged,
+                  ),
                 ),
               ),
-            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),

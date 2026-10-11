@@ -63,13 +63,20 @@ class Exercise {
   final String name;
   final List<ExerciseSet> sets;
 
-  const Exercise({required this.name, required this.sets});
+  /// 종목 메모 (자세 · 느낌 등). 없으면 null — 예전 기록에는 이 칸이 없다.
+  final String? note;
+
+  const Exercise({required this.name, required this.sets, this.note});
 
   double get totalVolume =>
       sets.fold(0, (total, s) => total + s.weight * s.reps);
 
   Map<String, dynamic> toMap() {
-    return {'name': name, 'sets': sets.map((s) => s.toMap()).toList()};
+    return {
+      'name': name,
+      'sets': sets.map((s) => s.toMap()).toList(),
+      if (note != null && note!.trim().isNotEmpty) 'note': note!.trim(),
+    };
   }
 
   factory Exercise.fromMap(Map<String, dynamic> map) {
@@ -80,7 +87,12 @@ class Exercise {
       throw ArgumentError('운동 세트가 비어 있습니다.');
     }
 
-    return Exercise(name: _requiredString(map, 'name'), sets: sets);
+    final note = map['note'];
+    return Exercise(
+      name: _requiredString(map, 'name'),
+      sets: sets,
+      note: note is String && note.trim().isNotEmpty ? note.trim() : null,
+    );
   }
 
   static String _requiredString(Map<String, dynamic> map, String fieldName) {

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_motion.dart';
 import '../widgets/app_toast.dart';
+import 'app_haptics.dart';
 import 'app_logger.dart';
 import 'validators.dart';
 import 'app_colors.dart';
@@ -97,6 +98,7 @@ class AppFeedback {
 
   /// 오류 토스트 (화면 위쪽, [AppToast]): 검정 면 + 주황 원 '!'.
   static void showErrorSnackBar(BuildContext context, Object error) {
+    AppHaptics.warning();
     AppToast.show(
       context,
       message: errorMessage(error),
@@ -106,11 +108,13 @@ class AppFeedback {
 
   /// 입력 확인·안내처럼 오류 객체가 없는 경고 문구 토스트 ('!').
   static void showWarning(BuildContext context, String message) {
+    AppHaptics.warning();
     AppToast.show(context, message: message, kind: AppToastKind.error);
   }
 
   /// 완료 토스트 (체크가 그려지며 나타남).
   static void showSuccessSnackBar(BuildContext context, String message) {
+    AppHaptics.success();
     AppToast.show(context, message: message, kind: AppToastKind.success);
   }
 

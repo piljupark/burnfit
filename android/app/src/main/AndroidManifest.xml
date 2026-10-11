@@ -2,6 +2,10 @@
     <!-- 알림 표시(안드로이드 13+)와 재부팅 뒤 예약 알림 다시 걸기 (운동 리마인드) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- 휴식 타이머: 10초 전·끝 알림을 정확한 시각에 (안드로이드 14+는 사용자가 '알람 및 리마인더'에서 허용),
+         알림 진동 모양(끝 = 세게 세 번) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <application
         android:label="REFIT"
         android:name="${applicationName}"

@@ -207,7 +207,12 @@ class SetCheckPainter extends CustomPainter {
 }
 
 /// 세트 숫자 입력 상자 (무게·횟수·시간 등).
+///
+/// 키패드 내리기: 아이폰 숫자 키패드에는 '완료' 키가 없으므로, 세트 칸 밖을 누르면 내린다.
+/// 다른 세트 칸을 누를 때는 내리지 않고 그 칸으로 옮긴다 (같은 [_tapGroup]).
 class SetValueField extends StatelessWidget {
+  static const Object _tapGroup = SetValueField;
+
   final TextEditingController controller;
   final bool decimal;
   final bool highlighted;
@@ -287,6 +292,10 @@ class SetValueField extends StatelessWidget {
             LengthLimitingTextInputFormatter(maxLength ?? (decimal ? 6 : 4)),
           ],
           onChanged: (_) => onChanged(),
+          groupId: _tapGroup,
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+          // 안드로이드 숫자 키패드의 확인 키(✓)로도 내린다.
+          textInputAction: TextInputAction.done,
           textAlign: TextAlign.center,
           // AppTextField와 같은 방식: 한 줄(22) + 위아래 같은 여백으로 칸(36)을 채운다.
           // (줄 높이 1.0 + 세로 가운데 정렬 방식은 웹에서 글자가 아래로 내려가 보였다)

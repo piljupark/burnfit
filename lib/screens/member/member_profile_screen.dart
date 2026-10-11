@@ -191,6 +191,7 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
                     ),
                   ),
                   const ThemeSettingRow(),
+                  const HapticsSettingRow(),
                   AppActionRow(
                     icon: AppIcons.signOut,
                     label: '로그아웃',

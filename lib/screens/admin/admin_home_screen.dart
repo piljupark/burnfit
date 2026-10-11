@@ -398,6 +398,7 @@ class _AdminProfileTab extends StatelessWidget {
                   ),
                 ),
                 const ThemeSettingRow(),
+                const HapticsSettingRow(),
                 AppActionRow(
                   icon: AppIcons.signOut,
                   label: '로그아웃',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
@@ -21,6 +22,8 @@ Future<bool> showAppConfirmDialog(
   bool destructive = true,
   String? warning,
 }) async {
+  // 되돌릴 수 없는 일을 묻는 창은 열릴 때 한 번 묵직하게 진동한다.
+  if (destructive) AppHaptics.warning();
   // 시안 Com-ConfirmDialog: 흰 면 · 반경 20 · 좌우 20 · 안쪽 24 20 20,
   // 제목 20/500, 설명 15 body 줄 높이 1.55, 2칸 버튼(52 · 반경 14 · 16/500).
   // 나타날 때 .92 → 1 커지며 나타남(300ms), 뒤 덮개 40%.

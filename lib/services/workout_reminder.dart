@@ -13,6 +13,7 @@ import 'notification_target.dart';
 /// 세트를 완료할 때마다 [workoutReminderDelay] 뒤로 다시 예약하고, 저장하거나 운동을 비우면 지운다.
 /// 알림을 누르면 회원 운동 탭으로 간다 ([FcmService.pendingTarget]에 [NotificationTarget.workout]).
 /// 알림 권한은 앱 시작 때 [FcmService]가 받는다 — 여기서는 다시 묻지 않는다.
+/// 기기 안 알림 준비([initialize])는 휴식 타이머 알림([RestTimerAlerts])도 함께 쓴다.
 class WorkoutReminder {
   WorkoutReminder._();
 
@@ -23,6 +24,12 @@ class WorkoutReminder {
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   static bool _ready = false;
+
+  /// 기기 안 알림 (휴식 타이머 알림이 같이 쓴다).
+  static FlutterLocalNotificationsPlugin get plugin => _plugin;
+
+  /// [initialize]가 끝났는지.
+  static bool get isReady => _ready;
 
   /// 앱 시작 때 한 번. 실패해도 앱은 그대로 쓴다 (리마인드만 오지 않는다).
   static Future<void> initialize() async {

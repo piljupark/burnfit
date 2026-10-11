@@ -17,11 +17,22 @@ class TrainerExerciseDraft {
   final List<TrainerSetDraft> sets;
   TrainerWeightUnit unit = TrainerWeightUnit.kg;
 
+  /// 무게 칸을 보일지. 맨몸 운동은 처음부터 숨기고, 종목 메뉴에서 바꿀 수 있다. 유산소는 늘 보인다.
+  bool _showWeight;
+
+  /// 종목 메모 (빈 글자면 없음). 회원도 PT 기록에서 본다.
+  String note;
+
   TrainerExerciseDraft({
     required this.name,
     required this.category,
     required this.sets,
-  });
+    bool? showWeight,
+    this.note = '',
+  }) : _showWeight = showWeight ?? !isBodyweightExercise(name);
+
+  bool get showWeight => isCardio || _showWeight;
+  set showWeight(bool value) => _showWeight = value;
 
   factory TrainerExerciseDraft.fromExercise({
     required Exercise exercise,
@@ -30,6 +41,11 @@ class TrainerExerciseDraft {
     return TrainerExerciseDraft(
       name: exercise.name,
       category: category,
+      // 맨몸 운동이라도 무게를 적어 둔 기록이면 무게 칸을 보인다.
+      showWeight:
+          !isBodyweightExercise(exercise.name) ||
+          exercise.sets.any((s) => s.weight > 0),
+      note: exercise.note ?? '',
       sets: exercise.sets
           .map(
             (s) => TrainerSetDraft(
@@ -42,9 +58,16 @@ class TrainerExerciseDraft {
     );
   }
 
-  /// 입력 단위 그대로의 볼륨 (무게 × 횟수).
-  double get totalVolume =>
-      sets.fold(0, (sum, s) => sum + ((s.weight ?? 0) * (s.reps ?? 0)));
+  /// 입력 단위 그대로의 볼륨 (무게 × 횟수). 무게 칸을 숨겼으면 0.
+  double get totalVolume => showWeight
+      ? sets.fold(0, (sum, s) => sum + ((s.weight ?? 0) * (s.reps ?? 0)))
+      : 0;
+
+  int? get maxReps {
+    final values = sets.map((s) => s.reps).whereType<int>().toList();
+    if (values.isEmpty) return null;
+    return values.reduce((a, b) => a > b ? a : b);
+  }
 
   /// kg으로 환산한 근력 볼륨. 유산소(속도 × 분)는 볼륨이 아니므로 0.
   double get volumeKg {
@@ -58,6 +81,7 @@ class TrainerExerciseDraft {
       isCardio ? sets.fold(0, (sum, s) => sum + (s.reps ?? 0)) : 0;
 
   double? get maxWeight {
+    if (!showWeight) return null;
     final values = sets.map((s) => s.weight).whereType<double>().toList();
     if (values.isEmpty) return null;
     return values.reduce((a, b) => a > b ? a : b);
@@ -70,7 +94,7 @@ class TrainerExerciseDraft {
     return unit.label;
   }
 
-  String get secondaryMetricLabel => isCardio ? '시간' : '회';
+  String get secondaryMetricLabel => isCardio ? '시간' : strengthCountLabel(name);
 
   String get primaryMetricSuffix {
     if (isCardio) return cardioPrimaryMetricSuffix(name);
@@ -86,15 +110,21 @@ class TrainerExerciseDraft {
     final validSets = <ExerciseSet>[];
     for (final set in sets) {
       if (!set.isValid) continue;
-      final weightInKg = weightTextToKg(
-        set.weightController.text,
-        lbs: unit == TrainerWeightUnit.lbs,
-        memo: set.unitMemo,
-      );
+      final weightInKg = showWeight
+          ? weightTextToKg(
+              set.weightController.text,
+              lbs: unit == TrainerWeightUnit.lbs,
+              memo: set.unitMemo,
+            )
+          : 0.0;
       validSets.add(ExerciseSet(weight: weightInKg, reps: set.reps!));
     }
     if (name.trim().isEmpty || validSets.isEmpty) return null;
-    return Exercise(name: name.trim(), sets: validSets);
+    return Exercise(
+      name: name.trim(),
+      sets: validSets,
+      note: note.trim().isEmpty ? null : note.trim(),
+    );
   }
 
   void dispose() {
@@ -155,7 +185,14 @@ class TrainerPreviousStats {
   final String date;
   final double maxWeight;
 
-  const TrainerPreviousStats({required this.date, required this.maxWeight});
+  /// 가장 많이 한 횟수 (맨몸 운동 비교용, 버티는 운동은 초).
+  final int maxReps;
+
+  const TrainerPreviousStats({
+    required this.date,
+    required this.maxWeight,
+    this.maxReps = 0,
+  });
 }
 
 enum TrainerComparisonTone { up, down, same, muted }
@@ -166,11 +203,15 @@ extension TrainerWeightUnitLabel on TrainerWeightUnit {
   String get label => this == TrainerWeightUnit.kg ? 'kg' : 'lbs';
 }
 
-enum TrainerMenuActionType { toggleUnit, delete }
+enum TrainerMenuActionType { toggleUnit, toggleWeight, note, delete }
 
 class TrainerMenuAction {
   final TrainerMenuActionType type;
-  const TrainerMenuAction({required this.type});
+
+  /// [TrainerMenuActionType.note]: 고친 메모.
+  final String? note;
+
+  const TrainerMenuAction({required this.type, this.note});
 }
 
 class TrainerExerciseComparison {

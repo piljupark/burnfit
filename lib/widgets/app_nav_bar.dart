@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_haptics.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
 
@@ -77,7 +78,10 @@ class AppNavBar extends StatelessWidget {
                     : item.label,
                 excludeSemantics: true,
                 child: GestureDetector(
-                  onTap: () => onTap(i),
+                  onTap: () {
+                    if (i != currentIndex) AppHaptics.selection();
+                    onTap(i);
+                  },
                   behavior: HitTestBehavior.opaque,
                   child: Column(
                     children: [

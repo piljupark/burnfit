@@ -29,6 +29,7 @@ import '../../widgets/notification_bell_button.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
 import '../../widgets/rest_timer.dart';
+import '../../widgets/workout_parts.dart';
 
 import '../common/notice_home_banner.dart';
 import 'member_profile_detail_screen.dart';
@@ -365,13 +366,25 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
     );
   }
 
+  /// '오늘' 줄: 오늘 PT 예약 + 오늘 저장한 개인 운동, 시각 순.
+  /// (트레이너가 남긴 PT 운동 기록은 PT 예약 줄과 겹치므로 넣지 않는다.)
+  List<_TodayRow> _todayRows(DateTime today) {
+    final todayKey = _key(today);
+    final rows = [
+      for (final session in _weekSessions)
+        if (_sameDate(session.scheduledAt, today))
+          _TodayRow.session(session, onTap: widget.onOpenPt),
+      for (final workout in _recentWorkouts)
+        if (workout.workoutDate == todayKey &&
+            workout.workoutType == WorkoutType.personal)
+          _TodayRow.workout(workout, onTap: widget.onOpenWorkout),
+    ]..sort((a, b) => a.at.compareTo(b.at));
+    return rows;
+  }
+
   List<Widget> _todayChildren() {
     final today = _today();
-    final todaySessions =
-        _weekSessions
-            .where((item) => _sameDate(item.scheduledAt, today))
-            .toList()
-          ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    final todayRows = _todayRows(today);
     final ptInfo = _ptInfo;
     return [
       if (ptInfo != null)
@@ -441,11 +454,10 @@ class MemberCalendarScreenState extends State<MemberCalendarScreen> {
           child: Text('오늘', style: AppTextStyles.section.bold.natural),
         ),
       ),
-      if (todaySessions.isEmpty)
-        const AppEmptyLine('오늘 예정된 일정이 없습니다')
+      if (todayRows.isEmpty)
+        const AppEmptyLine('오늘 예정된 일정과 운동 기록이 없습니다')
       else
-        for (final session in todaySessions)
-          _TodaySessionRow(session: session, onTap: widget.onOpenPt),
+        ...todayRows,
     ];
   }
 
@@ -924,22 +936,57 @@ class _WeekCard extends StatelessWidget {
 }
 
 /// 오늘 일정 한 줄: 왼쪽 44 폭 시각(15/700) + 'PT'(15/700) · 트레이너 · 분 + 화살표.
-class _TodaySessionRow extends StatelessWidget {
-  final PtSession session;
+/// '오늘' 한 줄: 시각(44) · 제목 15/500 + 보조 13. PT 예약과 개인 운동이 같은 모양을 쓴다.
+class _TodayRow extends StatelessWidget {
+  /// 정렬·왼쪽 시각 (PT는 예약 시각, 개인 운동은 시작 시각).
+  final DateTime at;
+  final String title;
+  final String detail;
   final VoidCallback? onTap;
 
-  const _TodaySessionRow({required this.session, required this.onTap});
+  const _TodayRow({
+    required this.at,
+    required this.title,
+    required this.detail,
+    required this.onTap,
+  });
+
+  factory _TodayRow.session(PtSession session, {VoidCallback? onTap}) {
+    final done = session.status == PtSessionStatus.completed;
+    return _TodayRow(
+      at: session.scheduledAt,
+      title: 'PT',
+      detail: [
+        session.trainerName,
+        '${session.durationMinutes}분',
+        if (done) '완료',
+      ].join(' · '),
+      onTap: onTap,
+    );
+  }
+
+  /// 개인 운동: '가슴 · 12세트 · 3,450kg · 52분'. 시작 시각 = 저장 시각 − 운동 시간.
+  factory _TodayRow.workout(Workout workout, {VoidCallback? onTap}) {
+    final volume = workoutStrengthVolumeKg(workout).round();
+    return _TodayRow(
+      at: workout.createdAt
+          .subtract(Duration(seconds: workout.durationSeconds))
+          .toLocal(),
+      title: '개인 운동',
+      detail: [
+        workout.category.label,
+        '${workout.totalSets}세트',
+        if (volume > 0) '${_volumeFormat.format(volume)}kg',
+        ?formatWorkoutDuration(workout.durationSeconds),
+      ].join(' · '),
+      onTap: onTap,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     // 시안 Main: 15/500(Bold 글꼴), 보조 13 #767676, 줄 높이 normal
     final strong = AppTextStyles.bodyMd.bold.natural;
-    final done = session.status == PtSessionStatus.completed;
-    final detail = [
-      session.trainerName,
-      '${session.durationMinutes}분',
-      if (done) '완료',
-    ].join(' · ');
     return Semantics(
       button: onTap != null,
       child: InkWell(
@@ -955,17 +1002,14 @@ class _TodaySessionRow extends StatelessWidget {
             children: [
               SizedBox(
                 width: 44,
-                child: Text(
-                  DateFormat('HH:mm').format(session.scheduledAt),
-                  style: strong,
-                ),
+                child: Text(DateFormat('HH:mm').format(at), style: strong),
               ),
               const Gap(14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('PT', style: strong),
+                    Text(title, style: strong),
                     const Gap(2),
                     Text(
                       detail,

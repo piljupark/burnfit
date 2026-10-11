@@ -191,6 +191,11 @@ class _PtWorkoutRow extends StatelessWidget {
     ).format(workoutStrengthVolumeKg(workout).round());
     final names = workout.exercises.map((e) => e.name).join(', ');
     final note = workout.note?.trim() ?? '';
+    // 트레이너가 종목마다 남긴 메모: '스쿼트 · 무릎이 안으로 모임'
+    final exerciseNotes = [
+      for (final e in workout.exercises)
+        if ((e.note?.trim() ?? '').isNotEmpty) '${e.name} · ${e.note!.trim()}',
+    ];
 
     return Semantics(
       container: true,
@@ -244,6 +249,13 @@ class _PtWorkoutRow extends StatelessWidget {
                       '${workout.exercises.length}종목 · ${workout.totalSets}세트 · 총 볼륨 ${volume}kg',
                       style: AppTextStyles.bodySm,
                     ),
+                    if (exerciseNotes.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      for (final line in exerciseNotes) ...[
+                        ExerciseNoteLine(note: line),
+                        const SizedBox(height: AppSpacing.xxs),
+                      ],
+                    ],
                     if (note.isNotEmpty) ...[
                       const SizedBox(height: 10),
                       Container(

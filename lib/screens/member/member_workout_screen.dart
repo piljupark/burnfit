@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
@@ -237,6 +238,11 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                     .map((set) => set.weight)
                     .reduce((a, b) => a > b ? a : b),
           totalVolume: exercise.totalVolume,
+          maxReps: exercise.sets.isEmpty
+              ? 0
+              : exercise.sets
+                    .map((set) => set.reps)
+                    .reduce((a, b) => a > b ? a : b),
         );
       }
     }
@@ -499,6 +505,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
   void _addSet(int exerciseIndex) {
     final exercise = _sessionExercises[exerciseIndex];
     final previous = exercise.sets.isNotEmpty ? exercise.sets.last : null;
+    AppHaptics.light();
 
     setState(() {
       exercise.sets.add(
@@ -576,6 +583,16 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
         _queueDraftSave();
         break;
 
+      case ExerciseMenuActionType.toggleWeight:
+        setState(() => exercise.showWeight = !exercise.showWeight);
+        _queueDraftSave();
+        break;
+
+      case ExerciseMenuActionType.note:
+        setState(() => exercise.note = action.note ?? '');
+        _queueDraftSave();
+        break;
+
       case ExerciseMenuActionType.restTimer:
         setState(() {
           exercise.restSeconds = action.restSeconds ?? exercise.restSeconds;
@@ -590,13 +607,28 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     }
   }
 
+  Future<void> _editNote(int index) async {
+    final exercise = _sessionExercises[index];
+    final note = await showExerciseNoteSheet(
+      context,
+      exerciseName: exercise.name,
+      initial: exercise.note,
+    );
+    if (note == null || !mounted) return;
+    setState(() => exercise.note = note);
+    _queueDraftSave();
+  }
+
   void _toggleSetDone(int exerciseIndex, int setIndex) {
     final exercise = _sessionExercises[exerciseIndex];
     final set = exercise.sets[setIndex];
+    // 입력을 마친 세트이므로 키패드를 내린다.
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => set.done = !set.done);
+    if (set.done) AppHaptics.success();
     // 근력 세트를 완료하면 그 운동의 휴식 시간으로 타이머를 시작한다.
     if (set.done && !exercise.isCardio) {
-      RestTimer.instance.start(exercise.restSeconds);
+      startRestTimer(context, exercise.restSeconds);
     }
     // 첫 세트를 완료하면 운동 시간이 시작되고, 세트마다 10분 뒤 리마인드를 다시 맞춘다.
     if (set.done && _tracksTime && _editingWorkoutId == null) {
@@ -924,6 +956,26 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
       );
     }
 
+    // 무게 없이 하는 운동은 가장 많이 한 횟수(버티는 운동은 초)로 비교한다.
+    if (!exercise.showWeight) {
+      final unit = exercise.secondaryMetricLabel;
+      final current = exercise.maxReps;
+      if (current == null) {
+        return ExerciseComparison(
+          label: '지난 최고 ${previous.maxReps}$unit',
+          tone: ComparisonTone.muted,
+        );
+      }
+      final diff = current - previous.maxReps;
+      if (diff == 0) {
+        return const ExerciseComparison(label: '동일', tone: ComparisonTone.same);
+      }
+      return ExerciseComparison(
+        label: '${diff > 0 ? '+' : ''}$diff$unit',
+        tone: diff > 0 ? ComparisonTone.up : ComparisonTone.down,
+      );
+    }
+
     final currentMax = exercise.maxWeight;
 
     final previousMax = exercise.isCardio
@@ -1032,6 +1084,8 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                         : ListView(
                             controller: _scrollController,
                             physics: const BouncingScrollPhysics(),
+                            keyboardDismissBehavior:
+                                ScrollViewKeyboardDismissBehavior.onDrag,
                             padding: EdgeInsets.only(
                               bottom: barBottom + 100 + 80,
                             ),
@@ -1109,6 +1163,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                                                 _removeSet(index, setIndex),
                                             onToggleSetDone: (setIndex) =>
                                                 _toggleSetDone(index, setIndex),
+                                            onNoteTap: () => _editNote(index),
                                           )
                                         : WorkoutCollapsedRow(
                                             name: _sessionExercises[index].name,

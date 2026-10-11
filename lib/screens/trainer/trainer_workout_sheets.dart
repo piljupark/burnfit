@@ -354,6 +354,22 @@ class TrainerExerciseMenuSheet extends StatelessWidget {
       onToggleUnit: () => Navigator.of(
         context,
       ).pop(const TrainerMenuAction(type: TrainerMenuActionType.toggleUnit)),
+      showWeight: exercise.showWeight,
+      onToggleWeight: () => Navigator.of(
+        context,
+      ).pop(const TrainerMenuAction(type: TrainerMenuActionType.toggleWeight)),
+      note: exercise.note,
+      onEditNote: () async {
+        final note = await showExerciseNoteSheet(
+          context,
+          exerciseName: exercise.name,
+          initial: exercise.note,
+        );
+        if (note == null || !context.mounted) return;
+        Navigator.of(
+          context,
+        ).pop(TrainerMenuAction(type: TrainerMenuActionType.note, note: note));
+      },
       onDelete: () => Navigator.of(
         context,
       ).pop(const TrainerMenuAction(type: TrainerMenuActionType.delete)),

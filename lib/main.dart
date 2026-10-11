@@ -10,6 +10,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'core/app_haptics.dart';
 import 'core/app_logger.dart';
 import 'core/app_theme.dart';
 import 'services/theme_controller.dart';
@@ -68,6 +69,7 @@ Future<void> bootstrapApp({bool withMessaging = true}) async {
   );
 
   await ThemeController.instance.load();
+  await AppHaptics.load();
 
   await initializeDateFormatting('ko_KR', null);
   AppLogger.debug('[Main] 로케일 초기화 완료: ${stopwatch.elapsedMilliseconds}ms');

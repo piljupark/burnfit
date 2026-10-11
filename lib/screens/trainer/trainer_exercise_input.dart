@@ -19,7 +19,8 @@ const double _valueGap = 6;
 /// 펼쳐진(현재) 운동 카드 (시안 Tr-PtRecord · Tr-PtRecord-Cardio).
 /// 회색 카드(반경 20, 좌우 20 바깥 여백, 안쪽 16 16 6) 안에 이름(17/500) + 메뉴(점 셋 20),
 /// '부위 · 지난 PT 비교' 한 줄(13 mute, 비교 값은 ink 500), 세트 표(흰 값 상자 40 · 완료 원 36),
-/// 아래 '+ 세트 추가' · '− 세트 삭제'(15 body).
+/// 아래 '+ 세트 추가' · '− 세트 삭제'(15 body). 메모가 있으면 비교 줄 아래 메모 줄,
+/// 무게 칸을 숨긴 종목(맨몸)은 값 상자가 하나(회 · 초)다.
 class TrainerExerciseInputCard extends StatelessWidget {
   final int order;
   final TrainerExerciseDraft exercise;
@@ -29,6 +30,9 @@ class TrainerExerciseInputCard extends StatelessWidget {
   final VoidCallback onMenuTap;
   final void Function(int) onRemoveSet;
   final void Function(int) onToggleSetDone;
+
+  /// 메모 줄을 누르면 (메모 고치기)
+  final VoidCallback? onNoteTap;
 
   const TrainerExerciseInputCard({
     super.key,
@@ -40,6 +44,7 @@ class TrainerExerciseInputCard extends StatelessWidget {
     required this.onMenuTap,
     required this.onRemoveSet,
     required this.onToggleSetDone,
+    this.onNoteTap,
   });
 
   /// 부위 · 지난 PT 비교 (시안: '하체 · 지난 PT 대비 최고 +5kg', 값만 ink 500).
@@ -117,6 +122,13 @@ class TrainerExerciseInputCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         _comparisonLine(),
+                        if (exercise.note.trim().isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          ExerciseNoteLine(
+                            note: exercise.note.trim(),
+                            onTap: onNoteTap,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -153,13 +165,14 @@ class TrainerExerciseInputCard extends StatelessWidget {
                       width: _setNumberWidth,
                       child: Text('세트', style: header),
                     ),
-                    Expanded(
-                      child: Text(
-                        exercise.primaryMetricLabel,
-                        textAlign: TextAlign.center,
-                        style: header,
+                    if (exercise.showWeight)
+                      Expanded(
+                        child: Text(
+                          exercise.primaryMetricLabel,
+                          textAlign: TextAlign.center,
+                          style: header,
+                        ),
                       ),
-                    ),
                     Expanded(
                       child: Text(
                         exercise.secondaryMetricLabel,
@@ -182,6 +195,7 @@ class TrainerExerciseInputCard extends StatelessWidget {
                 current: i == currentIndex,
                 primaryLabel: exercise.primaryMetricLabel,
                 secondaryLabel: exercise.secondaryMetricLabel,
+                showWeight: exercise.showWeight,
                 onChanged: onChanged,
                 onRemove: () => onRemoveSet(i),
                 onToggleDone: () => onToggleSetDone(i),
@@ -271,6 +285,7 @@ class _SetRow extends StatelessWidget {
   final bool current;
   final String primaryLabel;
   final String secondaryLabel;
+  final bool showWeight;
   final VoidCallback onChanged;
   final VoidCallback onRemove;
   final VoidCallback onToggleDone;
@@ -282,6 +297,7 @@ class _SetRow extends StatelessWidget {
     required this.current,
     required this.primaryLabel,
     required this.secondaryLabel,
+    required this.showWeight,
     required this.onChanged,
     required this.onRemove,
     required this.onToggleDone,
@@ -337,7 +353,7 @@ class _SetRow extends StatelessWidget {
                 ),
               ),
             ),
-            _value(set.weightController, true, primaryLabel),
+            if (showWeight) _value(set.weightController, true, primaryLabel),
             _value(set.repsController, false, secondaryLabel),
             SizedBox(
               width: _setCheckColumn,
@@ -374,6 +390,8 @@ String trainerExerciseRowSummary(TrainerExerciseDraft exercise) {
   final max = exercise.maxWeight;
   if (max != null) {
     parts.add('${formatMetricValue(max)}${exercise.primaryMetricSuffix}');
+  } else if (!exercise.showWeight) {
+    parts.add('맨몸');
   }
   return parts.join(' · ');
 }

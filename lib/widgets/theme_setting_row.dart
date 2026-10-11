@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
 import '../core/app_text_styles.dart';
@@ -9,6 +10,7 @@ import '../services/theme_controller.dart';
 import 'app_action_row.dart';
 import 'app_bottom_sheet.dart';
 import 'app_motion.dart';
+import 'app_switch.dart';
 
 /// 마이 → 계정의 '화면 테마' 줄 (회원·트레이너·관리자 공통): 60 메뉴 줄, 오른쪽 지금 선택 + 화살표.
 /// 누르면 선택 시트.
@@ -27,6 +29,29 @@ class ThemeSettingRow extends StatelessWidget {
       menu: true,
       value: choice.label,
       onTap: () => _open(context),
+    );
+  }
+}
+
+/// 마이 → 계정의 '진동' 줄 (회원·트레이너·관리자 공통): 누름·완료·경고 때의 진동을 끄고 켠다.
+/// 이 기기에만 저장. 휴식 타이머 알림 진동은 이 설정과 무관하다.
+class HapticsSettingRow extends StatelessWidget {
+  const HapticsSettingRow({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppHaptics.enabled,
+      builder: (context, on, _) => Semantics(
+        toggled: on,
+        child: AppActionRow(
+          icon: AppIcons.vibrate,
+          label: '진동',
+          menu: true,
+          trailing: AppSwitch(value: on),
+          onTap: () => AppHaptics.setEnabled(!on),
+        ),
+      ),
     );
   }
 }

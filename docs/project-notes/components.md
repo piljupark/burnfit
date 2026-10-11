@@ -13,10 +13,11 @@
 | `app_text_styles.dart` | 글자 크기 이름(`displayMd` 28 탭 제목 · `title` 20 · `section` 17 · `listTitle` 16 · `bodyMd` 15 · `note` 14 · `bodySm` 13 · `badge` 11), `.bold` |
 | `app_icons.dart` | Phosphor 아이콘 이름 모음 (`AppIcons.*`, `AppIcons.bold()`) |
 | `app_theme.dart` | 라이트·다크 `ThemeData`, `ThemeController` |
-| `app_feedback.dart` | `AppFeedback.show*` 토스트 띄우기, `AppErrorCard` |
+| `app_feedback.dart` | `AppFeedback.show*` 토스트 띄우기(경고는 묵직한 진동, 완료는 가벼운 진동), `AppErrorCard` |
+| `app_haptics.dart` | `AppHaptics` 진동 한곳 관리 — `selection`(탭) · `light`(세트 추가) · `success`(세트 완료·저장) · `warning`(경고·삭제 확인) · `restWarning`/`restDone`(휴식 알림, 설정과 무관). 마이 '진동'으로 끔 (기기에 저장) |
 | `app_routing.dart` | `startRouteFor(user)` — 로그인 뒤 역할·승인 상태로 첫 화면 결정 |
 | `workout_timing.dart` | 개인 운동 시간: 알림 10분 · 자동 저장 60분 · 시간 글자 만들기 |
-| `exercise_data.dart` · `food_guide_data.dart` | 종목 목록 · 영양 가이드 내용 (앱 안 자료) |
+| `exercise_data.dart` · `food_guide_data.dart` | 종목 목록(7부위 248개, 한 이름은 한 부위에만) · 맨몸 운동 목록 `bodyweight`(무게 칸 숨김) · 버티는 운동 `timed`('초') · 영양 가이드 내용 (앱 안 자료) |
 | `validators.dart` · `birth_date.dart` · `firestore_date.dart` · `relative_time.dart` | 입력 검사 · 생년월일 · 날짜 변환 · '3분 전' |
 
 ## 화면 뼈대
@@ -72,7 +73,7 @@
 | `AppChip` · `AppScrollableChips` | `app_tag.dart` · `app_filter_tabs.dart` | 선택 pill · 가로로 넘기는 pill 줄 | 5 · 2 |
 | `AppSwitch` · `AppSwitchRow` | `app_switch.dart` | 스위치 · 스위치 줄 (공지 작성) | 1 |
 | `GenderSelector` | `gender_selector.dart` | 성별 고르기 | 2 |
-| `SetValueField` · `SetDoneButton` | `set_input.dart` | 세트 값 상자 · 완료 원 | 2 |
+| `SetValueField` · `SetDoneButton` | `set_input.dart` | 세트 값 상자 · 완료 원. 값 상자 밖을 누르면 키패드를 내린다 (세트 칸끼리는 같은 묶음이라 옮겨 감) | 2 |
 
 ## 시트 · 확인 창 · 알림
 
@@ -86,7 +87,7 @@
 | `DeleteAccountLink` (+ 탈퇴 시트) | `delete_account_sheet.dart` | 마이 맨 아래 탈퇴 | 2 |
 | `showWorkoutDurationSheet` | `workout_duration_sheet.dart` | 운동 시간 분 조절 | 2 |
 | `NoticeBanner` · `NoticeArticle` · `showImportantNoticeSheet` | `notice_widgets.dart` | 홈 공지 한 줄 · 공지 본문 · 중요 공지 시트 | 1 · 2 · 1 |
-| `ThemeSettingRow` | `theme_setting_row.dart` | 마이 '화면 테마' 줄 | 3 |
+| `ThemeSettingRow` · `HapticsSettingRow` | `theme_setting_row.dart` | 마이 '화면 테마' 줄 · '진동' 스위치 줄 | 3 |
 
 ## 달력
 
@@ -101,8 +102,9 @@
 
 | 부품 | 파일 | 하는 일 | 쓰는 화면 수 |
 |---|---|---|---|
-| `WorkoutPickerRow` · `WorkoutExerciseMenuSheet` · `WorkoutSavedExerciseRow` · `WorkoutCollapsedRow` · `WorkoutSummaryStats` · `DoneConfirmButton` | `workout_parts.dart` | 회원·트레이너 운동 화면 공용 | 2씩 |
-| `RestTimer` · `RestTimerBar` · `showRestTimerSheet` | `rest_timer.dart` | 앱 전체 휴식 타이머 하나 | 2 |
+| `WorkoutPickerRow` · `WorkoutExerciseMenuSheet` · `WorkoutSavedExerciseRow` · `WorkoutCollapsedRow` · `WorkoutSummaryStats` · `DoneConfirmButton` | `workout_parts.dart` | 회원·트레이너 운동 화면 공용. 종목 메뉴는 메모 · 무게 칸 숨기기/보이기 줄을 받는다. 저장된 종목 줄은 메모가 있으면 아래 메모 줄 | 2씩 |
+| `ExerciseNoteLine` · `showExerciseNoteSheet` · `isBodyweightExercise` · `strengthCountLabel` | `workout_parts.dart` | 종목 메모 한 줄(아이콘 14 + 13) · 메모 시트 · 맨몸 운동인지 · '회'/'초' | 3 |
+| `RestTimer` · `RestTimerBar` · `showRestTimerSheet` · `startRestTimer` | `rest_timer.dart` | 앱 전체 휴식 타이머 하나. 남은 시간은 끝나는 시각 기준. 10초 전·끝 알림은 `services/rest_timer_alerts.dart`(`RestTimerAlerts`: 앞이면 바로 진동, 뒤로 가면 기기 알림 예약, 안드로이드 알림 센터 남은 시간) | 2 |
 | `MealFeedList` · `MealFeedCard` | `meal_feed.dart` | 트레이너 식단 피드 (식단 탭 · 회원 상세 식단 탭) | 2 |
 
 ## 로그인 · 그림 · 움직임

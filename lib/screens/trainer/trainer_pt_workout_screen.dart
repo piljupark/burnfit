@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
@@ -198,6 +199,11 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
               : exercise.sets
                     .map((s) => s.weight)
                     .reduce((a, b) => a > b ? a : b),
+          maxReps: exercise.sets.isEmpty
+              ? 0
+              : exercise.sets
+                    .map((s) => s.reps)
+                    .reduce((a, b) => a > b ? a : b),
         );
       }
     }
@@ -249,6 +255,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
   void _addSet(int exerciseIndex) {
     final exercise = _exercises[exerciseIndex];
     final previous = exercise.sets.isNotEmpty ? exercise.sets.last : null;
+    AppHaptics.light();
     setState(() {
       exercise.sets.add(
         TrainerSetDraft(
@@ -283,10 +290,22 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
   }
 
   void _toggleSetDone(int exerciseIndex, int setIndex) {
-    setState(() {
-      final set = _exercises[exerciseIndex].sets[setIndex];
-      set.done = !set.done;
-    });
+    // 입력을 마친 세트이므로 키패드를 내린다.
+    FocusManager.instance.primaryFocus?.unfocus();
+    final set = _exercises[exerciseIndex].sets[setIndex];
+    setState(() => set.done = !set.done);
+    if (set.done) AppHaptics.success();
+  }
+
+  Future<void> _editNote(int index) async {
+    final exercise = _exercises[index];
+    final note = await showExerciseNoteSheet(
+      context,
+      exerciseName: exercise.name,
+      initial: exercise.note,
+    );
+    if (note == null || !mounted) return;
+    setState(() => exercise.note = note);
   }
 
   Future<void> _showExerciseMenu(int index) async {
@@ -314,6 +333,12 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
           }
           exercise.unit = nextUnit;
         });
+        break;
+      case TrainerMenuActionType.toggleWeight:
+        setState(() => exercise.showWeight = !exercise.showWeight);
+        break;
+      case TrainerMenuActionType.note:
+        setState(() => exercise.note = action.note ?? '');
         break;
       case TrainerMenuActionType.delete:
         _removeExercise(index);
@@ -737,6 +762,29 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
       );
     }
 
+    // 무게 없이 하는 운동은 가장 많이 한 횟수(버티는 운동은 초)로 비교한다.
+    if (!exercise.showWeight) {
+      final unit = exercise.secondaryMetricLabel;
+      final current = exercise.maxReps;
+      if (current == null) {
+        return TrainerExerciseComparison(
+          label: '지난 최고 ${previous.maxReps}$unit',
+          tone: TrainerComparisonTone.muted,
+        );
+      }
+      final diff = current - previous.maxReps;
+      if (diff == 0) {
+        return const TrainerExerciseComparison(
+          label: '동일',
+          tone: TrainerComparisonTone.same,
+        );
+      }
+      return TrainerExerciseComparison(
+        label: '${diff > 0 ? '+' : ''}$diff$unit',
+        tone: diff > 0 ? TrainerComparisonTone.up : TrainerComparisonTone.down,
+      );
+    }
+
     final currentMax = exercise.maxWeight;
     final previousMax =
         exercise.isCardio || exercise.unit == TrainerWeightUnit.kg
@@ -842,6 +890,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
 
     return ListView(
       physics: const BouncingScrollPhysics(),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: EdgeInsets.zero,
       children: [
         _MemberRow(
@@ -902,6 +951,7 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
                       onMenuTap: () => _showExerciseMenu(i),
                       onRemoveSet: (si) => _removeSet(i, si),
                       onToggleSetDone: (si) => _toggleSetDone(i, si),
+                      onNoteTap: () => _editNote(i),
                     )
                   : WorkoutCollapsedRow(
                       name: _exercises[i].name,
