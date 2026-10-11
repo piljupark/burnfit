@@ -51,7 +51,15 @@ class FcmService {
 
     // 알림을 눌러 앱이 열린 경우 (백그라운드 → 포그라운드, 종료 상태 → 실행)
     FirebaseMessaging.onMessageOpenedApp.listen(_openFromMessage);
-    final initialMessage = await _messaging.getInitialMessage();
+    // 아이폰(UIScene 시작)에서는 이 확인이 답을 주지 않을 때가 있어 3초만 기다린다
+    // — 기다리다 멈추면 아래 권한 요청·포그라운드 알림 설정까지 막힌다.
+    final initialMessage = await _messaging.getInitialMessage().timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {
+        AppLogger.debug('[FCM] 시작 알림 확인 시간 초과 — 알림으로 열리지 않은 것으로 본다');
+        return null;
+      },
+    );
     if (initialMessage != null) _openFromMessage(initialMessage);
 
     // iOS 알림 권한 요청

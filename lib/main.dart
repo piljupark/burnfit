@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -41,6 +43,10 @@ void main() async {
 }
 
 /// Firebase·로케일·(선택) 알림 초기화. 화면 투어 통합 테스트도 이 함수를 쓴다.
+///
+/// 첫 화면은 Firebase·테마·로케일까지만 기다린다. 알림 준비(푸시·운동 리마인드)는 기다리지 않고
+/// 뒤에서 돌린다 — 아이폰에서 알림 부품이 답을 늦게 주거나(권한 창·시작 알림 확인) 주지 않으면
+/// 첫 화면을 못 그리고 흰 화면에 멈췄다 (2026-10-10). 알림으로 연 화면은 pendingTarget으로 이어진다.
 Future<void> bootstrapApp({bool withMessaging = true}) async {
   final stopwatch = Stopwatch()..start();
   AppLogger.debug('[Main] Firebase 초기화 시작');
@@ -66,13 +72,20 @@ Future<void> bootstrapApp({bool withMessaging = true}) async {
   await initializeDateFormatting('ko_KR', null);
   AppLogger.debug('[Main] 로케일 초기화 완료: ${stopwatch.elapsedMilliseconds}ms');
 
-  if (withMessaging) {
-    await FcmService.initialize();
-    AppLogger.debug('[Main] FCM 초기화 완료: ${stopwatch.elapsedMilliseconds}ms');
-    // 개인 운동 '마치셨나요?' 리마인드 (기기 안 예약 알림, 권한은 위에서 받았다)
-    await WorkoutReminder.initialize();
-  }
   stopwatch.stop();
+  if (withMessaging) unawaited(_startNotifications());
+}
+
+/// 푸시 알림과 운동 리마인드 준비 (첫 화면을 막지 않게 뒤에서). 실패해도 앱은 그대로 쓴다.
+Future<void> _startNotifications() async {
+  try {
+    await FcmService.initialize();
+    AppLogger.debug('[Main] FCM 초기화 완료');
+  } catch (e) {
+    AppLogger.debug('[Main] FCM 초기화 실패: $e');
+  }
+  // 개인 운동 '마치셨나요?' 리마인드 (기기 안 예약 알림, 권한은 위에서 받는다)
+  await WorkoutReminder.initialize();
 }
 
 class PtSolutionApp extends StatelessWidget {
