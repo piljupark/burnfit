@@ -87,7 +87,8 @@
 | `AppFloat` · `AppRingShake` · `AppSpin` · `AppSway` (`app_motion.dart`) | 반복 움직임: 떠다님(빈 상태) · 종 흔들림 · 회전(다시 시도) · 좌우 기울임(공지 빈 상태 확성기) |
 | `FeedbackSheet` · `FeedbackQuote` (`feedback_sheet.dart`) | 트레이너 피드백 작성 시트(같은 기록에 다른 — 이전 담당 — 트레이너 피드백이 있으면 위에 읽기 전용 '이전 피드백'), 피드백 상자(회색 · 반경 14 — 회원 식단 기록과 공용). 기록 하나에 피드백이 여러 개 남을 수 있다 |
 | `AppKeyValueRow` | 52 키/값 줄 (라벨 15 body · 값 16/500 + 단위 mute) — 회원 상세 PT 정보, 인바디 상세 |
-| `workout_parts.dart` | 회원·트레이너 운동 공용: `WorkoutPickerRow`(운동 고르기 줄) · `WorkoutExerciseMenuSheet` · `WorkoutSavedExerciseRow`(+ 유산소 요약 계산) · `WorkoutCollapsedRow` · `WorkoutSummaryStats`(요약 3칸) · 완료 화면 `DoneConfirmButton`·`DoneTextLink`. 차이는 매개변수(회원 모양이 기본) |
+| `workout_parts.dart` | 회원·트레이너 운동 공용: `WorkoutPickerRow`(운동 고르기 줄, 끝 ⓘ) · `WorkoutSavedExerciseRow`(+ 유산소 요약 계산) · `WorkoutCollapsedRow` · `WorkoutSummaryStats`(요약 3칸) · 완료 화면 `DoneConfirmButton`·`DoneTextLink`. 차이는 매개변수(회원 모양이 기본) |
+| `exercise_guide_sheet.dart` | 종목 설명 시트 (시안 03): 설명(근육 그림 카드 · 3칸 · 근육 칩 주 근육 noticeBg/noticeText · 운동 방법 01 15/23 · 출처 12 mute + '검수 전' 꼬리표) · 기록(2칸 22/500 · 막대 96 · 60 줄) · 설정(68 줄 · − 초 + 원 36 · kg/lbs 알약 · 빨간 '이 종목 빼기') |
 | `showAppConfirmDialog` | 확인 다이얼로그: 제목 + 설명 (+ 선택 `warning` 주황 콜아웃) + 2열 전체폭 버튼(취소 회색 · 확정 주황, 파괴적이면 검정). `showDialog`를 직접 쓰지 않는다 |
 | `AppAsyncBody` / `AppLoadingView` / `AppLoader` | 로딩·오류·빈 상태. 로딩은 점 세 개(화면 6 / 줄 안 4) |
 | `AppErrorCard`·`AppFeedback.show*`(`core/app_feedback.dart`) → `AppToast` | 오류 카드(시안 Ad-Home-Error — 회색 반경 18 · 경고 원 40 faint · 16/500 · 검정 44 '다시 시도' + 도는 새로고침, 모든 역할 공통), 토스트(검정 채움 + 주황 원 배지, **화면 위쪽**, 한 번에 하나). `SnackBar`·`ScaffoldMessenger`를 직접 쓰지 않는다 |

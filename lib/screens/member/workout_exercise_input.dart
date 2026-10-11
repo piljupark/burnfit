@@ -30,6 +30,9 @@ class ExerciseInputCard extends StatelessWidget {
   /// 메모 줄을 누르면 (메모 고치기)
   final VoidCallback? onNoteTap;
 
+  /// 이름을 누르면 (종목 설명 시트)
+  final VoidCallback? onNameTap;
+
   const ExerciseInputCard({
     super.key,
     required this.order,
@@ -41,6 +44,7 @@ class ExerciseInputCard extends StatelessWidget {
     required this.onRemoveSet,
     required this.onToggleSetDone,
     this.onNoteTap,
+    this.onNameTap,
   });
 
   /// 부위 · 지난 기록 비교 한 줄 (시안 MemA-Workout-Recording: 13 mute, 위 3).
@@ -111,11 +115,19 @@ class ExerciseInputCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        exercise.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.section.bold,
+                      child: Semantics(
+                        button: onNameTap != null,
+                        hint: onNameTap == null ? null : '종목 설명 보기',
+                        child: GestureDetector(
+                          onTap: onNameTap,
+                          behavior: HitTestBehavior.opaque,
+                          child: Text(
+                            exercise.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.section.bold,
+                          ),
+                        ),
                       ),
                     ),
                     Semantics(

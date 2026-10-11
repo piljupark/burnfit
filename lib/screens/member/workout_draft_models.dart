@@ -271,24 +271,6 @@ enum ComparisonTone { up, down, same, muted }
 
 enum WeightUnit { kg, lbs }
 
-enum ExerciseMenuActionType {
-  toggleUnit,
-  toggleWeight,
-  note,
-  restTimer,
-  delete,
-}
-
-class ExerciseMenuAction {
-  final ExerciseMenuActionType type;
-  final int? restSeconds;
-
-  /// [ExerciseMenuActionType.note]: 고친 메모.
-  final String? note;
-
-  const ExerciseMenuAction({required this.type, this.restSeconds, this.note});
-}
-
 class ExerciseComparison {
   final String label;
   final ComparisonTone tone;

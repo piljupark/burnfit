@@ -7,7 +7,6 @@ import '../core/app_text_styles.dart';
 import '../core/exercise_data.dart';
 import '../models/custom_exercise.dart';
 import '../models/workout.dart';
-import 'app_action_row.dart';
 import 'app_bottom_sheet.dart';
 import 'app_button.dart';
 import 'app_motion.dart';
@@ -491,6 +490,9 @@ class WorkoutPickerRow extends StatelessWidget {
   final Color? subtitleColor;
   final TextStyle? previousStyle;
 
+  /// 줄 끝 ⓘ (종목 설명 시트). null이면 두지 않는다.
+  final VoidCallback? onInfo;
+
   const WorkoutPickerRow({
     super.key,
     required this.name,
@@ -501,6 +503,7 @@ class WorkoutPickerRow extends StatelessWidget {
     this.minHeight = 60,
     this.subtitleColor,
     this.previousStyle,
+    this.onInfo,
   });
 
   @override
@@ -551,117 +554,33 @@ class WorkoutPickerRow extends StatelessWidget {
                         AppTextStyles.bodySm.copyWith(color: AppColors.body),
                   ),
                 ],
+                if (onInfo != null)
+                  Semantics(
+                    button: true,
+                    label: '$name 설명',
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      onTap: onInfo,
+                      behavior: HitTestBehavior.opaque,
+                      child: SizedBox(
+                        width: AppSize.touchMin,
+                        height: AppSize.touchMin,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Icon(
+                            AppIcons.info,
+                            size: 20,
+                            color: AppColors.mute,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// 운동 메뉴 시트
-// ─────────────────────────────────────────────
-
-/// 운동 메뉴 시트 (시안 MemA-Sheet-ExerciseMenu · Tr-ExerciseMenu): 제목 22/500 + 보조 14 mute,
-/// 아래 12 띄우고 60 행동 줄들(40 아이콘 상자). 파괴적 줄(운동 삭제)은 맨 아래.
-/// 유산소 종목은 무게가 없으므로 '무게 단위 변경'을 두지 않는다.
-class WorkoutExerciseMenuSheet extends StatelessWidget {
-  final String name;
-  final WorkoutCategory category;
-  final bool isCardio;
-  final String unitLabel;
-  final String nextUnitLabel;
-  final VoidCallback onToggleUnit;
-
-  /// 무게 칸을 보이는 중인지. 숨겼으면 '무게 단위 변경'을 두지 않는다.
-  final bool showWeight;
-
-  /// '무게 칸 숨기기/보이기' (근력 종목만).
-  final VoidCallback? onToggleWeight;
-
-  /// 지금 메모 (줄 오른쪽에 앞부분을 보인다).
-  final String note;
-  final VoidCallback? onEditNote;
-
-  /// 단위 변경과 삭제 사이에 둘 행동 줄 (회원 '휴식 타이머')
-  final List<Widget> extraActions;
-  final VoidCallback onDelete;
-
-  const WorkoutExerciseMenuSheet({
-    super.key,
-    required this.name,
-    required this.category,
-    required this.isCardio,
-    required this.unitLabel,
-    required this.nextUnitLabel,
-    required this.onToggleUnit,
-    required this.onDelete,
-    this.extraActions = const [],
-    this.showWeight = true,
-    this.onToggleWeight,
-    this.note = '',
-    this.onEditNote,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final trimmedNote = note.trim();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppBottomSheetHeader(
-          title: name,
-          subtitle: isCardio
-              ? category.label
-              : showWeight
-              ? '${category.label} · 현재 단위 $unitLabel'
-              : '${category.label} · 무게 없이 기록',
-          mutedSubtitle: true,
-          gap: AppSpacing.md,
-        ),
-        if (onEditNote != null) ...[
-          AppSheetAction(
-            icon: AppIcons.note,
-            label: '메모',
-            value: trimmedNote.isEmpty
-                ? '없음'
-                : trimmedNote.length > 10
-                ? '${trimmedNote.substring(0, 10)}…'
-                : trimmedNote,
-            chevron: true,
-            onTap: onEditNote!,
-          ),
-          const AppRowDivider(),
-        ],
-        if (!isCardio && onToggleWeight != null) ...[
-          AppSheetAction(
-            icon: AppIcons.workout,
-            label: showWeight ? '무게 칸 숨기기' : '무게 칸 보이기',
-            value: showWeight ? '맨몸으로 기록' : '중량 추가',
-            onTap: onToggleWeight!,
-          ),
-          const AppRowDivider(),
-        ],
-        if (!isCardio && showWeight) ...[
-          AppSheetAction(
-            icon: AppIcons.swapUnit,
-            label: '무게 단위 변경',
-            value: '$unitLabel → $nextUnitLabel',
-            onTap: onToggleUnit,
-          ),
-          const AppRowDivider(),
-        ],
-        for (final action in extraActions) ...[action, const AppRowDivider()],
-        AppSheetAction(
-          icon: AppIcons.trash,
-          label: '운동 삭제',
-          destructive: true,
-          onTap: onDelete,
-        ),
-      ],
     );
   }
 }

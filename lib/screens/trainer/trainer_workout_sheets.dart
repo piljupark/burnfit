@@ -32,6 +32,9 @@ class TrainerExercisePickerSheet extends StatefulWidget {
   final Map<String, TrainerPreviousStats> previousStatsByName;
   final void Function(CustomExercise) onCustomAdded;
 
+  /// 줄 끝 ⓘ: 종목 설명 시트를 연다.
+  final void Function(TrainerPickedExercise item)? onShowGuide;
+
   const TrainerExercisePickerSheet({
     super.key,
     required this.trainerId,
@@ -39,6 +42,7 @@ class TrainerExercisePickerSheet extends StatefulWidget {
     required this.customExercises,
     required this.previousStatsByName,
     required this.onCustomAdded,
+    this.onShowGuide,
   });
 
   @override
@@ -254,6 +258,9 @@ class _TrainerExercisePickerSheetState
                               maxValue: previous.maxWeight,
                             ),
                       onTap: () => Navigator.of(context).pop(item),
+                      onInfo: widget.onShowGuide == null
+                          ? null
+                          : () => widget.onShowGuide!(item),
                       minHeight: 64,
                       subtitleColor: AppColors.mute,
                       previousStyle: AppTextStyles.fieldLabel.copyWith(
@@ -327,52 +334,6 @@ class _CustomAddRow extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// Exercise Menu Sheet (시안 Tr-ExerciseMenu)
-// showAppBottomSheet<TrainerMenuAction>(child: TrainerExerciseMenuSheet(...))로 연다.
-// 머리(제목 22 + '하체 · 현재 단위 kg' 14 mute, 아래 12) → 60 행동 줄 둘(파괴적 줄은 맨 아래).
-// 유산소 종목은 '무게 단위 변경'을 두지 않는다. 모양은 [WorkoutExerciseMenuSheet].
-// ─────────────────────────────────────────────
-
-class TrainerExerciseMenuSheet extends StatelessWidget {
-  final TrainerExerciseDraft exercise;
-
-  const TrainerExerciseMenuSheet({super.key, required this.exercise});
-
-  @override
-  Widget build(BuildContext context) {
-    return WorkoutExerciseMenuSheet(
-      name: exercise.name,
-      category: exercise.category,
-      isCardio: exercise.isCardio,
-      unitLabel: exercise.unit.label,
-      nextUnitLabel: exercise.unit == TrainerWeightUnit.kg ? 'lbs' : 'kg',
-      onToggleUnit: () => Navigator.of(
-        context,
-      ).pop(const TrainerMenuAction(type: TrainerMenuActionType.toggleUnit)),
-      showWeight: exercise.showWeight,
-      onToggleWeight: () => Navigator.of(
-        context,
-      ).pop(const TrainerMenuAction(type: TrainerMenuActionType.toggleWeight)),
-      note: exercise.note,
-      onEditNote: () async {
-        final note = await showExerciseNoteSheet(
-          context,
-          exerciseName: exercise.name,
-          initial: exercise.note,
-        );
-        if (note == null || !context.mounted) return;
-        Navigator.of(
-          context,
-        ).pop(TrainerMenuAction(type: TrainerMenuActionType.note, note: note));
-      },
-      onDelete: () => Navigator.of(
-        context,
-      ).pop(const TrainerMenuAction(type: TrainerMenuActionType.delete)),
     );
   }
 }

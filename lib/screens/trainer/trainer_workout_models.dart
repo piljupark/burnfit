@@ -203,17 +203,6 @@ extension TrainerWeightUnitLabel on TrainerWeightUnit {
   String get label => this == TrainerWeightUnit.kg ? 'kg' : 'lbs';
 }
 
-enum TrainerMenuActionType { toggleUnit, toggleWeight, note, delete }
-
-class TrainerMenuAction {
-  final TrainerMenuActionType type;
-
-  /// [TrainerMenuActionType.note]: 고친 메모.
-  final String? note;
-
-  const TrainerMenuAction({required this.type, this.note});
-}
-
 class TrainerExerciseComparison {
   final String label;
   final TrainerComparisonTone tone;

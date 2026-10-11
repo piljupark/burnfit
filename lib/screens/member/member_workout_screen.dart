@@ -22,6 +22,7 @@ import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/brand_marks.dart';
+import '../../widgets/exercise_guide_sheet.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_icon_button.dart';
@@ -482,6 +483,7 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
         onCustomAdded: (exercise) {
           setState(() => _customExercises.add(exercise));
         },
+        onShowGuide: _showGuideFor,
       ),
     );
 
@@ -552,59 +554,87 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
     _queueDraftSave();
   }
 
-  Future<void> _showExerciseMenu(int index) async {
+  /// 종목 설명 시트: 이름을 누르면 설명 탭, ⋯를 누르면 설정 탭 (메모 · 휴식 · 무게 칸 · 단위 · 빼기).
+  Future<void> _showExerciseMenu(int index, {int tab = 2}) async {
     final exercise = _sessionExercises[index];
-
-    final action = await showAppBottomSheet<ExerciseMenuAction>(
-      context: context,
-      child: ExerciseMenuSheet(exercise: exercise),
-    );
-
-    if (action == null) return;
-
-    switch (action.type) {
-      case ExerciseMenuActionType.toggleUnit:
-        setState(() {
-          final nextUnit = exercise.unit == WeightUnit.kg
-              ? WeightUnit.lbs
-              : WeightUnit.kg;
-
-          // 손대지 않은 값은 원래 글자로 되돌려 kg ↔ lbs 왕복 오차를 없앤다.
-          for (final set in exercise.sets) {
-            set.weightController.text = set.unitMemo.toggle(
-              set.weightController.text,
-              toLbs: nextUnit == WeightUnit.lbs,
-            );
-          }
-
-          exercise.unit = nextUnit;
-        });
-
-        _queueDraftSave();
-        break;
-
-      case ExerciseMenuActionType.toggleWeight:
-        setState(() => exercise.showWeight = !exercise.showWeight);
-        _queueDraftSave();
-        break;
-
-      case ExerciseMenuActionType.note:
-        setState(() => exercise.note = action.note ?? '');
-        _queueDraftSave();
-        break;
-
-      case ExerciseMenuActionType.restTimer:
-        setState(() {
-          exercise.restSeconds = action.restSeconds ?? exercise.restSeconds;
-        });
-
-        _queueDraftSave();
-        break;
-
-      case ExerciseMenuActionType.delete:
-        _removeExercise(index);
-        break;
+    void changed() {
+      setState(() {});
+      _queueDraftSave();
     }
+
+    await showExerciseGuideSheet(
+      context,
+      name: exercise.name,
+      category: exercise.category,
+      history: _historyFor(exercise.name, exercise.category),
+      gender: _memberGender,
+      initialTab: tab,
+      settings: () => ExerciseGuideSettings(
+        isCardio: exercise.isCardio,
+        restSeconds: exercise.restSeconds,
+        showWeight: exercise.showWeight,
+        unitLabel: exercise.unit.label,
+        note: exercise.note,
+        onRestChanged: (seconds) {
+          exercise.restSeconds = seconds;
+          changed();
+        },
+        onToggleWeight: () {
+          exercise.showWeight = !exercise.showWeight;
+          changed();
+        },
+        onToggleUnit: () {
+          _toggleUnit(exercise);
+          changed();
+        },
+        onNoteChanged: (note) {
+          exercise.note = note;
+          changed();
+        },
+        onRemove: () {
+          // 시트가 닫힌 뒤 목록을 바꾼다.
+          final at = _sessionExercises.indexOf(exercise);
+          if (at >= 0) _removeExercise(at);
+        },
+      ),
+    );
+  }
+
+  /// 종목 고르기 줄 끝 ⓘ: 설명 · 기록만.
+  Future<void> _showGuideFor(PickedExercise item) => showExerciseGuideSheet(
+    context,
+    name: item.name,
+    category: item.category,
+    history: _historyFor(item.name, item.category),
+    gender: _memberGender,
+  );
+
+  ExerciseHistory _historyFor(String name, WorkoutCategory category) =>
+      ExerciseHistory.fromWorkouts(
+        name,
+        _previousWorkouts,
+        isCardio: isCardioExercise(
+          name,
+          category,
+          customExercises: _customExercises,
+        ),
+      );
+
+  Gender? get _memberGender =>
+      (widget.targetMember ?? context.read<UserProvider>().user)?.gender;
+
+  /// kg ↔ lbs. 손대지 않은 값은 원래 글자로 되돌려 왕복 오차를 없앤다.
+  void _toggleUnit(WorkoutExerciseDraft exercise) {
+    final nextUnit = exercise.unit == WeightUnit.kg
+        ? WeightUnit.lbs
+        : WeightUnit.kg;
+    for (final set in exercise.sets) {
+      set.weightController.text = set.unitMemo.toggle(
+        set.weightController.text,
+        toLbs: nextUnit == WeightUnit.lbs,
+      );
+    }
+    exercise.unit = nextUnit;
   }
 
   Future<void> _editNote(int index) async {
@@ -1164,6 +1194,10 @@ class _MemberWorkoutScreenState extends State<MemberWorkoutScreen> {
                                             onToggleSetDone: (setIndex) =>
                                                 _toggleSetDone(index, setIndex),
                                             onNoteTap: () => _editNote(index),
+                                            onNameTap: () => _showExerciseMenu(
+                                              index,
+                                              tab: 0,
+                                            ),
                                           )
                                         : WorkoutCollapsedRow(
                                             name: _sessionExercises[index].name,

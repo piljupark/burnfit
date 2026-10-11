@@ -71,6 +71,7 @@
 
 ### 기타
 
+- 종목 설명(`lib/core/exercise_guide_data.dart`) 운동 방법 248개는 트레이너 검수 전이다 → 검수 뒤 시트의 '검수 전' 꼬리표를 뗀다 (`exercise_guide_sheet.dart`). 자료 출처 free-exercise-db는 Unlicense(표시 의무 없음), 근육 그림 `muscle_map`은 MIT(앱 안 라이선스 화면이 생기면 자동으로 실린다).
 - 안드로이드 `targetSdk`는 Flutter 기본값 — 플레이 요구 수준(해마다 오름) 확인.
 
 ## 여유 있을 때

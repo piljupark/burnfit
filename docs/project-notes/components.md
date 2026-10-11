@@ -17,6 +17,7 @@
 | `app_haptics.dart` | `AppHaptics` 진동 한곳 관리 — `selection`(탭) · `light`(세트 추가) · `success`(세트 완료·저장) · `warning`(경고·삭제 확인) · `restWarning`/`restDone`(휴식 알림, 설정과 무관). 마이 '진동'으로 끔 (기기에 저장) |
 | `app_routing.dart` | `startRouteFor(user)` — 로그인 뒤 역할·승인 상태로 첫 화면 결정 |
 | `workout_timing.dart` | 개인 운동 시간: 알림 10분 · 자동 저장 60분 · 시간 글자 만들기 |
+| `exercise_guide_data.dart` | 기본 운동 248개 설명 (근육 · 도구 · 난이도 · 운동 방법). free-exercise-db(Unlicense)를 우리말로 옮김, 없는 것 51개는 직접 씀. 트레이너 검수 전. 모양은 `models/exercise_guide.dart` |
 | `exercise_data.dart` · `food_guide_data.dart` | 종목 목록(7부위 248개, 한 이름은 한 부위에만) · 맨몸 운동 목록 `bodyweight`(무게 칸 숨김) · 버티는 운동 `timed`('초') · 영양 가이드 내용 (앱 안 자료) |
 | `validators.dart` · `birth_date.dart` · `firestore_date.dart` · `relative_time.dart` | 입력 검사 · 생년월일 · 날짜 변환 · '3분 전' |
 
@@ -102,7 +103,8 @@
 
 | 부품 | 파일 | 하는 일 | 쓰는 화면 수 |
 |---|---|---|---|
-| `WorkoutPickerRow` · `WorkoutExerciseMenuSheet` · `WorkoutSavedExerciseRow` · `WorkoutCollapsedRow` · `WorkoutSummaryStats` · `DoneConfirmButton` | `workout_parts.dart` | 회원·트레이너 운동 화면 공용. 종목 메뉴는 메모 · 무게 칸 숨기기/보이기 줄을 받는다. 저장된 종목 줄은 메모가 있으면 아래 메모 줄 | 2씩 |
+| `WorkoutPickerRow` · `WorkoutSavedExerciseRow` · `WorkoutCollapsedRow` · `WorkoutSummaryStats` · `DoneConfirmButton` | `workout_parts.dart` | 회원·트레이너 운동 화면 공용. 고르기 줄은 `onInfo`로 끝 ⓘ. 저장된 종목 줄은 메모가 있으면 아래 메모 줄 | 2씩 |
+| `showExerciseGuideSheet` · `ExerciseGuideSettings` · `ExerciseHistory` | `exercise_guide_sheet.dart` | 종목 설명 시트(설명 · 기록 · 설정). 근육 그림은 `muscle_map` 패키지(앞 · 뒤 한 장 `Maps.BODY`, 나머지 근육도 '없음'으로 넘겨 회색 채움). 옛 종목 메뉴 시트 · 휴식 시간 3열 시트를 대신한다 | 2 |
 | `ExerciseNoteLine` · `showExerciseNoteSheet` · `isBodyweightExercise` · `strengthCountLabel` | `workout_parts.dart` | 종목 메모 한 줄(아이콘 14 + 13) · 메모 시트 · 맨몸 운동인지 · '회'/'초' | 3 |
 | `RestTimer` · `RestTimerBar` · `showRestTimerSheet` · `startRestTimer` | `rest_timer.dart` | 앱 전체 휴식 타이머 하나. 남은 시간은 끝나는 시각 기준. 10초 전·끝 알림은 `services/rest_timer_alerts.dart`(`RestTimerAlerts`: 앞이면 바로 진동, 뒤로 가면 기기 알림 예약, 안드로이드 알림 센터 남은 시간, 아이폰 잠금 화면 · 다이내믹 아일랜드는 채널 `refit/rest_activity` → `ios/Runner/RestTimerActivityPlugin.swift` → 위젯 `ios/RestTimerWidget/`) | 2 |
 | `MealFeedList` · `MealFeedCard` | `meal_feed.dart` | 트레이너 식단 피드 (식단 탭 · 회원 상세 식단 탭) | 2 |

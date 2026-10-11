@@ -34,6 +34,9 @@ class TrainerExerciseInputCard extends StatelessWidget {
   /// 메모 줄을 누르면 (메모 고치기)
   final VoidCallback? onNoteTap;
 
+  /// 이름을 누르면 (종목 설명 시트)
+  final VoidCallback? onNameTap;
+
   const TrainerExerciseInputCard({
     super.key,
     required this.order,
@@ -45,6 +48,7 @@ class TrainerExerciseInputCard extends StatelessWidget {
     required this.onRemoveSet,
     required this.onToggleSetDone,
     this.onNoteTap,
+    this.onNameTap,
   });
 
   /// 부위 · 지난 PT 비교 (시안: '하체 · 지난 PT 대비 최고 +5kg', 값만 ink 500).
@@ -114,11 +118,19 @@ class TrainerExerciseInputCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          exercise.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.section,
+                        Semantics(
+                          button: onNameTap != null,
+                          hint: onNameTap == null ? null : '종목 설명 보기',
+                          child: GestureDetector(
+                            onTap: onNameTap,
+                            behavior: HitTestBehavior.opaque,
+                            child: Text(
+                              exercise.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.section,
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 3),
                         _comparisonLine(),

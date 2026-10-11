@@ -716,6 +716,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  muscle_map:
+    dependency: "direct main"
+    description:
+      name: muscle_map
+      sha256: "122fd73e559ed8a693be59890baa1d8515419b0706307e4a0a6e6e065a6e81d2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.0"
   native_toolchain_c:
     dependency: transitive
     description:
@@ -1017,6 +1025,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  svg_path_parser:
+    dependency: transitive
+    description:
+      name: svg_path_parser
+      sha256: adff09b1099a0c9e0dc81e1975de70999889f825c1a2e8e9139bab03464a3657
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.2"
   sync_http:
     dependency: transitive
     description:
