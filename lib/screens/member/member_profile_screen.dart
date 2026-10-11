@@ -15,7 +15,6 @@ import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_hero.dart';
-import '../../widgets/app_highlight.dart';
 import '../../widgets/app_profile_card.dart';
 import '../../widgets/password_reset_sheet.dart';
 import '../../widgets/theme_setting_row.dart';
@@ -25,11 +24,14 @@ import '../common/notice_menu_row.dart';
 import 'member_profile_detail_screen.dart';
 import 'member_workout_stats_screen.dart';
 
-/// 회원 마이 탭: 28 제목 → 프로필 줄 → PT 남은 횟수 카드 → 내 몸(신체 정보 · 인바디 추이 · 운동 통계) →
+/// 회원 마이 탭: 28 제목 → 프로필 줄 → PT('PT 이용권 · 7회 남음' 한 줄 → PT 탭) → 내 몸(신체 정보 · 인바디 추이 · 운동 통계) →
 /// 센터(공지사항) → 계정(비밀번호 재설정 · 화면 테마 · 로그아웃) → 가운데 탈퇴 링크.
 /// 트레이너·관리자 마이와 같은 메뉴 줄(아이콘 상자 60 · 오른쪽 값 + 화살표)을 쓴다.
 class MemberProfileScreen extends StatefulWidget {
-  const MemberProfileScreen({super.key});
+  /// 'PT 이용권' 줄 — PT 탭으로 (남은 횟수 카드는 PT 탭에만 있다).
+  final VoidCallback? onOpenPt;
+
+  const MemberProfileScreen({super.key, this.onOpenPt});
 
   @override
   State<MemberProfileScreen> createState() => MemberProfileScreenState();
@@ -122,11 +124,24 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
                 subtitle: subtitle,
                 onTap: () => _push(const MemberProfileDetailScreen()),
               ),
-              if (ptInfo != null) _PtRemainingCard(info: ptInfo),
+              // ── PT (남은 횟수는 PT 탭 카드에서 자세히) ───────────────────
+              if (ptInfo != null)
+                AppMenuGroup(
+                  label: 'PT',
+                  children: [
+                    AppActionRow(
+                      icon: AppIcons.calendarCheck,
+                      label: 'PT 이용권',
+                      menu: true,
+                      value: '${ptInfo.remainingSessions}회 남음',
+                      onTap: () => widget.onOpenPt?.call(),
+                    ),
+                  ],
+                ),
               // ── 내 몸 ─────────────────────────────────────────────────
               AppMenuGroup(
                 label: '내 몸',
-                bandTop: ptInfo != null ? AppSpacing.xl : 0,
+                bandTop: ptInfo != null ? AppSpacing.md : 0,
                 children: [
                   AppActionRow(
                     icon: AppIcons.profile,
@@ -222,40 +237,4 @@ class MemberProfileScreenState extends State<MemberProfileScreen> {
 
   static String _fmt(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
-}
-
-/// PT 남은 횟수 카드 (주황, 반경 20): 'PT 남은 횟수' / 'M월 d일까지',
-/// '7회 / 20회'(30), 8 높이 막대 = 쓴 횟수 비율.
-class _PtRemainingCard extends StatelessWidget {
-  final PtInfo info;
-
-  const _PtRemainingCard({required this.info});
-
-  @override
-  Widget build(BuildContext context) {
-    final total = info.totalSessions;
-    final used = total == 0
-        ? 0.0
-        : ((total - info.remainingSessions) / total).clamp(0.0, 1.0);
-    final endDate = info.endDate;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.md,
-        AppSpacing.screenH,
-        0,
-      ),
-      child: AppHighlightCard(
-        label: 'PT 남은 횟수',
-        trailingLabel: endDate == null
-            ? null
-            : DateFormat('M월 d일까지', 'ko').format(endDate),
-        value: '${info.remainingSessions}회',
-        unit: ' / $total회',
-        progress: used,
-        bold: true,
-        semanticLabel: 'PT 남은 횟수 ${info.remainingSessions}회, 전체 $total회',
-      ),
-    );
-  }
 }

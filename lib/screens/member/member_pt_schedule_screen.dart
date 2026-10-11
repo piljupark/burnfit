@@ -243,7 +243,9 @@ class MemberPtScheduleScreenState extends State<MemberPtScheduleScreen> {
   }
 }
 
-/// 잔여 횟수 카드: 강조색 요약 카드 (남은 횟수 / 전체 + 진행 막대 + 트레이너·갱신일 + D-N).
+/// PT 남은 횟수 카드 (회원 화면에서 남은 횟수를 자세히 보여 주는 유일한 곳 — 마이는 한 줄로 이리 보낸다):
+/// 'PT 남은 횟수' + 종료일까지 D-N / '7회 / 20회'(30 Bold) / 막대 = 남은 비율(쓸수록 줄어듦) /
+/// '이코치 트레이너 · 10월 1일 ~ 11월 30일'. 갱신일은 관리자가 챙기는 날이라 회원에게는 보이지 않는다.
 class _RemainingCard extends StatelessWidget {
   final PtInfo? info;
   final String? trainerName;
@@ -252,35 +254,45 @@ class _RemainingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final renewalDate = info?.renewalDate;
+    final startDate = info?.startDate;
+    final endDate = info?.endDate;
     final remaining = info?.remainingSessions ?? 0;
     final total = info?.totalSessions ?? 0;
     final ratio = total > 0 ? (remaining / total).clamp(0.0, 1.0) : 0.0;
 
+    // 이용 기간이 끝나는 날까지 (종료일 기준)
     String? dDay;
-    if (renewalDate != null) {
+    if (endDate != null) {
       final today = DateUtils.dateOnly(DateTime.now());
-      final days = DateUtils.dateOnly(renewalDate).difference(today).inDays;
-      dDay = days == 0 ? '오늘' : (days > 0 ? 'D-$days' : 'D+${-days}');
+      final days = DateUtils.dateOnly(endDate).difference(today).inDays;
+      dDay = days > 0 ? 'D-$days' : (days == 0 ? '오늘 종료' : '기간 지남');
     }
 
+    final dateFormat = DateFormat('M월 d일', 'ko');
+    final period = endDate == null
+        ? null
+        : startDate == null
+        ? '${dateFormat.format(endDate)}까지'
+        : '${dateFormat.format(startDate)} ~ ${dateFormat.format(endDate)}';
     final metaParts = [
       if ((trainerName ?? '').trim().isNotEmpty) '${trainerName!.trim()} 트레이너',
-      '갱신일 ${renewalDate == null ? '-' : DateFormat('M월 d일', 'ko').format(renewalDate)}',
+      ?period,
     ];
 
     return Semantics(
       container: true,
-      label: 'PT 잔여 $remaining회, 전체 $total회',
+      label: ['PT 남은 횟수 $remaining회, 전체 $total회', ?period].join(', '),
+      excludeSemantics: true,
       child: AppHighlightCard(
         // 잔여 정보가 없으면 회색 카드 (시안 MemA-PtSchedule-Empty)
         muted: info == null,
-        label: '남은 횟수',
+        bold: true,
+        label: 'PT 남은 횟수',
         trailingLabel: info == null ? null : dDay,
-        value: '$remaining',
-        unit: ' / $total회 남음',
+        value: '$remaining회',
+        unit: ' / $total회',
         progress: ratio,
-        footer: metaParts.join(' · '),
+        footer: metaParts.isEmpty ? null : metaParts.join(' · '),
       ),
     );
   }

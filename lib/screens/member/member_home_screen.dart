@@ -70,7 +70,7 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
         onRecordsChanged: () => _calendarKey.currentState?.refresh(),
       ),
       MemberPtScheduleScreen(key: _ptScheduleKey, showBackButton: false),
-      MemberProfileScreen(key: _profileKey),
+      MemberProfileScreen(key: _profileKey, onOpenPt: () => _selectTab(_ptTab)),
     ];
     FcmService.pendingTarget.addListener(_handleNotificationTarget);
     // 앱이 알림으로 실행된 경우: 첫 프레임 뒤 처리 (Navigator 준비 후)
