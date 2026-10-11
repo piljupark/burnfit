@@ -103,7 +103,7 @@ class PtSolutionApp extends StatelessWidget {
         // (key를 바꾸지 않으므로 화면 스택·상태는 그대로다)
         context.watch<ThemeController>();
         return MaterialApp(
-          title: 'PT Solution',
+          title: 'REFIT',
           navigatorKey: appNavigatorKey,
           theme: AppTheme.current,
           debugShowCheckedModeBanner: false,

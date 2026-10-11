@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// BurnFit 타입 스케일 (디자인 시안 기준).
+/// REFIT 타입 스케일 (디자인 시안 기준).
 ///
 /// - 굵기는 400·500(Medium) 두 가지가 기본. 제목·값은 500, 나머지는 400 (상세 시안 기준).
 /// - 기준 시안 Main 계열 화면(회원 홈 오늘 보기·운동·운동 완료·식단·마이)은 500 자리에

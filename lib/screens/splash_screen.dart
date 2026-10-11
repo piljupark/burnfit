@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
@@ -11,7 +13,6 @@ import '../services/auth_service.dart';
 import '../services/user_provider.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_loader.dart';
-import '../widgets/brand_marks.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -24,10 +25,23 @@ class _SplashScreenState extends State<SplashScreen> {
   /// 사용자 정보를 읽다가 네트워크 등으로 실패함 → 다시 시도·로그아웃을 보여준다.
   bool _failed = false;
 
+  /// 확인이 길어질 때만 로딩 점을 보인다 (보통은 빈 바탕만 잠깐 보이고 넘어간다).
+  bool _showLoader = false;
+  Timer? _loaderTimer;
+
   @override
   void initState() {
     super.initState();
+    _loaderTimer = Timer(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _showLoader = true);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
+  }
+
+  @override
+  void dispose() {
+    _loaderTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _init() async {
@@ -105,32 +119,13 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 시안 Com-Splash: 브랜드 묶음은 위에서 300(844 화면) — 가운데보다 조금 위, 아래쪽 로딩 점(64).
+    // 스플래시 마크·글자는 두지 않는다 (2026-10-11 결정): 로그인 상태를 확인하는 동안 빈 바탕,
+    // 길어지면 아래 로딩 점, 읽지 못하면 다시 시도·로그아웃.
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: Stack(
         children: [
-          Align(
-            // 묶음 중심이 화면 높이의 약 48.5% (시안 top 300 + 묶음 높이 218 / 844)
-            alignment: const Alignment(0, -0.03),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const ExcludeSemantics(child: SplashFlameMark()),
-                const SizedBox(height: AppSpacing.xl2),
-                Text(
-                  'BurnFit',
-                  style: AppTextStyles.displayMd.copyWith(
-                    fontSize: 32,
-                    height: 38 / 32,
-                    letterSpacing: 32 * -0.019,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text('피트니스 센터', style: AppTextStyles.eyebrow),
-              ],
-            ),
-          ),
+          Semantics(label: 'REFIT 시작 중', child: const SizedBox.expand()),
           if (_failed)
             Positioned(
               left: AppSpacing.screenH,
@@ -138,7 +133,7 @@ class _SplashScreenState extends State<SplashScreen> {
               bottom: AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom,
               child: _LoadFailedActions(onRetry: _retry, onSignOut: _signOut),
             )
-          else
+          else if (_showLoader)
             const Positioned(
               left: 0,
               right: 0,

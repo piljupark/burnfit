@@ -59,46 +59,6 @@ double _wave(double phase) {
 
 // ── 불꽃 ─────────────────────────────────────────────────────────────────
 
-/// 스플래시 브랜드 표시 (시안 Com-Splash): 120 상자에 주황 원 두 개가 차례로 퍼지고(2.2s, 1.1s 차이),
-/// 가운데 92 주황 원 안 흰 불꽃이 흔들린다.
-class SplashFlameMark extends StatelessWidget {
-  const SplashFlameMark({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _Loop(
-      builder: (context, s) => SizedBox.square(
-        dimension: 120,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            for (final delay in [0.0, 1.1])
-              _Ring(
-                // 퍼지는 원: scale .6→1.5, 투명도 .5→0 (ease-out)
-                progress: Curves.easeOut.transform(_phase(s, 2.2, delay)),
-                started: s >= delay,
-                size: 120,
-                from: 0.6,
-                to: 1.5,
-                opacity: 0.5,
-              ),
-            Container(
-              width: 92,
-              height: 92,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: _Flame(seconds: s, height: 52, outer: Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// 작은 불꽃 (시안 Main '3일째 운동 중' 앞, 22×26): 주황 겉불꽃 + 노란 속불꽃, 흔들림.
 class FlameIcon extends StatelessWidget {
   final double height;
