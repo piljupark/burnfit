@@ -10,6 +10,7 @@ import '../../core/app_spacing.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/rest_timer.dart';
 import 'member_calendar_screen.dart';
+import 'member_meal_log_screen.dart';
 import 'member_profile_screen.dart';
 import 'member_pt_schedule_screen.dart';
 import 'member_routes.dart';
@@ -107,9 +108,12 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
       case NotificationTarget.workout:
         Navigator.of(context).popUntil((route) => route.isFirst);
         _selectTab(_workoutTab);
-      // 회원에게는 '새 식단' 알림이 오지 않는다 (트레이너용).
+      // 회원: 트레이너가 식단 목표를 정하거나 바꿨을 때 → 식단 화면
       case NotificationTarget.meals:
-        break;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const MemberMealLogScreen()),
+        );
       case null:
         break;
     }

@@ -71,7 +71,7 @@ void main() {
     expect(find.textContaining('식단에 추가'), findsNothing);
   });
 
-  testWidgets('식단 입력 화면은 넘겨받은 끼니·메모·칼로리로 미리 채워진다', (tester) async {
+  testWidgets('식단 입력 화면은 넘겨받은 끼니·메모로 미리 채워지고, 칼로리 칸은 없다', (tester) async {
     _tallPhone(tester);
     await tester.pumpWidget(
       const MaterialApp(
@@ -82,12 +82,11 @@ void main() {
           selectedDate: '2026-10-07',
           initialMealType: MealType.dinner,
           initialDescription: '닭가슴살 100g',
-          initialCalories: 109,
         ),
       ),
     );
     expect(find.text('닭가슴살 100g'), findsOneWidget);
-    expect(find.text('109'), findsOneWidget);
+    expect(find.text('칼로리'), findsNothing);
     final dinner = tester.widget<AppChip>(find.widgetWithText(AppChip, '저녁'));
     final lunch = tester.widget<AppChip>(find.widgetWithText(AppChip, '점심'));
     expect(dinner.selected, isTrue);

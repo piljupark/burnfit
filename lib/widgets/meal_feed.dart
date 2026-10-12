@@ -253,8 +253,8 @@ class _MealFeedCardState extends State<MealFeedCard> {
             const Gap(AppSpacing.sm),
             _MealPhotos(urls: meal.imageUrls),
           ],
-          // 칼로리 · 메모
-          if (meal.calories != null || memo.isNotEmpty)
+          // 메모 (칼로리는 보이지 않는다 — 예전 기록의 값은 저장만 돼 있다)
+          if (memo.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
@@ -262,33 +262,7 @@ class _MealFeedCardState extends State<MealFeedCard> {
                 AppSpacing.screenH,
                 0,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (meal.calories != null)
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: NumberFormat('#,##0').format(meal.calories),
-                          ),
-                          TextSpan(
-                            text: 'kcal',
-                            style: TextStyle(
-                              color: AppColors.mute,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                      style: AppTextStyles.bodyMd.bold,
-                    ),
-                  if (memo.isNotEmpty) ...[
-                    const Gap(AppSpacing.xs),
-                    Text(memo, style: AppTextStyles.bodyMd),
-                  ],
-                ],
-              ),
+              child: Text(memo, style: AppTextStyles.bodyMd),
             ),
           // 피드백 (댓글처럼)
           if (item.feedbacks.isNotEmpty)

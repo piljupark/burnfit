@@ -1118,10 +1118,8 @@ class _DayRecords extends StatelessWidget {
   }
 
   Widget _mealRow(Meal meal) {
-    final detail = [
-      if ((meal.description ?? '').trim().isNotEmpty) meal.description!.trim(),
-      if (meal.calories != null) '${meal.calories}kcal',
-    ].join(' · ');
+    // 칼로리는 보이지 않는다 (회원 칼로리 입력을 없애고 트레이너 식단 목표로 바꿈, 예전 값은 저장만 돼 있다).
+    final detail = (meal.description ?? '').trim();
     return _RecordRow(
       icon: AppIcons.meal,
       title: meal.mealType.label,

@@ -13,6 +13,7 @@ import '../../core/constants.dart';
 import '../../models/cardio.dart';
 import '../../models/feedback.dart' as fb;
 import '../../models/inbody.dart';
+import '../../models/nutrition_plan.dart';
 import '../../models/pt_info.dart';
 import '../../models/user.dart';
 import '../../models/workout.dart';
@@ -20,6 +21,7 @@ import '../../services/body_profile_service.dart';
 import '../../services/cardio_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/meal_feed_service.dart';
+import '../../services/nutrition_plan_service.dart';
 import '../../services/user_provider.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/app_action_row.dart';
@@ -39,6 +41,8 @@ import '../../widgets/app_screen_header.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/feedback_sheet.dart';
 import '../../widgets/meal_feed.dart';
+import '../../widgets/nutrition_plan_card.dart';
+import 'nutrition_plan_screen.dart';
 import 'trainer_inbody_sheet.dart';
 import 'trainer_member_tabs.dart';
 
@@ -74,6 +78,10 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   List<Inbody> _inbodies = [];
   PtInfo? _ptInfo;
 
+  /// 식단 목표 (식단 탭 맨 위). [_loadingPlan] 동안은 빈 카드.
+  NutritionPlan? _plan;
+  bool _loadingPlan = true;
+
   /// 회원 신체 정보 (사용자 문서와 따로 저장됨).
   UserProfile? _body;
 
@@ -95,6 +103,7 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(_onTabChanged);
     _loadPtInfo();
+    _loadPlan();
     _loadBody();
     _loadWorkouts();
     _loadInbodies();
@@ -129,6 +138,46 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
 
   String get _rangeEnd {
     return DateFormat('yyyy-MM-dd').format(DateTime.now());
+  }
+
+  Future<void> _loadPlan() async {
+    try {
+      final plan = await NutritionPlanService.get(widget.member.uid);
+      if (!mounted) return;
+      setState(() {
+        _plan = plan;
+        _loadingPlan = false;
+      });
+    } catch (e) {
+      // 보조 정보라 실패해도 화면은 그대로 쓴다 (비어 있는 카드로 보인다).
+      AppLogger.debug('[TrainerMemberDetail] 식단 목표 로드 실패: $e');
+      if (mounted) setState(() => _loadingPlan = false);
+    }
+  }
+
+  /// 식단 목표 화면: 추천 재료는 최근 인바디의 기초대사량 · 체중 (없으면 신체 정보 체중).
+  Future<void> _openNutritionPlan() async {
+    final trainer = context.read<UserProvider>().user;
+    if (trainer == null) return;
+    final latestBmr = _inbodies
+        .where((i) => i.bmr != null && i.bmr! > 0)
+        .map((i) => i.bmr!)
+        .firstOrNull;
+    final weight = _inbodies.isNotEmpty
+        ? _inbodies.first.weight
+        : _body?.weight;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => NutritionPlanScreen(
+          member: widget.member,
+          trainer: trainer,
+          existing: _plan,
+          bmr: latestBmr,
+          weight: weight,
+        ),
+      ),
+    );
+    if (saved == true) _loadPlan();
   }
 
   Future<void> _loadPtInfo() async {
@@ -509,6 +558,12 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                     onRefresh: _loadWorkouts,
                   ),
                   _MealFeedTab(
+                    header: NutritionPlanCard(
+                      plan: _plan,
+                      loading: _loadingPlan,
+                      emptyMessage: '아직 식단 목표가 없어요.',
+                      onEdit: _openNutritionPlan,
+                    ),
                     items: _meals,
                     isLoading: _loadingMeals,
                     onSend: _sendMealFeedback,
@@ -584,6 +639,15 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 _openInbodyInput();
+              },
+            ),
+            AppSheetAction(
+              icon: AppIcons.meal,
+              label: '식단 목표',
+              value: _plan == null ? '정하기' : '고치기',
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _openNutritionPlan();
               },
             ),
           ],
@@ -1087,12 +1151,15 @@ String _formatProfileValue(num value) {
 
 /// 회원 상세 '식단' 탭: 식단 탭과 같은 카드(회원 이름 대신 끼니), 최근 30일.
 class _MealFeedTab extends StatelessWidget {
+  /// 맨 위 식단 목표 카드
+  final Widget header;
   final List<MealFeedItem> items;
   final bool isLoading;
   final Future<bool> Function(MealFeedItem item, String content) onSend;
   final Future<void> Function() onRefresh;
 
   const _MealFeedTab({
+    required this.header,
     required this.items,
     required this.isLoading,
     required this.onSend,
@@ -1110,8 +1177,10 @@ class _MealFeedTab extends StatelessWidget {
         color: AppColors.ink,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            AppEmptyState(
+          padding: const EdgeInsets.only(top: AppSpacing.base),
+          children: [
+            header,
+            const AppEmptyState(
               icon: AppIcons.meal,
               message: '최근 30일 식단 기록이 없습니다.',
               compact: true,
@@ -1125,6 +1194,13 @@ class _MealFeedTab extends StatelessWidget {
       items: items,
       trainerId: trainer.uid,
       showMember: false,
+      header: Padding(
+        padding: const EdgeInsets.only(
+          top: AppSpacing.base,
+          bottom: AppSpacing.sm,
+        ),
+        child: header,
+      ),
       onSend: onSend,
       onRefresh: onRefresh,
       padding: const EdgeInsets.only(bottom: 120),

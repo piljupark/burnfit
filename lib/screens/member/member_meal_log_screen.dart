@@ -11,8 +11,10 @@ import '../../core/app_text_styles.dart';
 import '../../models/feedback.dart' as fb;
 import '../../models/food_guide.dart';
 import '../../models/meal.dart';
+import '../../models/nutrition_plan.dart';
 import '../../services/firestore_service.dart';
 import '../../services/meal_service.dart';
+import '../../services/nutrition_plan_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_bottom_sheet.dart';
@@ -23,6 +25,7 @@ import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
 import '../../widgets/brand_marks.dart';
 import '../../widgets/feedback_sheet.dart';
+import '../../widgets/nutrition_plan_card.dart';
 import 'food_detail_sheet.dart';
 import 'meal_input_sheet.dart';
 import 'nutrition_guide_screen.dart';
@@ -46,6 +49,10 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   /// 식단별 트레이너 피드백 (담당이 바뀌면 여러 개일 수 있다, 오래된 순).
   Map<String, List<fb.Feedback>> _feedbacks = {};
 
+  /// 트레이너가 정한 식단 목표 (맨 위 카드). 날짜와 무관해 화면을 열 때 한 번 읽는다.
+  NutritionPlan? _plan;
+  bool _loadingPlan = true;
+
   static final _keyFormat = DateFormat('yyyy-MM-dd');
 
   String get _dateKey => _keyFormat.format(_selectedDate);
@@ -54,6 +61,24 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadPlan();
+  }
+
+  Future<void> _loadPlan() async {
+    final user = context.read<UserProvider>().user;
+    if (user == null) return;
+    try {
+      final plan = await NutritionPlanService.get(user.uid);
+      if (!mounted) return;
+      setState(() {
+        _plan = plan;
+        _loadingPlan = false;
+      });
+    } catch (e) {
+      // 목표는 보조 정보라 실패해도 식단 기록은 그대로 쓴다.
+      AppLogger.debug('[식단 목표 조회 오류] $e');
+      if (mounted) setState(() => _loadingPlan = false);
+    }
   }
 
   /// 날짜를 빠르게 바꿀 때 늦게 도착한 이전 날짜 결과가 화면을 덮지 않게 한다.
@@ -116,14 +141,10 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
     }
   }
 
-  int get _totalCalories =>
-      _meals.fold<int>(0, (sum, m) => sum + (m.calories ?? 0));
-
   /// 식단 입력 화면을 연다. 저장되면 목록을 다시 불러오고 true.
   Future<bool> _openMealInput({
     MealType? initialMealType,
     String? initialDescription,
-    int? initialCalories,
   }) async {
     final user = context.read<UserProvider>().user;
     if (user == null) return false;
@@ -137,7 +158,6 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
           selectedDate: _dateKey,
           initialMealType: initialMealType,
           initialDescription: initialDescription,
-          initialCalories: initialCalories,
         ),
       ),
     );
@@ -168,7 +188,6 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
     final saved = await _openMealInput(
       initialMealType: mealTypeForTime(DateTime.now()),
       initialDescription: food.mealDescription,
-      initialCalories: food.kcal,
     );
     if (!saved || !mounted) return;
     // 가이드·목록 화면을 닫고 방금 저장한 식단이 보이는 이 화면으로 돌아온다.
@@ -223,7 +242,6 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
   @override
   Widget build(BuildContext context) {
     final canPop = Navigator.of(context).canPop();
-    final isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -240,16 +258,18 @@ class _MemberMealLogScreenState extends State<MemberMealLogScreen> {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _load,
+                onRefresh: () => Future.wait([_load(), _loadPlan()]),
                 color: AppColors.ink,
                 backgroundColor: AppColors.canvasCard,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 120),
                   children: [
-                    _IntakeCard(
-                      label: isToday ? '오늘 먹은 양' : '이 날 먹은 양',
-                      kcal: _isLoading ? null : _totalCalories,
+                    const SizedBox(height: AppSpacing.sm),
+                    NutritionPlanCard(
+                      plan: _plan,
+                      loading: _loadingPlan,
+                      emptyMessage: '트레이너가 식단 목표를 정하면 여기에 보여요.',
                     ),
                     if (_isLoading)
                       const Padding(
@@ -379,68 +399,7 @@ class _DayNavHeader extends StatelessWidget {
   }
 }
 
-/// 먹은 양 카드 (회색, 반경 20): '오늘 먹은 양' 14 body / '1,240kcal' 30 (숫자 700).
-/// 시안의 목표 열량·탄단지 막대는 아직 데이터가 없어 그리지 않는다.
-class _IntakeCard extends StatelessWidget {
-  final String label;
-  final int? kcal;
-
-  const _IntakeCard({required this.label, required this.kcal});
-
-  @override
-  Widget build(BuildContext context) {
-    final big = AppTextStyles.displayMd.bold.copyWith(
-      fontSize: 30,
-      height: 36 / 30,
-      letterSpacing: 30 * -0.019,
-    );
-    final value = kcal == null ? '–' : NumberFormat('#,##0').format(kcal);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.md,
-        AppSpacing.screenH,
-        0,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: 22,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.canvasCard,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      child: Semantics(
-        label: '$label $value 킬로칼로리',
-        excludeSemantics: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: AppTextStyles.note),
-            const SizedBox(height: AppSpacing.xs),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: value),
-                  TextSpan(
-                    text: 'kcal',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.mute,
-                    ),
-                  ),
-                ],
-              ),
-              style: big,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 끼니 한 줄 (60, 아래 1px hairline): 끼니 이름(52 폭, 15/700) · 먹은 것(14 body) · kcal(15/700).
+/// 끼니 한 줄 (60, 아래 1px hairline): 끼니 이름(52 폭, 15/700) · 먹은 것(14 body).
 /// 기록이 없으면 오른쪽에 '기록하기' 알약(34, 13/700).
 class _MealTypeRow extends StatelessWidget {
   final MealType type;
@@ -463,8 +422,6 @@ class _MealTypeRow extends StatelessWidget {
         .where((d) => d.isNotEmpty)
         .join(', ');
     final photoCount = meals.fold<int>(0, (n, m) => n + m.imageUrls.length);
-    final hasKcal = meals.any((m) => m.calories != null);
-    final kcal = meals.fold<int>(0, (sum, m) => sum + (m.calories ?? 0));
     final empty = meals.isEmpty;
     final summary = empty
         ? ''
@@ -516,9 +473,7 @@ class _MealTypeRow extends StatelessWidget {
                   ),
                 ),
               ),
-            )
-          else if (hasKcal)
-            Text('${NumberFormat('#,##0').format(kcal)}kcal', style: strong),
+            ),
         ],
       ),
     );
@@ -809,26 +764,6 @@ class _MealEntry extends StatelessWidget {
                       : AppTextStyles.input,
                 ),
               ),
-              if (meal.calories != null) ...[
-                const SizedBox(width: AppSpacing.md),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: NumberFormat('#,##0').format(meal.calories),
-                      ),
-                      TextSpan(
-                        text: 'kcal',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.mute,
-                        ),
-                      ),
-                    ],
-                  ),
-                  style: AppTextStyles.bodyMd.medium,
-                ),
-              ],
             ],
           ),
         ),

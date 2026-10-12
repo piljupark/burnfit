@@ -11,6 +11,7 @@ const MEMBER_DELETED_COLLECTIONS = [
   'cardios',
   'feedbacks',
   'inbodies',
+  'nutrition_plans',
 ];
 
 // PT 계약·이용 내역: 환불 등 분쟁 대응을 위해 회원을 알 수 없게 바꿔 보관한다.

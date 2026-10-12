@@ -26,7 +26,7 @@
 - 개인정보 처리방침 주소 (앱 안 마이 탭에도 링크).
 - **계정 삭제**: 앱 안 탈퇴는 회원·트레이너만 있음 → 관리자 탈퇴 방법을 정한다(센터 정리 포함). 구글은 앱 밖 웹에서 삭제 요청하는 주소도 요구.
 - 심사용 **승인된 데모 계정** (회원·트레이너 각각, 가입 → 승인 대기 때문에 심사관이 새로 가입하면 막힌다). 심사 메모에 적는다.
-- 구글 '데이터 보안' 양식 · 애플 '앱 개인정보' 라벨: 수집하는 것 = 이메일, 이름, 생년월일, 성별, 키·몸무게·인바디(건강 정보), 식단 사진, 운동 기록, 푸시 토큰. 광고·추적 없음.
+- 구글 '데이터 보안' 양식 · 애플 '앱 개인정보' 라벨: 수집하는 것 = 이메일, 이름, 생년월일, 성별, 키·몸무게·인바디(건강 정보), 식단 사진, 트레이너가 정한 식단 목표, 운동 기록, 푸시 토큰. 광고·추적 없음.
 - 건강 정보를 다루므로 애플 심사 지침 5.1.1·5.1.3(건강 자료) 문구 확인.
 
 ### iOS
@@ -67,6 +67,7 @@
 - 휴식 타이머 알림(2026-10-11 추가): 안드로이드 권한 `SCHEDULE_EXACT_ALARM` · `VIBRATE`, 알림 채널 `rest_timer_ongoing` · `rest_timer_warning` · `rest_timer_done`.
   - `SCHEDULE_EXACT_ALARM`은 플레이 신고서가 필요 없다 (`USE_EXACT_ALARM`만 알람·캘린더 앱 전용). 안드로이드 14+는 기본 꺼짐이라 앱이 한 번 허용을 권한다.
   - 아이폰 잠금 화면 · 다이내믹 아일랜드(실시간 현황): 위젯 확장 대상 `RestTimerWidget`(`ios/RestTimerWidget/`, 번들 `com.example.burnfit.RestTimerWidget`, iOS 16.2+)과 `Info.plist`의 `NSSupportsLiveActivities`. 앱 그룹은 쓰지 않는다. 번들 ID를 바꿀 때 확장 ID도 함께 `<앱 ID>.RestTimerWidget`으로 바꾼다. 스토어 심사 때 확장도 같은 팀으로 서명돼야 한다.
+- 식단 목표(2026-10-12 추가): 저장 규칙(`nutrition_plans`)과 알림 함수 `onNutritionPlanWritten` 배포가 필요하다 (`firebase deploy --only firestore:rules,functions:onNutritionPlanWritten,functions:deleteMyAccount --project burnfit-v01`). 규칙 배포 전에는 트레이너 저장이 거절된다. 회원 탈퇴 때 식단 목표도 지운다 (`account_deletion.js`).
 - `onMealCreated`(식단 → 담당 트레이너 알림)는 배포돼 있다 (2026-10-12 `firebase functions:list`로 확인).
 - iOS 푸시는 유료 개발자 계정 + APNs 키를 Firebase에 등록해야 온다. 그 전까지 아이폰 사용자는 앱 안 알림함에만 쌓인다.
 

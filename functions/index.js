@@ -1,4 +1,4 @@
-const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
@@ -14,6 +14,7 @@ const inbox = require('./notifications');
 const ptSessions = require('./pt_sessions');
 const notices = require('./notices');
 const meals = require('./meals');
+const nutritionPlans = require('./nutrition_plans');
 
 initializeApp();
 
@@ -273,6 +274,28 @@ exports.onMealCreated = onDocumentCreated(
       title,
       body,
       { type: 'meal_created', mealId: event.params.mealId },
+      `${event.id}`,
+    );
+  },
+);
+
+// ─────────────────────────────────────────────
+// 식단 목표를 정하거나 바꿈 → 회원에게 알림 (회원 앱 식단 화면으로)
+// ─────────────────────────────────────────────
+
+exports.onNutritionPlanWritten = onDocumentWritten(
+  'nutrition_plans/{memberId}',
+  async (event) => {
+    const before = event.data?.before?.data() ?? null;
+    const after = event.data?.after?.data() ?? null;
+    if (!nutritionPlans.planContentChanged(before, after)) return;
+
+    const { title, body } = nutritionPlans.nutritionPlanMessage(after, { created: before == null });
+    await notifyUser(
+      event.params.memberId,
+      title,
+      body,
+      { type: 'nutrition_plan_updated' },
       `${event.id}`,
     );
   },

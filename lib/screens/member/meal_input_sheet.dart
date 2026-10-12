@@ -33,7 +33,6 @@ class MealInputSheet extends StatefulWidget {
   /// 영양 가이드에서 음식을 골라 열 때 미리 채울 값. 모두 사용자가 고칠 수 있다.
   final MealType? initialMealType;
   final String? initialDescription;
-  final int? initialCalories;
 
   const MealInputSheet({
     super.key,
@@ -44,7 +43,6 @@ class MealInputSheet extends StatefulWidget {
     required this.selectedDate,
     this.initialMealType,
     this.initialDescription,
-    this.initialCalories,
   });
 
   @override
@@ -56,9 +54,6 @@ class _MealInputSheetState extends State<MealInputSheet> {
   late final _descController = TextEditingController(
     text: widget.initialDescription,
   );
-  late final _caloriesController = TextEditingController(
-    text: widget.initialCalories?.toString(),
-  );
   final List<XFile> _images = [];
   final List<Uint8List> _imageBytes = [];
   bool _isSaving = false;
@@ -66,7 +61,6 @@ class _MealInputSheetState extends State<MealInputSheet> {
   @override
   void dispose() {
     _descController.dispose();
-    _caloriesController.dispose();
     super.dispose();
   }
 
@@ -109,14 +103,9 @@ class _MealInputSheetState extends State<MealInputSheet> {
 
   Future<void> _save() async {
     if (_isSaving) return;
-    final calories = _caloriesController.text.trim();
     // 식단은 사진이 꼭 있어야 한다 (규칙도 같은 것을 요구한다)
     if (_images.isEmpty) {
       AppFeedback.showWarning(context, '사진을 1장 이상 올려 주세요.');
-      return;
-    }
-    if (calories.isNotEmpty && (int.tryParse(calories) ?? -1) < 0) {
-      AppFeedback.showWarning(context, '칼로리는 0 이상의 숫자로 입력해주세요.');
       return;
     }
     setState(() => _isSaving = true);
@@ -141,7 +130,6 @@ class _MealInputSheetState extends State<MealInputSheet> {
         mealTime: now,
         imageUrls: urls,
         description: description.isEmpty ? null : description,
-        calories: int.tryParse(_caloriesController.text),
       );
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -264,16 +252,6 @@ class _MealInputSheetState extends State<MealInputSheet> {
                     minLines: 4,
                     maxLines: 4,
                     textInputAction: TextInputAction.newline,
-                  ),
-                  const SizedBox(height: AppSpacing.base),
-                  AppTextField(
-                    label: '칼로리',
-                    hint: '선택 입력',
-                    controller: _caloriesController,
-                    keyboardType: TextInputType.number,
-                    unit: 'kcal',
-                    strongValue: true,
-                    textInputAction: TextInputAction.done,
                   ),
                 ],
               ),

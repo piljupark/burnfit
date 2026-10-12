@@ -436,6 +436,41 @@ service cloud.firestore {
       request.resource.data.trainerName == userDoc(request.resource.data.trainerId).data.name;
     }
 
+    // 회원 식단 목표 (트레이너가 정함, 회원별 문서 하나: nutrition_plans/{memberId}).
+    // 숫자는 모두 비울 수 있고, 범위는 앱(NutritionPlan.validate)과 같다.
+    function hasValidNutritionPlan(memberId) {
+      let d = request.resource.data;
+      let guides = d.get('mealGuides', {});
+      return d.keys().hasOnly([
+          'memberId', 'centerId', 'trainerId', 'trainerName',
+          'calories', 'carbs', 'protein', 'fat',
+          'mealGuides', 'note', 'updatedAt'
+        ]) &&
+        d.memberId == memberId &&
+        d.centerId is string &&
+        d.trainerId == request.auth.uid &&
+        d.trainerName is string && d.trainerName.size() <= 50 &&
+        isOptionalNumberIn(d, 'calories', 500, 6000) &&
+        isOptionalNumberIn(d, 'carbs', 0, 1000) &&
+        isOptionalNumberIn(d, 'protein', 0, 500) &&
+        isOptionalNumberIn(d, 'fat', 0, 400) &&
+        guides is map &&
+        guides.keys().hasOnly(['breakfast', 'lunch', 'dinner', 'snack']) &&
+        (guides.get('breakfast', '') is string && guides.get('breakfast', '').size() <= 200) &&
+        (guides.get('lunch', '') is string && guides.get('lunch', '').size() <= 200) &&
+        (guides.get('dinner', '') is string && guides.get('dinner', '').size() <= 200) &&
+        (guides.get('snack', '') is string && guides.get('snack', '').size() <= 200) &&
+        (d.get('note', null) == null || (d.note is string && d.note.size() <= 500)) &&
+        d.updatedAt == request.time;
+    }
+
+    function canWriteNutritionPlan(memberId) {
+      return isTrainer() &&
+        sameCenter(request.resource.data.centerId) &&
+        isAssignedTrainer(memberId) &&
+        hasValidNutritionPlan(memberId);
+    }
+
     function canCreateInbody(inbodyId) {
       return hasOnlyInbodyFields() &&
         request.resource.data.id == inbodyId &&
@@ -987,6 +1022,16 @@ service cloud.firestore {
         resource.data.centerId,
         resource.data.memberId
       ) || isCenterAdmin(resource.data.centerId);
+    }
+
+    match /nutrition_plans/{memberId} {
+      // 회원 본인 · 지금 담당 트레이너 · 센터 관리자만 본다.
+      allow read: if isOwner(memberId) ||
+        isAssignedTrainer(memberId) ||
+        isCenterAdmin(resource.data.centerId);
+      // 쓰기는 지금 담당 트레이너만 (담당이 바뀌면 새 담당이 덮어쓴다).
+      allow create, update: if canWriteNutritionPlan(memberId);
+      allow delete: if isAssignedTrainer(memberId);
     }
 
     match /inbodies/{inbodyId} {
