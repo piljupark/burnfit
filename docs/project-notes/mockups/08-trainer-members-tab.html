@@ -170,6 +170,55 @@ td:first-child { white-space: nowrap; font-weight: 500; }
 .ptbar b { font-size: 20px; font-weight: 500; display: block; }
 .ptbar small { font-size: 13px; color: var(--mute); }
 .block { margin: 8px 20px 0 64px; border-radius: 14px; border: 1.5px solid var(--primary); padding: 10px 12px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+/* 식단 목표 — 지금 */
+.np-wrap { padding: 0 20px; }
+.np-name { font-size: 26px; font-weight: 500; margin: 16px 0 0; }
+.np-desc { font-size: 13px; color: var(--mute); margin: 4px 0 0; }
+.np-card { margin-top: 20px; border-radius: 20px; background: var(--canvasCard); padding: 16px; }
+.np-card h6 { margin: 0; font-size: 15px; font-weight: 700; }
+.np-goals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.np-goals span { height: 44px; border-radius: 14px; background: var(--canvasSoft); display: grid; place-items: center; font-size: 15px; }
+.np-goals span.on { background: var(--ink); color: var(--canvas); font-weight: 500; }
+.np-basis { font-size: 13px; color: var(--mute); margin-top: 10px; line-height: 19px; }
+.np-fill { margin-top: 12px; height: 44px; border-radius: 14px; background: var(--canvasSoft); display: grid; place-items: center; font-size: 14px; font-weight: 500; }
+.np-sec { font-size: 17px; font-weight: 500; margin: 26px 0 0; }
+.np-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-top: 10px; }
+.np-field small { display: block; font-size: 13px; color: var(--mute); margin-bottom: 6px; }
+.np-field div { height: 48px; border-radius: 14px; background: var(--canvasSoft); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 15px; color: var(--faint); white-space: nowrap; overflow: hidden; }
+.np-field div em { font-style: normal; color: var(--mute); margin-left: 6px; }
+.np-save { flex: none; padding: 12px 20px 28px; border-top: 1px solid var(--hairline); display: grid; }
+.np-save span { height: 56px; border-radius: 18px; background: var(--ink); color: var(--canvas); display: grid; place-items: center; font-size: 17px; font-weight: 700; }
+.mark { outline: 2px dashed var(--primary); outline-offset: 3px; border-radius: 16px; }
+
+/* 식단 목표 — 정리안 */
+.ng-name { padding: 4px 20px 0; font-size: 22px; font-weight: 500; }
+.ng-head { display: flex; justify-content: space-between; align-items: baseline; padding: 22px 20px 0; }
+.ng-head h6 { margin: 0; font-size: 17px; font-weight: 500; }
+.ng-head small { font-size: 13px; color: var(--mute); }
+.seg { margin: 12px 20px 0; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--canvasSoft); border-radius: 14px; padding: 4px; gap: 2px; }
+.seg button { height: 38px; border: 0; border-radius: 10px; background: transparent; color: var(--body); font-size: 15px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--canvas); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+:root[data-theme="dark"] .seg button[aria-pressed="true"], .phone.force-dark .seg button[aria-pressed="true"] { background: var(--canvasMid); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .seg button[aria-pressed="true"] { background: var(--canvasMid); } }
+.ng-kcal { margin: 10px 20px 0; height: 60px; border-radius: 16px; background: var(--canvasCard); display: flex; align-items: center; padding: 0 16px; gap: 8px; }
+.ng-kcal label { flex: 1; font-size: 15px; color: var(--body); }
+.ng-kcal input, .ng-macro input { width: 90px; border: 0; background: none; outline: none; text-align: right; font-size: 24px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ng-kcal input::placeholder, .ng-macro input::placeholder { color: var(--faint); font-weight: 400; }
+.ng-kcal em, .ng-macro em { font-style: normal; font-size: 14px; color: var(--mute); }
+.ng-macros { margin: 8px 20px 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ng-macro { border-radius: 16px; background: var(--canvasCard); padding: 10px 12px; display: grid; gap: 2px; }
+.ng-macro label { font-size: 12px; color: var(--mute); }
+.ng-macro span { display: flex; align-items: baseline; justify-content: flex-end; gap: 2px; }
+.ng-macro input { width: 100%; font-size: 20px; }
+.ng-basis { margin: 8px 20px 0; font-size: 12px; line-height: 17px; color: var(--mute); }
+.ng-guides { margin: 10px 20px 0; display: grid; gap: 8px; }
+.ng-guide { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 8px; }
+.ng-guide b { font-size: 15px; font-weight: 700; }
+.ng-guide input, .ng-note { height: 48px; border: 0; border-radius: 14px; background: var(--canvasSoft); padding: 0 14px; font-size: 15px; color: var(--ink); outline: none; width: 100%; }
+.ng-guide input::placeholder, .ng-note::placeholder { color: var(--faint); }
+.ng-note { margin: 10px 20px 0; width: calc(100% - 40px); height: 76px; padding: 12px 14px; resize: none; font-family: inherit; }
+.ng-menu { position: absolute; right: 16px; top: 96px; background: var(--canvas); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 4px; z-index: 7; }
+.ng-menu span { display: block; padding: 12px 16px; font-size: 15px; color: #D93036; }
 .tline { display: flex; gap: 8px; padding: 14px 20px 0; font-size: 12px; color: var(--mute); }
 </style>
 </head><body>
@@ -177,7 +226,7 @@ td:first-child { white-space: nowrap; font-weight: 500; }
   <header class="head">
     <div>
       <h1>트레이너 '회원' 탭</h1>
-      <p>지금은 회원이 개인 운동을 한 날에만 홈 캘린더를 거쳐 회원 상세에 들어갈 수 있어요. 아래 탭에 '회원'을 더하고, 회원 이름이 보이는 곳에서 바로 들어가게 바꾼 시안이에요. 검색 · 알약 · 회원 줄을 눌러 보세요.</p>
+      <p>지금은 회원이 개인 운동을 한 날에만 홈 캘린더를 거쳐 회원 상세에 들어갈 수 있어요. 아래 탭에 '회원'을 더하고, 회원 이름이 보이는 곳에서 바로 들어가게 바꾼 시안이에요. 끝의 두 칸은 식단 목표 화면 지금 · 정리안 비교예요.</p>
     </div>
     <div class="seg-mini" role="group" aria-label="화면 테마">
       <button type="button" id="th-auto" aria-pressed="true">시스템</button>
@@ -321,6 +370,67 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     </div></div>`;
   }
 
+  // 추천 계산 — 앱(NutritionRecommendation)과 같다. 기초대사량이 없어 체중 × 30.
+  const WEIGHT = 80;
+  function recommend(goal) {
+    const r = (v, step) => Math.round(v / step) * step;
+    const tdee = WEIGHT * 30;
+    const kcal = r(Math.max(1200, goal === 'lose' ? tdee - 500 : goal === 'gain' ? tdee + 300 : tdee), 50);
+    const protein = r(WEIGHT * (goal === 'lose' ? 2.0 : goal === 'gain' ? 1.8 : 1.6), 5);
+    const fat = r(kcal * 0.25 / 9, 5);
+    const carbs = r(Math.max(0, (kcal - protein * 4 - fat * 9) / 4), 5);
+    return { kcal, carbs, protein, fat };
+  }
+  const fmt = n => n === '' || n == null ? '' : Number(n).toLocaleString('ko-KR');
+
+  function npOldScreen() {
+    return `<div class="screen">${status}<div class="scroll"><div class="np-wrap">
+      <div class="bar" style="padding:0;margin:0 -8px"><button type="button" class="icon-btn" style="margin:0" aria-label="뒤로">${I.back}</button><h4>식단 목표</h4><span></span></div>
+      <div class="np-name">유저1님</div>
+      <p class="np-desc">정한 목표는 회원의 식단 화면 맨 위에 보이고, 저장하면 알림이 가요.</p>
+      <div class="np-card"><h6>추천으로 시작하기</h6>
+        <div class="np-goals mark"><span>감량</span><span class="on">유지</span><span>증량</span></div>
+        <p class="np-basis">체중 80kg × 30 (유지)<br>→ 2400kcal · 탄수 325g · 단백질 130g · 지방 65g</p>
+        <div class="np-fill mark">추천값 채우기</div>
+      </div>
+      <div class="np-sec">하루 권장</div>
+      <div class="np-grid mark">
+        <div class="np-field"><small>칼로리</small><div>비워 둘 수 있...<em>kcal</em></div></div>
+        <div class="np-field"><small>탄수화물</small><div>비워 둘 수 있어요<em>g</em></div></div>
+        <div class="np-field"><small>단백질</small><div>비워 둘 수 있어요<em>g</em></div></div>
+        <div class="np-field"><small>지방</small><div>비워 둘 수 있어요<em>g</em></div></div>
+      </div>
+      <div class="np-sec">끼니별 가이드</div>
+      <p class="np-desc">적은 끼니만 회원에게 보여요.</p>
+      <div class="np-field" style="margin-top:14px"><small>아침</small><div>예: 달걀 2개 + 바나나 1개</div></div>
+    </div></div><div class="np-save"><span>저장</span></div></div>`;
+  }
+
+  function npNewScreen(p) {
+    const seg = [['lose', '감량'], ['keep', '유지'], ['gain', '증량'], ['self', '직접']];
+    const basis = p.goal === 'self'
+      ? '직접 정한 값이에요. 위에서 고르면 추천값으로 바뀌어요.'
+      : `체중 ${WEIGHT}kg 기준 추천 · 숫자를 고치면 '직접'으로 바뀌어요`;
+    return `<div class="screen">${status}<div class="scroll">
+      <div class="bar"><button type="button" class="icon-btn" style="margin:0" aria-label="뒤로">${I.back}</button><h4>식단 목표</h4><button type="button" class="icon-btn" style="margin:0" data-npmenu aria-label="더보기">${I.more}</button></div>
+      <div class="ng-name">유저1님</div>
+      <div class="ng-head"><h6>하루 목표</h6><small>비워 두면 회원에게 안 보여요</small></div>
+      <div class="seg" role="group" aria-label="목표">${seg.map(([k, l]) => `<button type="button" data-goal="${k}" aria-pressed="${p.goal === k}">${l}</button>`).join('')}</div>
+      <div class="ng-kcal"><label for="ng-kcal">칼로리</label><input id="ng-kcal" inputmode="numeric" placeholder="–" data-num="kcal" value="${fmt(p.kcal)}"><em>kcal</em></div>
+      <div class="ng-macros">
+        ${[['carbs', '탄수화물'], ['protein', '단백질'], ['fat', '지방']].map(([k, l]) => `<div class="ng-macro"><label for="ng-${k}">${l}</label><span><input id="ng-${k}" inputmode="numeric" placeholder="–" data-num="${k}" value="${fmt(p[k])}"><em>g</em></span></div>`).join('')}
+      </div>
+      <p class="ng-basis" data-basis>${basis}</p>
+      <div class="ng-head"><h6>끼니별 가이드</h6><small>적은 끼니만 보여요</small></div>
+      <div class="ng-guides">
+        ${[['아침', '달걀 2개 + 바나나'], ['점심', '단백질 손바닥 1개 + 밥 2/3'], ['간식', '그릭요거트'], ['저녁', '밥 반 공기, 채소 두 주먹']].map(([m, h]) => `<label class="ng-guide"><b>${m}</b><input placeholder="${h}"></label>`).join('')}
+      </div>
+      <div class="ng-head"><h6>트레이너 한마디</h6></div>
+      <textarea class="ng-note" placeholder="예: 저녁 탄수화물을 줄이고, 물을 하루 2L 마셔요"></textarea>
+    </div><div class="np-save"><span>저장</span></div>
+    ${p.menu ? '<div class="ng-menu"><span>목표 지우기</span></div>' : ''}</div>`;
+  }
+
   function scheduleScreen() {
     return `<div class="screen">${status}<div class="scroll">
       <div class="hero"><h3>일정</h3><button type="button" class="icon-btn" aria-label="알림">${I.bell}</button></div>
@@ -342,10 +452,31 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     { key: 'needs', small: '알약', title: '확인 필요', note: '피드백할 식단이 있거나 새로 배정된 회원만. 탭 점은 이 회원이 있을 때.' },
     { key: 'feed', small: '이름 누르기', title: '식단 피드', note: '카드의 회원 이름 → 회원 상세.' },
     { key: 'pt', small: '이름 누르기', title: 'PT 기록', note: '위쪽 회원 줄 → 회원 상세.' },
-    { key: 'sched', small: '이름 누르기', title: '일정 ⋯', note: '블록 ⋯ 시트에 \'회원 정보\'를 맨 위에.' }
+    { key: 'sched', small: '이름 누르기', title: '일정 ⋯', note: '블록 ⋯ 시트에 \'회원 정보\'를 맨 위에.' },
+    { key: 'npOld', small: '식단 목표 · 지금', title: '지금 화면', note: '주황 점선이 문제인 곳 — 같은 회색 위의 회색 단추, 잘리는 안내 글자.' },
+    { key: 'npNew', small: '식단 목표 · 정리안', title: '정리안', note: '감량 · 유지 · 증량을 누르면 숫자가 바로 바뀌어요. 숫자를 고치면 \'직접\'으로. 오른쪽 위 ⋯도 눌러 보세요.' }
   ];
 
   const NOTES = {
+    npOld: `<p class="kicker">식단 목표 · 지금 (보내 주신 화면)</p><h2>무엇이 지저분한가</h2>
+      <ol class="change">
+        <li><span class="num">1</span><div><h4>회색 위의 회색 단추</h4><p>카드(canvasCard) 위에 단추(canvasSoft)라 색 차이가 거의 없어 경계가 안 보여요. '추천값 채우기'도 같은 문제.</p></div></li>
+        <li><span class="num">2</span><div><h4>같은 일을 두 번</h4><p>목표를 고르고 '추천값 채우기'를 또 눌러야 숫자가 들어가요.</p></div></li>
+        <li><span class="num">3</span><div><h4>잘리는 안내 글자</h4><p>'비워 둘 수 있어요'가 네 칸에 반복되고, 칼로리 칸에서는 잘려요.</p></div></li>
+        <li><span class="num">4</span><div><h4>설명이 많음</h4><p>맨 위 안내문 · 근거 두 줄 · 섹션 설명. '2400kcal'에 쉼표 없음.</p></div></li>
+        <li><span class="num">5</span><div><h4>들어가는 길</h4><p>회원 상세 → 식단 탭 맨 위 카드 '정하기/고치기', 또는 회원 상세 ⋯ → '식단 목표'. 회원 탭이 생기면 회원 탭 → 회원 → 식단 탭 카드 (두 번).</p></div></li>
+      </ol>`,
+    npNew: `<p class="kicker">식단 목표 · 정리안</p><h2>고르면 바로 채워지는 한 화면</h2>
+      <p class="summary">추천을 따로 '시작하기' 카드에 두지 않고, 하루 목표 바로 위의 선택 막대 하나로 합쳤어요. 단추는 저장 하나만 남겼어요.</p>
+      <ol class="change">
+        <li><span class="num">1</span><div><h4>선택 막대 감량 · 유지 · 증량 · 직접</h4><p>한 덩어리 막대에서 고른 칸만 흰 바탕 + 굵게 — 경계가 또렷해요. 고르는 순간 숫자가 바뀌고, '추천값 채우기' 단추는 없앴어요.</p></div></li>
+        <li><span class="num">2</span><div><h4>숫자를 고치면 '직접'</h4><p>트레이너가 손댄 값은 추천으로 덮어쓰지 않게 '직접'으로 넘어가요. 다시 감량 등을 누르면 추천값으로.</p></div></li>
+        <li><span class="num">3</span><div><h4>칼로리 한 줄 크게 + 탄단지 3칸</h4><p>숫자 24/700 · 쉼표(2,400). 빈 칸은 '–'. 안내 글자 반복 없이 머리 오른쪽에 '비워 두면 회원에게 안 보여요' 한 번.</p></div></li>
+        <li><span class="num">4</span><div><h4>근거는 숫자 아래 12 한 줄</h4><p>'체중 80kg 기준 추천'. 인바디 기초대사량이 있으면 '기초대사량 1,450 · 활동 보통 기준'.</p></div></li>
+        <li><span class="num">5</span><div><h4>끼니별 가이드는 이름 + 한 줄 칸</h4><p>끼니 이름(15/700)을 칸 왼쪽에 — 세로 길이가 절반 정도로 줄어요.</p></div></li>
+        <li><span class="num">6</span><div><h4>'지우기'는 ⋯ 안으로</h4><p>아래에는 '저장' 하나. 목표가 있을 때만 ⋯에 '목표 지우기'(빨간 글자, 확인 창).</p></div></li>
+        <li><span class="num">7</span><div><h4>맨 위 안내문 삭제</h4><p>'저장하면 알림이 가요'는 저장 뒤 토스트('유저1님에게 식단 목표를 보냈어요')로만.</p></div></li>
+      </ol>`,
     list: `<p class="kicker">아래 탭: 홈 · 일정 · 회원 · 식단 · 마이</p>
       <h2>회원 탭</h2>
       <p class="summary">관리자 앱 '회원' 탭과 같은 짜임(큰 제목 → 검색 48 → 알약 → 68 줄)이라 새 부품이 거의 없어요. 트레이너가 매일 볼 것 — 피드백할 식단, 새 회원, 끝나 가는 PT, 식단 목표 없는 회원 — 을 줄 하나에 모았어요.</p>
@@ -392,6 +523,7 @@ td:first-child { white-space: nowrap; font-weight: 500; }
   const notes = document.getElementById('notes');
   let view = 'list', theme = '';
   const st = { q: '', filter: 'all', open: null, mode: 'ok', navDot: false };
+  const np = { goal: 'keep', menu: false, ...recommend('keep') };
 
   function makePhone(html, t) {
     const el = document.createElement('div');
@@ -403,6 +535,8 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     if (v === 'feed') return feedScreen();
     if (v === 'pt') return ptScreen();
     if (v === 'sched') return scheduleScreen();
+    if (v === 'npOld') return npOldScreen();
+    if (v === 'npNew') return npNewScreen(np);
     return membersScreen(st);
   }
   function draw(keepFocus) {
@@ -416,8 +550,27 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     note.textContent = VIEWS.find(x => x.key === view).note;
     notes.innerHTML = NOTES[view];
   }
-  live.addEventListener('input', e => { if (e.target.matches('[data-q]')) { st.q = e.target.value; draw(true); } });
+  live.addEventListener('input', e => {
+    if (e.target.matches('[data-q]')) { st.q = e.target.value; draw(true); return; }
+    if (e.target.matches('[data-num]')) {
+      const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+      np[e.target.dataset.num] = digits;
+      e.target.value = fmt(digits);
+      if (np.goal !== 'self') {
+        np.goal = 'self';
+        live.querySelectorAll('[data-goal]').forEach(b => b.setAttribute('aria-pressed', b.dataset.goal === 'self'));
+        live.querySelector('[data-basis]').textContent = '직접 정한 값이에요. 위에서 고르면 추천값으로 바뀌어요.';
+      }
+    }
+  });
   live.addEventListener('click', e => {
+    const g = e.target.closest('[data-goal],[data-npmenu]');
+    if (g) {
+      if (g.dataset.npmenu !== undefined) { np.menu = !np.menu; return draw(); }
+      np.goal = g.dataset.goal; np.menu = false;
+      if (np.goal !== 'self') Object.assign(np, recommend(np.goal === 'keep' ? 'keep' : np.goal));
+      return draw();
+    }
     const t = e.target.closest('[data-filter],[data-open],[data-close],[data-clear]');
     if (!t) return;
     if (t.dataset.filter) { st.filter = t.dataset.filter; return draw(); }
@@ -426,6 +579,9 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     if (t.dataset.close !== undefined) { live.querySelector('.detail').classList.remove('open'); setTimeout(() => { st.open = null; draw(); }, 300); }
   });
 
+  // 주소 끝 #v=npNew 처럼 화면을 골라 열 수 있다.
+  const fromHash = (location.hash.match(/v=(\w+)/) || [])[1];
+  if (VIEWS.some(x => x.key === fromHash)) { view = fromHash; if (view === 'needs') st.filter = 'needs'; }
   const pick = document.getElementById('pick');
   pick.innerHTML = VIEWS.map(v => `<button type="button" class="vtab" data-v="${v.key}" aria-pressed="${v.key === view}"><small>${v.small}</small><b>${v.title}</b></button>`).join('');
   pick.addEventListener('click', e => {
