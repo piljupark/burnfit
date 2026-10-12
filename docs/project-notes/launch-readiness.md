@@ -67,7 +67,8 @@
 - 휴식 타이머 알림(2026-10-11 추가): 안드로이드 권한 `SCHEDULE_EXACT_ALARM` · `VIBRATE`, 알림 채널 `rest_timer_ongoing` · `rest_timer_warning` · `rest_timer_done`.
   - `SCHEDULE_EXACT_ALARM`은 플레이 신고서가 필요 없다 (`USE_EXACT_ALARM`만 알람·캘린더 앱 전용). 안드로이드 14+는 기본 꺼짐이라 앱이 한 번 허용을 권한다.
   - 아이폰 잠금 화면 · 다이내믹 아일랜드(실시간 현황): 위젯 확장 대상 `RestTimerWidget`(`ios/RestTimerWidget/`, 번들 `com.example.burnfit.RestTimerWidget`, iOS 16.2+)과 `Info.plist`의 `NSSupportsLiveActivities`. 앱 그룹은 쓰지 않는다. 번들 ID를 바꿀 때 확장 ID도 함께 `<앱 ID>.RestTimerWidget`으로 바꾼다. 스토어 심사 때 확장도 같은 팀으로 서명돼야 한다.
-- `onMealCreated` 함수 배포 아직 (`firebase deploy --only functions:onMealCreated --project burnfit-v01`).
+- `onMealCreated`(식단 → 담당 트레이너 알림)는 배포돼 있다 (2026-10-12 `firebase functions:list`로 확인).
+- iOS 푸시는 유료 개발자 계정 + APNs 키를 Firebase에 등록해야 온다. 그 전까지 아이폰 사용자는 앱 안 알림함에만 쌓인다.
 
 ### 기타
 
