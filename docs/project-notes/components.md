@@ -108,6 +108,7 @@
 | `ExerciseNoteLine` · `showExerciseNoteSheet` · `isBodyweightExercise` · `strengthCountLabel` | `workout_parts.dart` | 종목 메모 한 줄(아이콘 14 + 13) · 메모 시트 · 맨몸 운동인지 · '회'/'초' | 3 |
 | `RestTimer` · `RestTimerBar` · `showRestTimerSheet` · `startRestTimer` | `rest_timer.dart` | 앱 전체 휴식 타이머 하나. 남은 시간은 끝나는 시각 기준. 10초 전·끝 알림은 `services/rest_timer_alerts.dart`(`RestTimerAlerts`: 앞이면 바로 진동, 뒤로 가면 기기 알림 예약, 안드로이드 알림 센터 남은 시간, 아이폰 잠금 화면 · 다이내믹 아일랜드는 채널 `refit/rest_activity` → `ios/Runner/RestTimerActivityPlugin.swift` → 위젯 `ios/RestTimerWidget/`) | 2 |
 | `MealFeedList` · `MealFeedCard` | `meal_feed.dart` | 트레이너 식단 피드 (식단 탭 · 회원 상세 식단 탭). 칼로리는 보이지 않는다 | 2 |
+| `TrainerMemberRow` · `openTrainerMemberDetail` | `screens/trainer/trainer_members_screen.dart` | 트레이너 회원 탭의 회원 줄 · 회원 상세 열기(식단 피드 · PT 기록 · 일정이 함께 씀). 요약은 `services/trainer_members_service.dart`(`TrainerMemberSummary` · `TrainerMemberFilter`) | 4 |
 | `NutritionPlanCard` | `nutrition_plan_card.dart` | 식단 목표 카드 (회원 식단 화면 맨 위 · 트레이너 회원 상세 식단 탭 맨 위, `onEdit`이면 '고치기'/'정하기'). 자료는 `models/nutrition_plan.dart` · `services/nutrition_plan_service.dart` (`nutrition_plans/{memberId}`) | 2 |
 
 ## 로그인 · 그림 · 움직임

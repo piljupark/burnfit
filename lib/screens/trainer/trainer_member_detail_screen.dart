@@ -46,13 +46,23 @@ import 'nutrition_plan_screen.dart';
 import 'trainer_inbody_sheet.dart';
 import 'trainer_member_tabs.dart';
 
+/// 회원 상세의 탭 (순서는 화면의 탭 순서와 같다).
+enum TrainerMemberDetailTab { workout, meal, cardio, info }
+
 /// 트레이너 회원 상세 (기준 시안 TrainerMember):
 /// 뒤로·더보기 머리(56) → 26 이름 + 14 요약 → 2칸 카드(주황 PT 남은 횟수 / 회색 최근 체중)
 /// → 38 pill 탭 '운동 · 식단 · 유산소 · 정보' → 탭 내용 → 아래 고정 '인바디 입력' · '피드백 쓰기'.
 class TrainerMemberDetailScreen extends StatefulWidget {
   final AppUser member;
 
-  const TrainerMemberDetailScreen({super.key, required this.member});
+  /// 처음 열 탭 (회원 탭에서 피드백할 식단이 있는 회원은 식단 탭으로 연다)
+  final TrainerMemberDetailTab initialTab;
+
+  const TrainerMemberDetailScreen({
+    super.key,
+    required this.member,
+    this.initialTab = TrainerMemberDetailTab.workout,
+  });
 
   @override
   State<TrainerMemberDetailScreen> createState() =>
@@ -100,13 +110,20 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      initialIndex: widget.initialTab.index,
+    );
     _tabController.addListener(_onTabChanged);
     _loadPtInfo();
     _loadPlan();
     _loadBody();
     _loadWorkouts();
     _loadInbodies();
+    // 식단 · 유산소 탭으로 바로 열면 그 목록도 처음부터 읽는다 (보통은 탭을 열 때 읽는다).
+    if (widget.initialTab == TrainerMemberDetailTab.meal) _loadMeals();
+    if (widget.initialTab == TrainerMemberDetailTab.cardio) _loadCardios();
   }
 
   @override

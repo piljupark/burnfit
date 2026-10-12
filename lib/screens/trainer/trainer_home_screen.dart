@@ -17,6 +17,7 @@ import '../../widgets/password_reset_sheet.dart';
 import '../../widgets/delete_account_sheet.dart';
 import 'trainer_calendar_screen.dart';
 import 'trainer_meal_feed_screen.dart';
+import 'trainer_members_screen.dart';
 import 'trainer_schedule_screen.dart';
 import '../common/notice_list_screen.dart';
 import '../common/notice_menu_row.dart';
@@ -32,10 +33,12 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
   int _currentIndex = 0;
   final _calendarKey = GlobalKey<TrainerCalendarScreenState>();
   final _scheduleKey = GlobalKey<TrainerScheduleScreenState>();
+  final _membersKey = GlobalKey<TrainerMembersScreenState>();
   final _mealKey = GlobalKey<TrainerMealFeedScreenState>();
 
   static const _scheduleTab = 1;
-  static const _mealTab = 2;
+  static const _membersTab = 2;
+  static const _mealTab = 3;
 
   /// 피드백할 회원 식단 수 (식단 탭 아이콘 점).
   int _pendingMeals = 0;
@@ -46,6 +49,11 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
       label: '일정',
       icon: AppIcons.calendar,
       activeIcon: AppIcons.calendarFill,
+    ),
+    AppNavItem(
+      label: '회원',
+      icon: AppIcons.members,
+      activeIcon: AppIcons.membersFill,
     ),
     AppNavItem(label: '식단', icon: AppIcons.meal, activeIcon: AppIcons.mealFill),
     AppNavItem(
@@ -63,6 +71,7 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
     _pages = [
       TrainerCalendarScreen(key: _calendarKey),
       TrainerScheduleScreen(key: _scheduleKey),
+      TrainerMembersScreen(key: _membersKey),
       TrainerMealFeedScreen(
         key: _mealKey,
         onPendingChanged: (count) {
@@ -133,6 +142,7 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
                 if (i != _currentIndex) {
                   if (i == 0) _calendarKey.currentState?.refresh();
                   if (i == _scheduleTab) _scheduleKey.currentState?.refresh();
+                  if (i == _membersTab) _membersKey.currentState?.refresh();
                   if (i == _mealTab) _mealKey.currentState?.refresh();
                 }
                 setState(() => _currentIndex = i);

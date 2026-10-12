@@ -33,6 +33,7 @@ import '../../widgets/calendar_marks.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_loader.dart';
 import 'trainer_pt_workout_screen.dart';
+import 'trainer_members_screen.dart';
 
 /// 트레이너 일정 탭 (기준 시안 TrainerSchedule, 상세 Tr-Schedule·Tr-Schedule-Empty).
 /// '일정' 제목 + '‹ 10월 2주 ›' → 주간 7칸 → 시간 타임라인(현재 시각 선) → 회원 운동 기록,
@@ -211,6 +212,16 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
               gap: AppSpacing.md,
             ),
             AppSheetAction(
+              icon: AppIcons.profile,
+              label: '회원 정보',
+              chevron: true,
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _openMember(session);
+              },
+            ),
+            const AppRowDivider(),
+            AppSheetAction(
               icon: AppIcons.edit,
               label: '예약 수정',
               chevron: true,
@@ -233,6 +244,16 @@ class TrainerScheduleScreenState extends State<TrainerScheduleScreen> {
         ),
       ),
     );
+  }
+
+  /// 회원 상세 (지금 담당 회원이 아니면 안내만).
+  void _openMember(PtSession session) {
+    final member = _members.where((m) => m.uid == session.memberId).firstOrNull;
+    if (member == null) {
+      AppFeedback.showWarning(context, '지금 담당 회원이 아니어서 열 수 없습니다.');
+      return;
+    }
+    openTrainerMemberDetail(context, member);
   }
 
   Future<void> _createSession() async {

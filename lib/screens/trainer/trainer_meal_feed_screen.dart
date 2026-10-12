@@ -18,6 +18,8 @@ import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/meal_feed.dart';
 import '../../widgets/notification_bell_button.dart';
+import 'trainer_member_detail_screen.dart';
+import 'trainer_members_screen.dart';
 
 /// 트레이너 '식단' 탭: 담당 회원들의 식단을 최신순 피드로 보고 카드 아래에서 바로 피드백한다.
 ///
@@ -320,6 +322,15 @@ class TrainerMealFeedScreenState extends State<TrainerMealFeedScreen> {
       freshMealIds: fresh,
       onSend: _send,
       onRefresh: refresh,
+      // 회원 이름 → 회원 상세 (식단 탭으로 연다). 돌아오면 피드백 표시를 맞춘다.
+      onMemberTap: (item) async {
+        await openTrainerMemberDetail(
+          context,
+          item.member,
+          tab: TrainerMemberDetailTab.meal,
+        );
+        if (mounted) refresh();
+      },
       footer: footer,
       padding: EdgeInsets.only(bottom: bottomPad),
     );

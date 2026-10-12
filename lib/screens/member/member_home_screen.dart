@@ -111,9 +111,9 @@ class _MemberHomeScreenState extends State<MemberHomeScreen> {
       // 회원: 트레이너가 식단 목표를 정하거나 바꿨을 때 → 식단 화면
       case NotificationTarget.meals:
         Navigator.of(context).popUntil((route) => route.isFirst);
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const MemberMealLogScreen()),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const MemberMealLogScreen()));
       case null:
         break;
     }

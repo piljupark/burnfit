@@ -29,6 +29,9 @@ class MealFeedList extends StatelessWidget {
   /// 피드백 보내기. 성공하면 true (카드가 입력을 비운다).
   final Future<bool> Function(MealFeedItem item, String content) onSend;
   final Future<void> Function() onRefresh;
+
+  /// 카드의 회원 이름을 누르면 (회원 상세). [showMember]일 때만 쓴다.
+  final void Function(MealFeedItem item)? onMemberTap;
   final Widget? footer;
   final Widget? header;
   final EdgeInsetsGeometry padding;
@@ -41,6 +44,7 @@ class MealFeedList extends StatelessWidget {
     required this.onRefresh,
     this.freshMealIds = const {},
     this.showMember = true,
+    this.onMemberTap,
     this.footer,
     this.header,
     this.padding = const EdgeInsets.only(bottom: AppSpacing.xl2),
@@ -90,6 +94,7 @@ class MealFeedList extends StatelessWidget {
           trainerId: trainerId,
           isNew: freshMealIds.contains(item.meal.id),
           showMember: showMember,
+          onMemberTap: onMemberTap == null ? null : () => onMemberTap!(item),
           onSend: (content) => onSend(item, content),
         ),
       );
@@ -118,6 +123,9 @@ class MealFeedCard extends StatefulWidget {
   final bool showMember;
   final Future<bool> Function(String content) onSend;
 
+  /// 회원 이름을 누르면 (회원 상세)
+  final VoidCallback? onMemberTap;
+
   const MealFeedCard({
     super.key,
     required this.item,
@@ -125,6 +133,7 @@ class MealFeedCard extends StatefulWidget {
     required this.onSend,
     this.isNew = false,
     this.showMember = true,
+    this.onMemberTap,
   });
 
   /// 비어 있는 카드에서 한 번에 채우는 말.
@@ -210,12 +219,28 @@ class _MealFeedCardState extends State<MealFeedCard> {
                       Row(
                         children: [
                           Flexible(
-                            child: Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.listTitle,
-                            ),
+                            child:
+                                widget.showMember && widget.onMemberTap != null
+                                ? Semantics(
+                                    button: true,
+                                    hint: '회원 상세 보기',
+                                    child: GestureDetector(
+                                      onTap: widget.onMemberTap,
+                                      behavior: HitTestBehavior.opaque,
+                                      child: Text(
+                                        title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTextStyles.listTitle,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTextStyles.listTitle,
+                                  ),
                           ),
                           if (widget.isNew) ...[
                             const Gap(6),

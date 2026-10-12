@@ -34,6 +34,7 @@ import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
 import '../../widgets/workout_parts.dart';
 import 'trainer_exercise_input.dart';
+import 'trainer_members_screen.dart';
 import 'trainer_pt_done_screen.dart';
 import 'trainer_saved_card.dart';
 import 'trainer_workout_models.dart';
@@ -922,6 +923,8 @@ class _TrainerPtWorkoutScreenState extends State<TrainerPtWorkoutScreen> {
           name: widget.member.name,
           subtitle: subtitle,
           editing: editing,
+          // 회원 상세를 위에 연다 (저장 안 한 기록은 이 화면에 그대로 남는다).
+          onTap: () => openTrainerMemberDetail(context, widget.member),
         ),
         if (_restoreFailedSessionId != null)
           AppErrorCard(
@@ -1108,56 +1111,77 @@ class _MemberRow extends StatelessWidget {
   final String name;
   final String subtitle;
   final bool editing;
+  final VoidCallback onTap;
 
   const _MemberRow({
     required this.name,
     required this.subtitle,
     required this.editing,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.sm,
-        AppSpacing.screenH,
-        0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.title.natural,
+    return Semantics(
+      button: true,
+      hint: '회원 상세 보기',
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: AppColors.canvasSoft,
+        splashFactory: NoSplash.splashFactory,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.sm,
+            AppSpacing.screenH,
+            AppSpacing.xs,
           ),
-          const SizedBox(height: 2),
-          Row(
+          child: Row(
             children: [
-              Flexible(
-                child: Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.fieldLabel.natural,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.title.natural,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.fieldLabel.natural,
+                          ),
+                        ),
+                        if (editing) ...[
+                          Text(' · ', style: AppTextStyles.fieldLabel.natural),
+                          AppBlink(
+                            child: Text(
+                              '수정 중',
+                              style: AppTextStyles.fieldLabel.natural.medium
+                                  .copyWith(color: AppColors.noticeText),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              if (editing) ...[
-                Text(' · ', style: AppTextStyles.fieldLabel.natural),
-                AppBlink(
-                  child: Text(
-                    '수정 중',
-                    style: AppTextStyles.fieldLabel.natural.medium.copyWith(
-                      color: AppColors.noticeText,
-                    ),
-                  ),
-                ),
-              ],
+              Icon(
+                AppIcons.chevronRightBold,
+                size: 18,
+                color: AppColors.chevron,
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
