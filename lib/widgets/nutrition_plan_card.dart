@@ -11,7 +11,7 @@ import '../models/nutrition_plan.dart';
 /// 식단 목표 카드 (회원 식단 화면 맨 위 · 트레이너 회원 상세 식단 탭 맨 위).
 ///
 /// 회색 카드(반경 20, 좌우 20 바깥 여백): 머리('식단 목표' 15/700 + '○○ 트레이너 · 10월 12일' 13 mute,
-/// [onEdit]이면 오른쪽 '고치기') → 4칸(칼로리 · 탄수 · 단백질 · 지방, 빈 값은 '–') →
+/// [onEdit]이면 오른쪽 '고치기') → 칼로리 한 줄 + 탄수 · 단백질 · 지방 3칸 →
 /// 트레이너 한마디(흰 상자) → 끼니별 가이드 줄(끼니 52 + 글).
 /// 목표가 없으면 [emptyMessage] 한 줄 (+ [onEdit]이면 '식단 목표 정하기').
 class NutritionPlanCard extends StatelessWidget {
@@ -194,71 +194,131 @@ class NutritionPlanCard extends StatelessWidget {
   }
 }
 
-/// 4칸: 칼로리 · 탄수 · 단백질 · 지방 (값 20/700 + 단위 13 mute, 이름 12 mute).
+/// 숫자: 칼로리는 한 줄(흰 상자 52 · '하루 칼로리' 14 body … 22/700 + 'kcal'),
+/// 탄수 · 단백질 · 지방은 3칸(이름 12 mute · 20/700 + 'g'). 트레이너 입력 화면과 같은 짜임.
+/// 4칸을 한 줄에 두면 작은 화면 · 큰 글씨에서 긴 칼로리 값만 줄어들어 이렇게 나눴다.
+/// 값이 없는 줄(칼로리 없음 / 탄단지 모두 없음)은 두지 않고, 3칸 중 빈 칸은 '–'.
 class _Numbers extends StatelessWidget {
   final NutritionPlan plan;
 
   const _Numbers({required this.plan});
 
+  static final _number = NumberFormat('#,##0');
+
   @override
   Widget build(BuildContext context) {
-    final number = NumberFormat('#,##0');
-    final cells = [
-      ('칼로리', plan.calories, 'kcal'),
-      ('탄수화물', plan.carbs, 'g'),
-      ('단백질', plan.protein, 'g'),
-      ('지방', plan.fat, 'g'),
+    final macros = [
+      ('탄수화물', plan.carbs),
+      ('단백질', plan.protein),
+      ('지방', plan.fat),
     ];
-    return Row(
+    final hasMacros = macros.any((m) => m.$2 != null);
+    final unitStyle = AppTextStyles.bodySm.copyWith(
+      fontWeight: FontWeight.w400,
+    );
+    final numberStyle = AppTextStyles.section.bold.copyWith(
+      fontSize: 20,
+      height: 26 / 20,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var i = 0; i < cells.length; i++) ...[
-          if (i > 0) const SizedBox(width: 6),
-          Expanded(
-            child: Semantics(
-              label: cells[i].$2 == null
-                  ? '${cells[i].$1} 정하지 않음'
-                  : '${cells[i].$1} ${cells[i].$2}${cells[i].$3 == 'g' ? '그램' : '킬로칼로리'}',
-              excludeSemantics: true,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(AppRadius.iconBox),
-                ),
-                child: Column(
-                  children: [
-                    Text(cells[i].$1, style: AppTextStyles.captionSmall),
-                    const SizedBox(height: 2),
-                    FittedBox(
+        if (plan.calories != null)
+          Semantics(
+            label: '하루 칼로리 ${plan.calories}킬로칼로리',
+            excludeSemantics: true,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 52),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.canvas,
+                borderRadius: BorderRadius.circular(AppRadius.iconBox),
+              ),
+              child: Row(
+                children: [
+                  Text('하루 칼로리', style: AppTextStyles.bodySmall),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: FittedBox(
                       fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
                       child: Text.rich(
                         TextSpan(
                           children: [
-                            TextSpan(
-                              text: cells[i].$2 == null
-                                  ? '–'
-                                  : number.format(cells[i].$2),
-                            ),
-                            if (cells[i].$2 != null)
-                              TextSpan(
-                                text: cells[i].$3,
-                                style: AppTextStyles.bodySm.copyWith(
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
+                            TextSpan(text: _number.format(plan.calories)),
+                            TextSpan(text: ' kcal', style: unitStyle),
                           ],
                         ),
-                        style: AppTextStyles.section.bold.copyWith(
-                          fontFeatures: const [FontFeature.tabularFigures()],
+                        style: numberStyle.copyWith(
+                          fontSize: 22,
+                          height: 28 / 22,
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        if (plan.calories != null && hasMacros) const SizedBox(height: 6),
+        if (hasMacros)
+          Row(
+            children: [
+              for (var i = 0; i < macros.length; i++) ...[
+                if (i > 0) const SizedBox(width: 6),
+                Expanded(
+                  child: Semantics(
+                    label: macros[i].$2 == null
+                        ? '${macros[i].$1} 정하지 않음'
+                        : '${macros[i].$1} ${macros[i].$2}그램',
+                    excludeSemantics: true,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.canvas,
+                        borderRadius: BorderRadius.circular(AppRadius.iconBox),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            macros[i].$1,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.captionSmall,
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: macros[i].$2 == null
+                                        ? '–'
+                                        : _number.format(macros[i].$2),
+                                  ),
+                                  if (macros[i].$2 != null)
+                                    TextSpan(text: ' g', style: unitStyle),
+                                ],
+                              ),
+                              style: numberStyle,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
       ],
     );
   }
