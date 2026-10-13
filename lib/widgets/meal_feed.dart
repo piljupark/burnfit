@@ -32,6 +32,12 @@ class MealFeedList extends StatelessWidget {
 
   /// 카드의 회원 이름을 누르면 (회원 상세). [showMember]일 때만 쓴다.
   final void Function(MealFeedItem item)? onMemberTap;
+
+  /// 그 끼니의 식단 목표 가이드 (사진 아래 한 줄). 없으면 null.
+  final String? Function(MealFeedItem item)? guideFor;
+
+  /// 회원에게 식단 목표가 있으면 true → 자주 쓰는 말을 목표 기준으로.
+  final bool Function(MealFeedItem item)? hasPlanFor;
   final Widget? footer;
   final Widget? header;
   final EdgeInsetsGeometry padding;
@@ -45,6 +51,8 @@ class MealFeedList extends StatelessWidget {
     this.freshMealIds = const {},
     this.showMember = true,
     this.onMemberTap,
+    this.guideFor,
+    this.hasPlanFor,
     this.footer,
     this.header,
     this.padding = const EdgeInsets.only(bottom: AppSpacing.xl2),
@@ -95,6 +103,10 @@ class MealFeedList extends StatelessWidget {
           isNew: freshMealIds.contains(item.meal.id),
           showMember: showMember,
           onMemberTap: onMemberTap == null ? null : () => onMemberTap!(item),
+          guide: guideFor?.call(item),
+          quickPhrases: hasPlanFor?.call(item) == true
+              ? MealFeedCard.goalPhrases
+              : MealFeedCard.basicPhrases,
           onSend: (content) => onSend(item, content),
         ),
       );
@@ -126,6 +138,12 @@ class MealFeedCard extends StatefulWidget {
   /// 회원 이름을 누르면 (회원 상세)
   final VoidCallback? onMemberTap;
 
+  /// 그 끼니의 식단 목표 가이드 — 사진 아래 회색 한 줄 ('점심 가이드  단백질 손바닥 1개 + …').
+  final String? guide;
+
+  /// 아직 내 피드백이 없을 때 한 번에 채우는 말.
+  final List<String> quickPhrases;
+
   const MealFeedCard({
     super.key,
     required this.item,
@@ -134,10 +152,20 @@ class MealFeedCard extends StatefulWidget {
     this.isNew = false,
     this.showMember = true,
     this.onMemberTap,
+    this.guide,
+    this.quickPhrases = basicPhrases,
   });
 
-  /// 비어 있는 카드에서 한 번에 채우는 말.
-  static const quickPhrases = ['단백질 좋아요', '채소를 조금 더', '양 적당해요'];
+  /// 자주 쓰는 말 — 식단 목표가 없는 회원.
+  static const basicPhrases = ['단백질 좋아요', '채소를 조금 더', '양 적당해요'];
+
+  /// 자주 쓰는 말 — 식단 목표가 있는 회원 (칼로리 대신 목표에 맞게 먹었는지로).
+  static const goalPhrases = [
+    '가이드대로 잘 드셨어요',
+    '단백질을 조금 더',
+    '탄수화물이 많아요',
+    '양 적당해요',
+  ];
 
   @override
   State<MealFeedCard> createState() => _MealFeedCardState();
@@ -278,6 +306,38 @@ class _MealFeedCardState extends State<MealFeedCard> {
             const Gap(AppSpacing.sm),
             _MealPhotos(urls: meal.imageUrls),
           ],
+          // 그 끼니의 식단 목표 가이드
+          if ((widget.guide ?? '').trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                10,
+                AppSpacing.screenH,
+                0,
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.canvasCard,
+                  borderRadius: BorderRadius.circular(AppRadius.iconBox),
+                ),
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '${meal.mealType.label} 가이드  ',
+                        style: TextStyle(color: AppColors.mute),
+                      ),
+                      TextSpan(text: widget.guide!.trim()),
+                    ],
+                  ),
+                  style: AppTextStyles.caption,
+                ),
+              ),
+            ),
           // 메모 (칼로리는 보이지 않는다 — 예전 기록의 값은 저장만 돼 있다)
           if (memo.isNotEmpty)
             Padding(
@@ -323,7 +383,7 @@ class _MealFeedCardState extends State<MealFeedCard> {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (final phrase in MealFeedCard.quickPhrases)
+                  for (final phrase in widget.quickPhrases)
                     _QuickChip(label: phrase, onTap: () => _quick(phrase)),
                 ],
               ),

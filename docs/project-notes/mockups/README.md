@@ -11,6 +11,6 @@
 | `05-pt-remaining-card.html` | PT 남은 횟수 표시 정리 | A안 — 자세한 카드는 PT 탭에만, 마이는 'PT 이용권 · N회 남음' 한 줄 | `member_pt_schedule_screen.dart`, `member_profile_screen.dart` |
 | `06-app-icon.html` | 앱 아이콘 시안 (별자리 계열 + 다른 방향 16가지) | '기울인 아령', 앱 이름 REFIT, 스플래시 마크 없음 | `assets/icon/` |
 | `07-app-icon-dot-color.html` | 아이콘 안쪽 점 색 | 세 번째 — 안쪽 점 진한 주황 | `assets/icon/icon.png` |
-| `08-trainer-members-tab.html` | 트레이너 '회원' 탭 (아래 탭 홈 · 일정 · 회원 · 식단 · 마이) + 회원 이름을 눌러 회원 상세로 가는 길 (식단 피드 · PT 기록 · 일정 ⋯) + 식단 목표 화면 지금 · 정리안 비교 + 식단 탭에 목표 잇기(지금 · 정리안, 2026-10-13 검토 중). 주소 끝 `#v=npNew`처럼 화면을 골라 열 수 있다 | 그대로 — 탭 점 없음 · 알약 4개 · 피드백할 식단이 있으면 식단 탭으로 열기. 식단 목표는 정리안 (반경은 토큰 18) | `trainer_members_screen.dart`, `trainer_home_screen.dart`, `nutrition_plan_screen.dart` |
+| `08-trainer-members-tab.html` | 트레이너 '회원' 탭 (아래 탭 홈 · 일정 · 회원 · 식단 · 마이) + 회원 이름을 눌러 회원 상세로 가는 길 (식단 피드 · PT 기록 · 일정 ⋯) + 식단 목표 화면 지금 · 정리안 비교 + 식단 탭에 목표 잇기(지금 · 정리안, 회원별 5가지 경우 — 2026-10-13 반영, `trainer_meal_feed_screen.dart` · `NutritionGoalStrip`). 주소 끝 `#v=npNew`처럼 화면을 골라 열 수 있다 | 그대로 — 탭 점 없음 · 알약 4개 · 피드백할 식단이 있으면 식단 탭으로 열기. 식단 목표는 정리안 (반경은 토큰 18) | `trainer_members_screen.dart`, `trainer_home_screen.dart`, `nutrition_plan_screen.dart` |
 
 `img/motif.png`는 아이콘 모티브로 삼은 sharing-gallery 앱 아이콘이다.

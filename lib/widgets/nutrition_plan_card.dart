@@ -323,3 +323,176 @@ class _Numbers extends StatelessWidget {
     );
   }
 }
+
+/// 식단 탭의 목표 줄 (회원 알약을 골랐을 때 피드 맨 위, 시안 08 '목표 잇기').
+///
+/// 회색 상자(반경 18, 안쪽 12 14): 첫째 줄 = '하루 2,450kcal' 15/700, 칼로리가 없으면 작은 머리
+/// '하루 목표' / '끼니 가이드' 14/500 + 오른쪽 '고치기 ›' → 탄단지(정한 것만, 늘 따로 한 줄 14/500)
+/// → 끼니 가이드 줄(끼니 700 + 글 13 body). 정하지 않은 값은 '–'도 없이 뺀다.
+/// 목표가 없으면 '식단 목표가 없어요' + 검정 '정하기'.
+/// 누구 목표인지는 바로 위에서 고른 회원 알약이 보여 주므로 이름은 넣지 않는다.
+class NutritionGoalStrip extends StatelessWidget {
+  final NutritionPlan? plan;
+  final VoidCallback onEdit;
+
+  const NutritionGoalStrip({
+    super.key,
+    required this.plan,
+    required this.onEdit,
+  });
+
+  static final _number = NumberFormat('#,##0');
+
+  static const _mealOrder = [
+    MealType.breakfast,
+    MealType.lunch,
+    MealType.snack,
+    MealType.dinner,
+  ];
+
+  /// 탄단지 한 줄 조각들 ('탄수화물 325g'). 정한 것만.
+  static List<String> macroParts(NutritionPlan plan) => [
+    if (plan.carbs != null) '탄수화물 ${_number.format(plan.carbs)}g',
+    if (plan.protein != null) '단백질 ${_number.format(plan.protein)}g',
+    if (plan.fat != null) '지방 ${_number.format(plan.fat)}g',
+  ];
+
+  /// 첫째 줄 글자와 굵게 쓸지.
+  static (String, bool) headline(NutritionPlan plan) {
+    if (plan.calories != null) {
+      return ('하루 ${_number.format(plan.calories)}kcal', true);
+    }
+    return (macroParts(plan).isNotEmpty ? '하루 목표' : '끼니 가이드', false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = this.plan;
+    final box = BoxDecoration(
+      color: AppColors.canvasCard,
+      borderRadius: BorderRadius.circular(AppRadius.button),
+    );
+    if (plan == null) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+        decoration: box,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '식단 목표가 없어요',
+                style: AppTextStyles.note.copyWith(color: AppColors.body),
+              ),
+            ),
+            Material(
+              color: AppColors.ink,
+              shape: const StadiumBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onEdit,
+                child: Container(
+                  height: 34,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Text(
+                    '정하기',
+                    style: AppTextStyles.bodySm.bold.copyWith(
+                      color: AppColors.canvas,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final (title, strong) = headline(plan);
+    final macros = macroParts(plan);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 12),
+      decoration: box,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: strong
+                      ? AppTextStyles.bodyMd.bold
+                      : AppTextStyles.bodySmall.medium.copyWith(
+                          color: AppColors.ink,
+                        ),
+                ),
+              ),
+              Semantics(
+                button: true,
+                label: '식단 목표 고치기',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: onEdit,
+                  behavior: HitTestBehavior.opaque,
+                  child: SizedBox(
+                    height: 32,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '고치기',
+                          style: AppTextStyles.bodySmall.medium.copyWith(
+                            color: AppColors.body,
+                          ),
+                        ),
+                        Icon(
+                          AppIcons.chevronRightBold,
+                          size: 16,
+                          color: AppColors.chevron,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (macros.isNotEmpty)
+            // 한 항목('지방 60g')은 쪼개지 않고, 넘치면 항목 사이에서 다음 줄로.
+            Wrap(
+              children: [
+                for (var i = 0; i < macros.length; i++)
+                  Text(
+                    i == 0 ? macros[i] : ' · ${macros[i]}',
+                    style: AppTextStyles.bodySmall.medium.copyWith(
+                      color: AppColors.ink,
+                    ),
+                  ),
+              ],
+            ),
+          for (final type in _mealOrder)
+            if (plan.mealGuides[type] != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '${type.label}  ',
+                        style: TextStyle(
+                          color: AppColors.ink,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      TextSpan(text: plan.mealGuides[type]),
+                    ],
+                  ),
+                  style: AppTextStyles.caption,
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}

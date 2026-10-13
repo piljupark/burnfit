@@ -6,11 +6,15 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
+import '../../core/app_logger.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../models/inbody.dart';
 import '../../models/meal.dart';
 import '../../models/nutrition_plan.dart';
 import '../../models/user.dart';
+import '../../services/body_profile_service.dart';
+import '../../services/firestore_service.dart';
 import '../../services/nutrition_plan_service.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_button.dart';
@@ -673,4 +677,49 @@ class _PlainField extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 식단 목표 화면을 연다 (식단 탭 목표 줄처럼 인바디 · 신체 정보를 아직 안 읽은 곳에서).
+/// 추천 재료(최근 인바디 기초대사량 · 체중, 없으면 신체 정보 체중)를 읽은 뒤 연다.
+/// 읽지 못해도 추천 없이 연다. 저장하거나 지웠으면 true.
+Future<bool> openNutritionPlanEditor(
+  BuildContext context, {
+  required AppUser member,
+  required AppUser trainer,
+  required NutritionPlan? existing,
+}) async {
+  double? bmr;
+  double? weight;
+  try {
+    final results = await Future.wait<Object?>([
+      FirestoreService.getInbodiesByMember(
+        member.uid,
+        centerId: member.centerId,
+        limit: 5,
+      ),
+      BodyProfileService.loadForTrainer(member),
+    ]);
+    final inbodies = results[0] as List<Inbody>;
+    final body = results[1] as UserProfile?;
+    bmr = inbodies
+        .where((i) => i.bmr != null && i.bmr! > 0)
+        .map((i) => i.bmr!)
+        .firstOrNull;
+    weight = inbodies.isNotEmpty ? inbodies.first.weight : body?.weight;
+  } catch (e) {
+    AppLogger.debug('[NutritionPlan] 추천 재료 읽기 실패: $e');
+  }
+  if (!context.mounted) return false;
+  final saved = await Navigator.of(context).push<bool>(
+    MaterialPageRoute(
+      builder: (_) => NutritionPlanScreen(
+        member: member,
+        trainer: trainer,
+        existing: existing,
+        bmr: bmr,
+        weight: weight,
+      ),
+    ),
+  );
+  return saved == true;
 }

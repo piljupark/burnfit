@@ -5,11 +5,14 @@ import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
+import '../../core/app_logger.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../models/nutrition_plan.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
 import '../../services/meal_feed_service.dart';
+import '../../services/nutrition_plan_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_hero.dart';
@@ -17,7 +20,9 @@ import '../../widgets/app_loader.dart';
 import '../../widgets/app_nav_bar.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/meal_feed.dart';
+import '../../widgets/nutrition_plan_card.dart';
 import '../../widgets/notification_bell_button.dart';
+import 'nutrition_plan_screen.dart';
 import 'trainer_member_detail_screen.dart';
 import 'trainer_members_screen.dart';
 
@@ -43,6 +48,9 @@ class TrainerMealFeedScreenState extends State<TrainerMealFeedScreen> {
 
   /// 고른 회원 (null이면 전체).
   String? _memberId;
+
+  /// 회원별 식단 목표 (목표 없음 = null 값). 읽지 못한 회원은 키가 없다 → 목표 줄 · 가이드를 띄우지 않는다.
+  Map<String, NutritionPlan?> _plans = {};
 
   bool _loading = true;
   bool _loadingMore = false;
@@ -89,12 +97,68 @@ class TrainerMealFeedScreenState extends State<TrainerMealFeedScreen> {
         }
       });
       _notifyPending();
+      _loadPlans(members);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = AppFeedback.errorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// 담당 회원들의 식단 목표 (목표 줄 · 카드 끼니 가이드 · 자주 쓰는 말). 보조 정보라 실패해도 피드는 그대로.
+  Future<void> _loadPlans(List<AppUser> members) async {
+    final entries = await Future.wait(
+      members.map((m) async {
+        try {
+          return MapEntry(m.uid, await NutritionPlanService.get(m.uid));
+        } catch (e) {
+          AppLogger.debug('[MealFeed] ${m.uid} 식단 목표 읽기 실패: $e');
+          return null;
+        }
+      }),
+    );
+    if (!mounted) return;
+    setState(() => _plans = Map.fromEntries(entries.whereType()));
+  }
+
+  /// 목표 줄의 '고치기' · '정하기' → 식단 목표 화면. 저장하면 그 회원 목표를 다시 읽는다.
+  Future<void> _editPlan(AppUser member) async {
+    final trainer = _trainer;
+    if (trainer == null) return;
+    final saved = await openNutritionPlanEditor(
+      context,
+      member: member,
+      trainer: trainer,
+      existing: _plans[member.uid],
+    );
+    if (!saved || !mounted) return;
+    try {
+      final plan = await NutritionPlanService.get(member.uid);
+      if (mounted) setState(() => _plans = {..._plans, member.uid: plan});
+    } catch (e) {
+      AppLogger.debug('[MealFeed] 식단 목표 다시 읽기 실패: $e');
+    }
+  }
+
+  /// 회원 알약을 골랐을 때 피드 맨 위 목표 줄 (전체 · 목표를 못 읽은 회원은 없음).
+  Widget? _goalStrip() {
+    final id = _memberId;
+    if (id == null || !_plans.containsKey(id)) return null;
+    final member = _members.where((m) => m.uid == id).firstOrNull;
+    if (member == null) return null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenH,
+        AppSpacing.sm,
+        AppSpacing.screenH,
+        AppSpacing.xs,
+      ),
+      child: NutritionGoalStrip(
+        plan: _plans[id],
+        onEdit: () => _editPlan(member),
+      ),
+    );
   }
 
   Future<void> _loadMore() async {
@@ -297,6 +361,7 @@ class TrainerMealFeedScreenState extends State<TrainerMealFeedScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.only(bottom: bottomPad),
           children: [
+            ?_goalStrip(),
             const Gap(AppSpacing.xl3),
             Icon(AppIcons.meal, size: 48, color: AppColors.faint),
             const Gap(AppSpacing.md),
@@ -322,6 +387,10 @@ class TrainerMealFeedScreenState extends State<TrainerMealFeedScreen> {
       freshMealIds: fresh,
       onSend: _send,
       onRefresh: refresh,
+      header: _goalStrip(),
+      guideFor: (item) =>
+          _plans[item.member.uid]?.mealGuides[item.meal.mealType],
+      hasPlanFor: (item) => _plans[item.member.uid] != null,
       // 회원 이름 → 회원 상세 (식단 탭으로 연다). 돌아오면 피드백 표시를 맞춘다.
       onMemberTap: (item) async {
         await openTrainerMemberDetail(
