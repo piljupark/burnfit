@@ -858,6 +858,38 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // 센터 명단 한 줄: 문서 이름 = 번호 숫자만 (같은 번호는 덮어쓴다).
+    // 담당 트레이너는 관리자 메모일 뿐이다 — 실제 배정은 승인 때 담당 배정 규칙이 다시 확인한다.
+    function hasValidRosterRow(centerId, rowId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'centerId', 'role', 'name', 'phone', 'trainerId', 'trainerName',
+          'ptTotal', 'ptStart', 'ptEnd', 'updatedAt'
+        ]) &&
+        d.centerId == centerId &&
+        d.role in ['member', 'trainer'] &&
+        d.name is string && d.name.size() >= 2 && d.name.size() <= 30 &&
+        d.phone is string &&
+        d.phone.matches('^01[016789]-[0-9]{3,4}-[0-9]{4}$') &&
+        d.phone.replace('-', '') == rowId &&
+        d.updatedAt == request.time &&
+        (d.get('trainerId', null) == null || (d.role == 'member' && d.trainerId is string)) &&
+        (d.get('trainerName', null) == null ||
+          (d.trainerName is string && d.trainerName.size() <= 30)) &&
+        (d.get('ptTotal', null) == null ||
+          (d.role == 'member' && d.ptTotal is int && d.ptTotal >= 1 && d.ptTotal <= 500)) &&
+        (d.get('ptStart', null) == null || d.ptStart is timestamp) &&
+        (d.get('ptEnd', null) == null || d.ptEnd is timestamp) &&
+        (d.get('ptStart', null) == null || d.get('ptEnd', null) == null || d.ptEnd >= d.ptStart);
+    }
+
+    // 센터 명단 (엑셀로 올린, 아직 가입하지 않은 사람 — 이름 · 휴대폰 · 담당 · PT).
+    // 그 센터 관리자만 읽고 쓴다. 트레이너 · 회원은 읽을 수 없다.
+    match /centers/{centerId}/roster/{rowId} {
+      allow read, delete: if isCenterAdmin(centerId);
+      allow create, update: if isCenterAdmin(centerId) && hasValidRosterRow(centerId, rowId);
+    }
+
     // 탈퇴 회원의 PT 계약·이용 내역 (회원을 알 수 없게 바꾼 사본, 3년 보관 후 서버가 파기).
     // 분쟁 대응용으로 해당 센터 관리자만 읽고, 쓰기는 서버 함수만 한다.
     match /retained_pt_records/{recordId} {

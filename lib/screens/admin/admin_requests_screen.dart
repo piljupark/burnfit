@@ -7,8 +7,11 @@ import '../../core/app_feedback.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../core/roster_import.dart';
+import '../../core/validators.dart';
 import '../../models/join_request.dart';
 import '../../services/firestore_service.dart';
+import '../../services/roster_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_async_body.dart';
 import '../../widgets/app_button.dart';
@@ -37,6 +40,9 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
   /// 승인돼 사라지는 중인 줄 (움직임이 끝나면 목록에서 뺀다)
   final Set<String> _leavingIds = {};
   _RoleFilter _filter = _RoleFilter.all;
+
+  /// 요청 id → 신청자 번호 · 명단과 맞춘 결과 (요청 목록 뒤에 따로 읽는다)
+  final Map<String, ({String? phone, RosterMatch? match})> _roster = {};
   bool _isLoading = false;
   bool _loadedOnce = false;
   String? _errorMessage;
@@ -63,6 +69,7 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
         _errorMessage = null;
         _loadedOnce = true;
       });
+      _loadRoster(list);
     } catch (e) {
       if (!mounted) return;
       if (_loadedOnce) {
@@ -78,6 +85,20 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
     }
   }
 
+  /// 신청자 번호와 명단을 맞춰 본다. 실패해도 요청 목록은 그대로 쓴다.
+  Future<void> _loadRoster(List<JoinRequest> list) async {
+    await Future.wait(
+      list.map((req) async {
+        try {
+          final result = await RosterService.lookup(req);
+          if (mounted) setState(() => _roster[req.id] = result);
+        } catch (_) {
+          // 번호 · 명단을 읽지 못하면 표시하지 않는다
+        }
+      }),
+    );
+  }
+
   bool _matches(JoinRequest r, _RoleFilter f) => switch (f) {
     _RoleFilter.all => true,
     _RoleFilter.member => r.role != 'trainer',
@@ -90,15 +111,36 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
 
   Future<void> _approve(JoinRequest req) async {
     if (_processingIds.contains(req.id)) return;
+    final admin = context.read<UserProvider>().user;
+    // 이름까지 같을 때만 명단의 담당 · PT를 붙인다
+    final match = _roster[req.id]?.match;
+    final apply = match != null && match.sameName ? match.entry : null;
     setState(() => _processingIds.add(req.id));
     try {
       await FirestoreService.approveJoinRequest(req.id, req.userId);
+      String? warning;
+      if (apply != null && admin != null) {
+        warning = await RosterService.applyAfterApproval(
+          req: req,
+          entry: apply,
+          admin: admin,
+        );
+      }
       if (!mounted) return;
       setState(() {
         _processingIds.remove(req.id);
         _leavingIds.add(req.id);
       });
-      AppFeedback.showSuccessSnackBar(context, '${req.userName} 님을 승인했어요');
+      if (warning != null) {
+        AppFeedback.showWarning(context, '${req.userName} 님을 승인했어요. $warning');
+      } else {
+        AppFeedback.showSuccessSnackBar(
+          context,
+          apply != null && apply.role == 'member'
+              ? '${req.userName} 님을 승인하고 명단 정보를 붙였어요'
+              : '${req.userName} 님을 승인했어요',
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _processingIds.remove(req.id));
@@ -210,7 +252,10 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
                             req.role == 'trainer' ? '트레이너' : '회원',
                             '${date.format(req.createdAt)} 신청',
                             req.userEmail,
+                            if (_roster[req.id]?.phone case final phone?)
+                              Validators.maskPhone(phone),
                           ].join(' · '),
+                          match: _roster[req.id]?.match,
                           isProcessing: _processingIds.contains(req.id),
                           locked: _leavingIds.contains(req.id),
                           onApprove: () => _approve(req),
@@ -234,6 +279,9 @@ class _AdminRequestsScreenState extends State<AdminRequestsScreen> {
 class _RequestRow extends StatelessWidget {
   final String name;
   final String meta;
+
+  /// 신청자 번호가 명단과 같으면 주황 상자
+  final RosterMatch? match;
   final bool isProcessing;
 
   /// 승인돼 사라지는 중 — 다시 누를 수 없다
@@ -244,6 +292,7 @@ class _RequestRow extends StatelessWidget {
   const _RequestRow({
     required this.name,
     required this.meta,
+    this.match,
     required this.isProcessing,
     required this.locked,
     required this.onApprove,
@@ -276,6 +325,10 @@ class _RequestRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            if (match case final m?) ...[
+              const SizedBox(height: AppSpacing.md),
+              _RosterMatchBox(match: m),
+            ],
             const SizedBox(height: 14),
             Row(
               children: [
@@ -391,6 +444,62 @@ class _LeaveTransitionState extends State<_LeaveTransition>
               child: child,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// '명단과 일치' 상자 (시안 09 '가입 요청'): 주황 옅은 바탕 반경 14.
+/// '✓ 명단과 일치' 14/700 noticeText · 명단 요약 → 승인하면 무엇이 붙는지 13.
+/// 이름이 다르면 붙이지 않는다고 알린다.
+class _RosterMatchBox extends StatelessWidget {
+  final RosterMatch match;
+
+  const _RosterMatchBox({required this.match});
+
+  @override
+  Widget build(BuildContext context) {
+    final e = match.entry;
+    final String note;
+    if (!match.sameName) {
+      note = "명단 이름이 '${e.name}'(으)로 달라 승인해도 명단 정보는 붙이지 않아요. 확인 뒤 회원 상세에서 넣어 주세요.";
+    } else if (e.isTrainer) {
+      note = '승인하면 명단에서 빠져요.';
+    } else if (e.trainerId == null && e.ptTotal == null) {
+      note = '명단에 담당 · PT가 없어 승인만 해요.';
+    } else {
+      note = '승인하면 담당 트레이너와 PT 정보가 함께 붙어요.';
+    }
+    return Semantics(
+      container: true,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppRadius.field),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: match.sameName ? '✓ 명단과 일치' : '번호만 명단과 일치',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.noticeText,
+                    ),
+                  ),
+                  TextSpan(text: ' · ${RosterImport.summary(e)}'),
+                ],
+              ),
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.ink),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(note, style: AppTextStyles.counter),
+          ],
         ),
       ),
     );

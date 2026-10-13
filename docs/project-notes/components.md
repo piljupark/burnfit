@@ -20,6 +20,7 @@
 | `exercise_guide_data.dart` | 기본 운동 248개 설명 (근육 · 도구 · 난이도 · 운동 방법). free-exercise-db(Unlicense)를 우리말로 옮김, 없는 것 51개는 직접 씀. 트레이너 검수 전. 모양은 `models/exercise_guide.dart` |
 | `exercise_data.dart` · `food_guide_data.dart` | 종목 목록(7부위 248개, 한 이름은 한 부위에만) · 맨몸 운동 목록 `bodyweight`(무게 칸 숨김) · 버티는 운동 `timed`('초') · 영양 가이드 내용 (앱 안 자료) |
 | `validators.dart` · `birth_date.dart` · `firestore_date.dart` · `relative_time.dart` | 입력 검사 · 생년월일 · 날짜 변환 · '3분 전' |
+| `roster_import.dart` | 명단 파일(.xlsx · .csv) 읽기 · 줄 검사(가입됨 · 미가입 · 확인 필요) · 명단 요약 글(`RosterImport.summary` — 명단 화면 · 가입 요청 공용) |
 
 ## 화면 뼈대
 
