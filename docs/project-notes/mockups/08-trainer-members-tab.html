@@ -219,6 +219,42 @@ td:first-child { white-space: nowrap; font-weight: 500; }
 .ng-note { margin: 10px 20px 0; width: calc(100% - 40px); height: 76px; padding: 12px 14px; resize: none; font-family: inherit; }
 .ng-menu { position: absolute; right: 16px; top: 96px; background: var(--canvas); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 4px; z-index: 7; }
 .ng-menu span { display: block; padding: 12px 16px; font-size: 15px; color: #D93036; }
+/* 식단 탭 */
+.fchips { display: flex; gap: 6px; padding: 12px 20px 4px; overflow-x: auto; scrollbar-width: none; }
+.fchips::-webkit-scrollbar { display: none; }
+.fchip { flex: none; height: 36px; padding: 0 14px; border-radius: 9999px; border: 0; background: var(--canvasSoft); color: var(--body); font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; position: relative; }
+.fchip i { font-style: normal; color: var(--noticeText); font-weight: 700; }
+.fchip[aria-pressed="true"] { background: var(--ink); color: var(--canvas); font-weight: 500; }
+.fchip[aria-pressed="true"] i { color: var(--primary); }
+.fchip .nd { position: absolute; top: 4px; right: 6px; width: 6px; height: 6px; border-radius: 9999px; background: var(--primary); }
+.goalbar { margin: 10px 20px 0; border-radius: 18px; background: var(--canvasCard); padding: 12px 14px; display: grid; gap: 6px; }
+.goalbar .top { display: flex; align-items: center; gap: 8px; }
+.goalbar .top b { flex: 1; font-size: 15px; font-weight: 700; }
+.goalbar .top b span { color: var(--mute); font-weight: 400; font-size: 13px; margin-left: 4px; }
+.goalbar .edit { border: 0; background: none; color: var(--body); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 2px; cursor: pointer; padding: 0; }
+.goalbar .g { font-size: 13px; color: var(--body); line-height: 19px; }
+.goalbar .g em { font-style: normal; font-weight: 700; color: var(--ink); margin-right: 6px; }
+.goalbar.none { grid-template-columns: 1fr auto; align-items: center; }
+.goalbar.none span { font-size: 14px; color: var(--body); }
+.goalbar.none button { height: 34px; padding: 0 14px; border-radius: 9999px; border: 0; background: var(--ink); color: var(--canvas); font-size: 13px; font-weight: 700; }
+.fday { padding: 18px 20px 2px; font-size: 15px; font-weight: 700; display: flex; gap: 6px; }
+.fday span { color: var(--mute); font-weight: 400; }
+.fcard { padding: 12px 0 16px; border-bottom: 1px solid var(--hairline); }
+.fcard .who { display: flex; align-items: center; gap: 8px; padding: 0 20px; }
+.fcard .who .tx { flex: 1; }
+.fcard .who b { font-size: 16px; font-weight: 500; display: block; }
+.fcard .who small { font-size: 13px; color: var(--mute); }
+.fcard .st { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; background: var(--noticeBg); color: var(--noticeText); }
+.fcard .ph { margin: 10px 20px 0; aspect-ratio: 1.25; border-radius: 16px; background: linear-gradient(135deg, var(--canvasMid), var(--canvasSoft)); }
+.fcard .guide { margin: 10px 20px 0; padding: 8px 12px; border-radius: 12px; background: var(--canvasCard); font-size: 13px; color: var(--body); line-height: 19px; }
+.fcard .guide em { font-style: normal; color: var(--mute); margin-right: 6px; }
+.fcard .memo { padding: 10px 20px 0; font-size: 15px; }
+.fcard .qp { display: flex; gap: 6px; padding: 10px 20px 0; overflow-x: auto; scrollbar-width: none; }
+.fcard .qp span { flex: none; height: 32px; padding: 0 12px; border-radius: 9999px; border: 1px solid var(--hairline); display: grid; place-items: center; font-size: 13px; color: var(--body); }
+.fcard .qp span.goal { border-color: var(--primary); color: var(--noticeText); }
+.fcard .inp { margin: 8px 20px 0; height: 44px; border-radius: 22px; background: var(--canvasSoft); display: flex; align-items: center; padding: 0 6px 0 16px; font-size: 14px; color: var(--faint); }
+.fcard .inp i { margin-left: auto; width: 32px; height: 32px; border-radius: 9999px; background: var(--canvasMid); }
+.new-mark { outline: 2px dashed var(--primary); outline-offset: 3px; }
 .tline { display: flex; gap: 8px; padding: 14px 20px 0; font-size: 12px; color: var(--mute); }
 </style>
 </head><body>
@@ -226,7 +262,7 @@ td:first-child { white-space: nowrap; font-weight: 500; }
   <header class="head">
     <div>
       <h1>트레이너 '회원' 탭</h1>
-      <p>지금은 회원이 개인 운동을 한 날에만 홈 캘린더를 거쳐 회원 상세에 들어갈 수 있어요. 아래 탭에 '회원'을 더하고, 회원 이름이 보이는 곳에서 바로 들어가게 바꾼 시안이에요. 끝의 두 칸은 식단 목표 화면 지금 · 정리안 비교예요.</p>
+      <p>지금은 회원이 개인 운동을 한 날에만 홈 캘린더를 거쳐 회원 상세에 들어갈 수 있어요. 아래 탭에 '회원'을 더하고, 회원 이름이 보이는 곳에서 바로 들어가게 바꾼 시안이에요. 아래 줄은 식단 탭(목표 잇기)과 식단 목표 화면의 지금 · 정리안 비교예요.</p>
     </div>
     <div class="seg-mini" role="group" aria-label="화면 테마">
       <button type="button" id="th-auto" aria-pressed="true">시스템</button>
@@ -383,6 +419,63 @@ td:first-child { white-space: nowrap; font-weight: 500; }
   }
   const fmt = n => n === '' || n == null ? '' : Number(n).toLocaleString('ko-KR');
 
+  // ── 식단 탭 ──
+  const PLANS = {
+    '김민지': { kcal: '2,450', protein: 130, guides: { 점심: '단백질 손바닥 1개 + 밥 2/3 공기', 저녁: '밥 반 공기, 채소 두 주먹' } },
+    '최유나': { kcal: '1,800', protein: 110, guides: { 아침: '달걀 2개 + 바나나' } },
+    '오세린': null
+  };
+  const MEALS = [
+    { who: '김민지', meal: '점심', time: '12:40', memo: '닭가슴살 샐러드랑 현미밥 반 공기', todo: true },
+    { who: '오세린', meal: '점심', time: '12:10', memo: '김치찌개, 공깃밥', todo: true },
+    { who: '최유나', meal: '아침', time: '08:20', memo: '', todo: true },
+    { who: '김민지', meal: '아침', time: '07:50', memo: '그릭요거트', todo: false }
+  ];
+  const fd = { member: '김민지' };
+  const OLD_PHRASES = ['단백질 좋아요', '채소를 조금 더', '양 적당해요'];
+  const GOAL_PHRASES = ['가이드대로 잘 드셨어요', '단백질을 조금 더', '탄수화물이 많아요', '양 적당해요'];
+
+  function feedCard(m, improved, showWho) {
+    const plan = PLANS[m.who];
+    const guide = improved && plan && plan.guides[m.meal];
+    const phrases = improved && plan ? GOAL_PHRASES : OLD_PHRASES;
+    return `<div class="fcard">
+      <div class="who">${showWho ? `<span class="avatar" style="width:36px;height:36px;font-size:14px">${m.who[0]}</span>` : ''}
+        <span class="tx"><b>${showWho ? m.who : m.meal}</b><small>${showWho ? `${m.meal} · ` : ''}${m.time}</small></span>
+        <span class="st">${m.todo ? '피드백 전' : '보냄'}</span></div>
+      <div class="ph"></div>
+      ${guide ? `<div class="guide new-mark"><em>${m.meal} 가이드</em>${guide}</div>` : ''}
+      ${m.memo ? `<div class="memo">${m.memo}</div>` : ''}
+      ${m.todo ? `<div class="qp${improved && plan ? ' new-mark' : ''}" style="${improved && plan ? 'margin:0 20px;padding:10px 0 0' : ''}">${phrases.map(p => `<span class="${improved && plan && p !== '양 적당해요' ? 'goal' : ''}">${p}</span>`).join('')}</div>
+      <div class="inp">피드백 남기기<i></i></div>` : ''}
+    </div>`;
+  }
+
+  function feedScreenV(improved) {
+    const counts = {};
+    MEALS.forEach(m => { if (m.todo) counts[m.who] = (counts[m.who] || 0) + 1; });
+    const sel = improved ? fd.member : 'all';
+    const list = MEALS.filter(m => sel === 'all' || m.who === sel);
+    const plan = sel !== 'all' ? PLANS[sel] : undefined;
+    let bar = '';
+    if (improved && sel !== 'all') {
+      bar = plan
+        ? `<div class="goalbar new-mark"><div class="top"><b>목표 ${plan.kcal}kcal · 단백질 ${plan.protein}g<span>${sel}</span></b><button type="button" class="edit">고치기 ${I.chev}</button></div>
+            ${Object.entries(plan.guides).map(([k, v]) => `<div class="g"><em>${k}</em>${v}</div>`).join('')}</div>`
+        : `<div class="goalbar none new-mark"><span>${sel}님은 식단 목표가 없어요</span><button type="button">정하기</button></div>`;
+    }
+    return `<div class="screen">${status}<div class="scroll">
+      <div class="hero"><h3>식단</h3><button type="button" class="icon-btn" aria-label="알림">${I.bell}</button></div>
+      <div class="fchips" role="group" aria-label="회원">
+        <button type="button" class="fchip" data-fmember="all" aria-pressed="${sel === 'all'}">전체</button>
+        ${Object.keys(PLANS).map(n => `<button type="button" class="fchip" data-fmember="${n}" aria-pressed="${sel === n}">${n}${counts[n] ? ` <i>${counts[n]}</i>` : ''}</button>`).join('')}
+      </div>
+      ${bar}
+      <div class="fday">오늘<span>· ${list.length}건</span></div>
+      ${list.map(m => feedCard(m, improved, sel === 'all')).join('')}
+    </div>${nav('식단')}</div>`;
+  }
+
   function npOldScreen() {
     return `<div class="screen">${status}<div class="scroll"><div class="np-wrap">
       <div class="bar" style="padding:0;margin:0 -8px"><button type="button" class="icon-btn" style="margin:0" aria-label="뒤로">${I.back}</button><h4>식단 목표</h4><span></span></div>
@@ -453,11 +546,29 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     { key: 'feed', small: '이름 누르기', title: '식단 피드', note: '카드의 회원 이름 → 회원 상세.' },
     { key: 'pt', small: '이름 누르기', title: 'PT 기록', note: '위쪽 회원 줄 → 회원 상세.' },
     { key: 'sched', small: '이름 누르기', title: '일정 ⋯', note: '블록 ⋯ 시트에 \'회원 정보\'를 맨 위에.' },
+    { key: 'fdOld', small: '식단 탭 · 지금', title: '지금 식단 탭', note: '식단 목표와 이어진 곳이 없어요 — 목표를 보려면 회원 상세로 가야 해요.' },
+    { key: 'fdNew', small: '식단 탭 · 정리안', title: '목표 잇기', note: '회원 알약을 눌러 보세요 — 위에 그 회원의 목표, 카드에 그 끼니 가이드. 주황 점선이 새로 생기는 곳.' },
     { key: 'npOld', small: '식단 목표 · 지금', title: '지금 화면', note: '주황 점선이 문제인 곳 — 같은 회색 위의 회색 단추, 잘리는 안내 글자.' },
     { key: 'npNew', small: '식단 목표 · 정리안', title: '정리안', note: '감량 · 유지 · 증량을 누르면 숫자가 바로 바뀌어요. 숫자를 고치면 \'직접\'으로. 오른쪽 위 ⋯도 눌러 보세요.' }
   ];
 
   const NOTES = {
+    fdOld: `<p class="kicker">식단 탭 · 지금</p><h2>목표와 따로 노는 피드</h2>
+      <ol class="change">
+        <li><span class="num">1</span><div><h4>목표가 안 보여요</h4><p>회원 알약을 골라도 그 회원의 목표 · 끼니 가이드가 없어요. 비교하려면 회원 상세 → 식단 탭으로 가야 해요.</p></div></li>
+        <li><span class="num">2</span><div><h4>자주 쓰는 말이 고정</h4><p>'단백질 좋아요 · 채소를 조금 더 · 양 적당해요' — 목표와 상관없이 늘 같아요.</p></div></li>
+        <li><span class="num">3</span><div><h4>칼로리가 없어진 뒤</h4><p>숫자 대신 '목표에 맞게 먹었는지'로 피드백하게 되는데, 그 기준이 화면에 없어요.</p></div></li>
+      </ol>`,
+    fdNew: `<p class="kicker">식단 탭 · 정리안</p><h2>목표를 옆에 두고 피드백</h2>
+      <p class="summary">서버 · 저장 규칙은 그대로. 회원 탭과 같은 방식으로 식단 목표를 읽어 화면에만 더해요. 회원 알약(김민지 · 오세린 · 최유나)을 눌러 보세요.</p>
+      <ol class="change">
+        <li><span class="num">1</span><div><h4>회원을 고르면 목표 한 줄</h4><p>'목표 2,450kcal · 단백질 130g' + 끼니 가이드 + '고치기 ›'(식단 목표 화면). 목표가 없으면 '식단 목표가 없어요 · 정하기'. '전체'에서는 회원이 섞여 있어 띄우지 않아요.</p></div></li>
+        <li><span class="num">2</span><div><h4>카드에 그 끼니 가이드</h4><p>점심 카드면 사진 아래 '점심 가이드 · 단백질 손바닥 1개 + 밥 2/3 공기'. 가이드가 없는 끼니는 줄이 없어요. '전체'에서도 보여요.</p></div></li>
+        <li><span class="num">3</span><div><h4>자주 쓰는 말을 목표 기준으로</h4><p>목표가 있는 회원: '가이드대로 잘 드셨어요 · 단백질을 조금 더 · 탄수화물이 많아요 · 양 적당해요'. 없는 회원은 지금 그대로.</p></div></li>
+        <li><span class="num">4</span><div><h4>넣지 않는 것</h4><p>알약의 '목표 없음' 점 — 피드백 수 · 새 식단 점과 겹쳐 표시가 많아져요. 회원 탭 '목표 없음' 알약이 맡아요.</p></div></li>
+      </ol>
+      <h3 class="sec">읽는 양</h3>
+      <div class="ask"><div>탭을 열 때 담당 회원 수만큼 식단 목표 문서를 읽어요 (회원 탭과 같은 방식). 수십 명이면 부담 작아요. 회원 알약을 고를 때 그 회원 것만 읽게 줄일 수도 있어요.</div></div>`,
     npOld: `<p class="kicker">식단 목표 · 지금 (보내 주신 화면)</p><h2>무엇이 지저분한가</h2>
       <ol class="change">
         <li><span class="num">1</span><div><h4>회색 위의 회색 단추</h4><p>카드(canvasCard) 위에 단추(canvasSoft)라 색 차이가 거의 없어 경계가 안 보여요. '추천값 채우기'도 같은 문제.</p></div></li>
@@ -535,6 +646,8 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     if (v === 'feed') return feedScreen();
     if (v === 'pt') return ptScreen();
     if (v === 'sched') return scheduleScreen();
+    if (v === 'fdOld') return feedScreenV(false);
+    if (v === 'fdNew') return feedScreenV(true);
     if (v === 'npOld') return npOldScreen();
     if (v === 'npNew') return npNewScreen(np);
     return membersScreen(st);
@@ -564,6 +677,8 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     }
   });
   live.addEventListener('click', e => {
+    const fm = e.target.closest('[data-fmember]');
+    if (fm) { if (view === 'fdNew') { fd.member = fm.dataset.fmember; draw(); } return; }
     const g = e.target.closest('[data-goal],[data-npmenu]');
     if (g) {
       if (g.dataset.npmenu !== undefined) { np.menu = !np.menu; return draw(); }
