@@ -233,6 +233,8 @@ td:first-child { white-space: nowrap; font-weight: 500; }
 .goalbar .top b span { color: var(--mute); font-weight: 400; font-size: 13px; margin-left: 4px; }
 .goalbar .edit { border: 0; background: none; color: var(--body); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 2px; cursor: pointer; padding: 0; }
 .goalbar .g { font-size: 13px; color: var(--body); line-height: 19px; }
+.goalbar .top b.soft { font-size: 14px; font-weight: 500; }
+.goalbar .g.macros { font-size: 14px; font-weight: 500; color: var(--ink); margin-top: -2px; }
 .goalbar .g em { font-style: normal; font-weight: 700; color: var(--ink); margin-right: 6px; }
 .goalbar.none { grid-template-columns: 1fr auto; align-items: center; }
 .goalbar.none span { font-size: 14px; color: var(--body); }
@@ -420,18 +422,37 @@ td:first-child { white-space: nowrap; font-weight: 500; }
   const fmt = n => n === '' || n == null ? '' : Number(n).toLocaleString('ko-KR');
 
   // ── 식단 탭 ──
+  // 회원마다 다른 방식으로 정한 목표 (정한 값만 보인다)
   const PLANS = {
-    '김민지': { kcal: '2,450', protein: 130, guides: { 점심: '단백질 손바닥 1개 + 밥 2/3 공기', 저녁: '밥 반 공기, 채소 두 주먹' } },
-    '최유나': { kcal: '1,800', protein: 110, guides: { 아침: '달걀 2개 + 바나나' } },
+    '김민지': { kcal: 2450, carbs: 325, protein: 130, fat: 65, guides: { 점심: '단백질 손바닥 1개 + 밥 2/3 공기', 저녁: '밥 반 공기, 채소 두 주먹' } },
+    '최유나': { carbs: 230, protein: 140, fat: 60, guides: { 아침: '달걀 2개 + 바나나' } },
+    '정도윤': { kcal: 1900, protein: 150, guides: {} },
+    '한지우': { guides: { 점심: '밥은 반 공기만', 간식: '단백질 음료 1개' } },
     '오세린': null
   };
+  const PLAN_CASE = { '김민지': '칼로리 + 탄단지', '최유나': '탄단지만', '정도윤': '칼로리 + 단백질', '한지우': '끼니 가이드만', '오세린': '목표 없음' };
   const MEALS = [
     { who: '김민지', meal: '점심', time: '12:40', memo: '닭가슴살 샐러드랑 현미밥 반 공기', todo: true },
     { who: '오세린', meal: '점심', time: '12:10', memo: '김치찌개, 공깃밥', todo: true },
     { who: '최유나', meal: '아침', time: '08:20', memo: '', todo: true },
-    { who: '김민지', meal: '아침', time: '07:50', memo: '그릭요거트', todo: false }
+    { who: '김민지', meal: '아침', time: '07:50', memo: '그릭요거트', todo: false },
+    { who: '정도윤', meal: '저녁', time: '19:30', memo: '연어 스테이크', todo: true },
+    { who: '한지우', meal: '점심', time: '13:05', memo: '비빔밥', todo: true }
   ];
-  const fd = { member: '김민지' };
+  const fd = { member: (location.hash.match(/m=([^&]+)/) || [])[1] ? decodeURIComponent(location.hash.match(/m=([^&]+)/)[1]) : '김민지' };
+  const n0 = n => Number(n).toLocaleString('ko-KR');
+  // 목표 줄: 칼로리는 첫째 줄(굵게), 탄단지는 정한 것만 둘째 줄, 끼니 가이드는 그 아래.
+  function goalBar(plan) {
+    const macros = [['탄수화물', plan.carbs], ['단백질', plan.protein], ['지방', plan.fat]].filter(([, v]) => v != null);
+    const kcal = plan.kcal != null ? `하루 ${n0(plan.kcal)}kcal` : '';
+    // 한 항목('지방 60g')은 줄바꿈으로 쪼개지 않는다.
+    const macroLine = macros.map(([k, v]) => `<span style="white-space:nowrap">${k} ${n0(v)}g</span>`).join(' · ');
+    // 첫째 줄은 칼로리, 없으면 작은 머리('하루 목표' / '끼니 가이드') — 탄단지는 늘 '고치기'와 따로 둘째 줄.
+    const top = kcal || (macroLine ? '하루 목표' : '끼니 가이드');
+    const second = macroLine ? `<div class="g macros">${macroLine}</div>` : '';
+    const guides = Object.entries(plan.guides || {}).map(([k, v]) => `<div class="g"><em>${k}</em>${v}</div>`).join('');
+    return `<div class="goalbar new-mark"><div class="top"><b class="${kcal ? '' : 'soft'}">${top}</b><button type="button" class="edit">고치기 ${I.chev}</button></div>${second}${guides}</div>`;
+  }
   const OLD_PHRASES = ['단백질 좋아요', '채소를 조금 더', '양 적당해요'];
   const GOAL_PHRASES = ['가이드대로 잘 드셨어요', '단백질을 조금 더', '탄수화물이 많아요', '양 적당해요'];
 
@@ -460,9 +481,8 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     let bar = '';
     if (improved && sel !== 'all') {
       bar = plan
-        ? `<div class="goalbar new-mark"><div class="top"><b>목표 ${plan.kcal}kcal · 단백질 ${plan.protein}g</b><button type="button" class="edit">고치기 ${I.chev}</button></div>
-            ${Object.entries(plan.guides).map(([k, v]) => `<div class="g"><em>${k}</em>${v}</div>`).join('')}</div>`
-        : `<div class="goalbar none new-mark"><span>${sel}님은 식단 목표가 없어요</span><button type="button">정하기</button></div>`;
+        ? goalBar(plan)
+        : `<div class="goalbar none new-mark"><span>식단 목표가 없어요</span><button type="button">정하기</button></div>`;
     }
     return `<div class="screen">${status}<div class="scroll">
       <div class="hero"><h3>식단</h3><button type="button" class="icon-btn" aria-label="알림">${I.bell}</button></div>
@@ -560,13 +580,23 @@ td:first-child { white-space: nowrap; font-weight: 500; }
         <li><span class="num">3</span><div><h4>칼로리가 없어진 뒤</h4><p>숫자 대신 '목표에 맞게 먹었는지'로 피드백하게 되는데, 그 기준이 화면에 없어요.</p></div></li>
       </ol>`,
     fdNew: `<p class="kicker">식단 탭 · 정리안</p><h2>목표를 옆에 두고 피드백</h2>
-      <p class="summary">서버 · 저장 규칙은 그대로. 회원 탭과 같은 방식으로 식단 목표를 읽어 화면에만 더해요. 회원 알약(김민지 · 오세린 · 최유나)을 눌러 보세요.</p>
+      <p class="summary">서버 · 저장 규칙은 그대로. 회원 탭과 같은 방식으로 식단 목표를 읽어 화면에만 더해요. 회원 알약을 눌러 보세요 — 회원마다 목표를 다르게 정해 두었어요 (아래 표).</p>
       <ol class="change">
         <li><span class="num">1</span><div><h4>회원을 고르면 목표 한 줄</h4><p>'목표 2,450kcal · 단백질 130g' + 끼니 가이드 + '고치기 ›'(식단 목표 화면). 누구 목표인지는 바로 위 고른 알약으로 알 수 있어 이름은 넣지 않아요. 목표가 없으면 '식단 목표가 없어요 · 정하기'. '전체'에서는 회원이 섞여 있어 띄우지 않아요.</p></div></li>
         <li><span class="num">2</span><div><h4>카드에 그 끼니 가이드</h4><p>점심 카드면 사진 아래 '점심 가이드 · 단백질 손바닥 1개 + 밥 2/3 공기'. 가이드가 없는 끼니는 줄이 없어요. '전체'에서도 보여요.</p></div></li>
         <li><span class="num">3</span><div><h4>자주 쓰는 말을 목표 기준으로</h4><p>목표가 있는 회원: '가이드대로 잘 드셨어요 · 단백질을 조금 더 · 탄수화물이 많아요 · 양 적당해요'. 없는 회원은 지금 그대로.</p></div></li>
-        <li><span class="num">4</span><div><h4>넣지 않는 것</h4><p>알약의 '목표 없음' 점 — 피드백 수 · 새 식단 점과 겹쳐 표시가 많아져요. 회원 탭 '목표 없음' 알약이 맡아요.</p></div></li>
+        <li><span class="num">4</span><div><h4>정한 값만 보여요</h4><p>칼로리는 첫째 줄 '하루 2,450kcal'(굵게), 탄단지는 정한 것만 늘 둘째 줄('고치기'와 같은 줄에 두면 좁은 화면에서 '지방 / 60g'처럼 쪼개져서). 칼로리가 없으면 첫째 줄은 작은 머리 '하루 목표'. 빈 값은 '–'도 없이 빼요. 탄단지로 칼로리를 계산해 보여 주지 않아요 (트레이너가 정하지 않은 숫자).</p></div></li>
+        <li><span class="num">5</span><div><h4>넣지 않는 것</h4><p>알약의 '목표 없음' 점 — 피드백 수 · 새 식단 점과 겹쳐 표시가 많아져요. 회원 탭 '목표 없음' 알약이 맡아요.</p></div></li>
       </ol>
+      <h3 class="sec">회원마다 정한 방식</h3>
+      <div class="table-scroll"><table>
+        <tr><th>회원</th><th>정한 값</th><th>목표 줄</th></tr>
+        <tr><td>김민지</td><td>칼로리 + 탄단지 + 가이드</td><td>하루 2,450kcal / 탄수화물 325g · 단백질 130g · 지방 65g / 점심 · 저녁</td></tr>
+        <tr><td>최유나</td><td>탄단지 + 가이드</td><td>하루 목표 / 탄수화물 230g · 단백질 140g · 지방 60g / 아침</td></tr>
+        <tr><td>정도윤</td><td>칼로리 + 단백질</td><td>하루 1,900kcal / 단백질 150g</td></tr>
+        <tr><td>한지우</td><td>끼니 가이드만</td><td>끼니 가이드 / 점심 · 간식</td></tr>
+        <tr><td>오세린</td><td>없음</td><td>식단 목표가 없어요 · 정하기</td></tr>
+      </table></div>
       <h3 class="sec">읽는 양</h3>
       <div class="ask"><div>탭을 열 때 담당 회원 수만큼 식단 목표 문서를 읽어요 (회원 탭과 같은 방식). 수십 명이면 부담 작아요. 회원 알약을 고를 때 그 회원 것만 읽게 줄일 수도 있어요.</div></div>`,
     npOld: `<p class="kicker">식단 목표 · 지금 (보내 주신 화면)</p><h2>무엇이 지저분한가</h2>
