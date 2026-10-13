@@ -460,7 +460,7 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     let bar = '';
     if (improved && sel !== 'all') {
       bar = plan
-        ? `<div class="goalbar new-mark"><div class="top"><b>목표 ${plan.kcal}kcal · 단백질 ${plan.protein}g<span>${sel}</span></b><button type="button" class="edit">고치기 ${I.chev}</button></div>
+        ? `<div class="goalbar new-mark"><div class="top"><b>목표 ${plan.kcal}kcal · 단백질 ${plan.protein}g</b><button type="button" class="edit">고치기 ${I.chev}</button></div>
             ${Object.entries(plan.guides).map(([k, v]) => `<div class="g"><em>${k}</em>${v}</div>`).join('')}</div>`
         : `<div class="goalbar none new-mark"><span>${sel}님은 식단 목표가 없어요</span><button type="button">정하기</button></div>`;
     }
@@ -562,7 +562,7 @@ td:first-child { white-space: nowrap; font-weight: 500; }
     fdNew: `<p class="kicker">식단 탭 · 정리안</p><h2>목표를 옆에 두고 피드백</h2>
       <p class="summary">서버 · 저장 규칙은 그대로. 회원 탭과 같은 방식으로 식단 목표를 읽어 화면에만 더해요. 회원 알약(김민지 · 오세린 · 최유나)을 눌러 보세요.</p>
       <ol class="change">
-        <li><span class="num">1</span><div><h4>회원을 고르면 목표 한 줄</h4><p>'목표 2,450kcal · 단백질 130g' + 끼니 가이드 + '고치기 ›'(식단 목표 화면). 목표가 없으면 '식단 목표가 없어요 · 정하기'. '전체'에서는 회원이 섞여 있어 띄우지 않아요.</p></div></li>
+        <li><span class="num">1</span><div><h4>회원을 고르면 목표 한 줄</h4><p>'목표 2,450kcal · 단백질 130g' + 끼니 가이드 + '고치기 ›'(식단 목표 화면). 누구 목표인지는 바로 위 고른 알약으로 알 수 있어 이름은 넣지 않아요. 목표가 없으면 '식단 목표가 없어요 · 정하기'. '전체'에서는 회원이 섞여 있어 띄우지 않아요.</p></div></li>
         <li><span class="num">2</span><div><h4>카드에 그 끼니 가이드</h4><p>점심 카드면 사진 아래 '점심 가이드 · 단백질 손바닥 1개 + 밥 2/3 공기'. 가이드가 없는 끼니는 줄이 없어요. '전체'에서도 보여요.</p></div></li>
         <li><span class="num">3</span><div><h4>자주 쓰는 말을 목표 기준으로</h4><p>목표가 있는 회원: '가이드대로 잘 드셨어요 · 단백질을 조금 더 · 탄수화물이 많아요 · 양 적당해요'. 없는 회원은 지금 그대로.</p></div></li>
         <li><span class="num">4</span><div><h4>넣지 않는 것</h4><p>알약의 '목표 없음' 점 — 피드백 수 · 새 식단 점과 겹쳐 표시가 많아져요. 회원 탭 '목표 없음' 알약이 맡아요.</p></div></li>
