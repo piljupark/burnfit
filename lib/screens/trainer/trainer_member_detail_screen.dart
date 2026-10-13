@@ -45,6 +45,7 @@ import '../../widgets/nutrition_plan_card.dart';
 import 'nutrition_plan_screen.dart';
 import 'trainer_inbody_sheet.dart';
 import 'trainer_member_tabs.dart';
+import 'trainer_sent_feedback_screen.dart';
 
 /// 회원 상세의 탭 (순서는 화면의 탭 순서와 같다).
 enum TrainerMemberDetailTab { workout, meal, cardio, info }
@@ -455,6 +456,19 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     }
   }
 
+  /// '보낸 피드백': 이 회원에게 내가 보낸 피드백 모아 보기. 고치거나 지웠을 수 있으니 기록 탭들을 다시 읽는다.
+  Future<void> _openSentFeedback() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TrainerSentFeedbackScreen(member: widget.member),
+      ),
+    );
+    if (!mounted) return;
+    _loadMeals();
+    _loadWorkouts();
+    _loadCardios();
+  }
+
   /// 'InBody 입력': 정보 탭으로 옮기고 입력 시트를 연다. 저장하면 인바디 목록을 다시 읽는다.
   Future<void> _openInbodyInput() async {
     final trainer = context.read<UserProvider>().user;
@@ -690,6 +704,15 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 _writeFeedback(type: fb.FeedbackTargetType.general);
+              },
+            ),
+            AppSheetAction(
+              icon: AppIcons.feedback,
+              label: '보낸 피드백',
+              chevron: true,
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _openSentFeedback();
               },
             ),
             AppSheetAction(

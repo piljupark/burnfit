@@ -84,6 +84,7 @@
 | `showAppConfirmDialog` · `AppWarningCallout` | `app_confirm_dialog.dart` | 확인 창 (2열 버튼) · 주황 경고 상자 | 9 |
 | `AppToast` | `app_toast.dart` | 화면 위쪽 검정 토스트 (보통은 `AppFeedback`으로 띄운다) | 3 |
 | `FeedbackSheet` · `FeedbackQuote` | `feedback_sheet.dart` | 트레이너 피드백 작성 시트 · 피드백 상자 | 2 · 1 |
+| `SentFeedbackRow` | `screens/trainer/trainer_sent_feedback_screen.dart` | 보낸 피드백 한 줄 (종류 · 대상 날짜 · 수정됨 · 읽음 · ⋯) | 1 |
 | `showPasswordResetSheet` · `ForgotPasswordLink` | `password_reset_sheet.dart` | 비밀번호 재설정 메일 | 4 · 1 |
 | `DeleteAccountLink` (+ 탈퇴 시트) | `delete_account_sheet.dart` | 마이 맨 아래 탈퇴 | 2 |
 | `showWorkoutDurationSheet` | `workout_duration_sheet.dart` | 운동 시간 분 조절 | 2 |
