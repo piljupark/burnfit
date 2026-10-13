@@ -355,6 +355,46 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
     }
   }
 
+  Future<bool> _editFeedback(
+    MealFeedItem item,
+    fb.Feedback feedback,
+    String content,
+  ) async {
+    try {
+      final updated = await MealFeedService.editFeedback(feedback, content);
+      if (!mounted) return true;
+      setState(() {
+        _meals = [
+          for (final x in _meals)
+            x.meal.id == item.meal.id ? x.withReplaced(updated) : x,
+        ];
+      });
+      AppFeedback.showSuccessSnackBar(context, '피드백을 고쳤어요');
+      return true;
+    } catch (e) {
+      if (mounted) AppFeedback.showErrorSnackBar(context, e);
+      return false;
+    }
+  }
+
+  Future<bool> _deleteFeedback(MealFeedItem item, fb.Feedback feedback) async {
+    try {
+      await MealFeedService.deleteFeedback(feedback);
+      if (!mounted) return true;
+      setState(() {
+        _meals = [
+          for (final x in _meals)
+            x.meal.id == item.meal.id ? x.withoutFeedback(feedback.id) : x,
+        ];
+      });
+      AppFeedback.showSuccessSnackBar(context, '피드백을 지웠어요');
+      return true;
+    } catch (e) {
+      if (mounted) AppFeedback.showErrorSnackBar(context, e);
+      return false;
+    }
+  }
+
   /// [targetLinked]: 대상 기록에 이미 피드백이 이어져 있는지 (hasFeedback).
   /// 이어져 있으면 연결값을 덮어쓰지 않고(이전 담당 트레이너 피드백과 함께 남는다),
   /// 아니면 저장할 때 잇는다. 이전 담당자의 피드백은 시트 위에 읽기 전용으로 보인다.
@@ -584,6 +624,8 @@ class _TrainerMemberDetailScreenState extends State<TrainerMemberDetailScreen>
                     items: _meals,
                     isLoading: _loadingMeals,
                     onSend: _sendMealFeedback,
+                    onEditFeedback: _editFeedback,
+                    onDeleteFeedback: _deleteFeedback,
                     onRefresh: _loadMeals,
                   ),
                   TrainerCardiosTab(
@@ -1173,6 +1215,14 @@ class _MealFeedTab extends StatelessWidget {
   final List<MealFeedItem> items;
   final bool isLoading;
   final Future<bool> Function(MealFeedItem item, String content) onSend;
+  final Future<bool> Function(
+    MealFeedItem item,
+    fb.Feedback feedback,
+    String content,
+  )
+  onEditFeedback;
+  final Future<bool> Function(MealFeedItem item, fb.Feedback feedback)
+  onDeleteFeedback;
   final Future<void> Function() onRefresh;
 
   const _MealFeedTab({
@@ -1180,6 +1230,8 @@ class _MealFeedTab extends StatelessWidget {
     required this.items,
     required this.isLoading,
     required this.onSend,
+    required this.onEditFeedback,
+    required this.onDeleteFeedback,
     required this.onRefresh,
   });
 
@@ -1211,6 +1263,8 @@ class _MealFeedTab extends StatelessWidget {
       items: items,
       trainerId: trainer.uid,
       showMember: false,
+      onEditFeedback: onEditFeedback,
+      onDeleteFeedback: onDeleteFeedback,
       header: Padding(
         padding: const EdgeInsets.only(
           top: AppSpacing.base,

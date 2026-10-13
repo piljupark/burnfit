@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pt_solution_v2/models/feedback.dart' as fb;
 import 'package:pt_solution_v2/models/meal.dart';
 import 'package:pt_solution_v2/models/nutrition_plan.dart';
 import 'package:pt_solution_v2/models/user.dart';
@@ -172,5 +173,110 @@ void main() {
       expect(find.text('식단 목표가 없어요'), findsOneWidget);
       expect(find.text('정하기'), findsOneWidget);
     });
+  });
+
+  group('내 피드백 고치기 · 지우기', () {
+    fb.Feedback feedback(
+      String id,
+      String trainerId,
+      String content, {
+      DateTime? updated,
+      DateTime? read,
+    }) => fb.Feedback(
+      id: id,
+      centerId: 'c1',
+      trainerId: trainerId,
+      trainerName: trainerId == 't1' ? '박코치' : '이코치',
+      memberId: 'm1',
+      memberName: '김민지',
+      targetType: fb.FeedbackTargetType.meal,
+      targetId: 'a',
+      content: content,
+      createdAt: DateTime(2026, 10, 13, 9),
+      updatedAt: updated ?? DateTime(2026, 10, 13, 9),
+      readAt: read,
+    );
+
+    test('수정됨: 보낸 지 1분 넘게 지나 내용을 고쳤을 때만 (예전 읽음 처리는 제외)', () {
+      expect(feedback('x', 't1', 'a').isEdited, isFalse);
+      expect(
+        feedback('x', 't1', 'a', updated: DateTime(2026, 10, 13, 10)).isEdited,
+        isTrue,
+      );
+      // 예전에는 읽음 처리가 updatedAt을 바꿨다 → 읽은 시각과 같으면 고친 것이 아니다
+      expect(
+        feedback(
+          'x',
+          't1',
+          'a',
+          updated: DateTime(2026, 10, 13, 10),
+          read: DateTime(2026, 10, 13, 10),
+        ).isEdited,
+        isFalse,
+      );
+    });
+
+    testWidgets('내 말풍선에만 ⋯, 고치기를 누르면 입력에 채워지고 보내면 고친 내용으로', (tester) async {
+      final mine = feedback('f1', 't1', '단백질 좋아요');
+      final other = feedback('f2', 't2', '물 많이 드세요');
+      final card = MealFeedItem(
+        member: item.member,
+        meal: item.meal,
+        feedbacks: [other, mine],
+      );
+      final edits = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MealFeedCard(
+                item: card,
+                trainerId: 't1',
+                onSend: (_) async => true,
+                onEditFeedback: (f, content) async {
+                  edits.add('${f.id}:$content');
+                  return true;
+                },
+                onDeleteFeedback: (_) async => true,
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.bySemanticsLabel('내 피드백 고치기 · 지우기'), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('내 피드백 고치기 · 지우기'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('고치기'));
+      await tester.pumpAndSettle();
+      expect(find.text('피드백 고치는 중'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), '단백질 아주 좋아요');
+      await tester.tap(find.bySemanticsLabel('고친 피드백 저장'));
+      await tester.pumpAndSettle();
+      expect(edits, ['f1:단백질 아주 좋아요']);
+      expect(find.text('피드백 고치는 중'), findsNothing);
+    });
+  });
+
+  test('식단 항목: 고친 피드백 바꾸기 · 지운 피드백 빼기', () {
+    final a = fb.Feedback(
+      id: 'a1',
+      centerId: 'c1',
+      trainerId: 't1',
+      trainerName: '',
+      memberId: 'm1',
+      memberName: '',
+      targetType: fb.FeedbackTargetType.meal,
+      content: '처음',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    final withA = item.withFeedback(a);
+    expect(
+      withA.withReplaced(a.copyWith(content: '고침')).feedbacks.single.content,
+      '고침',
+    );
+    expect(withA.withoutFeedback('a1').feedbacks, isEmpty);
   });
 }

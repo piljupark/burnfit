@@ -230,7 +230,9 @@ class _FeedbackRow extends StatelessWidget {
     final name = feedback.trainerName.trim();
     final displayName = name.isEmpty ? '트레이너' : '$name 트레이너';
     final targetDate = DateTime.tryParse(feedback.targetDate ?? '');
-    final time = DateFormat('MM.dd HH:mm').format(feedback.createdAt);
+    final time =
+        DateFormat('MM.dd HH:mm').format(feedback.createdAt) +
+        (feedback.isEdited ? ' · 수정됨' : '');
     final meta = [
       feedback.targetType.label,
       if (targetDate != null) DateFormat('MM.dd').format(targetDate),

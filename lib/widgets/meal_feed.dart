@@ -9,7 +9,9 @@ import '../core/app_text_styles.dart';
 import '../models/feedback.dart' as fb;
 import '../models/meal.dart';
 import '../services/meal_feed_service.dart';
+import 'app_bottom_sheet.dart';
 import 'app_calendar.dart';
+import 'app_confirm_dialog.dart';
 import 'app_hero.dart';
 import 'app_loader.dart';
 import 'app_tag.dart';
@@ -38,6 +40,16 @@ class MealFeedList extends StatelessWidget {
 
   /// 회원에게 식단 목표가 있으면 true → 자주 쓰는 말을 목표 기준으로.
   final bool Function(MealFeedItem item)? hasPlanFor;
+
+  /// 내 피드백 고치기 · 지우기. 성공하면 true. 없으면 말풍선에 ⋯를 두지 않는다.
+  final Future<bool> Function(
+    MealFeedItem item,
+    fb.Feedback feedback,
+    String content,
+  )?
+  onEditFeedback;
+  final Future<bool> Function(MealFeedItem item, fb.Feedback feedback)?
+  onDeleteFeedback;
   final Widget? footer;
   final Widget? header;
   final EdgeInsetsGeometry padding;
@@ -53,6 +65,8 @@ class MealFeedList extends StatelessWidget {
     this.onMemberTap,
     this.guideFor,
     this.hasPlanFor,
+    this.onEditFeedback,
+    this.onDeleteFeedback,
     this.footer,
     this.header,
     this.padding = const EdgeInsets.only(bottom: AppSpacing.xl2),
@@ -104,6 +118,12 @@ class MealFeedList extends StatelessWidget {
           showMember: showMember,
           onMemberTap: onMemberTap == null ? null : () => onMemberTap!(item),
           guide: guideFor?.call(item),
+          onEditFeedback: onEditFeedback == null
+              ? null
+              : (f, content) => onEditFeedback!(item, f, content),
+          onDeleteFeedback: onDeleteFeedback == null
+              ? null
+              : (f) => onDeleteFeedback!(item, f),
           quickPhrases: hasPlanFor?.call(item) == true
               ? MealFeedCard.goalPhrases
               : MealFeedCard.basicPhrases,
@@ -144,6 +164,11 @@ class MealFeedCard extends StatefulWidget {
   /// 아직 내 피드백이 없을 때 한 번에 채우는 말.
   final List<String> quickPhrases;
 
+  /// 내 피드백 고치기 · 지우기 (성공하면 true). 둘 다 없으면 ⋯를 두지 않는다.
+  final Future<bool> Function(fb.Feedback feedback, String content)?
+  onEditFeedback;
+  final Future<bool> Function(fb.Feedback feedback)? onDeleteFeedback;
+
   const MealFeedCard({
     super.key,
     required this.item,
@@ -154,6 +179,8 @@ class MealFeedCard extends StatefulWidget {
     this.onMemberTap,
     this.guide,
     this.quickPhrases = basicPhrases,
+    this.onEditFeedback,
+    this.onDeleteFeedback,
   });
 
   /// 자주 쓰는 말 — 식단 목표가 없는 회원.
@@ -176,6 +203,9 @@ class _MealFeedCardState extends State<MealFeedCard> {
   final _focus = FocusNode();
   bool _sending = false;
 
+  /// 고치는 중인 내 피드백 (입력 줄이 '수정' 모드가 된다).
+  fb.Feedback? _editing;
+
   @override
   void initState() {
     super.initState();
@@ -193,14 +223,82 @@ class _MealFeedCardState extends State<MealFeedCard> {
   Future<void> _send() async {
     final content = _controller.text.trim();
     if (content.isEmpty || _sending) return;
+    final editing = _editing;
+    if (editing != null && content == editing.content.trim()) {
+      _cancelEdit();
+      return;
+    }
     setState(() => _sending = true);
-    final ok = await widget.onSend(content);
+    final ok = editing != null
+        ? await widget.onEditFeedback!(editing, content)
+        : await widget.onSend(content);
     if (!mounted) return;
-    setState(() => _sending = false);
+    setState(() {
+      _sending = false;
+      if (ok) _editing = null;
+    });
     if (ok) {
       _controller.clear();
       _focus.unfocus();
     }
+  }
+
+  void _startEdit(fb.Feedback feedback) {
+    setState(() => _editing = feedback);
+    _controller.text = feedback.content;
+    _controller.selection = TextSelection.collapsed(
+      offset: _controller.text.length,
+    );
+    _focus.requestFocus();
+  }
+
+  void _cancelEdit() {
+    setState(() => _editing = null);
+    _controller.clear();
+    _focus.unfocus();
+  }
+
+  /// 내 말풍선의 ⋯: 고치기 · 지우기.
+  Future<void> _showFeedbackMenu(fb.Feedback feedback) async {
+    final action = await showAppBottomSheet<String>(
+      context: context,
+      child: Builder(
+        builder: (sheetContext) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const AppBottomSheetHeader(title: '내 피드백', gap: AppSpacing.md),
+            if (widget.onEditFeedback != null)
+              AppSheetAction(
+                icon: AppIcons.edit,
+                label: '고치기',
+                onTap: () => Navigator.of(sheetContext).pop('edit'),
+              ),
+            if (widget.onDeleteFeedback != null)
+              AppSheetAction(
+                icon: AppIcons.trash,
+                label: '지우기',
+                destructive: true,
+                onTap: () => Navigator.of(sheetContext).pop('delete'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'edit') {
+      _startEdit(feedback);
+      return;
+    }
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '피드백 지우기',
+      message: '회원 화면에서도 이 피드백이 사라집니다. 되돌릴 수 없습니다.',
+      confirmLabel: '지우기',
+    );
+    if (!ok || !mounted) return;
+    if (_editing?.id == feedback.id) _cancelEdit();
+    await widget.onDeleteFeedback!(feedback);
   }
 
   void _quick(String phrase) {
@@ -365,13 +463,20 @@ class _MealFeedCardState extends State<MealFeedCard> {
                     _FeedbackComment(
                       feedback: item.feedbacks[i],
                       mine: item.feedbacks[i].trainerId == widget.trainerId,
+                      editing: _editing?.id == item.feedbacks[i].id,
+                      onMore:
+                          item.feedbacks[i].trainerId == widget.trainerId &&
+                              (widget.onEditFeedback != null ||
+                                  widget.onDeleteFeedback != null)
+                          ? () => _showFeedbackMenu(item.feedbacks[i])
+                          : null,
                     ),
                   ],
                 ],
               ),
             ),
           // 자주 쓰는 말 (아직 내 피드백이 없을 때)
-          if (!sent)
+          if (!sent && _editing == null)
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,
@@ -385,6 +490,50 @@ class _MealFeedCardState extends State<MealFeedCard> {
                 children: [
                   for (final phrase in widget.quickPhrases)
                     _QuickChip(label: phrase, onTap: () => _quick(phrase)),
+                ],
+              ),
+            ),
+          // 고치는 중 안내 (입력 줄 바로 위)
+          if (_editing != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                10,
+                AppSpacing.screenH,
+                0,
+              ),
+              child: Row(
+                children: [
+                  Icon(AppIcons.edit, size: 14, color: AppColors.noticeText),
+                  const Gap(6),
+                  Expanded(
+                    child: Text(
+                      '피드백 고치는 중',
+                      style: AppTextStyles.bodySm.medium.copyWith(
+                        color: AppColors.noticeText,
+                      ),
+                    ),
+                  ),
+                  Semantics(
+                    button: true,
+                    label: '고치기 취소',
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      onTap: _cancelEdit,
+                      behavior: HitTestBehavior.opaque,
+                      child: SizedBox(
+                        height: 32,
+                        child: Center(
+                          child: Text(
+                            '취소',
+                            style: AppTextStyles.bodySm.medium.copyWith(
+                              color: AppColors.body,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -442,8 +591,9 @@ class _MealFeedCardState extends State<MealFeedCard> {
                 _SendButton(
                   enabled: _controller.text.trim().isNotEmpty && !_sending,
                   sending: _sending,
-                  label:
-                      '${item.member.name} ${meal.mealType.label} 식단에 피드백 보내기',
+                  label: _editing != null
+                      ? '고친 피드백 저장'
+                      : '${item.member.name} ${meal.mealType.label} 식단에 피드백 보내기',
                   onTap: _send,
                 ),
               ],
@@ -551,7 +701,18 @@ class _FeedbackComment extends StatelessWidget {
   final fb.Feedback feedback;
   final bool mine;
 
-  const _FeedbackComment({required this.feedback, required this.mine});
+  /// 이 피드백을 고치는 중 (말풍선 테두리 강조)
+  final bool editing;
+
+  /// 내 피드백의 ⋯ (고치기 · 지우기). null이면 두지 않는다.
+  final VoidCallback? onMore;
+
+  const _FeedbackComment({
+    required this.feedback,
+    required this.mine,
+    this.editing = false,
+    this.onMore,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -567,7 +728,11 @@ class _FeedbackComment extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: mine ? AppColors.canvasCard : null,
-        border: mine ? null : Border.all(color: AppColors.hairline),
+        border: editing
+            ? Border.all(color: AppColors.ink, width: 1.5)
+            : mine
+            ? null
+            : Border.all(color: AppColors.hairline),
         borderRadius: BorderRadius.circular(AppRadius.field),
       ),
       child: Column(
@@ -604,6 +769,7 @@ class _FeedbackComment extends StatelessWidget {
                 TextSpan(
                   children: [
                     TextSpan(text: when),
+                    if (feedback.isEdited) const TextSpan(text: ' · 수정됨'),
                     if (mine)
                       feedback.isRead
                           ? const TextSpan(text: ' · 읽음')
@@ -615,6 +781,24 @@ class _FeedbackComment extends StatelessWidget {
                 ),
                 style: AppTextStyles.captionSmall,
               ),
+              if (onMore != null)
+                Semantics(
+                  button: true,
+                  label: '내 피드백 고치기 · 지우기',
+                  excludeSemantics: true,
+                  child: GestureDetector(
+                    onTap: onMore,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.sm),
+                      child: Icon(
+                        AppIcons.moreBold,
+                        size: 18,
+                        color: AppColors.dots,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
           const Gap(2),

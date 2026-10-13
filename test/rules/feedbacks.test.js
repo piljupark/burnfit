@@ -136,6 +136,16 @@ describe('firestore feedback rules', () => {
     );
   });
 
+  it('회원은 readAt만 바꿔 읽음 처리할 수 있다 (updatedAt은 내용을 고칠 때만 바뀐다)', async () => {
+    const db = authedDb(memberId);
+
+    await assertSucceeds(
+      updateDoc(doc(db, 'feedbacks', feedbackId), {
+        readAt: serverTimestamp(),
+      }),
+    );
+  });
+
   it('회원은 본인 피드백 내용을 수정할 수 없다', async () => {
     const db = authedDb(memberId);
 
@@ -249,6 +259,54 @@ describe('firestore feedback rules', () => {
       updatedAt: serverTimestamp(),
     });
 
+    await assertSucceeds(batch.commit());
+  });
+
+  it('담당 트레이너는 같은 식단에 다른 피드백이 남으면 연결을 남은 피드백으로 옮기며 지울 수 있다', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'meals', 'meal-two'), {
+        id: 'meal-two',
+        centerId,
+        memberId,
+        memberName: '회원',
+        trainerId,
+        mealType: 'lunch',
+        mealDate: '2026-07-20',
+        mealTime: '12:00',
+        imageUrls: [],
+        description: '점심',
+        hasFeedback: true,
+        feedbackId: 'fb-first',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      for (const id of ['fb-first', 'fb-second']) {
+        await setDoc(doc(db, 'feedbacks', id), {
+          id,
+          centerId,
+          trainerId,
+          trainerName: '트레이너',
+          memberId,
+          memberName: '회원',
+          targetType: 'meal',
+          targetId: 'meal-two',
+          targetDate: '2026-07-20',
+          content: id,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    });
+
+    const db = authedDb(trainerId);
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'feedbacks', 'fb-first'));
+    batch.update(doc(db, 'meals', 'meal-two'), {
+      hasFeedback: true,
+      feedbackId: 'fb-second',
+      updatedAt: serverTimestamp(),
+    });
     await assertSucceeds(batch.commit());
   });
 

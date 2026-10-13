@@ -8,6 +8,7 @@ import '../../core/app_icons.dart';
 import '../../core/app_logger.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
+import '../../models/feedback.dart' as fb;
 import '../../models/nutrition_plan.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
@@ -229,6 +230,47 @@ class TrainerMealFeedScreenState extends State<TrainerMealFeedScreen> {
     }
   }
 
+  Future<bool> _editFeedback(
+    MealFeedItem item,
+    fb.Feedback feedback,
+    String content,
+  ) async {
+    try {
+      final updated = await MealFeedService.editFeedback(feedback, content);
+      if (!mounted) return true;
+      setState(() {
+        _items = [
+          for (final x in _items)
+            x.meal.id == item.meal.id ? x.withReplaced(updated) : x,
+        ];
+      });
+      AppFeedback.showSuccessSnackBar(context, '피드백을 고쳤어요');
+      return true;
+    } catch (e) {
+      if (mounted) AppFeedback.showErrorSnackBar(context, e);
+      return false;
+    }
+  }
+
+  Future<bool> _deleteFeedback(MealFeedItem item, fb.Feedback feedback) async {
+    try {
+      await MealFeedService.deleteFeedback(feedback);
+      if (!mounted) return true;
+      setState(() {
+        _items = [
+          for (final x in _items)
+            x.meal.id == item.meal.id ? x.withoutFeedback(feedback.id) : x,
+        ];
+      });
+      _notifyPending();
+      AppFeedback.showSuccessSnackBar(context, '피드백을 지웠어요');
+      return true;
+    } catch (e) {
+      if (mounted) AppFeedback.showErrorSnackBar(context, e);
+      return false;
+    }
+  }
+
   /// 새 식단·피드백할 식단이 있는 회원을 앞으로 (그다음 이름순).
   List<(AppUser, MealFeedBadge)> _memberChips(String trainerId, DateTime now) {
     final chips = [
@@ -391,6 +433,8 @@ class TrainerMealFeedScreenState extends State<TrainerMealFeedScreen> {
       guideFor: (item) =>
           _plans[item.member.uid]?.mealGuides[item.meal.mealType],
       hasPlanFor: (item) => _plans[item.member.uid] != null,
+      onEditFeedback: _editFeedback,
+      onDeleteFeedback: _deleteFeedback,
       // 회원 이름 → 회원 상세 (식단 탭으로 연다). 돌아오면 피드백 표시를 맞춘다.
       onMemberTap: (item) async {
         await openTrainerMemberDetail(

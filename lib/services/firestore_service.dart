@@ -406,17 +406,27 @@ class FirestoreService {
     return feedbacks;
   }
 
+  /// 피드백을 지운다. 기록(식단 · 운동 · 유산소)에 다른 피드백이 남아 있으면 '피드백 있음'을 두고
+  /// 연결만 남은 것으로 옮긴다 — 한 식단에 피드백이 여러 개 쌓일 수 있어서다.
+  /// 남은 것이 없을 때만 기록을 '피드백 없음'으로 되돌린다.
   static Future<void> deleteFeedback(fb.Feedback feedback) async {
     ServiceValidator.requireText(feedback.id, '피드백 ID');
 
+    final targetRef = _feedbackTargetRef(feedback);
+    final remaining = targetRef == null
+        ? const <fb.Feedback>[]
+        : (await getFeedbacksByTarget(
+            feedback.targetId!,
+            centerId: feedback.centerId,
+            memberId: feedback.memberId,
+          )).where((f) => f.id != feedback.id).toList();
+
     final batch = _db.batch();
     batch.delete(_db.collection('feedbacks').doc(feedback.id));
-
-    final targetRef = _feedbackTargetRef(feedback);
     if (targetRef != null) {
       batch.update(targetRef, {
-        'hasFeedback': false,
-        'feedbackId': null,
+        'hasFeedback': remaining.isNotEmpty,
+        'feedbackId': remaining.isEmpty ? null : remaining.last.id,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     }
@@ -436,9 +446,9 @@ class FirestoreService {
 
     final batch = _db.batch();
     for (final id in ids) {
+      // updatedAt은 건드리지 않는다 — 내용을 고친 때만 바뀌어야 '수정됨'을 가릴 수 있다.
       batch.update(_db.collection('feedbacks').doc(id), {
         'readAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
       });
     }
     await batch.commit();

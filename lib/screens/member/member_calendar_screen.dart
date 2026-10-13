@@ -1132,7 +1132,9 @@ class _DayRecords extends StatelessWidget {
     return _RecordRow(
       icon: AppIcons.feedback,
       title: feedback.trainerName,
-      meta: DateFormat('a h:mm', 'ko').format(feedback.createdAt),
+      meta:
+          DateFormat('a h:mm', 'ko').format(feedback.createdAt) +
+          (feedback.isEdited ? ' · 수정됨' : ''),
       detail: feedback.content,
       longText: true,
       onTap: onFeedbackTap,

@@ -14,6 +14,7 @@ import '../services/workout_service.dart';
 import 'app_bottom_sheet.dart';
 import 'app_button.dart';
 import 'app_calendar.dart';
+import 'app_confirm_dialog.dart';
 import 'app_text_field.dart';
 
 class FeedbackSheet extends StatefulWidget {
@@ -244,6 +245,29 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
     }
   }
 
+  Future<void> _delete() async {
+    final existing = widget.existing;
+    if (existing == null || _isLoading) return;
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '피드백 지우기',
+      message: '회원 화면에서도 이 피드백이 사라집니다. 되돌릴 수 없습니다.',
+      confirmLabel: '지우기',
+    );
+    if (!ok || !mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      await FirestoreService.deleteFeedback(existing);
+      if (!mounted) return;
+      AppFeedback.showSuccessSnackBar(context, '피드백을 지웠어요');
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      AppFeedback.showErrorSnackBar(context, e);
+    }
+  }
+
   Future<void> _save(String content) async {
     final existing = widget.existing;
     if (existing != null) {
@@ -402,6 +426,16 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
               fullWidth: true,
               size: AppButtonSize.lg,
             ),
+            // 이미 보낸 내 피드백이면 지울 수 있다 (같은 기록의 다른 피드백은 그대로).
+            if (isEditing) ...[
+              const SizedBox(height: AppSpacing.xs),
+              AppButton(
+                label: '피드백 지우기',
+                variant: AppButtonVariant.dangerText,
+                onPressed: _isLoading ? null : _delete,
+                fullWidth: true,
+              ),
+            ],
           ],
         ),
       ),
@@ -502,7 +536,7 @@ class FeedbackQuote extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '$who · $when',
+            feedback.isEdited ? '$who · $when · 수정됨' : '$who · $when',
             style: AppTextStyles.bodySm,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

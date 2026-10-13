@@ -31,6 +31,22 @@ class MealFeedItem {
     member: member,
     feedbacks: [...feedbacks, feedback],
   );
+
+  /// 고친 피드백으로 바꾼다 (같은 id).
+  MealFeedItem withReplaced(fb.Feedback feedback) => MealFeedItem(
+    meal: meal,
+    member: member,
+    feedbacks: [for (final f in feedbacks) f.id == feedback.id ? feedback : f],
+  );
+
+  MealFeedItem withoutFeedback(String feedbackId) => MealFeedItem(
+    meal: meal,
+    member: member,
+    feedbacks: [
+      for (final f in feedbacks)
+        if (f.id != feedbackId) f,
+    ],
+  );
 }
 
 /// 회원 버튼 표시: 피드백할 식단 수와 새로 올라온 식단이 있는지.
@@ -152,11 +168,27 @@ class MealFeedService {
       updatedAt: now,
     );
     await FirestoreService.createFeedback(feedback);
-    if (!item.meal.hasFeedback) {
+    // 피드백이 다 지워진 식단은 화면의 meal.hasFeedback이 예전 값일 수 있어 피드백 목록으로도 본다.
+    if (!item.meal.hasFeedback || item.feedbacks.isEmpty) {
       await MealService.linkFeedback(item.meal.id, feedback.id);
     }
     return feedback;
   }
+
+  /// 내가 남긴 피드백 내용을 고친다 (규칙: 작성자 본인 · 지금 담당일 때만). 고친 피드백을 돌려준다.
+  static Future<fb.Feedback> editFeedback(
+    fb.Feedback feedback,
+    String content,
+  ) async {
+    final trimmed = content.trim();
+    await FirestoreService.updateFeedbackContent(feedback.id, trimmed);
+    return feedback.copyWith(content: trimmed, updatedAt: DateTime.now());
+  }
+
+  /// 내가 남긴 피드백을 지운다. 식단에 다른 피드백이 남아 있으면 '피드백 있음'은 그대로다.
+  /// 회원 알림함의 '새 피드백' 알림은 남는다 (2026-10-13 결정).
+  static Future<void> deleteFeedback(fb.Feedback feedback) =>
+      FirestoreService.deleteFeedback(feedback);
 }
 
 /// '새 식단' 판단과 회원 버튼 표시 (화면과 떼어 시험한다).

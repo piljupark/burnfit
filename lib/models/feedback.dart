@@ -52,6 +52,14 @@ class Feedback {
 
   bool get isRead => readAt != null;
 
+  /// 처음 보낸 뒤 내용을 고쳤는지 ('수정됨' 표시). updatedAt은 내용을 고칠 때만 바뀐다.
+  /// 2026-10-13 전에는 읽음 처리도 updatedAt을 바꿨으므로, 읽은 시각과 같으면 고친 것으로 보지 않는다.
+  bool get isEdited {
+    if (updatedAt.difference(createdAt).inSeconds < 60) return false;
+    final read = readAt;
+    return read == null || updatedAt.difference(read).inSeconds.abs() >= 2;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -119,7 +127,7 @@ class Feedback {
     throw ArgumentError('피드백 대상 타입이 올바르지 않습니다.');
   }
 
-  Feedback copyWith({DateTime? readAt, DateTime? updatedAt}) {
+  Feedback copyWith({String? content, DateTime? readAt, DateTime? updatedAt}) {
     return Feedback(
       id: id,
       centerId: centerId,
@@ -130,7 +138,7 @@ class Feedback {
       targetType: targetType,
       targetId: targetId,
       targetDate: targetDate,
-      content: content,
+      content: content ?? this.content,
       readAt: readAt ?? this.readAt,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
