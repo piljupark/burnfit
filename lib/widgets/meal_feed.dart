@@ -14,6 +14,7 @@ import 'app_calendar.dart';
 import 'app_confirm_dialog.dart';
 import 'app_hero.dart';
 import 'app_loader.dart';
+import 'app_network_photo.dart';
 import 'app_tag.dart';
 
 /// 트레이너 식단 피드 목록 (식단 탭 · 회원 상세 식단 탭 공용).
@@ -621,9 +622,6 @@ class _MealPhotosState extends State<_MealPhotos> {
   @override
   Widget build(BuildContext context) {
     final urls = widget.urls;
-    final media = MediaQuery.of(context);
-    // 작은 크기로 먼저 받아 그린다 (화면 폭 × 화면 배율)
-    final cacheWidth = (media.size.width * media.devicePixelRatio).round();
     return Column(
       children: [
         Padding(
@@ -641,22 +639,7 @@ class _MealPhotosState extends State<_MealPhotos> {
                     itemBuilder: (_, i) => Semantics(
                       image: true,
                       label: '식단 사진 ${i + 1}/${urls.length}',
-                      child: Image.network(
-                        urls[i],
-                        fit: BoxFit.cover,
-                        cacheWidth: cacheWidth,
-                        loadingBuilder: (_, child, progress) => progress == null
-                            ? child
-                            : ColoredBox(color: AppColors.canvasCard),
-                        errorBuilder: (_, _, _) => ColoredBox(
-                          color: AppColors.canvasSoft,
-                          child: Icon(
-                            AppIcons.image,
-                            color: AppColors.faint,
-                            size: 32,
-                          ),
-                        ),
-                      ),
+                      child: AppNetworkPhoto(url: urls[i], iconSize: 32),
                     ),
                   ),
                   if (urls.length > 1)

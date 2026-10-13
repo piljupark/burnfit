@@ -73,6 +73,9 @@
 
 ### 기타
 
+- 식단 사진 처리 (2026-10-13 점검 · 1단계 반영): 고를 때 긴 변 1440 · 화질 75로 줄임 → 저장 때 짧은 변 1080 · 75 압축(안전장치) → 여러 장 동시 업로드, `Cache-Control: public, max-age=31536000, immutable`. 화면은 `AppNetworkPhoto`(기기 저장 + 칸 크기로 풂).
+  - 2단계 (아직): 올릴 때 썸네일(긴 변 360)도 만들어 식단에 `thumbUrls`로 두고 목록 · 작은 칸은 썸네일. 저장 규칙(`hasOnlyMealFields`) 수정 · 배포 필요. 예전 식단은 원본으로.
+  - 확인 필요: Storage 버킷(`burnfit-v01.firebasestorage.app`) 위치 — 콘솔에서 확인. 데이터베이스는 서울(asia-northeast3). 버킷이 미국이면 업로드 · 다운로드가 느리다 (버킷 위치는 바꿀 수 없어 새 버킷 + 옮기기).
 - 종목 설명(`lib/core/exercise_guide_data.dart`) 운동 방법 248개는 트레이너 검수 전이다 → 검수 뒤 시트의 '검수 전' 꼬리표를 뗀다 (`exercise_guide_sheet.dart`). 자료 출처 free-exercise-db는 Unlicense(표시 의무 없음), 근육 그림 `muscle_map`은 MIT(앱 안 라이선스 화면이 생기면 자동으로 실린다).
 - 안드로이드 `targetSdk`는 Flutter 기본값 — 플레이 요구 수준(해마다 오름) 확인.
 

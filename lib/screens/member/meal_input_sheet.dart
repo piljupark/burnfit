@@ -76,6 +76,9 @@ class _MealInputSheetState extends State<MealInputSheet> {
       final picker = ImagePicker();
       final files = await picker.pickMultiImage(
         imageQuality: AppConstants.imageQuality,
+        // 고를 때 바로 줄인다 — 원본(예: 4032×3024)으로 다시 만들지 않는다.
+        maxWidth: AppConstants.imagePickMaxEdge,
+        maxHeight: AppConstants.imagePickMaxEdge,
         limit: AppConstants.imageMaxCount - _images.length,
       );
       for (final file in files) {
@@ -351,7 +354,12 @@ class _PhotoGrid extends StatelessWidget {
                     color: AppColors.track,
                     child: kIsWeb
                         ? Image.memory(imageBytes[i], fit: BoxFit.cover)
-                        : Image.file(File(images[i].path), fit: BoxFit.cover),
+                        // 칸 크기(약 화면 1/3)로 줄여 푼다
+                        : Image.file(
+                            File(images[i].path),
+                            fit: BoxFit.cover,
+                            cacheWidth: 400,
+                          ),
                   ),
                 ),
                 // 삭제: 누름 영역 44, 원 26 (rgba(25,25,25,.6)) + 흰 X 14

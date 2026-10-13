@@ -23,6 +23,7 @@ import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_motion.dart';
+import '../../widgets/app_network_photo.dart';
 import '../../widgets/brand_marks.dart';
 import '../../widgets/feedback_sheet.dart';
 import '../../widgets/nutrition_plan_card.dart';
@@ -834,19 +835,9 @@ class _MealPhotoGrid extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                ColoredBox(
-                  color: AppColors.track,
-                  child: Image.network(
-                    shown[i],
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Center(
-                      child: Icon(
-                        AppIcons.image,
-                        size: AppSize.icon,
-                        color: AppColors.mute,
-                      ),
-                    ),
-                  ),
+                AppNetworkPhoto(
+                  url: shown[i],
+                  placeholderColor: AppColors.track,
                 ),
                 if (isLast)
                   ColoredBox(

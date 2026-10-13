@@ -40,18 +40,25 @@ class MealService {
     if (files.isEmpty) throw ArgumentError('사진을 1장 이상 올려 주세요.');
     ServiceValidator.requireImageCount(files.length);
 
-    final urls = <String>[];
-
-    try {
-      for (final file in files) {
-        urls.add(
-          await _uploadOne(file, centerId: centerId, memberId: memberId),
-        );
-      }
-    } catch (_) {
-      // 중간에 실패하면 이미 올라간 사진을 지워 저장소에 남지 않게 한다.
+    // 여러 장을 동시에 올린다 (순서는 고른 순서 그대로).
+    final results = await Future.wait(
+      files.map((file) async {
+        try {
+          return (
+            url: await _uploadOne(file, centerId: centerId, memberId: memberId),
+            error: null as Object?,
+          );
+        } catch (e) {
+          return (url: null as String?, error: e as Object?);
+        }
+      }),
+    );
+    final urls = [for (final r in results) ?r.url];
+    final failure = results.where((r) => r.error != null).firstOrNull;
+    if (failure != null) {
+      // 하나라도 실패하면 올라간 사진을 지워 저장소에 남지 않게 한다.
       await deleteImages(urls);
-      rethrow;
+      throw failure.error!;
     }
     return urls;
   }
@@ -67,7 +74,11 @@ class MealService {
     final ts = DateTime.now().millisecondsSinceEpoch;
     final ref = _storage.ref('$centerId/meals/$memberId/${id}_$ts.jpg');
 
-    final metadata = SettableMetadata(contentType: 'image/jpeg');
+    // 파일 이름이 매번 새로 생기고 고치지 않으므로 기기 · 중간 서버가 오래 보관해도 된다.
+    final metadata = SettableMetadata(
+      contentType: 'image/jpeg',
+      cacheControl: 'public, max-age=31536000, immutable',
+    );
     AppLogger.debug(
       '[식단 이미지 업로드] authUid=${AuthService.currentUser?.uid}, '
       'centerId=$centerId, memberId=$memberId, bytes=$length, '
@@ -84,14 +95,15 @@ class MealService {
   }
 
   static Future<void> deleteImages(List<String> urls) async {
-    for (final url in urls) {
-      try {
-        final ref = _storage.refFromURL(url);
-        await ref.delete();
-      } catch (e) {
-        AppLogger.debug('[MealService] 식단 이미지 삭제 실패: $e');
-      }
-    }
+    await Future.wait(
+      urls.map((url) async {
+        try {
+          await _storage.refFromURL(url).delete();
+        } catch (e) {
+          AppLogger.debug('[MealService] 식단 이미지 삭제 실패: $e');
+        }
+      }),
+    );
   }
 
   static Future<Meal> saveMeal({
