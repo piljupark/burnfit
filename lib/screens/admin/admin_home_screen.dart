@@ -25,7 +25,6 @@ import 'admin_dashboard_screen.dart';
 import 'admin_member_list_screen.dart';
 import 'admin_notice_list_screen.dart';
 import 'admin_requests_screen.dart';
-import 'admin_roster_screen.dart';
 import 'admin_trainer_list_screen.dart';
 import 'admin_withdrawn_members_screen.dart';
 import '../common/notice_menu_row.dart';
@@ -288,11 +287,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                         label: '가입 요청',
                         value: _pendingCount > 0 ? '$_pendingCount건' : null,
                         onTap: () => _push(const AdminRequestsScreen()),
-                      ),
-                      _MenuRow(
-                        icon: AppIcons.list,
-                        label: '회원 명단',
-                        onTap: () => _push(const AdminRosterScreen()),
                       ),
                       _MenuRow(
                         icon: AppIcons.megaphone,

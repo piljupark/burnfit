@@ -13,9 +13,11 @@ const _trainers = [
 
 List<RosterPreviewRow> _check(
   List<List<Object?>> table, {
+  String role = 'member',
   Map<String, String> joined = const {},
 }) => RosterImport.check(
   table,
+  role: role,
   centerId: 'c1',
   trainers: _trainers,
   joinedPhones: joined,
@@ -87,17 +89,44 @@ void main() {
   });
 
   group('줄 검사', () {
-    test('머리줄이 없으면 기본 순서, 구분이 비면 회원', () {
+    test('머리줄이 없으면 기본 순서 (이름 · 휴대폰 · 담당 · 횟수 · 시작 · 종료)', () {
       final rows = _check([
-        ['', '김민지', '010-2222-3333'],
-        ['트레이너', '정코치', '010-4444-5555', '박코치', 10],
+        ['김민지', '010-2222-3333'],
+        ['이서준', '010-2222-4444', '박코치', 10],
       ]);
       expect(rows[0].entry!.role, 'member');
       expect(rows[0].message, '담당 없음 · PT 없음');
-      // 트레이너 줄의 담당 · PT 칸은 쓰지 않는다
-      expect(rows[1].entry!.role, 'trainer');
-      expect(rows[1].entry!.ptTotal, isNull);
-      expect(rows[1].entry!.trainerId, isNull);
+      expect(rows[1].entry!.trainerId, 't1');
+      expect(rows[1].entry!.ptTotal, 10);
+    });
+
+    test('트레이너 탭: 이름 · 휴대폰만 쓰고 담당 · PT 칸은 무시', () {
+      final rows = _check(role: 'trainer', [
+        ['이름', '휴대폰', '담당 트레이너', 'PT 횟수'],
+        ['정코치', '010-4444-5555', '박코치', 10],
+      ]);
+      final e = rows.single.entry!;
+      expect(e.role, 'trainer');
+      expect(e.trainerId, isNull);
+      expect(e.ptTotal, isNull);
+      expect(rows.single.message, '트레이너');
+    });
+
+    test("'구분' 칸이 있으면 다른 탭의 줄은 확인 필요", () {
+      final member = _check([
+        ['구분', '이름', '휴대폰'],
+        ['회원', '김민지', '010-2222-3333'],
+        ['트레이너', '정코치', '010-4444-5555'],
+        ['', '빈구분', '010-4444-6666'],
+      ]);
+      expect(member[0].check, RosterCheck.ready);
+      expect(member[1].message, '트레이너 줄은 트레이너 탭에서 올려 주세요');
+      expect(member[2].check, RosterCheck.ready);
+      final trainer = _check(role: 'trainer', [
+        ['구분', '이름', '휴대폰'],
+        ['회원', '김민지', '010-2222-3333'],
+      ]);
+      expect(trainer.single.message, '회원 줄은 회원 탭에서 올려 주세요');
     });
 
     test('머리줄 순서가 달라도 칸 이름으로 찾는다', () {

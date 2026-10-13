@@ -47,21 +47,18 @@ class RosterPreviewRow {
 
 /// 명단 파일(.xlsx · .csv) 읽기와 줄 검사. 서버를 부르지 않는 순수 함수라 테스트한다.
 ///
-/// 칸: 구분 · 이름 · 휴대폰 · 담당 트레이너 · PT 횟수 · 시작일 · 종료일.
+/// 회원 탭 · 트레이너 탭에서 따로 올린다 ([check]의 `role`).
+/// - 회원: 이름 · 휴대폰 · 담당 트레이너 · PT 횟수 · 시작일 · 종료일
+/// - 트레이너: 이름 · 휴대폰
 /// 첫 줄에 '이름'이나 '휴대폰'이 있으면 머리줄로 보고 칸 이름으로 순서를 찾는다
-/// (없으면 위 순서). 필수는 이름 · 휴대폰. 구분이 비면 회원.
+/// (없으면 위 순서). 필수는 이름 · 휴대폰. '구분' 칸이 있으면 다른 구분 줄은 확인 필요로 뺀다.
 class RosterImport {
   RosterImport._();
 
-  static const List<String> columnGuide = [
-    '구분',
-    '이름',
-    '휴대폰',
-    '담당 트레이너',
-    'PT 횟수',
-    '시작일',
-    '종료일',
-  ];
+  /// 칸 안내 (올리기 화면)
+  static List<String> columnsFor(String role) => role == 'trainer'
+      ? const ['이름', '휴대폰']
+      : const ['이름', '휴대폰', '담당 트레이너', 'PT 횟수', '시작일', '종료일'];
 
   static const int maxRows = 1000;
   static const int maxPtSessions = 500;
@@ -167,6 +164,7 @@ class RosterImport {
   /// - [joinedPhones]: 이미 승인된 계정의 번호 → 이름
   static List<RosterPreviewRow> check(
     List<List<Object?>> table, {
+    required String role,
     required String centerId,
     required List<({String uid, String name})> trainers,
     required Map<String, String> joinedPhones,
@@ -180,11 +178,24 @@ class RosterImport {
       throw RosterFileException('파일에 줄이 없어요.');
     }
 
+    final isTrainerFile = role == 'trainer';
     var cols = _defaultColumns;
     final first = lines.first.$2.map(_text).toList();
     if (first.any((t) => t.contains('이름') || t.contains('휴대폰'))) {
       cols = _columnsFromHeader(first);
       lines.removeAt(0);
+    }
+    if (isTrainerFile) {
+      // 트레이너 명단은 담당 · PT 칸을 쓰지 않는다
+      cols = (
+        role: cols.role,
+        name: cols.name,
+        phone: cols.phone,
+        trainer: -1,
+        ptTotal: -1,
+        ptStart: -1,
+        ptEnd: -1,
+      );
     }
     if (cols.name < 0 || cols.phone < 0) {
       throw RosterFileException("머리줄에 '이름'과 '휴대폰' 칸이 있어야 해요.");
@@ -213,15 +224,25 @@ class RosterImport {
         message: message,
       );
 
+      // '구분' 칸이 있으면 이 탭의 구분과 같은지만 본다 (비면 이 탭의 구분)
       final roleText = _text(at(row, cols.role));
-      final String role;
-      if (roleText.isEmpty || roleText == '회원' || roleText == 'member') {
-        role = 'member';
-      } else if (roleText == '트레이너' || roleText == 'trainer') {
-        role = 'trainer';
-      } else {
-        result.add(problem("구분은 '회원'이나 '트레이너'로 적어 주세요"));
-        continue;
+      if (roleText.isNotEmpty) {
+        final isMemberText = roleText == '회원' || roleText == 'member';
+        final isTrainerText = roleText == '트레이너' || roleText == 'trainer';
+        if (!isMemberText && !isTrainerText) {
+          result.add(problem("구분은 '회원'이나 '트레이너'로 적어 주세요"));
+          continue;
+        }
+        if (isTrainerText != isTrainerFile) {
+          result.add(
+            problem(
+              isTrainerText
+                  ? '트레이너 줄은 트레이너 탭에서 올려 주세요'
+                  : '회원 줄은 회원 탭에서 올려 주세요',
+            ),
+          );
+          continue;
+        }
       }
       if (name.length < 2 || name.length > 30) {
         result.add(problem('이름을 확인해 주세요 (2~30자)'));
@@ -346,14 +367,15 @@ class RosterImport {
 
   // ── 칸 값 ──────────────────────────────────────────────────────────────────
 
+  /// 머리줄이 없을 때: 이름 · 휴대폰 · 담당 트레이너 · PT 횟수 · 시작일 · 종료일 (트레이너는 앞 둘만)
   static const _defaultColumns = (
-    role: 0,
-    name: 1,
-    phone: 2,
-    trainer: 3,
-    ptTotal: 4,
-    ptStart: 5,
-    ptEnd: 6,
+    role: -1,
+    name: 0,
+    phone: 1,
+    trainer: 2,
+    ptTotal: 3,
+    ptStart: 4,
+    ptEnd: 5,
   );
 
   static ({
@@ -369,7 +391,7 @@ class RosterImport {
     int find(bool Function(String) test) => header.indexWhere(test);
     return (
       role: find((h) => h.contains('구분') || h.contains('역할')),
-      name: find((h) => h.contains('이름') && !h.contains('트레이너')),
+      name: find((h) => h.contains('이름') && !h.contains('담당')),
       phone: find(
         (h) => h.contains('휴대폰') || h.contains('전화') || h.contains('연락처'),
       ),

@@ -9,18 +9,24 @@ import '../../core/app_spacing.dart';
 import '../../models/user.dart';
 import '../../models/pt_info.dart';
 import '../../models/pt_session.dart';
+import '../../models/roster_entry.dart';
 import '../../services/firestore_service.dart';
+import '../../services/roster_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_async_body.dart';
 import '../../widgets/app_bottom_sheet.dart';
+import '../../widgets/app_calendar.dart';
 import '../../widgets/app_hero.dart';
 import '../../widgets/app_motion.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_text_field.dart';
 import 'admin_member_detail_screen.dart';
+import 'admin_roster_parts.dart';
 import '../../widgets/app_kpi_card.dart';
 
+/// 트레이너 탭: 제목 + 오른쪽 '명단 업로드'(트레이너 명단만) → 검색 →
+/// (명단에만 있는 트레이너가 있으면) '전체 · 미가입 N' 알약 → 줄.
 class AdminTrainerListScreen extends StatefulWidget {
   const AdminTrainerListScreen({super.key});
 
@@ -34,6 +40,13 @@ class AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
 
   List<AppUser> _trainers = [];
   List<AppUser> _filtered = [];
+
+  /// 명단에만 있는 트레이너 (아직 가입 · 승인 전)
+  List<RosterEntry> _roster = [];
+  List<RosterEntry> _filteredRoster = [];
+
+  /// '미가입' 알약을 골랐는지
+  bool _unjoined = false;
   bool _isLoading = false;
   bool _loadedOnce = false;
   String? _errorMessage;
@@ -59,13 +72,24 @@ class AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
     if (!_loadedOnce) setState(() => _isLoading = true);
     try {
       final list = await FirestoreService.getTrainersByCenter(user.centerId);
+      // 명단은 따로: 읽지 못해도 트레이너 목록은 보인다
+      List<RosterEntry> roster;
+      try {
+        roster = (await RosterService.list(
+          user.centerId,
+        )).where((e) => e.isTrainer).toList();
+      } catch (_) {
+        roster = _roster;
+      }
       if (!mounted) return;
       setState(() {
         _trainers = list;
-        _filtered = list;
+        _roster = roster;
+        if (roster.isEmpty) _unjoined = false;
         _errorMessage = null;
         _loadedOnce = true;
       });
+      _filter();
     } catch (e) {
       if (!mounted) return;
       if (_loadedOnce) {
@@ -93,7 +117,22 @@ class AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                       t.email.toLowerCase().contains(q),
                 )
                 .toList();
+      _filteredRoster = _roster
+          .where((e) => q.isEmpty || e.name.toLowerCase().contains(q))
+          .toList();
     });
+  }
+
+  Future<void> _upload() async {
+    if (!await openRosterUpload(context, 'trainer') || !mounted) return;
+    await _load();
+    // 방금 올린 줄이 보이게 미가입으로
+    if (mounted && _roster.isNotEmpty) setState(() => _unjoined = true);
+  }
+
+  Future<void> _openRosterEntry(RosterEntry e) async {
+    if (!await showRosterEntryActions(context, e) || !mounted) return;
+    await _load();
   }
 
   bool _openingDetail = false;
@@ -164,7 +203,10 @@ class AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppHero(title: '트레이너'),
+            AppHero(
+              title: '트레이너',
+              actions: [RosterUploadButton(onPressed: _upload)],
+            ),
             // 검색 (시안 Ad-Trainers: 48 · 좌우 14) → 위 16 화면 폭 선
             Padding(
               padding: const EdgeInsets.symmetric(
@@ -179,39 +221,69 @@ class AdminTrainerListScreenState extends State<AdminTrainerListScreen> {
                 textInputAction: TextInputAction.search,
               ),
             ),
+            if (_roster.isNotEmpty)
+              AppViewTabs(
+                labels: ['전체', '미가입 ${_roster.length}'],
+                selectedIndex: _unjoined ? 1 : 0,
+                compact: true,
+                scrollable: true,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  14 - 3,
+                  AppSpacing.screenH,
+                  0,
+                ),
+                onSelect: (i) => setState(() => _unjoined = i == 1),
+              ),
             const SizedBox(height: AppSpacing.base),
             const AppRowDivider(),
             Expanded(
               child: AppAsyncBody(
                 isLoading: _isLoading,
                 errorMessage: _errorMessage,
-                isEmpty: _filtered.isEmpty,
+                isEmpty: _unjoined
+                    ? _filteredRoster.isEmpty
+                    : _filtered.isEmpty,
                 onRefresh: _load,
                 padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
                 empty: AppEmptyState(
                   icon: AppIcons.trainers,
                   compact: true,
                   top: 96,
-                  message: _trainers.isEmpty
+                  message: _unjoined
+                      ? '검색 결과가 없습니다.'
+                      : _trainers.isEmpty
                       ? '등록된 트레이너가 없습니다.'
                       : '검색 결과가 없습니다.',
                 ),
-                children: [
-                  for (int i = 0; i < _filtered.length; i++)
-                    // 시안 `fade`: 아래 8에서 .4s, 0.05초 간격
-                    AppEntrance(
-                      key: ValueKey(_filtered[i].uid),
-                      offset: const Offset(0, 8),
-                      duration: const Duration(milliseconds: 400),
-                      delay: Duration(milliseconds: 50 * (i < 10 ? i : 10)),
-                      child: AppListRow(
-                        title: _filtered[i].name,
-                        subtitle: _filtered[i].email,
-                        chevron: true,
-                        onTap: () => _showTrainerDetail(_filtered[i]),
-                      ),
-                    ),
-                ],
+                children: _unjoined
+                    ? [
+                        for (final e in _filteredRoster)
+                          RosterEntryRow(
+                            key: ValueKey('roster-${e.id}'),
+                            entry: e,
+                            onTap: () => _openRosterEntry(e),
+                          ),
+                        const RosterHint(trainer: true),
+                      ]
+                    : [
+                        for (int i = 0; i < _filtered.length; i++)
+                          // 시안 `fade`: 아래 8에서 .4s, 0.05초 간격
+                          AppEntrance(
+                            key: ValueKey(_filtered[i].uid),
+                            offset: const Offset(0, 8),
+                            duration: const Duration(milliseconds: 400),
+                            delay: Duration(
+                              milliseconds: 50 * (i < 10 ? i : 10),
+                            ),
+                            child: AppListRow(
+                              title: _filtered[i].name,
+                              subtitle: _filtered[i].email,
+                              chevron: true,
+                              onTap: () => _showTrainerDetail(_filtered[i]),
+                            ),
+                          ),
+                      ],
               ),
             ),
           ],

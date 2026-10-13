@@ -463,7 +463,8 @@ class _RosterMatchBox extends StatelessWidget {
     final e = match.entry;
     final String note;
     if (!match.sameName) {
-      note = "명단 이름이 '${e.name}'(으)로 달라 승인해도 명단 정보는 붙이지 않아요. 확인 뒤 회원 상세에서 넣어 주세요.";
+      note =
+          "명단 이름이 '${e.name}'(으)로 달라 승인해도 명단 정보는 붙이지 않아요. 확인 뒤 회원 상세에서 넣어 주세요.";
     } else if (e.isTrainer) {
       note = '승인하면 명단에서 빠져요.';
     } else if (e.trainerId == null && e.ptTotal == null) {

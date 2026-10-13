@@ -20,7 +20,7 @@
 | `exercise_guide_data.dart` | 기본 운동 248개 설명 (근육 · 도구 · 난이도 · 운동 방법). free-exercise-db(Unlicense)를 우리말로 옮김, 없는 것 51개는 직접 씀. 트레이너 검수 전. 모양은 `models/exercise_guide.dart` |
 | `exercise_data.dart` · `food_guide_data.dart` | 종목 목록(7부위 248개, 한 이름은 한 부위에만) · 맨몸 운동 목록 `bodyweight`(무게 칸 숨김) · 버티는 운동 `timed`('초') · 영양 가이드 내용 (앱 안 자료) |
 | `validators.dart` · `birth_date.dart` · `firestore_date.dart` · `relative_time.dart` | 입력 검사 · 생년월일 · 날짜 변환 · '3분 전' |
-| `roster_import.dart` | 명단 파일(.xlsx · .csv) 읽기 · 줄 검사(가입됨 · 미가입 · 확인 필요) · 명단 요약 글(`RosterImport.summary` — 명단 화면 · 가입 요청 공용) |
+| `roster_import.dart` | 명단 파일(.xlsx · .csv) 읽기 · 줄 검사(가입됨 · 미가입 · 확인 필요) · 명단 요약 글(`RosterImport.summary` — 미가입 줄 · 가입 요청 공용) |
 
 ## 화면 뼈대
 
@@ -112,6 +112,7 @@
 | `AppNetworkPhoto` | `app_network_photo.dart` | 인터넷 사진 — 기기에 저장(`cached_network_image`) + 칸 크기 × 화면 배율로 줄여 풂, 받는 동안 회색 · 실패 시 사진 아이콘. 식단 피드 사진 · 회원 식단 사진 칸 | 2 |
 | `MealFeedList` · `MealFeedCard` | `meal_feed.dart` | 트레이너 식단 피드 (식단 탭 · 회원 상세 식단 탭). 칼로리는 보이지 않는다. `guideFor`(사진 아래 끼니 가이드) · `hasPlanFor`(자주 쓰는 말 `goalPhrases` / `basicPhrases`) · `onMemberTap` · `onEditFeedback` · `onDeleteFeedback`(내 말풍선 ⋯) | 2 |
 | `TrainerMemberRow` · `openTrainerMemberDetail` | `screens/trainer/trainer_members_screen.dart` | 트레이너 회원 탭의 회원 줄 · 회원 상세 열기(식단 피드 · PT 기록 · 일정이 함께 씀). 요약은 `services/trainer_members_service.dart`(`TrainerMemberSummary` · `TrainerMemberFilter`) | 4 |
+| `RosterUploadButton` · `RosterEntryRow` · `showRosterEntryActions` · `openRosterUpload` · `RosterHint` | `screens/admin/admin_roster_parts.dart` | 관리자 회원 · 트레이너 탭 명단: 제목 줄 '명단 업로드' 글자 버튼 · 미가입 줄 · 지우기 시트 · 업로드 화면 열기 · 안내 | 2 |
 | `ConsentChecklist` · `showConsentDocument` | `consent_checklist.dart` | 가입 동의 묶음(전체 · 개인정보 · 건강 정보, '보기' → 전문 시트). 문구 · 판은 `core/consent_terms.dart` | 2 |
 | `NutritionGoalStrip` | `nutrition_plan_card.dart` | 트레이너 식단 탭 목표 줄 (정한 값만 · 칼로리 첫째 줄 · 탄단지 둘째 줄 · 끼니 가이드 / 목표 없음 '정하기') | 1 |
 | `openNutritionPlanEditor` | `screens/trainer/nutrition_plan_screen.dart` | 인바디 · 신체 정보를 읽어 식단 목표 화면을 연다 (식단 탭에서) | 1 |

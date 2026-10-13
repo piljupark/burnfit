@@ -8,8 +8,10 @@ import '../../core/app_icons.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_text_styles.dart';
 import '../../models/pt_info.dart';
+import '../../models/roster_entry.dart';
 import '../../models/user.dart';
 import '../../services/firestore_service.dart';
+import '../../services/roster_service.dart';
 import '../../services/user_provider.dart';
 import '../../widgets/app_action_row.dart';
 import '../../widgets/app_async_body.dart';
@@ -19,12 +21,14 @@ import '../../widgets/app_motion.dart';
 import '../../widgets/app_section.dart';
 import '../../widgets/app_text_field.dart';
 import 'admin_member_detail_screen.dart';
+import 'admin_roster_parts.dart';
 
-/// 회원 목록 필터 (기준 시안 AdminMembers)
-enum _MemberFilter { all, active, endingSoon, unassigned }
+/// 회원 목록 필터 (기준 시안 AdminMembers). [unjoined]는 명단에만 있는 사람 (있을 때만 알약이 보인다).
+enum _MemberFilter { all, active, endingSoon, unassigned, unjoined }
 
 /// 회원 탭 (기준 시안 AdminMembers): '회원 128' 제목 → 48 검색창 → 칩(전체·PT 진행 중·곧 끝남·담당 없음)
 /// → 68 줄(이름 · '이트레이너 · 12월 20일까지' · 오른쪽 'N회 남음').
+/// 제목 줄 오른쪽 '명단 업로드'(회원 명단만), 명단에만 있는 사람은 '미가입 N' 알약 (시안 09).
 class AdminMemberListScreen extends StatefulWidget {
   const AdminMemberListScreen({super.key});
 
@@ -39,6 +43,10 @@ class AdminMemberListScreenState extends State<AdminMemberListScreen> {
   List<AppUser> _members = [];
   List<AppUser> _filtered = [];
   Map<String, PtInfo> _ptInfoByMember = {};
+
+  /// 명단에만 있는 회원 (아직 가입 · 승인 전)
+  List<RosterEntry> _roster = [];
+  List<RosterEntry> _filteredRoster = [];
   _MemberFilter _selectedFilter = _MemberFilter.all;
   bool _isLoading = false;
   bool _loadedOnce = false;
@@ -72,7 +80,21 @@ class AdminMemberListScreenState extends State<AdminMemberListScreen> {
       final list = results[0] as List<AppUser>;
       final ptInfos = results[1] as List<PtInfo>;
       final members = list.where((u) => u.role == UserRole.member).toList();
+      // 명단은 따로: 읽지 못해도 회원 목록은 보인다
+      List<RosterEntry> roster;
+      try {
+        roster = (await RosterService.list(
+          user.centerId,
+        )).where((e) => !e.isTrainer).toList();
+      } catch (_) {
+        roster = _roster;
+      }
+      if (!mounted) return;
       setState(() {
+        _roster = roster;
+        if (roster.isEmpty && _selectedFilter == _MemberFilter.unjoined) {
+          _selectedFilter = _MemberFilter.all;
+        }
         _members = members;
         _ptInfoByMember = {for (final info in ptInfos) info.memberId: info};
         _errorMessage = null;
@@ -104,6 +126,9 @@ class AdminMemberListScreenState extends State<AdminMemberListScreen> {
             m.email.toLowerCase().contains(q);
         return matchesQuery && _matchesFilterFor(_selectedFilter, m);
       }).toList();
+      _filteredRoster = _roster
+          .where((e) => q.isEmpty || e.name.toLowerCase().contains(q))
+          .toList();
     });
   }
 
@@ -118,12 +143,28 @@ class AdminMemberListScreenState extends State<AdminMemberListScreen> {
         return pt.endingSoon;
       case _MemberFilter.unassigned:
         return member.trainerId == null || member.trainerId!.isEmpty;
+      case _MemberFilter.unjoined:
+        return false;
     }
   }
 
   void _changeFilter(int index) {
     setState(() => _selectedFilter = _MemberFilter.values[index]);
     _filter();
+  }
+
+  Future<void> _upload() async {
+    if (!await openRosterUpload(context, 'member') || !mounted) return;
+    await _load();
+    // 방금 올린 줄이 보이게 미가입으로
+    if (mounted && _roster.isNotEmpty) {
+      _changeFilter(_MemberFilter.unjoined.index);
+    }
+  }
+
+  Future<void> _openRosterEntry(RosterEntry e) async {
+    if (!await showRosterEntryActions(context, e) || !mounted) return;
+    await _load();
   }
 
   Future<void> _openDetail(AppUser m) async {
@@ -136,6 +177,8 @@ class AdminMemberListScreenState extends State<AdminMemberListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final unjoined = _selectedFilter == _MemberFilter.unjoined;
+    final query = _searchController.text.trim();
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
@@ -148,6 +191,7 @@ class AdminMemberListScreenState extends State<AdminMemberListScreen> {
               count: _isLoading && _members.isEmpty
                   ? null
                   : '${_members.length}',
+              actions: [RosterUploadButton(onPressed: _upload)],
             ),
             // 검색 (시안: 48 · 반경 14 · 좌우 14 · 아이콘 20 mute)
             Padding(
@@ -165,7 +209,13 @@ class AdminMemberListScreenState extends State<AdminMemberListScreen> {
             ),
             // 필터 칩 (시안: 위 14 · 38 · 좌우 16 · 14)
             AppViewTabs(
-              labels: const ['전체', 'PT 진행 중', '곧 끝남', '담당 없음'],
+              labels: [
+                '전체',
+                'PT 진행 중',
+                '곧 끝남',
+                '담당 없음',
+                if (_roster.isNotEmpty) '미가입 ${_roster.length}',
+              ],
               selectedIndex: _selectedFilter.index,
               compact: true,
               scrollable: true,
@@ -182,7 +232,7 @@ class AdminMemberListScreenState extends State<AdminMemberListScreen> {
               child: AppAsyncBody(
                 isLoading: _isLoading,
                 errorMessage: _errorMessage,
-                isEmpty: _filtered.isEmpty,
+                isEmpty: unjoined ? _filteredRoster.isEmpty : _filtered.isEmpty,
                 onRefresh: _load,
                 padding: const EdgeInsets.only(
                   top: AppSpacing.sm - 3,
@@ -193,23 +243,41 @@ class AdminMemberListScreenState extends State<AdminMemberListScreen> {
                   icon: AppIcons.members,
                   compact: true,
                   top: 106,
-                  message: _members.isEmpty ? '등록된 회원이 없습니다.' : '검색 결과가 없습니다.',
+                  message: unjoined && query.isNotEmpty
+                      ? '검색 결과가 없습니다.'
+                      : unjoined
+                      ? '미가입 회원이 없습니다.'
+                      : _members.isEmpty
+                      ? '등록된 회원이 없습니다.'
+                      : '검색 결과가 없습니다.',
                 ),
-                children: [
-                  for (int i = 0; i < _filtered.length; i++)
-                    // 시안 `fade`: 아래 8에서 .4s, 0.05초 간격 (화면 밖 줄은 늦게 기다리지 않게 10번째까지만)
-                    AppEntrance(
-                      key: ValueKey(_filtered[i].uid),
-                      offset: const Offset(0, 8),
-                      duration: const Duration(milliseconds: 400),
-                      delay: Duration(milliseconds: 50 * (i < 10 ? i : 10)),
-                      child: _MemberListItem(
-                        member: _filtered[i],
-                        ptInfo: _ptInfoByMember[_filtered[i].uid],
-                        onTap: () => _openDetail(_filtered[i]),
-                      ),
-                    ),
-                ],
+                children: unjoined
+                    ? [
+                        for (final e in _filteredRoster)
+                          RosterEntryRow(
+                            key: ValueKey('roster-${e.id}'),
+                            entry: e,
+                            onTap: () => _openRosterEntry(e),
+                          ),
+                        const RosterHint(),
+                      ]
+                    : [
+                        for (int i = 0; i < _filtered.length; i++)
+                          // 시안 `fade`: 아래 8에서 .4s, 0.05초 간격 (화면 밖 줄은 늦게 기다리지 않게 10번째까지만)
+                          AppEntrance(
+                            key: ValueKey(_filtered[i].uid),
+                            offset: const Offset(0, 8),
+                            duration: const Duration(milliseconds: 400),
+                            delay: Duration(
+                              milliseconds: 50 * (i < 10 ? i : 10),
+                            ),
+                            child: _MemberListItem(
+                              member: _filtered[i],
+                              ptInfo: _ptInfoByMember[_filtered[i].uid],
+                              onTap: () => _openDetail(_filtered[i]),
+                            ),
+                          ),
+                      ],
               ),
             ),
           ],

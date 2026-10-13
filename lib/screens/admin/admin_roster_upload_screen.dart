@@ -15,13 +15,19 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_inputs.dart';
 import '../../widgets/app_screen_header.dart';
 
-/// 명단 올리기 (시안 09 '명단 올리기'): 칸 안내 → '파일 고르기' →
+/// 명단 업로드 (시안 09 '명단 올리기'): 회원 탭 · 트레이너 탭의 '명단 업로드'에서 연다.
+/// [role]의 명단만 받는다. 칸 안내 → '파일 고르기' →
 /// 3칸 결과(가입됨 · 미가입 · 확인 필요) → 줄마다 결과 → 아래 '미가입 N명 등록'.
 ///
 /// 확인 필요 줄 · 가입됨 줄은 저장하지 않는다. 같은 번호가 명단에 있으면 덮어쓴다.
 /// 등록하면 true로 닫힌다.
 class AdminRosterUploadScreen extends StatefulWidget {
-  const AdminRosterUploadScreen({super.key});
+  /// 'member' | 'trainer'
+  final String role;
+
+  const AdminRosterUploadScreen({super.key, required this.role});
+
+  bool get isTrainer => role == 'trainer';
 
   @override
   State<AdminRosterUploadScreen> createState() =>
@@ -60,6 +66,7 @@ class _AdminRosterUploadScreenState extends State<AdminRosterUploadScreen> {
       final joined = await joinedFuture;
       final rows = RosterImport.check(
         table,
+        role: widget.role,
         centerId: admin.centerId,
         trainers: trainers,
         joinedPhones: joined,
@@ -87,7 +94,7 @@ class _AdminRosterUploadScreenState extends State<AdminRosterUploadScreen> {
         for (final r in ready) r.entry!,
       ]);
       if (!mounted) return;
-      AppFeedback.showSuccessSnackBar(context, '명단에 ${ready.length}명을 등록했어요');
+      AppFeedback.showSuccessSnackBar(context, '미가입 ${ready.length}명을 등록했어요');
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
@@ -116,7 +123,7 @@ class _AdminRosterUploadScreenState extends State<AdminRosterUploadScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AppScreenHeader.centered(
-              title: '명단 올리기',
+              title: widget.isTrainer ? '트레이너 명단 업로드' : '회원 명단 업로드',
               onBack: () => Navigator.of(context).pop(false),
             ),
             Expanded(
@@ -128,7 +135,7 @@ class _AdminRosterUploadScreenState extends State<AdminRosterUploadScreen> {
                   AppSpacing.xl,
                 ),
                 children: [
-                  const _ColumnGuide(),
+                  _ColumnGuide(role: widget.role),
                   const SizedBox(height: AppSpacing.base),
                   AppButton(
                     label: _fileName == null ? '파일 고르기' : '다른 파일 고르기',
@@ -182,7 +189,9 @@ class _AdminRosterUploadScreenState extends State<AdminRosterUploadScreen> {
 
 /// 칸 순서 안내 (회색 상자 반경 14).
 class _ColumnGuide extends StatelessWidget {
-  const _ColumnGuide();
+  final String role;
+
+  const _ColumnGuide({required this.role});
 
   @override
   Widget build(BuildContext context) {
@@ -203,11 +212,13 @@ class _ColumnGuide extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(RosterImport.columnGuide.join(' · '), style: body),
+          Text(RosterImport.columnsFor(role).join(' · '), style: body),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '필수: 이름 · 휴대폰. 구분이 비면 회원. 담당 트레이너는 앱에 가입한 트레이너 이름 그대로. '
-            '날짜는 2026-10-01처럼. 같은 번호를 다시 올리면 덮어써요.',
+            role == 'trainer'
+                ? '필수: 이름 · 휴대폰. 같은 번호를 다시 올리면 덮어써요.'
+                : '필수: 이름 · 휴대폰. 담당 트레이너는 앱에 가입한 트레이너 이름 그대로. '
+                      '날짜는 2026-10-01처럼. 같은 번호를 다시 올리면 덮어써요.',
             style: AppTextStyles.captionSmall.copyWith(height: 1.5),
           ),
         ],
