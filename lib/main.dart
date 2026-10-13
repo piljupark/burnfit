@@ -27,6 +27,7 @@ import 'screens/member/onboarding_screens.dart';
 import 'screens/pending_approval_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/trainer/trainer_home_screen.dart';
+import 'screens/consent_screen.dart';
 import 'services/user_provider.dart';
 
 /// 개발용: `--dart-define=USE_FIREBASE_EMULATOR=true`로 빌드하면 로컬 Firebase 에뮬레이터에 붙는다.
@@ -124,6 +125,7 @@ class PtSolutionApp extends StatelessWidget {
             AppRoutes.splash: (_) => const SplashScreen(),
             AppRoutes.memberLogin: (_) => const LoginScreen(),
             AppRoutes.pendingApproval: (_) => const PendingApprovalScreen(),
+            AppRoutes.consent: (_) => const ConsentScreen(),
             AppRoutes.onboardingBasic: (_) => const OnboardingBasicScreen(),
             AppRoutes.onboardingBody: (_) => const OnboardingBodyScreen(),
             AppRoutes.memberHome: (_) => const MemberHomeScreen(),

@@ -5,10 +5,11 @@ import '../models/center.dart' as center_model;
 import '../models/join_request.dart';
 import '../models/user.dart';
 import 'auth_service.dart';
+import 'contact_service.dart';
 
 /// 회원·트레이너 가입 (공통).
 ///
-/// 인증 계정 → 사용자 문서 + 가입 신청(한 배치) 순서로 만든다. 문서 저장이 실패하면 방금 만든
+/// 인증 계정 → 사용자 문서(+ 동의 기록) + 휴대폰 번호(따로 둔 문서) + 가입 신청(한 배치) 순서로 만든다. 문서 저장이 실패하면 방금 만든
 /// 인증 계정을 지워, "이메일은 이미 쓰였는데 계정 정보는 없는" 상태가 남지 않게 한다.
 class RegistrationService {
   RegistrationService._();
@@ -19,8 +20,11 @@ class RegistrationService {
     required String name,
     required UserRole role,
     required center_model.Center center,
+    required String phone,
   }) async {
     assert(role == UserRole.member || role == UserRole.trainer);
+    // 번호 형식은 계정을 만들기 전에 확인한다 (틀리면 ArgumentError).
+    final contact = ContactService.dataFor(phone);
     final cred = await AuthService.signUp(
       email: email.trim(),
       password: password,
@@ -53,7 +57,12 @@ class RegistrationService {
     try {
       final db = FirebaseFirestore.instance;
       final batch = db.batch()
-        ..set(db.collection('users').doc(user.uid), user.toMap())
+        ..set(db.collection('users').doc(user.uid), {
+          ...user.toMap(),
+          // 가입 확인 화면에서 받은 동의 (회원은 건강 정보도)
+          'consents': ConsentRecord.nowFor(health: role == UserRole.member),
+        })
+        ..set(ContactService.ref(user.uid), contact)
         ..set(db.collection('join_requests').doc(request.id), request.toMap());
       await batch.commit();
     } catch (_) {

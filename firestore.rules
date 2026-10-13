@@ -702,6 +702,19 @@ service cloud.firestore {
           request.resource.data.birthDate.matches('^[0-9]{8}$'));
     }
 
+    // 가입 동의 기록: 판(1 이상) · 개인정보 동의 시각 = 지금, 건강 정보 동의는 회원만(지금) · 그 밖은 null.
+    function hasValidConsents(role) {
+      let c = request.resource.data.consents;
+      return c is map &&
+        c.keys().hasOnly(['version', 'privacyAt', 'healthAt']) &&
+        c.version is int && c.version >= 1 &&
+        c.privacyAt == request.time &&
+        (
+          (role == 'member' && c.get('healthAt', null) == request.time) ||
+          (role != 'member' && c.get('healthAt', null) == null)
+        );
+    }
+
     function canUpdateOwnUser() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'name',
@@ -711,8 +724,13 @@ service cloud.firestore {
         'shareSettings',
         'fcmToken',
         'fcmTokenUpdatedAt',
+        'consents',
         'updatedAt'
       ]) &&
+      (
+        !('consents' in request.resource.data.diff(resource.data).affectedKeys()) ||
+        hasValidConsents(resource.data.role)
+      ) &&
       removesLegacyProfileOnly() &&
       hasValidShareSettings() &&
       hasValidBirthDateChange() &&
@@ -730,8 +748,9 @@ service cloud.firestore {
         request.resource.data.keys().hasOnly([
           'uid', 'email', 'name', 'role', 'status', 'centerId', 'centerName',
           'trainerId', 'trainerName', 'birthDate', 'gender', 'profile',
-          'shareSettings', 'createdAt', 'updatedAt'
+          'shareSettings', 'consents', 'createdAt', 'updatedAt'
         ]) &&
+        hasValidConsents(request.resource.data.role) &&
         request.resource.data.uid == uid &&
         request.resource.data.role in ['member', 'trainer'] &&
         request.resource.data.status == 'pending' &&
@@ -798,6 +817,26 @@ service cloud.firestore {
       allow create, update: if docId == 'current' &&
         isOwner(uid) &&
         hasValidBodyProfile();
+      allow delete: if false;
+    }
+
+    // 휴대폰 번호: 본인 · 그 센터 관리자만 읽는다 (사용자 문서는 트레이너도 읽어 따로 둔다).
+    // 쓰기는 본인만, '010-1234-5678' 형태. 탈퇴 시 서버가 사용자 문서와 함께 지운다.
+    match /users/{uid}/contact/{docId} {
+      allow read: if docId == 'current' &&
+        (
+          isOwner(uid) ||
+          (
+            exists(/databases/$(database)/documents/users/$(uid)) &&
+            isCenterAdmin(userDoc(uid).data.centerId)
+          )
+        );
+      allow create, update: if docId == 'current' &&
+        isOwner(uid) &&
+        request.resource.data.keys().hasOnly(['phone', 'updatedAt']) &&
+        request.resource.data.phone is string &&
+        request.resource.data.phone.matches('^01[016789]-[0-9]{3,4}-[0-9]{4}$') &&
+        request.resource.data.updatedAt == request.time;
       allow delete: if false;
     }
 

@@ -28,6 +28,29 @@ class Validators {
     return null;
   }
 
+  /// 휴대폰 번호: 010으로 시작하는 10~11자리 (하이픈 · 공백은 무시).
+  static String? phone(String? value) {
+    final digits = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '휴대폰 번호를 입력해주세요.';
+    if (normalizePhone(digits) == null) return '010으로 시작하는 휴대폰 번호를 입력해주세요.';
+    return null;
+  }
+
+  /// 저장 형태 '010-1234-5678'. 형식이 아니면 null.
+  static String? normalizePhone(String? value) {
+    final d = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+    if (!RegExp(r'^01[016789]\d{7,8}$').hasMatch(d)) return null;
+    final mid = d.length == 11 ? d.substring(3, 7) : d.substring(3, 6);
+    return '${d.substring(0, 3)}-$mid-${d.substring(d.length - 4)}';
+  }
+
+  /// 화면용 가운데 가림 '010-****-5678'.
+  static String maskPhone(String phone) {
+    final parts = phone.split('-');
+    if (parts.length != 3) return phone;
+    return '${parts[0]}-${'*' * parts[1].length}-${parts[2]}';
+  }
+
   static String? name(String? value) {
     if (value == null || value.trim().isEmpty) return '이름을 입력해주세요.';
     if (value.trim().length < 2) return '이름은 2자 이상이어야 합니다.';

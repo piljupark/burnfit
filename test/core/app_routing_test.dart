@@ -1,13 +1,22 @@
 import 'package:pt_solution_v2/core/app_routing.dart';
 import 'package:pt_solution_v2/core/constants.dart';
+import 'package:pt_solution_v2/core/consent_terms.dart';
 import 'package:pt_solution_v2/models/user.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+final _consented = ConsentRecord(
+  version: ConsentTerms.version,
+  privacyAt: DateTime(2026, 10, 13),
+  healthAt: DateTime(2026, 10, 13),
+);
 
 AppUser _user({
   String uid = 'u1',
   UserRole role = UserRole.member,
   UserStatus status = UserStatus.pending,
   String? birthDate,
+  ConsentRecord? consents,
+  bool noConsent = false,
 }) {
   final now = DateTime(2026, 1, 1);
   return AppUser(
@@ -19,6 +28,7 @@ AppUser _user({
     centerId: 'c1',
     centerName: '센터',
     birthDate: birthDate,
+    consents: noConsent ? null : (consents ?? _consented),
     createdAt: now,
     updatedAt: now,
   );
@@ -87,6 +97,56 @@ void main() {
     test('대기는 승인 대기 화면, 거절은 null', () {
       expect(startRouteFor(_user()), AppRoutes.pendingApproval);
       expect(startRouteFor(_user(status: UserStatus.rejected)), isNull);
+    });
+  });
+
+  group('가입 동의', () {
+    test('동의 기록이 없거나 예전 판이면 (거절 계정 빼고) 동의 화면부터', () {
+      expect(startRouteFor(_user(noConsent: true)), AppRoutes.consent);
+      expect(
+        startRouteFor(
+          _user(
+            status: UserStatus.approved,
+            role: UserRole.admin,
+            noConsent: true,
+          ),
+        ),
+        AppRoutes.consent,
+      );
+      expect(
+        startRouteFor(
+          _user(
+            consents: ConsentRecord(
+              version: ConsentTerms.version - 1,
+              privacyAt: DateTime(2026),
+              healthAt: DateTime(2026),
+            ),
+          ),
+        ),
+        AppRoutes.consent,
+      );
+      expect(
+        startRouteFor(_user(status: UserStatus.rejected, consents: null)),
+        isNull,
+      );
+    });
+
+    test('회원은 건강 정보 동의도 있어야, 트레이너는 개인정보만', () {
+      final privacyOnly = ConsentRecord(
+        version: ConsentTerms.version,
+        privacyAt: DateTime(2026, 10, 13),
+      );
+      expect(startRouteFor(_user(consents: privacyOnly)), AppRoutes.consent);
+      expect(
+        startRouteFor(
+          _user(
+            role: UserRole.trainer,
+            status: UserStatus.approved,
+            consents: privacyOnly,
+          ),
+        ),
+        AppRoutes.trainerHome,
+      );
     });
   });
 }

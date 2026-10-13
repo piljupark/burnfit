@@ -110,6 +110,7 @@
 | `AppNetworkPhoto` | `app_network_photo.dart` | 인터넷 사진 — 기기에 저장(`cached_network_image`) + 칸 크기 × 화면 배율로 줄여 풂, 받는 동안 회색 · 실패 시 사진 아이콘. 식단 피드 사진 · 회원 식단 사진 칸 | 2 |
 | `MealFeedList` · `MealFeedCard` | `meal_feed.dart` | 트레이너 식단 피드 (식단 탭 · 회원 상세 식단 탭). 칼로리는 보이지 않는다. `guideFor`(사진 아래 끼니 가이드) · `hasPlanFor`(자주 쓰는 말 `goalPhrases` / `basicPhrases`) · `onMemberTap` · `onEditFeedback` · `onDeleteFeedback`(내 말풍선 ⋯) | 2 |
 | `TrainerMemberRow` · `openTrainerMemberDetail` | `screens/trainer/trainer_members_screen.dart` | 트레이너 회원 탭의 회원 줄 · 회원 상세 열기(식단 피드 · PT 기록 · 일정이 함께 씀). 요약은 `services/trainer_members_service.dart`(`TrainerMemberSummary` · `TrainerMemberFilter`) | 4 |
+| `ConsentChecklist` · `showConsentDocument` | `consent_checklist.dart` | 가입 동의 묶음(전체 · 개인정보 · 건강 정보, '보기' → 전문 시트). 문구 · 판은 `core/consent_terms.dart` | 2 |
 | `NutritionGoalStrip` | `nutrition_plan_card.dart` | 트레이너 식단 탭 목표 줄 (정한 값만 · 칼로리 첫째 줄 · 탄단지 둘째 줄 · 끼니 가이드 / 목표 없음 '정하기') | 1 |
 | `openNutritionPlanEditor` | `screens/trainer/nutrition_plan_screen.dart` | 인바디 · 신체 정보를 읽어 식단 목표 화면을 연다 (식단 탭에서) | 1 |
 | `NutritionPlanCard` | `nutrition_plan_card.dart` | 식단 목표 카드 (회원 식단 화면 맨 위 · 트레이너 회원 상세 식단 탭 맨 위, `onEdit`이면 '고치기'/'정하기'). 자료는 `models/nutrition_plan.dart` · `services/nutrition_plan_service.dart` (`nutrition_plans/{memberId}`) | 2 |

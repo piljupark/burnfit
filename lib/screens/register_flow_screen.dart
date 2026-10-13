@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_routing.dart';
 import '../core/app_feedback.dart';
 import '../core/app_icons.dart';
 import '../core/app_spacing.dart';
@@ -24,6 +26,7 @@ import '../widgets/app_inputs.dart';
 import '../widgets/app_loader.dart';
 import '../widgets/app_motion.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/consent_checklist.dart';
 import '../widgets/auth_parts.dart';
 import '../widgets/center_list_row.dart';
 
@@ -52,6 +55,7 @@ class _RegisterFlowScreenState extends State<RegisterFlowScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _codeController = TextEditingController();
   final _centerNameController = TextEditingController();
   final _centerAddressController = TextEditingController();
@@ -66,11 +70,19 @@ class _RegisterFlowScreenState extends State<RegisterFlowScreen> {
 
   bool _isLoading = false;
 
+  /// 가입 확인 단계의 동의 (회원은 건강 정보도 필수)
+  bool _agreePrivacy = false;
+  bool _agreeHealth = false;
+
+  bool get _agreed =>
+      _agreePrivacy && (_role != UserRole.member || _agreeHealth);
+
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _phoneController.dispose();
     _codeController.dispose();
     _centerNameController.dispose();
     _centerAddressController.dispose();
@@ -137,7 +149,7 @@ class _RegisterFlowScreenState extends State<RegisterFlowScreen> {
   Future<void> _register() async {
     final center = _selectedCenter;
     final role = _role;
-    if (_isLoading || center == null || role == null) return;
+    if (_isLoading || center == null || role == null || !_agreed) return;
     setState(() => _isLoading = true);
     try {
       final user = await RegistrationService.register(
@@ -146,6 +158,7 @@ class _RegisterFlowScreenState extends State<RegisterFlowScreen> {
         name: _nameController.text,
         role: role,
         center: center,
+        phone: _phoneController.text,
       );
       await SavedAccountStore.save(user);
       if (!mounted) return;
@@ -192,9 +205,11 @@ class _RegisterFlowScreenState extends State<RegisterFlowScreen> {
       }
       await SavedAccountStore.save(user);
       if (!mounted) return;
-      Navigator.of(
-        context,
-      ).pushNamedAndRemoveUntil(AppRoutes.adminHome, (_) => false);
+      // 새 관리자는 아직 동의 기록이 없어 동의 화면부터 간다 (첫 화면 결정에 맡긴다).
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        startRouteFor(user) ?? AppRoutes.adminHome,
+        (_) => false,
+      );
     } on AdminRegisteredButSignInFailed {
       if (!mounted) return;
       _returnToLogin('가입이 완료되었습니다. 로그인해주세요.');
@@ -273,6 +288,22 @@ class _RegisterFlowScreenState extends State<RegisterFlowScreen> {
                   textInputAction: TextInputAction.next,
                 ),
                 const Gap(AppSpacing.base),
+                if (!_isAdmin) ...[
+                  AppTextField(
+                    label: '휴대폰 번호',
+                    hint: '010-1234-5678',
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9-]')),
+                      LengthLimitingTextInputFormatter(13),
+                    ],
+                    validator: Validators.phone,
+                    helper: '센터 명단과 맞춰 보는 데만 써요. 트레이너에게는 보이지 않아요.',
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const Gap(AppSpacing.base),
+                ],
                 AppTextField(
                   label: '이메일',
                   hint: 'name@example.com',
@@ -361,7 +392,8 @@ class _RegisterFlowScreenState extends State<RegisterFlowScreen> {
       case _Step.confirm:
         return AppBottomActionBar(
           primaryLabel: '가입 신청',
-          onPrimary: _register,
+          // 필수 동의를 모두 해야 신청할 수 있다
+          onPrimary: _agreed ? _register : null,
           loading: _isLoading,
         );
       case _Step.openCenter:
@@ -541,6 +573,14 @@ class _RegisterFlowScreenState extends State<RegisterFlowScreen> {
                   divider: true,
                 ),
                 _SummaryRow(
+                  label: '휴대폰',
+                  value:
+                      Validators.normalizePhone(_phoneController.text) ??
+                      _phoneController.text.trim(),
+                  onTap: () => _goTo(_Step.account),
+                  divider: true,
+                ),
+                _SummaryRow(
                   label: '이메일',
                   value: _emailController.text.trim(),
                   onTap: () => _goTo(_Step.account),
@@ -548,6 +588,13 @@ class _RegisterFlowScreenState extends State<RegisterFlowScreen> {
                 ),
               ],
             ),
+          ),
+          const Gap(AppSpacing.lg),
+          ConsentChecklist(
+            privacy: _agreePrivacy,
+            onPrivacy: (v) => setState(() => _agreePrivacy = v),
+            health: _role == UserRole.member ? _agreeHealth : null,
+            onHealth: (v) => setState(() => _agreeHealth = v),
           ),
           if (center != null) ...[
             const Gap(AppSpacing.base),

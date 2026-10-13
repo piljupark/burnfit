@@ -32,4 +32,5 @@ class AppRoutes {
   static const String onboardingBasic = '/onboarding/basic';
   static const String onboardingBody = '/onboarding/body';
   static const String pendingApproval = '/pending';
+  static const String consent = '/consent';
 }

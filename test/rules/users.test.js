@@ -59,8 +59,17 @@ function ptLog(id, overrides = {}) {
   };
 }
 
+function consentsFor(role) {
+  return {
+    version: 1,
+    privacyAt: serverTimestamp(),
+    healthAt: role === 'member' ? serverTimestamp() : null,
+  };
+}
+
 function newUserDoc(overrides = {}) {
   return {
+    consents: consentsFor(overrides.role ?? 'member'),
     uid: newUid,
     email: newEmail,
     name: '신규',
@@ -137,6 +146,31 @@ describe('users / centers / pt_infos security rules', () => {
     await testEnv.cleanup();
   });
 
+  describe('가입 동의 · 휴대폰 번호', () => {
+    it('예전 가입자는 본인 문서에 동의 기록을 더할 수 있다', async () => {
+      const db = authedDb(memberId);
+      await assertSucceeds(updateDoc(doc(db, 'users', memberId), {
+        consents: consentsFor('member'),
+        updatedAt: serverTimestamp(),
+      }));
+    });
+
+    it('휴대폰 번호는 본인이 쓰고, 본인 · 센터 관리자만 읽는다 (트레이너는 못 읽음)', async () => {
+      const ref = (uid) => doc(authedDb(uid), 'users', memberId, 'contact', 'current');
+      await assertSucceeds(setDoc(ref(memberId), { phone: '010-1234-5678', updatedAt: serverTimestamp() }));
+      await assertSucceeds(getDoc(ref(memberId)));
+      await assertSucceeds(getDoc(ref(adminId)));
+      await assertFails(getDoc(ref(trainerId)));
+      await assertFails(setDoc(ref(trainerId), { phone: '010-0000-0000', updatedAt: serverTimestamp() }));
+    });
+
+    it('번호 형식이 아니거나 다른 칸이 있으면 막는다', async () => {
+      const ref = doc(authedDb(memberId), 'users', memberId, 'contact', 'current');
+      await assertFails(setDoc(ref, { phone: '01012345678', updatedAt: serverTimestamp() }));
+      await assertFails(setDoc(ref, { phone: '010-1234-5678', memo: 'x', updatedAt: serverTimestamp() }));
+    });
+  });
+
   describe('가입 시 사용자 문서 생성', () => {
     it('승인 대기 회원은 운영 중인 센터로 가입할 수 있다', async () => {
       const db = authedDb(newUid, newEmail);
@@ -190,6 +224,31 @@ describe('users / centers / pt_infos security rules', () => {
     it('로그인한 이메일과 다른 이메일로 가입할 수 없다', async () => {
       const db = authedDb(newUid, newEmail);
       await assertFails(setDoc(doc(db, 'users', newUid), newUserDoc({ email: 'other@example.com' })));
+    });
+
+    it('가입 동의 기록이 없으면 가입할 수 없다', async () => {
+      const db = authedDb(newUid, newEmail);
+      const docData = newUserDoc();
+      delete docData.consents;
+      await assertFails(setDoc(doc(db, 'users', newUid), docData));
+    });
+
+    it('회원은 건강 정보 동의가 있어야, 트레이너는 건강 정보 동의가 없어야 한다', async () => {
+      const db = authedDb(newUid, newEmail);
+      await assertFails(setDoc(doc(db, 'users', newUid), newUserDoc({
+        consents: { version: 1, privacyAt: serverTimestamp(), healthAt: null },
+      })));
+      await assertFails(setDoc(doc(db, 'users', newUid), newUserDoc({
+        role: 'trainer',
+        consents: consentsFor('member'),
+      })));
+    });
+
+    it('동의 시각을 꾸며 넣을 수 없다 (서버 시각만)', async () => {
+      const db = authedDb(newUid, newEmail);
+      await assertFails(setDoc(doc(db, 'users', newUid), newUserDoc({
+        consents: { version: 1, privacyAt: new Date(2020, 0, 1), healthAt: serverTimestamp() },
+      })));
     });
 
     it('이메일 대소문자 차이는 허용한다', async () => {

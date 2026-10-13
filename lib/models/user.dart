@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../core/consent_terms.dart';
 import '../core/firestore_date.dart';
 
 enum UserRole {
@@ -137,6 +138,9 @@ class AppUser {
   final Gender? gender;
   final UserProfile? profile;
   final ShareSettings shareSettings;
+
+  /// 가입 동의 기록 (판 · 동의 시각). 2026-10-13 전 가입자는 null → 다음 실행 때 동의 화면.
+  final ConsentRecord? consents;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -154,6 +158,7 @@ class AppUser {
     this.gender,
     this.profile,
     this.shareSettings = const ShareSettings(),
+    this.consents,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -162,6 +167,13 @@ class AppUser {
   bool get isTrainer => role == UserRole.trainer;
   bool get isMember => role == UserRole.member;
   bool get isApproved => status == UserStatus.approved;
+
+  /// 지금 판의 동의가 없다 (회원은 건강 정보 동의도 있어야 한다).
+  bool get needsConsent {
+    final c = consents;
+    if (c == null || c.version < ConsentTerms.version) return true;
+    return isMember && c.healthAt == null;
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -207,6 +219,7 @@ class AppUser {
       shareSettings: ShareSettings.fromMap(
         map['shareSettings'] as Map<String, dynamic>?,
       ),
+      consents: ConsentRecord.fromMap(map['consents']),
       createdAt: FirestoreDate.parse(map['createdAt'], 'createdAt'),
       updatedAt: FirestoreDate.parse(map['updatedAt'], 'updatedAt'),
     );
@@ -261,8 +274,49 @@ class AppUser {
       gender: gender ?? this.gender,
       profile: profile ?? this.profile,
       shareSettings: shareSettings ?? this.shareSettings,
+      consents: consents,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );
+  }
+}
+
+/// 가입 동의 기록 (`users/{uid}.consents`). 시각은 서버 시각으로 쓴다 (규칙이 확인).
+class ConsentRecord {
+  final int version;
+  final DateTime privacyAt;
+
+  /// 건강 정보(민감정보) 동의 — 회원만, 트레이너 · 관리자는 null.
+  final DateTime? healthAt;
+
+  const ConsentRecord({
+    required this.version,
+    required this.privacyAt,
+    this.healthAt,
+  });
+
+  /// 쓸 때: 지금 판 + 서버 시각.
+  static Map<String, dynamic> nowFor({required bool health}) => {
+    'version': ConsentTerms.version,
+    'privacyAt': FieldValue.serverTimestamp(),
+    'healthAt': health ? FieldValue.serverTimestamp() : null,
+  };
+
+  static ConsentRecord? fromMap(Object? raw) {
+    if (raw is! Map) return null;
+    final version = raw['version'];
+    final privacy = raw['privacyAt'];
+    if (version is! int || privacy == null) return null;
+    try {
+      return ConsentRecord(
+        version: version,
+        privacyAt: FirestoreDate.parse(privacy, 'privacyAt'),
+        healthAt: raw['healthAt'] == null
+            ? null
+            : FirestoreDate.parse(raw['healthAt'], 'healthAt'),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 }

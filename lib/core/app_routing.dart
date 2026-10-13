@@ -31,6 +31,9 @@ AccountStatusChange? accountStatusChange(AppUser? before, AppUser? after) {
 }
 
 String? startRouteFor(AppUser user) {
+  if (user.status == UserStatus.rejected) return null;
+  // 지금 판의 가입 동의가 없으면 (예전 가입자 · 서버가 만든 관리자 · 동의서가 바뀜) 동의부터.
+  if (user.needsConsent) return AppRoutes.consent;
   switch (user.status) {
     case UserStatus.rejected:
       return null;
