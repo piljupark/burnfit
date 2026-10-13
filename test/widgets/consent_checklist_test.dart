@@ -72,7 +72,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('개인정보 수집 · 이용 전문 보기'));
       await tester.pumpAndSettle();
       expect(find.text('보관 기간'), findsOneWidget);
-      expect(find.textContaining('3년 보관'), findsOneWidget);
+      expect(find.textContaining('3년간 보관'), findsOneWidget);
       expect(find.text('동의하지 않을 권리'), findsOneWidget);
     });
   });

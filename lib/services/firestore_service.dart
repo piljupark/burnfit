@@ -19,10 +19,18 @@ class FirestoreService {
 
   // ---------- Users ----------
 
+  /// 방금 서버 시각으로 쓴 직후에도 읽히게, 아직 정해지지 않은 서버 시각은 기기 추정값으로 받는다.
   static Future<AppUser?> getUser(String uid) async {
     ServiceValidator.requireText(uid, '사용자 ID');
 
-    final doc = await _db.collection('users').doc(uid).get();
+    final doc = await _db
+        .collection('users')
+        .doc(uid)
+        .get(
+          const GetOptions(
+            serverTimestampBehavior: ServerTimestampBehavior.estimate,
+          ),
+        );
     if (!doc.exists) return null;
     return AppUser.fromMap(doc.data()!);
   }

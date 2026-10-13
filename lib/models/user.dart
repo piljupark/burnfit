@@ -221,7 +221,10 @@ class AppUser {
       ),
       consents: ConsentRecord.fromMap(map['consents']),
       createdAt: FirestoreDate.parse(map['createdAt'], 'createdAt'),
-      updatedAt: FirestoreDate.parse(map['updatedAt'], 'updatedAt'),
+      // 서버 시각이 아직 정해지지 않은 값(방금 쓴 직후)이면 가입 시각으로 대신한다 — 화면에 쓰지 않는 값이다.
+      updatedAt:
+          FirestoreDate.parseNullable(map['updatedAt'], 'updatedAt') ??
+          FirestoreDate.parse(map['createdAt'], 'createdAt'),
     );
   }
 

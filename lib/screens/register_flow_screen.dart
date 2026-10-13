@@ -299,7 +299,7 @@ class _RegisterFlowScreenState extends State<RegisterFlowScreen> {
                       LengthLimitingTextInputFormatter(13),
                     ],
                     validator: Validators.phone,
-                    helper: '센터 명단과 맞춰 보는 데만 써요. 트레이너에게는 보이지 않아요.',
+                    helper: '센터 명단 확인에만 사용하며, 트레이너에게는 공개하지 않습니다.',
                     textInputAction: TextInputAction.next,
                   ),
                   const Gap(AppSpacing.base),

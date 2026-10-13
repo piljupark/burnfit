@@ -17,6 +17,7 @@
 8. **주 행동은 화면당 하나.** 주황 채움(`AppButton` primary)은 화면당 한 번. 나머지는 회색 채움(`secondary`)이나 글자(`ghost`).
 9. **움직임은 시안 키프레임대로.** 공용 도구 `lib/widgets/app_motion.dart`(`AppEntrance`·`AppEntrance.slide`·`AppPulse`·`AppBlink`·`AppGrow`·`AppPop`·`AppShake`, 곡선 `AppMotion.sheet/fill/dialog/pop/knob`)와 움직이는 그림 `brand_marks.dart`를 쓴다. 시트 450ms·확인 창 300ms·토스트 450ms. 로딩은 점 세 개(`AppLoader`). 시안의 시연용 무한 반복(토스트 오르내림, 자동 밀기 등)은 실제 동작으로 대신한다. 기기의 '동작 줄이기'가 켜져 있으면 모두 끝 상태로 멈춘다.
 10. **아이콘은 Phosphor 하나.** `AppIcons.*` (없으면 `PhosphorIconsRegular.*`). 기본은 Regular(선 1.5 — 시안 아이콘 선 1.8~2에 가장 가깝다), 켜진 상태만 Fill, 줄 끝·월 이동 화살표와 작은 체크는 Bold. Material `Icons.*`·이모지 금지.
+11. **말투는 '~요', 법적 문구만 '~합니다'.** 화면 문구는 '~해요' · '~어요'. 개인정보 동의서(전문 · 동의 화면 안내 · 휴대폰 번호 안내, `lib/core/consent_terms.dart`)처럼 법적 고지는 '~합니다' · '~입니다'.
 
 ## 토큰 (`lib/core/`)
 

@@ -142,12 +142,12 @@ class _ConsentScreenState extends State<ConsentScreen> {
                     AppSpacing.xl,
                   ),
                   children: [
-                    Text('개인정보 동의가 필요해요', style: AppTextStyles.displayMd),
+                    Text('개인정보 동의가 필요합니다', style: AppTextStyles.displayMd),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       user.isMember
-                          ? '계속 쓰려면 개인정보와 건강 정보 수집 · 이용에 동의해 주세요.'
-                          : '계속 쓰려면 개인정보 수집 · 이용에 동의해 주세요.',
+                          ? '계속 이용하려면 개인정보와 건강 정보 수집 · 이용에 동의해 주십시오.'
+                          : '계속 이용하려면 개인정보 수집 · 이용에 동의해 주십시오.',
                       style: AppTextStyles.note,
                     ),
                     if (_needsPhone == true) ...[
@@ -162,7 +162,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                           LengthLimitingTextInputFormatter(13),
                         ],
                         validator: Validators.phone,
-                        helper: '센터 명단과 맞춰 보는 데만 써요. 트레이너에게는 보이지 않아요.',
+                        helper: '센터 명단 확인에만 사용하며, 트레이너에게는 공개하지 않습니다.',
                         textInputAction: TextInputAction.done,
                       ),
                     ],

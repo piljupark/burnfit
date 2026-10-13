@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:pt_solution_v2/models/feedback.dart' as fb;
 import 'package:pt_solution_v2/models/meal.dart';
 import 'package:pt_solution_v2/models/nutrition_plan.dart';
@@ -9,6 +10,9 @@ import 'package:pt_solution_v2/widgets/meal_feed.dart';
 import 'package:pt_solution_v2/widgets/nutrition_plan_card.dart';
 
 void main() {
+  // 앱은 main()에서 초기화한다. 피드백 시각이 오늘이 아니면 '어제' 같은 한국어 날짜를 쓴다.
+  setUpAll(() => initializeDateFormatting('ko'));
+
   final now = DateTime.now();
   final member = AppUser(
     uid: 'm1',
